@@ -13,6 +13,7 @@ export interface Address {
 export interface SubDistrict {
   id: string;
   districtId: string;
+  amphureId?: string;
   nameTh: string;
   nameEn: string;
   zipCode: string;
@@ -31,6 +32,9 @@ export interface Province {
   nameEn: string;
   type: string;
 }
+
+export type Amphure = District;
+export type Tumbon = SubDistrict;
 
 export interface GetProvince {
   data: Province[];

@@ -19,3 +19,7 @@ export const getSubDistrict = async () => {
     .then((response) => response.data);
   return response.data;
 };
+
+export const getAmphure = getDistrict;
+
+export const getTumbon = getSubDistrict;

@@ -126,24 +126,6 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     component: lazy(() => import('./pages/MagicLink' /* webpackChunkName: "app" */))
   },
   {
-    path: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
-    component: lazy(() => import('./pages/SupplierManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN],
-    requiredPermissions: []
-  },
-  {
-    path: ROUTE_PATHS.SUPPLIER_DETAIL,
-    component: lazy(
-      () => import('./pages/SupplierManagement/Detail' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.SUPPLIER_NEW,
-    component: lazy(() => import('./pages/SupplierManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
     path: ROUTE_PATHS.STAFF_MANAGEMENT,
     component: lazy(() => import('./pages/StaffManagement' /* webpackChunkName: "app" */)),
     allowedRoles: [ROLES.SUPER_ADMIN]
@@ -414,17 +396,6 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.NEW_PRODUCT,
     component: lazy(() => import('./pages/ProductList/New' /* webpackChunkName: "app" */)),
     allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN_BKK, ROLES.ADMIN_PROVINCE]
-  },
-  {
-    path: ROUTE_PATHS.PRODUCT_SUPPLIER,
-    component: lazy(() => import('./pages/ProductSupplier' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.PROCUREMENT,
-      ROLES.PROCUREMENT_ADMIN
-    ]
   },
   {
     path: ROUTE_PATHS.MANUAL,

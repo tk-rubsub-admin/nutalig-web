@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  app:
+    container_name: web-admin
+    image: docker-react-i
+    build:
+      context: .
+    ports:
+      - 5002:80

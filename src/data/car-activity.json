@@ -1,0 +1,384 @@
+{
+  "pagination": {
+    "total": 15,
+    "page": 1,
+    "pages": 2,
+    "pageSize": 10
+  },
+  "activities": [
+    {
+      "id": "ACT001",
+      "carModel": {
+        "brand_name": "Tesla",
+        "model_name": "Long Range",
+        "color_name": "White"
+      },
+      "plateNumber": "กก1234 กทม",
+      "status": "in_use",
+      "schedules": [
+        {
+          "id": "d5b2c330-7c9c-49c2-ba29-3adaa987c607",
+          "startDate": "2022-11-01T17:00:00.000Z",
+          "endDate": "2022-11-10T16:59:59.999Z",
+          "service": "repair",
+          "status": "out_of_service",
+          "remark": "Maintenance of November",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "d0c1e9c2-af01-428d-906a-ae67e20110a1",
+          "startDate": "2022-09-01T17:00:00.000Z",
+          "endDate": "2022-09-10T16:59:59.999Z",
+          "service": "repair",
+          "status": "out_of_service",
+          "remark": "Maintenance of September",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "fcfc63d2-538b-4193-b147-16413a34dbca",
+          "startDate": "2022-07-07T17:00:00.000Z",
+          "endDate": "2022-07-08T16:59:59.999Z",
+          "service": "repair",
+          "status": "out_of_service",
+          "remark": "Wrap body color",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "fcfc63d2-538b-4193-b147-16413a34dbbb",
+          "startDate": "2022-07-05T17:00:00.000Z",
+          "endDate": "2022-07-07T16:59:59.999Z",
+          "service": "repair",
+          "status": "out_of_service",
+          "remark": "Maintenance of July",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "6093fcf3-b7a6-4776-b532-4149d79d005f",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-08-01T03:00:00.000Z",
+          "service": "subscription",
+          "status": "in_use",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "-",
+          "subscriptionId": "c937db62-0586-494f-9434-32c800bbcf47"
+        },
+        {
+          "id": "8b1898a7-5c46-4940-3213-49c4dc3a91ac",
+          "startDate": "2022-06-29T17:00:00.000Z",
+          "endDate": "2022-06-30T16:59:59.999Z",
+          "service": "reserved",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "515b804a-df0e-4191-9669-87fc73a45a50",
+          "startDate": "2022-06-27T17:00:00.000Z",
+          "endDate": "2022-06-28T16:59:59.999Z",
+          "service": "preventiveMaintenance",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "e80a08be-1fcb-4bad-b982-26fb73ef5b99",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "reserved",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "0af86006-bf87-4021-8df9-54f9dde08ee1",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "PR",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "15037b59-eec4-4b63-9c58-1932385986fe",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "marketing",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "be8f10f8-948c-478c-bd08-770c5e975837",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "breakdown",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "1e2fe56f-ed67-4fcd-9a89-89cfb480951c",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "repair",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "d69be34a-2863-47af-abde-67eb25bc991b",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "internal",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "45c5fa2e-3fd0-4daf-9d07-45ea2cfef017",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "carpool",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "993eda24-2a6e-4ed7-9e83-1e0ee72c88f4",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "b2bDelivered",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "8b1898a7-5c46-4940-b7d7-49c4dc3a91ac",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "B2BPendingDelivered",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "56a7ad7c-a23f-4260-aa84-621bb58e40c7",
+          "startDate": "2022-06-30T16:59:59.999Z",
+          "endDate": "2022-07-01T22:00:00.000Z",
+          "service": "redPlate",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "afe0da34-44ca-40a8-adf7-ae60ce9212e4",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-10-08T03:00:00.000Z",
+          "service": "",
+          "status": "available",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        }
+      ]
+    },
+    {
+      "id": "ACT002",
+      "carModel": {
+        "brand_name": "Tesla",
+        "model_name": "Long Range",
+        "color_name": "Black"
+      },
+      "plateNumber": "ขข1234 กทม",
+      "status": "in_use"
+    },
+    {
+      "id": "ACT003",
+      "carModel": {
+        "brand_name": "Tesla",
+        "model_name": "Long Range",
+        "color_name": "Gray"
+      },
+      "plateNumber": "คค1234 กทม",
+      "status": "in_use"
+    },
+    {
+      "id": "ACT004",
+      "carModel": {
+        "brand_name": "Tesla",
+        "model_name": "Long Range",
+        "color_name": "Blue"
+      },
+      "plateNumber": "งง1234 กทม",
+      "status": "in_use"
+    },
+    {
+      "id": "ACT005",
+      "carModel": {
+        "brand_name": "Tesla",
+        "model_name": "Long Range",
+        "color_name": "Red"
+      },
+      "plateNumber": "จจ1234 กทม",
+      "status": "in_use"
+    },
+    {
+      "id": "ACT006",
+      "carModel": {
+        "brand_name": "Lexus",
+        "model_name": "UX 300e",
+        "color_name": "White"
+      },
+      "plateNumber": "ฉฉ1234 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT007",
+      "carModel": {
+        "brand_name": "Lexus",
+        "model_name": "UX 300e",
+        "color_name": "White"
+      },
+      "plateNumber": "ฉฉ5678 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT008",
+      "carModel": {
+        "brand_name": "BMW",
+        "model_name": "iX3",
+        "color_name": "White"
+      },
+      "plateNumber": "ชช1234 กทม",
+      "status": "in_use"
+    },
+    {
+      "id": "ACT009",
+      "carModel": {
+        "brand_name": "Volvo",
+        "model_name": "XC40 Recharge Pure Electric",
+        "color_name": "White"
+      },
+      "plateNumber": "ญญ1234 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT010",
+      "carModel": {
+        "brand_name": "Prosche",
+        "model_name": "Taycan Base Model",
+        "color_name": "Red"
+      },
+      "plateNumber": "ฏฏ1234 กทม",
+      "status": "out_of_service"
+    },
+    {
+      "id": "ACT011",
+      "carModel": {
+        "brand_name": "Audi",
+        "model_name": "e-tron Sportback 55 quattro S Line",
+        "color_name": "White"
+      },
+      "plateNumber": "ดด1234 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT012",
+      "carModel": {
+        "brand_name": "Hyundai",
+        "model_name": "IONIQ 6",
+        "color_name": "White"
+      },
+      "plateNumber": "ศศ1234 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT013",
+      "carModel": {
+        "brand_name": "Hyundai",
+        "model_name": "IONIQ 6",
+        "color_name": "White"
+      },
+      "plateNumber": "ศศ5678 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT014",
+      "carModel": {
+        "brand_name": "Hyundai",
+        "model_name": "IONIQ 6",
+        "color_name": "White"
+      },
+      "plateNumber": "ศศ91011 กทม",
+      "status": "available"
+    },
+    {
+      "id": "ACT015",
+      "carModel": {
+        "brand_name": "Tesla",
+        "model_name": "Long Range",
+        "color_name": "Red"
+      },
+      "plateNumber": "จจ5678 กทม",
+      "status": "in_use",
+      "activities": [
+        {
+          "id": "48627b9e-f0f1-4a09-9cf4-0b2d840bb229",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-10-08T03:00:00.000Z",
+          "service": "reserved",
+          "status": "available",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        },
+        {
+          "id": "6adfe68e-3fec-4002-911a-ad5f8e85d260",
+          "startDate": "2022-07-01T23:00:00.000Z",
+          "endDate": "2022-07-03T03:00:00.000Z",
+          "service": "marketing",
+          "status": "out_of_service",
+          "remark": "",
+          "modifyDate": "2022-07-01T23:00:00.000Z",
+          "modifyBy": "mockup@evme.io",
+          "subscriptionId": ""
+        }
+      ]
+    }
+  ]
+}

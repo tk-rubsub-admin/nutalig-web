@@ -1,0 +1,33 @@
+{
+  "additionalExpenses": {
+    "totalCount": 1,
+    "pageInfo": {
+      "hasNextPage": false,
+      "hasPreviousPage": false,
+      "startCursor": "YXJyYXljb25uZWN0aW9uOjA=",
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjA="
+    },
+    "edges": [
+      {
+        "node": {
+          "id": "a347554a-dc97-4119-91fd-34bd30263840",
+          "subscriptionId": "ecaf8c18-b513-498f-b4b9-1822521b450e",
+          "subscription": {
+            "userId": "027382b1-0b3b-4784-bba8-863daa7634de",
+            "user": {
+              "firstName": null,
+              "lastName": null
+            }
+          },
+          "status": "created",
+          "type": "repair",
+          "note": "test",
+          "price": 5000,
+          "noticeDate": "2021-06-17T17:36:00.000Z",
+          "createdAt": "2021-06-16T16:37:13.423Z",
+          "updatedAt": "2021-06-16T16:37:13.423Z"
+        }
+      }
+    ]
+  }
+}

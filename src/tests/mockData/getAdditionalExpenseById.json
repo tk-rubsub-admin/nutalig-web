@@ -1,0 +1,14 @@
+{
+  "additionalExpense": {
+    "id": "ae174498-8873-4f16-8115-51677f45cf42",
+    "subscriptionId": "cd3bfbcd-5e93-4448-9318-d5971e22a220",
+    "price": 3178,
+    "type": "maintenance",
+    "noticeDate": "2021-06-22T13:06:32.210Z",
+    "status": "informed",
+    "note": null,
+    "files": [],
+    "createdAt": "2021-06-08T06:08:50.855Z",
+    "updatedAt": "2021-06-08T06:08:50.855Z"
+  }
+}

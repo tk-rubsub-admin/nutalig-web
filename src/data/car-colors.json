@@ -1,0 +1,110 @@
+[
+  {
+    "id": "COLOR001",
+    "name": "Red",
+    "brand_id": "BRAND001",
+    "model_id": "MODEL001"
+  },
+  {
+    "id": "COLOR002",
+    "name": "Black",
+    "brand_id": "BRAND001",
+    "model_id": "MODEL001"
+  },
+  {
+    "id": "COLOR003",
+    "name": "Red/Back",
+    "brand_id": "BRAND001",
+    "model_id": "MODEL001"
+  },
+  {
+    "id": "COLOR004",
+    "name": "White",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL002"
+  },
+  {
+    "id": "COLOR005",
+    "name": "Black",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL002"
+  },
+  {
+    "id": "COLOR006",
+    "name": "Gray",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL002"
+  },
+  {
+    "id": "COLOR007",
+    "name": "Blue",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL002"
+  },
+  {
+    "id": "COLOR008",
+    "name": "Red",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL002"
+  },
+  {
+    "id": "COLOR009",
+    "name": "White",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL003"
+  },
+  {
+    "id": "COLOR010",
+    "name": "Black",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL003"
+  },
+  {
+    "id": "COLOR011",
+    "name": "Gray",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL003"
+  },
+  {
+    "id": "COLOR012",
+    "name": "Blue",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL003"
+  },
+  {
+    "id": "COLOR013",
+    "name": "Red",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL003"
+  },
+  {
+    "id": "COLOR014",
+    "name": "White",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL004"
+  },
+  {
+    "id": "COLOR015",
+    "name": "Black",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL004"
+  },
+  {
+    "id": "COLOR016",
+    "name": "Gray",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL004"
+  },
+  {
+    "id": "COLOR017",
+    "name": "Blue",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL004"
+  },
+  {
+    "id": "COLOR018",
+    "name": "Red",
+    "brand_id": "BRAND002",
+    "model_id": "MODEL004"
+  }
+]

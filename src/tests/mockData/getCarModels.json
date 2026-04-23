@@ -1,0 +1,133 @@
+{
+  "carModels": {
+    "totalCount": 8,
+    "pageInfo": {
+      "hasNextPage": false,
+      "hasPreviousPage": false,
+      "startCursor": "YXJyYXljb25uZWN0aW9uOjA=",
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjc="
+    },
+    "edges": [
+      {
+        "node": {
+          "id": "c17b051b-8597-4296-8cd4-87b91567e1fc",
+          "brand": "Jaguar",
+          "model": "I-Pace",
+          "seats": 5,
+          "acceleration": 4.8,
+          "topSpeed": 200,
+          "range": 470,
+          "totalPower": 294,
+          "totalTorque": 40,
+          "chargeTime": 621,
+          "fastChargeTime": 377
+        }
+      },
+      {
+        "node": {
+          "id": "0845cbf3-56b7-4849-8e94-49cbb101ebce",
+          "brand": "Lexus UX",
+          "model": "300e",
+          "seats": 5,
+          "acceleration": 7.5,
+          "topSpeed": 150,
+          "range": 300,
+          "totalPower": 150,
+          "totalTorque": 239,
+          "chargeTime": 815,
+          "fastChargeTime": 364
+        }
+      },
+      {
+        "node": {
+          "id": "0d82e465-7521-48d9-abdc-97a009096c37",
+          "brand": "Tesla",
+          "model": "Model 3",
+          "seats": 5,
+          "acceleration": 4.2,
+          "topSpeed": 233,
+          "range": 580,
+          "totalPower": 319,
+          "totalTorque": 23,
+          "chargeTime": 282,
+          "fastChargeTime": 4
+        }
+      },
+      {
+        "node": {
+          "id": "955a415e-a9b4-40a7-b8d2-35b46cbf515b",
+          "brand": "Hyundai",
+          "model": "Kona",
+          "seats": 5,
+          "acceleration": 9.7,
+          "topSpeed": 155,
+          "range": 312,
+          "totalPower": 100,
+          "totalTorque": 191,
+          "chargeTime": 234,
+          "fastChargeTime": 216
+        }
+      },
+      {
+        "node": {
+          "id": "35c16ea4-7783-4ec9-8e0f-9aa728faa8d0",
+          "brand": "Renault",
+          "model": "Zoe",
+          "seats": 2,
+          "acceleration": 9.5,
+          "topSpeed": 135,
+          "range": 395,
+          "totalPower": 108,
+          "totalTorque": 165,
+          "chargeTime": 160,
+          "fastChargeTime": 92
+        }
+      },
+      {
+        "node": {
+          "id": "423ea27b-d811-41aa-9445-fd32ea44918d",
+          "brand": "Nissan",
+          "model": "Leaf-2",
+          "seats": 5,
+          "acceleration": 7.9,
+          "topSpeed": 140,
+          "range": 311,
+          "totalPower": 110,
+          "totalTorque": 151,
+          "chargeTime": 389,
+          "fastChargeTime": 61
+        }
+      },
+      {
+        "node": {
+          "id": "f965ecb5-55f2-4f85-bebf-fc0fcb1c5ec1",
+          "brand": "Dacia",
+          "model": "Spring",
+          "seats": 5,
+          "acceleration": 15,
+          "topSpeed": 125,
+          "range": 225,
+          "totalPower": 108,
+          "totalTorque": 220,
+          "chargeTime": 613,
+          "fastChargeTime": 431
+        }
+      },
+      {
+        "node": {
+          "id": "4ecbbba2-de2c-4c5a-9b65-a1e3c6a016a3",
+          "brand": "MG",
+          "model": "EP",
+          "seats": 5,
+          "acceleration": 8.8,
+          "topSpeed": 185,
+          "range": 380,
+          "totalPower": 120,
+          "totalTorque": 95,
+          "chargeTime": 309,
+          "fastChargeTime": 184
+        }
+      }
+    ]
+  }
+}

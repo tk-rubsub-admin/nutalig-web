@@ -1,0 +1,167 @@
+/* ================= Indigo Blue ================= */
+.btn-indigo-blue {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+.btn-indigo-blue:hover:not(.Mui-disabled) {
+  background-color: #1e40af !important;
+}
+.btn-indigo-blue.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}
+
+/* ================= Amber Orange ================= */
+.btn-amber-orange {
+  background-color: #ffa349 !important;
+  color: #ffffff !important;
+}
+.btn-amber-orange:hover:not(.Mui-disabled) {
+  background-color: #f97316 !important;
+}
+.btn-amber-orange.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}
+
+/* ================= Emerald Green ================= */
+.btn-emerald-green {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+}
+.btn-emerald-green:hover:not(.Mui-disabled) {
+  background-color: #15803d !important;
+}
+.btn-emerald-green.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}
+
+/* ================= Baby Blue ================= */
+.btn-baby-blue {
+  background-color: #c9e3ff !important;
+  color: #1f2937 !important;
+}
+.btn-baby-blue:hover:not(.Mui-disabled) {
+  background-color: #a5d1ff !important;
+}
+.btn-baby-blue.Mui-disabled {
+  background-color: #e5e7eb !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+/* ================= Green Teal ================= */
+.btn-green-teal {
+  background-color: #0d9488 !important;
+  color: #ffffff !important;
+}
+.btn-green-teal:hover:not(.Mui-disabled) {
+  background-color: #0f766e !important;
+}
+.btn-green-teal.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}
+
+/* ================= Cool Grey ================= */
+.btn-cool-grey {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
+}
+.btn-cool-grey:hover:not(.Mui-disabled) {
+  background-color: #d1d5db !important;
+}
+.btn-cool-grey.Mui-disabled {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+/* ================= Crimson Red ================= */
+.btn-crimson-red {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+.btn-crimson-red:hover:not(.Mui-disabled) {
+  background-color: #b91c1c !important;
+}
+.btn-crimson-red.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}
+
+/* ================= Pastel Green ================= */
+.btn-pastel-green {
+  background-color: #c4ffc3 !important;
+  color: #065f46 !important;
+}
+.btn-pastel-green:hover:not(.Mui-disabled) {
+  background-color: #9ef5a0 !important;
+}
+.btn-pastel-green.Mui-disabled {
+  background-color: #e5e7eb !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+/* ================= Slate Gray ================= */
+.btn-slate-grey {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+}
+.btn-slate-grey:hover:not(.Mui-disabled) {
+  background-color: #1f2937 !important;
+}
+.btn-slate-grey.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}
+
+/* ================= Pastel Yellow ================= */
+.btn-pastel-yellow {
+  background-color: #fee986 !important;
+  color: #78350f !important;
+}
+.btn-pastel-yellow:hover:not(.Mui-disabled) {
+  background-color: #fde047 !important;
+}
+.btn-pastel-yellow.Mui-disabled {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+/* ================= Lavender Pink ================= */
+.btn-lavender-pink {
+  background-color: #fcaeff !important;
+  color: #701a75 !important;
+}
+.btn-lavender-pink:hover:not(.Mui-disabled) {
+  background-color: #f472d0 !important;
+}
+.btn-lavender-pink.Mui-disabled {
+  background-color: #f3f4f6 !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+/* ================= Forest Green ================= */
+.btn-forest-green {
+  background-color: #15803d !important;
+  color: #ffffff !important;
+}
+.btn-forest-green:hover:not(.Mui-disabled) {
+  background-color: #166534 !important;
+}
+.btn-forest-green.Mui-disabled {
+  background-color: #9ca3af !important;
+  color: #f3f4f6 !important;
+  cursor: not-allowed;
+}

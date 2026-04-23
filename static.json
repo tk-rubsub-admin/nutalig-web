@@ -1,0 +1,8 @@
+{
+  "root": "build/",
+  "basic_auth": true,
+  "routes": {
+    "/images/*": "/images/",
+    "/**": "index.html"
+  }
+}

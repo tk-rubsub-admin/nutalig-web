@@ -1,0 +1,58 @@
+[
+  {
+    "id": "BRAND001",
+    "name": "Ford"
+  },
+  {
+    "id": "BRAND002",
+    "name": "Tesla"
+  },
+  {
+    "id": "BRAND003",
+    "name": "Lexus"
+  },
+  {
+    "id": "BRAND004",
+    "name": "BMW"
+  },
+  {
+    "id": "BRAND005",
+    "name": "Honda"
+  },
+  {
+    "id": "BRAND006",
+    "name": "Volvo"
+  },
+  {
+    "id": "BRAND007",
+    "name": "Mini Cooper"
+  },
+  {
+    "id": "BRAND008",
+    "name": "Hyundai"
+  },
+  {
+    "id": "BRAND009",
+    "name": "Nissan"
+  },
+  {
+    "id": "BRAND010",
+    "name": "GWM"
+  },
+  {
+    "id": "BRAND011",
+    "name": "MG"
+  },
+  {
+    "id": "BRAND012",
+    "name": "Prosche"
+  },
+  {
+    "id": "BRAND013",
+    "name": "Audi"
+  },
+  {
+    "id": "BRAND014",
+    "name": "Jaguar"
+  }
+]

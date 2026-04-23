@@ -1,0 +1,601 @@
+{
+  "commons": {
+    "search": "ຊອກຫາ",
+    "confirm": "ຕົກລົງ",
+    "cancel": "ຍົກເລີກ"
+  },
+  "header": {
+    "aria": {
+      "sidebarToggle": "สลับแถบด้านข้าง",
+      "logo": "โลโก้บริษัท",
+      "changeLanguage": "ປ່ຽນພາສາ",
+      "settings": "ຕັ້ງຄ່າ",
+      "login": "ເຂົ້າສູ່ລະບົບ"
+    },
+    "menu": {
+      "profile": "ບັນທຶກ",
+      "logout": "ອອກຈາກລະບົບ"
+    },
+    "version": "ຮຸ່ນ"
+  },
+  "sidebar": {
+    "pages": "ຫນ້າຕ່າງໆ",
+    "dashboard": "ແຜງໜ້າປັດ",
+    "profile": "ບັນທຶກ",
+    "settings": "ຕັ້ງຄ່າ",
+    "itemManagement": "ຜະລິດຕະພັນແລະການຄຸ້ມຄອງຫຼັກຊັບ",
+    "userManagement": {
+      "title": "การจัดการผู้ใช้งาน",
+      "customerProfile": "โปรไฟล์ลูกค้า",
+      "staffProfile": "โปรไฟล์พนักงาน",
+      "userGroup": "กลุ่มผู้ใช้งาน",
+      "adminUsers": "ผู้ใช้งานระบบหลังบ้าน"
+    },
+    "carrierManagement": "การจัดการขนส่ง",
+    "customerManagement": "การจัดการลูกค้า",
+    "leadManagement": "การจัดการ LEAD",
+    "customerRelationshipManagement": {
+      "title": "การจัดการความสัมพันธ์ลูกค้า",
+      "orderTracking": "บันทึกการติดตามคำสั่งซื้อ/สินค้า",
+      "outboundRecord": "บันทึกประวัติการโทรหาลูกค้า",
+      "userComplain": "บันทึกข้อร้องเรียน/ติชม"
+    },
+    "staffManagement": {
+      "title": "ການຄຸ້ມຄອງພະນັກງານ"
+    },
+    "supplierManagement": {
+      "title": "ການຄຸ້ມຄອງຄູ່ຮ່ວມງານ"
+    },
+    "purchaseOrderManagement": {
+      "title": "ການຈັດການຂໍ້ມູນຄໍາສັ່ງ"
+    }
+  },
+  "button": {
+    "add": "ເພີ່ມ",
+    "signIn": "ເຂົ້າລະບົບ",
+    "signOut": "ອອກຈາກລະບົບ",
+    "create": "ສ້າງ",
+    "update": "ອັບເດດຂໍ້ມູນ",
+    "delete": "ລົບ",
+    "cancel": "ຍົກເລີກ",
+    "close": "ປິດ",
+    "confirm": "ຢືນຢັນ",
+    "search": "ຄົ້ນຫາ",
+    "clear": "ລ້າງ",
+    "back": "ກັບຄືນ",
+    "invite": "ເຊີນຊວນ",
+    "filter": "ກອງຂໍ້ມູນ",
+    "export": "ສົ່ງອອກຂໍ້ມູນ",
+    "clearAll": "ລ້າງທັງໝົດ",
+    "save": "ບັນທຶກ",
+    "addNew": "ເພີ່ມໃໝ່",
+    "upload": "ອັບໂຫລດຮູບພາບ",
+    "download": "ດາວໂຫລດ",
+    "disabled": "ປິດການໃຊ້ງານຊົ່ວຄາວ",
+    "enabled": "ເປີດການໃຊ້ງານ",
+    "transfer": "ຍ້າຍຂໍ້ມູນ",
+    "saveFile": "ບັນທຶກໄຟລ໌",
+    "importOrder": "ນຳເຂົ້າຄຳສັ່ງຊື້",
+    "importStocks": "ນຳເຂົ້າຂໍ້ມູນ",
+    "print": "ພິມ",
+    "copy": "ຄັດລອກ"
+  },
+  "general": {
+    "search": "ຄົ້ນຫາຂໍ້ມູນ",
+    "createdDate": "ວັນ-ເວລາທີ່ສ້າງ",
+    "createdBy": "ສ້າງໂດຍ",
+    "updatedDate": "ວັນ-ເວລາທີ່ປັບປຸງລ່າສຸດ",
+    "updatedBy": "ປັບປຸງລ່າສຸດໂດຍ",
+    "plural": "",
+    "statuses": {
+      "active": "ກຳລັງໃຊ້ງານ",
+      "inactive": "ບໍ່ໄດ້ໃຊ້ງານ"
+    }
+  },
+  "datetimePicker": {
+    "invalidDateMessage": "ຮູບແບບວັນທີບໍ່ຖືກຕ້ອງ",
+    "invalidLabel": "ເກີດຂໍ້ຜິດພາດ",
+    "cancelLabel": "ຍົກເລີກ",
+    "clearLabel": "ລ້າງ",
+    "okLabel": "ຕົກລົງ",
+    "todayLabel": "ມື້ນີ້"
+  },
+  "toast": {
+    "loading": "ກຳລັງຫາກລອດ...",
+    "success": "ສຳເລັດ",
+    "failed": "ບໍ່ສຳເລັດ"
+  },
+  "authentication": {
+    "success": "เข้าสู่ระบบสำเร็จ",
+    "error": {
+      "emailRequired": "ระบุอีเมล",
+      "usernameRequired": "ระบุชื่อผู้ใช้งาน",
+      "passwordRequired": "ระบุรหัสผ่าน",
+      "invalidEmail": "อีเมลไม่ถูกต้อง",
+      "invalidPassword": "รหัสผ่านไม่ถูกต้อง",
+      "invalidUserToken": "รหัส Token ไม่ถูกต้อง",
+      "invalidCredential": "การยืนยันตัวตนไม่ถูกต้อง",
+      "userNotFound": "ไม่มีชื่อผู้ใช้นี้ในระบบ",
+      "userDisabled": "ชื่อผู้ใช้นี้ไม่สามารถใช้งานได้",
+      "userTokenExpired": "รหัส Token หมดอายุ",
+      "userMismatch": "ชื่อผู้ใช้ไม่ตรงกัน",
+      "weakPassword": "รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร ประกอบด้วยตัวเล็ก ตัวใหญ่และรวมถึงสัญญาลักษณพิเศษอย่างน้อยอย่างละ 1 ตัวอักษร",
+      "requiresRecentLogin": "กรุณาลงชื่อเข้าใช้ระบบอีกครั้ง",
+      "authenticationFailed": "เข้าสู่ระบบไม่สำเร็จ",
+      "permissionNotAllowed": "ไม่มีสิทธิ์ในการใช้งาน",
+      "unknownError": "เกิดข้อผิดพลาดในการเข้าใช้งานระบบ, กรุณาติดต่อทีมดูแลระบบ",
+      "passwordCondition": "รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร ประกอบด้วยตัวเล็ก ตัวใหญ่และรวมถึงสัญญาลักษณพิเศษอย่างน้อยอย่างละ 1 ตัวอักษร",
+      "accessDenied": "ไม่มีสิทธิ์เข้าใช้งาน",
+      "userNotRegistered": "ผู้ใช้ยังไม่ได้ทำการลงทะเบียน กรุณาติดต่อผู้ดูแลระบบเพื่อลงทะเบียนใช้งานระบบ",
+      "authenticatorMismatch": "อีเมลของผู้ใช้งานลงทะเบียนด้วยอีเมลและรหัสผ่าน กรุณาลงชื่อเข้าใช้ด้วยอีเมลและรหัสผ่านที่ได้ลงทะเบียนไว้"
+    }
+  },
+  "login": {
+    "title": "DPK Flower",
+    "email": "อีเมลผู้ใช้งาน",
+    "username": "ชื่อผู้ใช้งาน",
+    "password": "รหัสผ่าน",
+    "rememberMe": "จำรหัสผ่านของฉัน"
+  },
+  "home": {
+    "title": "ยินดีต้อนรับเข้าสู่ DPK Flower"
+  },
+  "forbidden": {
+    "title": "403 - คุณไม่มีสิทธิ์ในการเข้าถึง"
+  },
+  "notFound": {
+    "title": "404 - ไม่พบหน้า"
+  },
+  "supplierManagement": {
+    "title": "การจัดการคู่ค้า",
+    "supplier": "คู่ค้า",
+    "searchPanel": "ค้นหาคู่ค้า",
+    "detail": "รายละเอียด",
+    "action": {
+      "create": "สร้างคู่ค้าใหม่",
+      "edit": "แก้ไขรายละเอียด",
+      "view": "ดูรายละเอียด",
+      "action": "Action",
+      "deleteType": "ลบประเภทคู่ค้า",
+      "addType": "เพิ่มประเภทคู่ค้า",
+      "deleteAccount": "ลบบัญชี",
+      "addAccount": "เพิ่มบัญชี"
+    },
+    "placeHolder": {
+      "id": "กรุณาระบุรหัสคู่ค้า",
+      "name": "กรุณาระบุชื่อคู่ค้า",
+      "type": "กรุณาเลือกประเภทคู่ค้า",
+      "productType": "กรุณาเลือกหมวดหมู่สินค้า"
+    },
+    "column": {
+      "id": "รหัสคู่ค้า",
+      "name": "ชื่อคู่ค้า",
+      "status": "สถานะคู่ค้า",
+      "rank": "ระดับคู่ค้า",
+      "mainProduct": "สินค้าหลัก",
+      "productType": "หมวดหมู่สินค้าที่ขาย",
+      "contactName": "ชื่อผู้ติดต่อ",
+      "contactNumber": "เบอร์ผู้ติดต่อ",
+      "phoneContactName": "ชื่อสำหรับ Contact โทรศัพท์",
+      "lineContactName": "ชื่อสำหรับกลุ่ม Line",
+      "behavior": "ลักษณะนิสัย",
+      "senderName": "ชื่อผู้ส่งสินค้า",
+      "workingHours": "เวลาให้บริการ",
+      "startWorkingHour": "เวลาเปิดให้บริการ",
+      "endWorkingHour": "เวลาปิดให้บริการ",
+      "period": "วันที่สามารถสั่งซื้อสินค้า",
+      "orderMethod": "วิธีการสั่งซื้อสินค้า",
+      "sendingMethod": "วิธีการส่งสินค้า",
+      "address": {
+        "title": "ที่อยู่",
+        "addNew": "เพิ่มข้อมูลที่อยู่",
+        "tumbon": "ตำบล/แขวง",
+        "amphure": "อำเภอ/เขต",
+        "province": "จังหวัด",
+        "postalCode": "รหัสไปรษณีย์",
+        "location": "โลเคชั่นของร้าน"
+      },
+      "creditTerm": "เงื่อนไขเครดิต",
+      "transferMethod": "วิธีการจ่ายเงิน",
+      "types": {
+        "title": "ประเภทคู่ค้า",
+        "id": "รหัสประเภทคู่ค้า",
+        "name": "ชื่อประเภทคู่ค้า"
+      },
+      "account": {
+        "title": "ข้อมูลบัญชีธนาคาร",
+        "name": "ชื่อบัญชี",
+        "number": "เลขที่บัญชี",
+        "bankName": "ธนาคาร"
+      }
+    }
+  },
+  "staffManagement": {
+    "title": "ການຈັດການພະນັກງານ",
+    "staff": "ພະນັກງານ",
+    "searchPanel": "ຄົ້ນຫາພະນັກງານ",
+    "detail": "ລາຍລະອຽດ",
+    "action": {
+      "create": "ສ້າງພະນັກງານໃໝ່",
+      "edit": "ແກ້ໄຂລາຍລະອຽດ",
+      "view": "ດູລາຍລະອຽດ",
+      "inactive": "ລະງັບການໃຊ້ງານຊົວຄາວ",
+      "active": "ເປີດການໃຊ້ງານ",
+      "delete": "ລົບພະນັກງານ"
+    },
+    "column": {
+      "id": "ລະຫັດພະນັກງານ",
+      "name": "ຊື່ພະນັກງານ",
+      "lastname": "ນາມສະກຸນພະນັກງານ",
+      "nickname": "ຊື່ເຫົາ",
+      "telNo": "ເບີໂທ",
+      "duty": "ຫນ້າທີຄວາມຮັບຜິດຊອບ",
+      "startWorkingHour": "ເວລາເຂົ້າງານ",
+      "endWorkingHour": "ເວລາລາກງານ",
+      "startWorkingDate": "ວັນທີເລີ່ມງານວັນແລກ",
+      "company": "ບໍລິສັດ",
+      "role": "ຕຳແໜ່ງ",
+      "type": "ປະເພດ",
+      "nationality": "ສັຍຊາດ",
+      "status": "ສະຖານະພະນັກງານ",
+      "workingspace": "ສະຖານທີ່ທຳງານ"
+    },
+    "validateMessage": {
+      "firstName": "ກະລຸນາລະບຸຊື່ພະນັກງານ",
+      "lastName": "ກະລຸນາລະບຸນາມສະກຸນພະນັກງານ",
+      "nickname": "ກະລຸນາລະບຸຊື່ເຫົາ",
+      "nationality": "ກະລຸນາເລືອກສັຍຊາດ",
+      "roleCode": "ກະລຸນາເລືອກຕຳແໜ່ງຂອງພະນັກງານ",
+      "company": "ກະລຸນາເລືອກບໍລິສັດ",
+      "workspace": "ກະລຸນາເລືອກສະຖານທີ່ທຳງານ"
+    },
+    "newStaff": "ສ້າງພະນັກງານໃໝ່",
+    "confirmMsgNewStaff": "ທ່ານແນ່ໃຈບໍຫົວການສ້າງພະນັກງານໃໝ່",
+    "updateStaff": "ອັບເດດຂໍ້ມູນພະນັກງານ",
+    "confirmMsgUpdateStaff": "ທ່ານແນ່ໃຈບໍຫົວການອັບເດດພະນັກງານ",
+    "updateStaffSuccess": "ອັບເດດຂໍ້ມູນພະນັກງານສຳເລັດ",
+    "updateStaffFailed": "ອັບເດດຂໍ້ມູນພະນັກງານບໍສຳເລັດ ເນື່ອງຈາກ ",
+    "inactiveStaff": "ລະງັບການໃຊ້ງານຊົ່ວຄາວ",
+    "confirmMsgInactiveStaff": "ທ່ານແນ່ໃຈບໍວ່າຈະລະງັບການໃຊ້ງານຊົ່ວຄາວຂອງພະນັກງານ",
+    "activeStaff": "ເປີດການໃຊ້ງານ",
+    "confirmMsgActiveStaff": "ທ່ານແນ່ໃຈບໍວ່າຈະເປີດການໃຊ້ງານຂອງພະນັກງານ",
+    "deleteStaff": "ລົບພະນັກງານ",
+    "confirmMsgDeleteStaff": "ທ່ານແນ່ໃຈບໍວ່າຈະລົບພະນັກງານ (ບໍ່ສາມາດກູ້ຄືນຂໍ້ມູນໄດ້)",
+    "deleteStaffSuccess": "ລົບພະນັກງານສຳເລັດ",
+    "deleteStaffFailed": "ລົບພະນັກງານບໍ່ສຳເລັດ ເນື່ອງຈາກ ",
+    "inactiveStaffSuccess": "ລະງັບການໃຊ້ງານຊົ່ວຄາວສຳເລັດ",
+    "inactiveStaffFailed": "ລະງັບການໃຊ້ງານຊົ່ວຄາວບໍ່ສຳເລັດ ເນື່ອງຈາກ ",
+    "activeStaffSuccess": "ເປີດການໃຊ້ງານສຳເລັດ",
+    "activeStaffFailed": "ເປີດການໃຊ້ງານບໍ່ສຳເລັດ ເນື່ອງຈາກ ",
+    "createStaffSuccess": "ສ້າງຂໍ້ມູນພະນັກງານສຳເລັດ",
+    "createStaffFailed": "ສ້າງຂໍ້ມູນພະນັກງານບໍ່ສຳເລັດ ເນື່ອງຈາກ "
+  },
+  "userManagement": {
+    "title": "การจัดการผู้ใช้งาน",
+    "user": "ผู้ใช้งาน",
+    "tableHeaders": {
+      "userId": "รหัสผู้ใช้งาน",
+      "username": "ชื่อผู้ใช้งาน",
+      "email": "อีเมลผู้ใช้งาน",
+      "role": "สิทธิ์ผู้ใช้งาน",
+      "status": "สถานะผู้ใช้งาน",
+      "company": "บริษัท"
+    },
+    "status": {
+      "ACTIVE": "กำลังใช้งาน",
+      "INACTIVE": "ระงับการใช้งานชั่วคราว"
+    },
+    "actions": {
+      "resetPassword": "รีเซ็ทรหัสผ่าน",
+      "edit": "แก้ไขข้อมูลผู้ใช้งาน",
+      "setInactive": "ระงับการใช้งานชั่วคราว",
+      "delete": "ลบผู้ใช้งาน"
+    },
+    "createNewUser": {
+      "title": "สร้างผู้ใช้งานใหม่",
+      "username": "ชื่อผู้ใช้งาน",
+      "usernamePlaceholder": "กรุณาระบุชื่อผู้ใช้งาน",
+      "email": "อีเมลผู้ใช้งาน",
+      "emailPlaceholder": "กรุณาระบุอีเมลผู้ใช้งาน",
+      "password": "รหัสผ่าน",
+      "passwordPlaceholder": "กรุณาระบุรหัสผ่าน",
+      "role": "สิทธิ์ผู้ใช้งาน",
+      "rolePlaceholder": "กรุณาเลือกสิทธิ์ผู้ใช้งาน",
+      "company": "บริษัท",
+      "companyPlaceholder": "กรุณาเลือกบริษัท",
+      "confirmTitle": "สร้างผู้ใช้งานใหม่",
+      "confirmMsg": "คุณแน่ใจหรือว่าต้องการสร้างผู้ใช้งานใหม่",
+      "emailInvalid": "อีเมลไม่ถูกต้อง",
+      "createSuccess": "สร้างผู้ใช้งานสำเร็จ",
+      "createFailure": "สร้างผู้ใช้งานไม่สำเร็จ"
+    },
+    "resetPasswordDialog": {
+      "title": "รีเซ็ทรหัสผ่านใหม่สำเร็จ",
+      "message": "รหัสผ่านใหม่ของท่าน คือ "
+    }
+  },
+  "customerManagement": {
+    "title": "การจัดการข้อมูลลูกค้า",
+    "customerId": "รหัสลูกค้า",
+    "customer": "ลูกค้า",
+    "detail": "รายละเอียด",
+    "dropoff": "รายละเอียดในการจัดส่ง",
+    "action": {
+      "create": "สร้างลูกค้าใหม่",
+      "edit": "แก้ไขรายละเอียด",
+      "view": "ดูรายละเอียด",
+      "inactive": "ระงับการใช้งานชั่วคราว",
+      "active": "เปิดการใช้งาน",
+      "delete": "ลบลูกค้า",
+      "action": "Action"
+    },
+    "column": {
+      "id": "รหัสลูกค้า",
+      "name": "ชื่อร้าน",
+      "telNo": "เบอร์โทร",
+      "contactName": "ชื่อผู้ติดต่อ",
+      "rank": "ระดับลูกค้า",
+      "gender": "เพศลูกค้า",
+      "dateOfBirth": "วัน/เดือน/ปี เกิด",
+      "type": "ประเภทลูกค้า",
+      "taxId": "เลขบัตรประชาชน/เลขประจำตัวผู้เสียภาษี",
+      "address": {
+        "title": "ที่อยู่",
+        "addNew": "เพิ่มข้อมูลที่อยู่",
+        "tumbon": "ตำบล/แขวง",
+        "amphure": "อำเภอ/เขต",
+        "province": "จังหวัด",
+        "postalCode": "รหัสไปรษณีย์",
+        "location": "โลเคชั่นของร้าน"
+      },
+      "company": {
+        "name": "ชื่อบริษัท",
+        "branchName": "ชื่อสาขา",
+        "branchCode": "รหัสสาขา"
+      },
+      "sendingBillMethod": "ช่องทางการส่งบิล",
+      "orderChannel": "ช่องทางการติดต่อที่สะดวก",
+      "purchaseChannel": "ช่องทางการสั่งซื้อที่สะดวก",
+      "behavior": "ลักษณะนิสัย",
+      "creditTerm": "เงื่อนไขการให้เครดิต",
+      "dropOff": {
+        "no": "จุดลงของที่ ",
+        "areaType": "ประเภทพื้นที่ลูกค้า",
+        "shippingMethod": "วิธีการส่งสินค้า",
+        "shippingFeeMethod": "วิธีการจ่ายค่าขนส่ง",
+        "transportationMethod": "วิธีการขนส่ง",
+        "supplier": "ขนส่งที่ใช้บริการ",
+        "location": "สถานที่ส่งสินค้า",
+        "envelopeName": "ชื่อหน้ากล่อง/ชื่อร้าน",
+        "address": "สถานที่ส่งสินค้า",
+        "time": "เวลาส่งสินค้า",
+        "remark": "หมายเหตุ",
+        "isDefault": "ตั้งเป็นจุดลงของเริ่มต้น"
+      }
+    },
+    "searchPanel": "ค้นหาข้อมูลลูกค้า",
+    "customerName": "ชื่อ-นามสกุลลูกค้า",
+    "customerFirstName": "ชื่อลูกค้า",
+    "customerLastName": "นามสกุลลูกค้า",
+    "email": "อีเมลล์",
+    "phoneNumber": "เบอร์ติดต่อ",
+    "gender": "เพศลูกค้า",
+    "addNewCustomerButton": "สร้างลูกค้าใหม่",
+    "searchCustomerButton": "ค้นหาข้อมูลลูกค้า",
+    "clearCustomerButton": "เคลียร์ข้อมูลลูกค้า",
+    "placeHolder": {
+      "customerId": "กรุณาระบุรหัสลูกค้า",
+      "customerFirstName": "กรุณาระบุชื่อลูกค้า",
+      "customerLastName": "กรุณาระบุนามสกุลลูกค้า",
+      "phoneNumber": "กรุณาระบุเบอร์ติดต่อลูุกค้า",
+      "type": "กรุณาเลือกประเภทลูกค้า",
+      "areaType": "กรุณาเลือกประเภทพื้นที่ลูกค้า"
+    },
+    "newCustomer": "สร้างลูกค้าใหม่",
+    "confirmMsgNewCustomer": "คุณแน่ใจหรือว่าต้องการสร้างลูกค้าใหม่",
+    "updateCustomer": "อัพเดตข้อมูลลูกค้า",
+    "confirmMsgUpdateCustomer": "คุณแน่ใจหรือว่าต้องการอัพเดตลูกค้า"
+  },
+  "orderManagement": {
+    "title": "การจัดการข้อมูลออเดอร์",
+    "orderId": "รหัสออเดอร์",
+    "order": "ออเดอร์",
+    "orderList": "รายการออเดอร์",
+    "newOrder": "สร้างออเดอร์ใหม่",
+    "searchPanel": "ค้นหาออเดอร์",
+    "action": {
+      "create": "สร้างออเดอร์ใหม่",
+      "edit": "แก้ไขออเดอร์",
+      "view": "ดูรายละเอียด",
+      "action": "Action"
+    },
+    "column": {
+      "detail": "รายละเอียด",
+      "customerName": "ชื่อลูกค้า",
+      "customer": "ข้อมูลลูกค้า",
+      "item": "รายการสินค้า",
+      "person": "ชื่อคนจัดออเดอร์",
+      "status": " สถานะออเดอร์",
+      "billingStatus": "สถานะการเปิดบิล",
+      "sendingTime": "เวลาส่งสินค้า-มารับ",
+      "rawang": "ค่าระวาง",
+      "souvenirs": "ของฝาก",
+      "remark": "หมายเหตุ",
+      "orderNumber": "ออเดอร์ที่",
+      "orderId": "เลขที่ออเดอร์",
+      "poStatus": "สถานะออเดอร์",
+      "poMakerDisplayName": "ชื่อคนจัดออเดอร์",
+      "freight": "ค่าระวาง"
+    }
+  },
+  "orderDetail": {
+    "customerId": "รหัสลูกค้า",
+    "customerName": "ชื่อลูกค้า",
+    "contactNumber": "เบอร์โทร",
+    "contactName": "ชื่อผู้ติดต่อ",
+    "sendingBillMethod": "ช่องทางการส่งบิล",
+    "creditTerm": "เงื่อนไขการให้เครดิต",
+    "shippingMethod": "วิธีการส่งสินค้า",
+    "supplierName": "ขนส่งที่ใช้บริการ",
+    "shippingFeeMethod": "วิธีการจ่ายค่าขนส่ง",
+    "transportationMethod": "วิธีการขนส่ง",
+    "addressName": "สถานที่ส่งสินค้า"
+  },
+  "dashboard": {
+    "orderToday": "ออเดอร์ของวันนี้",
+    "more": "เพิ่มเติม >",
+    "businessAnalytics": "การวิเคราะห์ธุรกิจ",
+    "revenue": "ยอดขาย",
+    "totalOrder": "จำนวนออเดอร์ทั้งหมด",
+    "cancelledOrder": "จำนวนออเดอร์ที่ถูกยกเลิก",
+    "criteriaDays": {
+      "today": "วันนี้",
+      "lastWeek": "7 วันที่ผ่านมา",
+      "lastMonth": "30 วันที่ผ่านมา",
+      "specific": "กำหนดวันเอง"
+    }
+  },
+  "search": {
+    "initPlaceholderInputField": "ค้นหา"
+  },
+  "warning": {
+    "noResult": "ยังไม่มีรายการ กรุณาลองใหม่",
+    "noResultList": "ขออภัย เราไม่พบผลลัพธ์ใดๆ",
+    "noData": "ไม่มีข้อมูล",
+    "required": "จำเป็นต้องระบุ",
+    "moreThanZero": "จำเป็นต้องระบุมากกว่า 0",
+    "inputNumber": "กรุณาระบุตัวเลข"
+  },
+  "pagination": {
+    "totalRecords": "ລາຍການທັງໝົດ",
+    "rowsPerPage": "ລາຍການຕໍ່ຫນ້າ",
+    "of": "ຈາກ"
+  },
+  "role": {
+    "SUPER_ADMIN": "Super Administrator",
+    "ADMIN": "ຜູ້ບໍລິຫານ",
+    "USER": "ຜູ້ໃຊ້",
+    "ORDER": "ການ​ຈັດ​ລຽງ​ລໍາ​ດັບ​ພະ​ນັກ​ງານ​",
+    "ACCOUNT": "ພະນັກງານບັນຊີ",
+    "ACCOUNT_ADMIN": "ຫົວຫນ້າບັນຊີ",
+    "PROCUREMENT": "ພະນັກງານຈັດຊື້",
+    "PROCUREMENT_ADMIN": "ຫົວໜ້າພະແນກຈັດຊື້",
+    "SALES": "ພະນັກງານຂາຍ",
+    "SALES_ADMIN": "ຫົວໜ້າຝ່າຍຂາຍ",
+    "STORE": "ຄັງເງິນ"
+  },
+  "inputUpload": {
+    "title": "อัพโหลดรูปภาพ",
+    "subTitle": "เลือกไฟล์",
+    "submitButton": "อัพโหลด",
+    "helperText": "*รองรับเฉพาะไฟล์ .png, .jpg, .jpeg / ขนาดไม่เกิน 5MB",
+    "invalidType": "Unable to upload. Photo not match with our criteria. Please retry."
+  },
+  "tablePagination": {
+    "rowPerPage": "Rows per page",
+    "pageStatus": "{{page}} of {{totalPage}}"
+  },
+  "message": {
+    "createOrderTitle": "ສ້າງອໍເດີໃໝ່",
+    "createOrderMsg": "ທ່ານແນ່ໃຈບໍວ່າຈະສ້າງອໍເດີໃໝ່",
+    "clearDataTitle": "ລ້າງຂໍ້ມູນ",
+    "clearDataMsg": "ທ່ານຕ້ອງການລ້າງຂໍ້ມູນບໍ?",
+    "backTitle": "ຍ້ອນກັບ",
+    "backMsg": "ທ່ານຕ້ອງການຍ້ອນກັບໄປໜ້າກ່ອນໜ້າ ແນ່ໃຈບໍ? (ບໍ່ສາມາດກູ້ຄືນຂໍ້ມູນໄດ້)",
+    "confirmUpdateTitle": "ອັບເດດຈຳນວນກ່ອງ",
+    "confirmUpdateMsg": "ທ່ານຕ້ອງການຢືນຢັນການອັບເດດຈຳນວນກ່ອງບໍ?",
+    "confirmCloseTitle": "ປິດໜ້າຕ່າງ",
+    "confirmCloseMsg": "ທ່ານຕ້ອງການປິດໜ້າຕ່າງນີ້ບໍ? (ບໍ່ສາມາດກູ້ຄືນຂໍ້ມູນໄດ້)"
+  },
+  "createOrder": {
+    "title": "สร้างออเดอร์",
+    "save": "บันทึก",
+    "reset": "ล้างทั้งหมด",
+    "warning": {
+      "selectCustomer": "กรุณาเลือกรหัสลูกค้า",
+      "addProduct": "กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ",
+      "customerNameRequired": "กรุณาระบุ หรือ เลือกลูกค้า",
+      "contactNumberRequired": "กรุณาระบุเบอร์ติดต่อลูุกค้า",
+      "creditTermRequired": "กรุณาเลือกเงื่อนไขการให้เครดิต",
+      "dropOffRequired": "กรุณาระบุ หรือ เลือกจุดลงของ",
+      "areaTypeRequired": "กรุณาเลือกประเภทพื้นที่ลูกค้า",
+      "supplierRequired": "กรุณาเลือกขนส่งที่ใช้บริการ"
+    },
+    "poLineStatus": {
+      "PROCESSING": "กำลังดำเนินการ",
+      "INCOMPLETE": "สินค้าขาด",
+      "COMPLETE": "สินค้าครบถ้วน",
+      "CANCEL": "ลูกค้ายกเลิก"
+    },
+    "orderInformationSection": {
+      "title": "ข้อมูลออเดอร์",
+      "complete": "สำเร็จ",
+      "inProgress": "ดำเนินการ",
+      "canceled": "ยกเลิก",
+      "waitingForTransfer": "AWAITING_PAYMENT",
+      "shipped": "จัดส่งแล้ว",
+      "billCreated": "เปิดบิลแล้ว",
+      "billNotCreate": "ยังไม่ได้เปิดบิล",
+      "paymentTransferred": "โอนเงินแล้ว",
+      "fields": {
+        "labels": {
+          "orderStatus": "สถานะออเดอร์",
+          "orderMaker": "ชื่อคนจัดออเดอร์",
+          "sendingTime": "เวลาส่งสินค้า/รับ",
+          "freight": "ค่าระวาง",
+          "additionalItem": "ของฝาก",
+          "notes": "หมายเหตุ",
+          "billingStatus": "สถานะการเปิดบิล",
+          "ice": "ใส่น้ำแข็ง"
+        }
+      },
+      "searchStaffDialog": {
+        "title": "ค้นหาพนักงาน"
+      }
+    },
+    "customerInformationSection": {
+      "title": "ข้อมูลลูกค้า",
+      "searchBtn": "ค้นหาลูกค้า",
+      "searchCustomerDialog": {
+        "title": "ค้นหาลูกค้า",
+        "search": "ค้นหา"
+      },
+      "fields": {
+        "labels": {
+          "customerId": "รหัสลูกค้า",
+          "customerName": "ชื่อ-นามสกุลลูกค้า",
+          "contactNumber": "เบอร์ผู้ติดต่อ",
+          "sendingBillMethod": "ช่องทางการส่งบิล",
+          "behavior": "ลักษณะนิสัย",
+          "customerCreditTerm": "เงื่อนไขการให้เครดิต",
+          "shippingMethod": "วิธีการส่งสินค้า",
+          "supplierName": "ขนส่งที่ใช้บริการ",
+          "shippingFeeMethod": "วิธีการจ่ายค่าขนส่ง",
+          "transportationMethod": "วิธีการขนส่ง",
+          "shippingAddress": "สถานที่ส่งสินค้า",
+          "dropOff": "จุดลงของ"
+        }
+      }
+    },
+    "addProductSection": {
+      "title": "สินค้า",
+      "editProductBtn": "แก้ไขรายการสินค้า",
+      "addItem": "เพิ่มสินค้า",
+      "searchProductDialog": {
+        "title": "แก้ไขรายการสินค้า",
+        "column": {
+          "productName": "ชื่อสินค้า",
+          "productSku": "SKU"
+        }
+      },
+      "fields": {
+        "labels": {
+          "amount": "จำนวน"
+        },
+        "errors": {
+          "invalidAmount": "จำนวนสินค้าไม่ถูกต้อง"
+        }
+      }
+    }
+  }
+}

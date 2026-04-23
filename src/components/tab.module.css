@@ -1,0 +1,16 @@
+.title button {
+  font-size: 20px;
+  opacity: 1;
+}
+
+.title[class~='active'] button {
+  color: #003cf8;
+  border-bottom: 2px solid #003cf8;
+}
+
+ul {
+  list-style: none;
+  display: flex;
+  justify-content: left;
+  padding: 0;
+}

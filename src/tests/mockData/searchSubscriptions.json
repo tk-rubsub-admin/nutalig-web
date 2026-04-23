@@ -1,0 +1,84 @@
+{
+  "subscriptions": {
+    "edges": [
+      {
+        "node": {
+          "id": "ecaf8c18-b513-498f-b4b9-1822521b450e",
+          "userId": "027382b1-0b3b-4784-bba8-863daa7634de",
+          "startDate": "2021-06-17T08:00:00.000Z",
+          "endDate": "2021-06-24T08:00:00.000Z",
+          "createdAt": "2021-06-16T11:23:04.137Z",
+          "updatedAt": "2021-06-16T11:23:04.137Z",
+          "kind": "recurring",
+          "user": {
+            "firstName": null,
+            "lastName": null,
+            "phoneNumber": "+33673359664",
+            "email": "furyou888@gmail.com"
+          },
+          "car": {
+            "vin": "m8ppuddgbbmj8tgj1",
+            "plateNumber": "u77is",
+            "color": "black",
+            "carModel": {
+              "brand": "Jaguar",
+              "model": "I-Pace",
+              "seats": 5,
+              "topSpeed": 200,
+              "fastChargeTime": 377
+            }
+          },
+          "packagePrice": {
+            "duration": "1w",
+            "price": 12000
+          },
+          "startAddress": {
+            "full": " Phra Borom Maha Ratchawang Phra Nakhon Bangkok Thailand 10200"
+          },
+          "endAddress": {
+            "full": " Phra Borom Maha Ratchawang Phra Nakhon Bangkok Thailand 10200"
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "2a84b632-7d54-4484-b32c-7f102bd8d353",
+          "userId": "5df54d3a-aff1-4f43-b0da-274ec305ea24",
+          "startDate": "2021-06-17T03:00:00.000Z",
+          "endDate": "2021-06-24T03:00:00.000Z",
+          "createdAt": "2021-06-16T13:25:41.057Z",
+          "updatedAt": "2021-06-16T13:25:41.057Z",
+          "kind": "recurring",
+          "user": {
+            "firstName": null,
+            "lastName": null,
+            "phoneNumber": "+66954923624",
+            "email": "rinm0@icloud.com"
+          },
+          "car": {
+            "vin": "il0ql1b8po20egjpr",
+            "plateNumber": "iiani",
+            "color": "grey",
+            "carModel": {
+              "brand": "Jaguar",
+              "model": "I-Pace",
+              "seats": 5,
+              "topSpeed": 200,
+              "fastChargeTime": 377
+            }
+          },
+          "packagePrice": {
+            "duration": "1w",
+            "price": 12000
+          },
+          "startAddress": {
+            "full": "59/69 ซอยหัสดิเสวี ห้วยขวาง ห้วยขวาง กรุงเทพมหานคร ประเทศไทย 10310"
+          },
+          "endAddress": {
+            "full": "59/69 ซอยหัสดิเสวี ห้วยขวาง ห้วยขวาง กรุงเทพมหานคร ประเทศไทย 10310"
+          }
+        }
+      }
+    ]
+  }
+}

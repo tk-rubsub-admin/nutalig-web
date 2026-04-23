@@ -1,0 +1,117 @@
+[
+  {
+    "id": "MODEL001",
+    "name": "Mustang MACH-E Premium Extended",
+    "brand_id": "BRAND001"
+  },
+  {
+    "id": "MODEL002",
+    "name": "Tesla Model 3 Standard Range",
+    "brand_id": "BRAND002"
+  },
+  {
+    "id": "MODEL003",
+    "name": "Tesla Model 3 Long Range",
+    "brand_id": "BRAND002"
+  },
+  {
+    "id": "MODEL004",
+    "name": "Tesla Model 3 Performance",
+    "brand_id": "BRAND002"
+  },
+  {
+    "id": "MODEL005",
+    "name": "Tesla Model Y Standard Range",
+    "brand_id": "BRAND002"
+  },
+  {
+    "id": "MODEL006",
+    "name": "Tesla Model Y Long Range",
+    "brand_id": "BRAND002"
+  },
+  {
+    "id": "MODEL007",
+    "name": "Tesla Model Y Performance",
+    "brand_id": "BRAND002"
+  },
+  {
+    "id": "MODEL008",
+    "name": "UX 300e",
+    "brand_id": "BRAND003"
+  },
+  {
+    "id": "MODEL009",
+    "name": "iX3",
+    "brand_id": "BRAND004"
+  },
+  {
+    "id": "MODEL010",
+    "name": "e Advance",
+    "brand_id": "BRAND005"
+  },
+  {
+    "id": "MODEL011",
+    "name": "XC40 Recharge Pure Electric",
+    "brand_id": "BRAND006"
+  },
+  {
+    "id": "MODEL012",
+    "name": "SE",
+    "brand_id": "BRAND007"
+  },
+  {
+    "id": "MODEL013",
+    "name": "Kona Electric SE",
+    "brand_id": "BRAND008"
+  },
+  {
+    "id": "MODEL014",
+    "name": "IONIQ 6",
+    "brand_id": "BRAND008"
+  },
+  {
+    "id": "MODEL015",
+    "name": "Leaf 2",
+    "brand_id": "BRAND009"
+  },
+  {
+    "id": "MODEL016",
+    "name": "ORA Good Car 500 Ultra",
+    "brand_id": "BRAND010"
+  },
+  {
+    "id": "MODEL017",
+    "name": "ORA Good Car 400 Pro",
+    "brand_id": "BRAND010"
+  },
+  {
+    "id": "MODEL018",
+    "name": "ORA Good Car GT",
+    "brand_id": "BRAND010"
+  },
+  {
+    "id": "MODEL019",
+    "name": "EP",
+    "brand_id": "BRAND011"
+  },
+  {
+    "id": "MODEL020",
+    "name": "ZS EV",
+    "brand_id": "BRAND011"
+  },
+  {
+    "id": "MODEL021",
+    "name": "Taycan Base Model",
+    "brand_id": "BRAND012"
+  },
+  {
+    "id": "MODEL022",
+    "name": "e-tron Sportback 55 quattro S Line",
+    "brand_id": "BRAND013"
+  },
+  {
+    "id": "MODEL023",
+    "name": "I-Pace S",
+    "brand_id": "BRAND014"
+  }
+]

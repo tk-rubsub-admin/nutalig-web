@@ -1,0 +1,12 @@
+{
+  "carModel": {
+    "cars": [
+      {
+        "id": "c65284c9-f1c6-44b3-b21e-9837776c3c85",
+        "vin": "il0ql1b8po20egjpr",
+        "plateNumber": "iiani",
+        "available": false
+      }
+    ]
+  }
+}

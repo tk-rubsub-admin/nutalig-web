@@ -1,0 +1,293 @@
+{
+  "cars": {
+    "totalCount": 111,
+    "pageInfo": {
+      "hasNextPage": true,
+      "hasPreviousPage": false,
+      "startCursor": "YXJyYXljb25uZWN0aW9uOjA=",
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjk="
+    },
+    "edges": [
+      {
+        "node": {
+          "id": "eb87c4b8-827f-4834-b671-c55772aadaa6",
+          "vin": "10hls40aeefeupvxd",
+          "plateNumber": "8gom5",
+          "color": "red",
+          "createdAt": "2021-06-16T10:16:38.952Z",
+          "updatedAt": "2021-06-16T10:16:38.952Z",
+          "carModelId": "c17b051b-8597-4296-8cd4-87b91567e1fc",
+          "carModel": {
+            "brand": "Jaguar",
+            "model": "I-Pace",
+            "acceleration": 4.8,
+            "topSpeed": 200,
+            "range": 470,
+            "totalPower": 294,
+            "totalTorque": 40,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 621,
+            "fastChargeTime": 377,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "b4bc46b6-f099-446a-a4c8-8371488e11b1",
+          "vin": "m8ppuddgbbmj8tgj1",
+          "plateNumber": "u77is",
+          "color": "black",
+          "createdAt": "2021-06-16T10:16:39.736Z",
+          "updatedAt": "2021-06-16T10:16:39.736Z",
+          "carModelId": "c17b051b-8597-4296-8cd4-87b91567e1fc",
+          "carModel": {
+            "brand": "Jaguar",
+            "model": "I-Pace",
+            "acceleration": 4.8,
+            "topSpeed": 200,
+            "range": 470,
+            "totalPower": 294,
+            "totalTorque": 40,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 621,
+            "fastChargeTime": 377,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "c65284c9-f1c6-44b3-b21e-9837776c3c85",
+          "vin": "il0ql1b8po20egjpr",
+          "plateNumber": "iiani",
+          "color": "grey",
+          "createdAt": "2021-06-16T10:16:40.526Z",
+          "updatedAt": "2021-06-16T10:16:40.526Z",
+          "carModelId": "c17b051b-8597-4296-8cd4-87b91567e1fc",
+          "carModel": {
+            "brand": "Jaguar",
+            "model": "I-Pace",
+            "acceleration": 4.8,
+            "topSpeed": 200,
+            "range": 470,
+            "totalPower": 294,
+            "totalTorque": 40,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 621,
+            "fastChargeTime": 377,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "30ebcf1e-4df0-449f-840c-e7c5e3fb59ce",
+          "vin": "g8zndxrqncqabr03b",
+          "plateNumber": "x9sud",
+          "color": "red",
+          "createdAt": "2021-06-16T10:16:41.311Z",
+          "updatedAt": "2021-06-16T10:16:41.311Z",
+          "carModelId": "c17b051b-8597-4296-8cd4-87b91567e1fc",
+          "carModel": {
+            "brand": "Jaguar",
+            "model": "I-Pace",
+            "acceleration": 4.8,
+            "topSpeed": 200,
+            "range": 470,
+            "totalPower": 294,
+            "totalTorque": 40,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 621,
+            "fastChargeTime": 377,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "dc4ef64c-d380-482d-8ca6-e45a8cbcaa54",
+          "vin": "ptev0vldosfifitk4",
+          "plateNumber": "s39bs",
+          "color": "black",
+          "createdAt": "2021-06-16T10:16:53.132Z",
+          "updatedAt": "2021-06-16T10:16:53.132Z",
+          "carModelId": "0845cbf3-56b7-4849-8e94-49cbb101ebce",
+          "carModel": {
+            "brand": "Lexus UX",
+            "model": "300e",
+            "acceleration": 7.5,
+            "topSpeed": 150,
+            "range": 300,
+            "totalPower": 150,
+            "totalTorque": 239,
+            "connectorType": {
+              "description": "CHAdeMO"
+            },
+            "chargeTime": 815,
+            "fastChargeTime": 364,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "f70d89a5-5ce5-499c-8cc6-22842696b79d",
+          "vin": "vq6962v7r8fja0zo9",
+          "plateNumber": "uo6r2",
+          "color": "blue",
+          "createdAt": "2021-06-16T10:16:53.914Z",
+          "updatedAt": "2021-06-16T10:16:53.914Z",
+          "carModelId": "0845cbf3-56b7-4849-8e94-49cbb101ebce",
+          "carModel": {
+            "brand": "Lexus UX",
+            "model": "300e",
+            "acceleration": 7.5,
+            "topSpeed": 150,
+            "range": 300,
+            "totalPower": 150,
+            "totalTorque": 239,
+            "connectorType": {
+              "description": "CHAdeMO"
+            },
+            "chargeTime": 815,
+            "fastChargeTime": 364,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "daf4808a-e625-4f5e-9646-4b6979f1528a",
+          "vin": "xg0ewre67yt7y1bc0",
+          "plateNumber": "fpc02",
+          "color": "black",
+          "createdAt": "2021-06-16T10:16:54.697Z",
+          "updatedAt": "2021-06-16T10:16:54.697Z",
+          "carModelId": "0845cbf3-56b7-4849-8e94-49cbb101ebce",
+          "carModel": {
+            "brand": "Lexus UX",
+            "model": "300e",
+            "acceleration": 7.5,
+            "topSpeed": 150,
+            "range": 300,
+            "totalPower": 150,
+            "totalTorque": 239,
+            "connectorType": {
+              "description": "CHAdeMO"
+            },
+            "chargeTime": 815,
+            "fastChargeTime": 364,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "b113c1be-0313-4514-9f80-73b502583e9a",
+          "vin": "vn6mhwe7bu0vo9xxx",
+          "plateNumber": "kr5fz",
+          "color": "grey",
+          "createdAt": "2021-06-16T10:17:04.110Z",
+          "updatedAt": "2021-06-16T10:17:04.110Z",
+          "carModelId": "0d82e465-7521-48d9-abdc-97a009096c37",
+          "carModel": {
+            "brand": "Tesla",
+            "model": "Model 3",
+            "acceleration": 4.2,
+            "topSpeed": 233,
+            "range": 580,
+            "totalPower": 319,
+            "totalTorque": 23,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 282,
+            "fastChargeTime": 4,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "62c69d7e-94dd-45b2-a477-8403cdf61a93",
+          "vin": "hr1i4q5qxg31i8oeo",
+          "plateNumber": "pbq61",
+          "color": "white",
+          "createdAt": "2021-06-16T10:17:04.891Z",
+          "updatedAt": "2021-06-16T10:17:04.891Z",
+          "carModelId": "0d82e465-7521-48d9-abdc-97a009096c37",
+          "carModel": {
+            "brand": "Tesla",
+            "model": "Model 3",
+            "acceleration": 4.2,
+            "topSpeed": 233,
+            "range": 580,
+            "totalPower": 319,
+            "totalTorque": 23,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 282,
+            "fastChargeTime": 4,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "f5487b82-34fd-429c-bc53-757f75740481",
+          "vin": "7hotit08qk9kmz8hb",
+          "plateNumber": "gy6fv",
+          "color": "grey",
+          "createdAt": "2021-06-16T10:17:05.668Z",
+          "updatedAt": "2021-06-16T10:17:05.668Z",
+          "carModelId": "0d82e465-7521-48d9-abdc-97a009096c37",
+          "carModel": {
+            "brand": "Tesla",
+            "model": "Model 3",
+            "acceleration": 4.2,
+            "topSpeed": 233,
+            "range": 580,
+            "totalPower": 319,
+            "totalTorque": 23,
+            "connectorType": {
+              "description": "Type 2 (Mennekes)"
+            },
+            "chargeTime": 282,
+            "fastChargeTime": 4,
+            "bodyType": {
+              "bodyType": "luxury"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

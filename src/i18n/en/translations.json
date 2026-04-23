@@ -1,0 +1,626 @@
+{
+  "commons": {
+    "search": "Search",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "header": {
+    "aria": {
+      "sidebarToggle": "Sidebar Toggle",
+      "logo": "Company Logo",
+      "changeLanguage": "Change Language",
+      "settings": "Settings",
+      "login": "Login"
+    },
+    "menu": {
+      "profile": "Profile",
+      "logout": "Logout"
+    },
+    "version": "Version"
+  },
+  "sidebar": {
+    "pages": "Pages",
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "settings": "Setting",
+    "userManagement": {
+      "title": "User Management",
+      "customerProfile": "Customer Profile",
+      "staffProfile": "Staff Profile",
+      "userGroup": "User Group",
+      "adminUsers": "Admin Users"
+    },
+    "carrierManagement": "Carrier Management",
+    "customerManagement": "Customer Management",
+    "systemConfigManagement": {
+      "title": "System Configuration"
+    },
+    "rfqManagement": {
+      "title": "Request for Quotation"
+    },
+    "leadManagement": "Lead Management",
+    "customerRelationshipManagement": {
+      "title": "Customer Relationship Management",
+      "orderTracking": "Order Tracking Record",
+      "outboundRecord": "Outbound Record",
+      "userComplain": "User Complain Record"
+    },
+    "staffManagement": {
+      "title": "Staff Management"
+    },
+    "supplierManagement": {
+      "title": "Supplier Management"
+    },
+    "purchaseOrderManagement": {
+      "title": "Purchase Order Management"
+    }
+  },
+  "button": {
+    "add": "Add",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "create": "Create",
+    "update": "Update",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "search": "Search",
+    "clear": "Clear",
+    "back": "Back",
+    "invite": "Invite",
+    "inviteAmount": "Invite {{amount}} emails",
+    "filter": "Filter",
+    "export": "Export",
+    "clearAll": "Clear all",
+    "save": "Save",
+    "addNew": "Add New",
+    "deleteProfile": "Delete Profile",
+    "upload": "Upload",
+    "download": "Download",
+    "addAdditional": "Add Additional",
+    "extendUser": "Extend",
+    "disabled": "Disable",
+    "enabled": "Enable",
+    "transfer": "Transfer",
+    "saveFile": "Save File",
+    "importOrder": "Import Order",
+    "importStocks": "Import Stocks",
+    "print": "Print",
+    "copy": "Copy",
+    "syncMasterItem": "Sync Master Item"
+  },
+  "general": {
+    "search": "Search",
+    "createdDate": "Created Date",
+    "createdBy": "Created By",
+    "updatedDate": "Last Updated Date",
+    "updatedBy": "Updated By",
+    "plural": "(s)",
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive"
+    }
+  },
+  "datetimePicker": {
+    "invalidDateMessage": "Invalid Date Format",
+    "invalidLabel": "unknown",
+    "cancelLabel": "Cancel",
+    "clearLabel": "Clear",
+    "okLabel": "OK",
+    "todayLabel": "Today"
+  },
+  "toast": {
+    "loading": "Loading...",
+    "success": "Success",
+    "failed": "Failed"
+  },
+  "message": {
+    "backTitle": "Confirm back",
+    "backMsg": "Do you want to leave this page?",
+    "clearDataTitle": "Confirm clear data",
+    "clearDataMsg": "Do you want to clear all form data?"
+  },
+  "authentication": {
+    "success": "Login successful",
+    "error": {
+      "emailRequired": "Email is required",
+      "usernameRequired": "Username is required",
+      "passwordRequired": "Password is required",
+      "invalidEmail": "Email is invalid",
+      "invalidPassword": "Password is invalid",
+      "invalidUserToken": "Token is invalid",
+      "invalidCredential": "Invalid credential",
+      "userNotFound": "User not found",
+      "userDisabled": "User is disabled",
+      "userTokenExpired": "Token has expired",
+      "userMismatch": "User mismatch",
+      "weakPassword": "Password must contain at least 8 characters, one uppercase, one number and one special case character",
+      "requiresRecentLogin": "Please re-login again",
+      "authenticationFailed": "Login failed",
+      "permissionNotAllowed": "Permission not allowed",
+      "unknownError": "An unknown authentication error occurred, Please contact operation support",
+      "passwordCondition": "Password must contain at least 8 characters, one uppercase, one number and one special character",
+      "accessDenied": "User cannot access",
+      "userNotRegistered": "User is not registered yet, Please contact administrator for registration"
+    }
+  },
+  "login": {
+    "title": "DPK Flower",
+    "email": "Email Address",
+    "username": "Username",
+    "password": "Password",
+    "rememberMe": "Remember Me"
+  },
+  "home": {
+    "title": "Welcome to DPK Flower"
+  },
+  "forbidden": {
+    "title": "403 - Forbidden: Access is denied"
+  },
+  "notFound": {
+    "title": "404 - Page Not Found"
+  },
+  "supplierManagement": {
+    "title": "Supplier Management",
+    "supplier": "Supplier",
+    "searchPanel": "Search supplier",
+    "action": {
+      "create": "Create supplier",
+      "edit": "Edit supplier",
+      "view": "View supplier",
+      "action": "Action"
+    },
+    "column": {
+      "id": "Supplier id",
+      "name": "Supplier name",
+      "status": "Status",
+      "rank": "Rank",
+      "type": "Supplier type",
+      "mainProduct": "Main Product",
+      "productType": "Supplier product type",
+      "contactName": "Contact Name",
+      "contactNumber": "Contact Number",
+      "phoneContactName": "Phone Contact Name",
+      "lineContactName": "Line Contact Name",
+      "behavior": "Behavior",
+      "senderName": "Sender Name",
+      "workingHours": "Working Hours",
+      "period": "Period",
+      "orderMethod": "Order Method",
+      "sendingMethod": "Sending Method",
+      "address": {
+        "title": "Address",
+        "tumbon": "Tumbon",
+        "amphure": "Amphure",
+        "province": "Province",
+        "postalCode": "Postal code",
+        "location": "Address location"
+      },
+      "creditTerm": "Credit term",
+      "transferMethod": "Transfer method",
+      "account": {
+        "name": "Account name",
+        "number": "Account number",
+        "bankName": "Bank name"
+      }
+    }
+  },
+  "staffManagement": {
+    "title": "Staff Management",
+    "staff": "Staff",
+    "searchPanel": "Search staff",
+    "detail": "Detail",
+    "action": {
+      "create": "Create new staff",
+      "edit": "Edit staff",
+      "view": "View detail",
+      "inactive": "Inactive",
+      "active": "Active",
+      "delete": "Delete staff"
+    },
+    "column": {
+      "id": "Staff id",
+      "name": "Name",
+      "lastname": "Last name",
+      "nickname": "Nickname",
+      "telNo": "Phone number",
+      "duty": "Duty",
+      "startWorkingHour": "Start working hour",
+      "endWorkingHour": "End working hour",
+      "startWorkingDate": "Start working date",
+      "company": "Company",
+      "role": "Role",
+      "type": "Type",
+      "nationality": "Nationality",
+      "status": "Status",
+      "workingspace": "Workingspace"
+    },
+    "validateMessage": {
+      "firstName": "Please input staff's name",
+      "lastName": "Please input staff's last name",
+      "nickname": "Please input staff's nickname",
+      "nationality": "Please select staff's nationality",
+      "roleCode": "Please select staff's role",
+      "company": "Please select company",
+      "workspace": "Please select workspace"
+    },
+    "newStaff": "Create new staff",
+    "confirmMsgNewStaff": "Are you sure you want to create a new staff?",
+    "updateStaff": "Update staff",
+    "confirmMsgUpdateStaff": "Are you sure you want to update staff?",
+    "updateStaffSuccess": "Update staff success!!",
+    "updateStaffFailed": "Update staff failed because ",
+    "inactiveStaff": "Inactive staff",
+    "confirmMsgInactiveStaff": "Are you sure you want to inactive staff?",
+    "activeStaff": "Active staff",
+    "confirmMsgActiveStaff": "Are you sure you want to active staff?",
+    "deleteStaff": "Delete staff",
+    "confirmMsgDeleteStaff": "Are you sure you want to delete staff? (This action cannot by undone)",
+    "deleteStaffSuccess": "Delete staff success!!",
+    "deleteStaffFailed": "Delete staff failed because ",
+    "inactiveStaffSuccess": "Inactive staff success!!",
+    "inactiveStaffFailed": "Inactive staff failed because ",
+    "activeStaffSuccess": "Active staff success!!",
+    "activeStaffFailed": "Active staff failed because ",
+    "createStaffSuccess": "Create new staff success!!",
+    "createStaffFailed": "Create new staff failed because "
+  },
+  "userManagement": {
+    "title": "User Management",
+    "user": "User",
+    "tableHeaders": {
+      "userId": "User ID",
+      "username": "User Name",
+      "email": "User Email",
+      "role": "Role",
+      "status": "User Status",
+      "company": "Company"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "actions": {
+      "resetPassword": "Reset Password",
+      "edit": "Edit User",
+      "setInactive": "Set Inactive",
+      "delete": "Delete User"
+    },
+    "createNewUser": {
+      "title": "Create New User",
+      "username": "User Name",
+      "usernamePlaceholder": "Please input Username",
+      "email": "User Email",
+      "emailPlaceholder": "Please input Email address",
+      "role": "Role",
+      "rolePlaceholder": "Please select role",
+      "password": "Password",
+      "passwordPlaceholder": "Please input Password",
+      "company": "Company",
+      "companyPlaceholder": "Please select company",
+      "confirmTitle": "Create New User",
+      "confirmMsg": "Are you confirm to create a new user?",
+      "emailInvalid": "Email is invalid",
+      "createSuccess": "Create a new user success",
+      "createFailure": "Create a new user failed"
+    },
+    "resetPasswordDialog": {
+      "title": "Reset new password success.",
+      "message": "Your new password is "
+    }
+  },
+  "customerManagement": {
+    "title": "การจัดการข้อมูลลูกค้า",
+    "customerId": "รหัสลูกค้า",
+    "customer": "ลูกค้า",
+    "detail": "รายละเอียด",
+    "dropoff": "รายละเอียดในการจัดส่ง",
+    "action": {
+      "create": "สร้างลูกค้าใหม่"
+    },
+    "column": {
+      "id": "รหัสลูกค้า",
+      "name": "ชื่อร้าน",
+      "telNo": "เบอร์โทร",
+      "contactName": "ชื่อผู้ติดต่อ",
+      "gender": "เพศลูกค้า",
+      "dateOfBirth": "วัน/เดือน/ปี เกิด",
+      "type": "ประเภทลูกค้า",
+      "taxId": "เลขบัตรประชาชน/เลขประจำตัวผู้เสียภาษี",
+      "address": {
+        "title": "ที่อยู่",
+        "addNew": "เพิ่มข้อมูลที่อยู่",
+        "tumbon": "ตำบล/แขวง",
+        "amphure": "อำเภอ/เขต",
+        "province": "จังหวัด",
+        "postalCode": "รหัสไปรษณีย์",
+        "location": "โลเคชั่นของร้าน"
+      },
+      "company": {
+        "name": "ชื่อบริษัท",
+        "branchName": "ชื่อสาขา",
+        "branchCode": "รหัสสาขา"
+      },
+      "sendingBillMethod": "ช่องทางการส่งบิล",
+      "orderChannel": "ช่องทางการติดต่อที่สะดวก",
+      "purchaseChannel": "ช่องทางการสั่งซื้อที่สะดวก",
+      "behavior": "ลักษณะนิสัย",
+      "creditTerm": "เงื่อนไขการให้เครดิต",
+      "dropOff": {
+        "no": "จุดลงของที่ ",
+        "areaType": "ประเภทพื้นที่ลูกค้า",
+        "shippingMethod": "วิธีการส่งสินค้า",
+        "shippingFeeMethod": "วิธีการจ่ายค่าขนส่ง",
+        "transportationMethod": "วิธีการขนส่ง",
+        "supplier": "ขนส่งที่ใช้บริการ",
+        "location": "สถานที่ส่งสินค้า",
+        "name": "ชื่อหน้ากล่อง/ชื่อร้าน",
+        "time": "เวลาส่งสินค้า",
+        "remark": "หมายเหตุ",
+        "isDefault": "ตั้งเป็นจุดลงของเริ่มต้น"
+      }
+    },
+    "searchPanel": "ค้นหาข้อมูลลูกค้า",
+    "customerName": "ชื่อ-นามสกุลลูกค้า",
+    "customerFirstName": "ชื่อลูกค้า",
+    "customerLastName": "นามสกุลลูกค้า",
+    "email": "อีเมลล์",
+    "phoneNumber": "เบอร์ติดต่อ",
+    "gender": "เพศลูกค้า",
+    "addNewCustomerButton": "สร้างลูกค้าใหม่",
+    "searchCustomerButton": "ค้นหาข้อมูลลูกค้า",
+    "clearCustomerButton": "เคลียร์ข้อมูลลูกค้า",
+    "placeHolder": {
+      "customerId": "กรุณาระบุรหัสลูกค้า",
+      "customerFirstName": "กรุณาระบุชื่อลูกค้า",
+      "customerLastName": "กรุณาระบุนามสกุลลูกค้า",
+      "phoneNumber": "กรุณาระบุเบอร์ติดต่อลูุกค้า"
+    }
+  },
+  "dashboard": {
+    "orderToday": "Today's Order",
+    "more": "More >",
+    "businessAnalytics": "Business Analytics",
+    "revenue": "Revenue",
+    "totalOrder": "Total Orders",
+    "cancelledOrder": "Cancelled Orders",
+    "criteriaDays": {
+      "today": "Today",
+      "lastWeek": "Last 7 days",
+      "lastMonth": "Last 30 days",
+      "specific": "Specific date"
+    }
+  },
+  "search": {
+    "initPlaceholderInputField": "Enter Search"
+  },
+  "warning": {
+    "noResult": "No Result. Please try again",
+    "noResultList": "Sorry, we couldn’t find any results",
+    "noData": "No Data",
+    "required": "Required Field",
+    "moreThanZero": "Need to fill value more than 0",
+    "inputNumber": "Please enter a number"
+  },
+  "pagination": {
+    "totalRecords": "Total Records",
+    "rowsPerPage": "Rows per page",
+    "of": "of"
+  },
+  "role": {
+    "SUPER_ADMIN": "Super Administrator",
+    "ADMIN": "Administrator",
+    "USER": "User"
+  },
+  "settingConfig": {
+    "title": "System Configuration",
+    "searchPanel": "Search Configuration",
+    "mobileTitle": "Configuration List",
+    "editDialogTitle": "Edit System Configuration",
+    "createDialogTitle": "Create System Configuration",
+    "confirmTitle": "Confirm Update",
+    "confirmMessage": "Do you want to update this configuration?",
+    "createConfirmTitle": "Confirm Create",
+    "createConfirmMessage": "Do you want to create this new configuration?",
+    "column": {
+      "groupCode": "Group",
+      "code": "Code",
+      "nameTh": "Thai Name",
+      "nameEn": "English Name",
+      "sort": "Sort",
+      "keyword": "Keyword"
+    }
+  },
+  "rfqManagement": {
+    "title": "Request for Quotation",
+    "listTitle": "Quotation Request List",
+    "createTitle": "Create RFQ",
+    "mobileTitle": "Quotation Requests",
+    "action": {
+      "create": "Create Request"
+    },
+    "column": {
+      "id": "RFQ No.",
+      "requestedDate": "Requested Date",
+      "status": "Status",
+      "contact": "Contact",
+      "contactName": "Contact Name",
+      "contactPhone": "Contact Phone",
+      "sales": "Sales",
+      "orderType": "Order Type",
+      "productFamily": "Product Family",
+      "capacity": "Capacity",
+      "pictures": "Reference Images"
+    },
+    "form": {
+      "customerMode": "Customer Type",
+      "customerModeNew": "New Customer",
+      "customerModeExisting": "Existing Customer",
+      "customerId": "Customer",
+      "contactName": "Contact Name",
+      "contactPhone": "Contact Phone",
+      "salesId": "Sales",
+      "orderTypeCode": "Order Type",
+      "productFamily": "Product Family",
+      "productUsage": "Product Usage",
+      "systemMechanic": "System Mechanic",
+      "material": "Material",
+      "capacity": "Capacity",
+      "description": "Description",
+      "pictures": "Reference Images",
+      "pictureHelper": "Upload up to 5 reference images",
+      "customerSearchHelper": "Type to search customer",
+      "noCustomerOptions": "No customers found"
+    },
+    "validation": {
+      "customerId": "Please select customer",
+      "contactName": "Please input contact name",
+      "contactPhone": "Please input a valid contact phone",
+      "salesId": "Please select sales",
+      "orderTypeCode": "Please select order type",
+      "productFamily": "Please input product family",
+      "productUsage": "Please input product usage",
+      "systemMechanic": "Please input system mechanic",
+      "material": "Please input material",
+      "capacity": "Please input capacity",
+      "description": "Please input description"
+    },
+    "message": {
+      "confirmCreateTitle": "Confirm create RFQ",
+      "confirmCreateMsg": "Do you want to create a new RFQ?",
+      "confirmUpdateTitle": "Confirm save RFQ",
+      "confirmUpdateMsg": "Do you want to save changes to this RFQ?",
+      "createSuccess": "RFQ created successfully",
+      "createFailed": "Failed to create RFQ "
+    },
+    "status": {
+      "NEW": "New"
+    },
+    "rfqsStatus": {
+      "NEW": "New Request",
+      "IN_PROGRESS": "In Progress",
+      "QUOTED": "Quoted",
+      "CANCELED": "Canceled",
+      "COMPLETED": "Completed"
+    }
+  },
+  "inputUpload": {
+    "title": "Upload Company Logo",
+    "subTitle": "Browse to choose a file.",
+    "submitButton": "UPLOAD",
+    "helperText": "*The file type must be .png, .jpg, .jpeg / Maximum upload size 5MB",
+    "invalidType": "Unable to upload. Photo not match with our criteria. Please retry."
+  },
+  "tablePagination": {
+    "rowPerPage": "Rows per page",
+    "pageStatus": "{{page}} of {{totalPage}}"
+  },
+  "createOrder": {
+    "title": "Create Order",
+    "save": "Save",
+    "reset": "Reset",
+    "warning": {
+      "selectCustomer": "Please select customer.",
+      "addProduct": "Please select product at least 1 product."
+    },
+    "poLineStatus": {
+      "PROCESSING": "Processing",
+      "INCOMPLETE": "Incomplete",
+      "COMPLETE": "Complete",
+      "CANCEL": "Cancel"
+    },
+    "orderInformationSection": {
+      "title": "Order Information",
+      "complete": "Completed",
+      "inProgress": "In Progress",
+      "canceled": "Canceled",
+      "waitingForTransfer": "Waiting for Transfer",
+      "shipped": "Shipped",
+      "billCreated": "Bill Created",
+      "billNotCreate": "Bill Not Create",
+      "paymentTransferred": "Payment Transferred",
+      "fields": {
+        "labels": {
+          "orderStatus": "Order Status",
+          "orderMaker": "Order Maker Name",
+          "sendingTime": "Send/Receive Time",
+          "freight": "Freight Fee",
+          "additionalItem": "Additional Item",
+          "notes": "Note",
+          "billingStatus": "Billing Status"
+        }
+      },
+      "searchStaffDialog": {
+        "title": "Search Staff"
+      }
+    },
+    "customerInformationSection": {
+      "title": "Customer Information",
+      "searchBtn": "Search Customer",
+      "searchCustomerDialog": {
+        "title": "Search Customer"
+      },
+      "fields": {
+        "labels": {
+          "customerId": "Customer ID",
+          "customerName": "Customer Full Name",
+          "contactNumber": "Contact Number",
+          "sendingBillMethod": "Billing Method",
+          "behavior": "Behavior",
+          "customerCreditTerm": "Credit Term",
+          "shippingMethod": "Shipping Method",
+          "supplierName": "Service Provider",
+          "shippingFeeMethod": "Shipping Fee Payment Method",
+          "transportationMethod": "Transportation Method",
+          "shippingAddress": "Shipping Address"
+        }
+      }
+    },
+    "addProductSection": {
+      "title": "Product",
+      "editProductBtn": "Edit Selecting Product",
+      "searchProductDialog": {
+        "title": "Edit Selecting Product",
+        "column": {
+          "productName": "Product Name",
+          "productSku": "SKU"
+        }
+      },
+      "fields": {
+        "labels": {
+          "amount": "Amount"
+        },
+        "errors": {
+          "invalidAmount": "Invalid amount"
+        }
+      }
+    }
+  },
+  "orderManagement": {
+    "column": {
+      "orderNumber": "Order Number",
+      "customerName": "Customer Name",
+      "orderId": "Order Id",
+      "poStatus": "Po Status",
+      "poMakerDisplayName": "Po Display Name",
+      "billingStatus": "Billing Status",
+      "sendingTime": "Send/Receive Time",
+      "freight": "Freight Fee",
+      "remark": "Remark"
+    }
+  },
+  "orderDetail": {
+    "customerId": "Customer ID",
+    "customerName": "Customer Name",
+    "contactNumber": "Phone Number",
+    "contactName": "Contact Person",
+    "sendingBillMethod": "Billing Method",
+    "creditTerm": "Credit Terms",
+    "shippingMethod": "Shipping Method",
+    "supplierName": "Transport Provider",
+    "shippingFeeMethod": "Shipping Fee Payment Method",
+    "transportationMethod": "Mode of Transportation",
+    "addressName": "Delivery Location"
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "packages": {
+    "edges": [
+      {
+        "node": {
+          "id": "89d7dabf-7891-4b40-a301-e5ae8ad36c84",
+          "createdAt": "2021-05-28T06:53:01.767Z",
+          "updatedAt": "2021-05-28T06:53:01.767Z",
+          "active": true,
+          "prices": [
+            {
+              "duration": "3m",
+              "price": 47233
+            },
+            {
+              "duration": "1m",
+              "price": 68026
+            },
+            {
+              "duration": "12m",
+              "price": 36370
+            },
+            {
+              "duration": "1w",
+              "price": 38737
+            },
+            {
+              "duration": "6m",
+              "price": 77554
+            }
+          ]
+        }
+      },
+      {
+        "node": {
+          "id": "0f669847-f468-4f61-92ed-d36567217ffd",
+          "createdAt": "2021-05-28T06:53:02.618Z",
+          "updatedAt": "2021-05-28T06:53:02.618Z",
+          "active": true,
+          "prices": [
+            {
+              "duration": "3m",
+              "price": 81840
+            },
+            {
+              "duration": "6m",
+              "price": 9197
+            },
+            {
+              "duration": "12m",
+              "price": 29927
+            },
+            {
+              "duration": "1w",
+              "price": 65190
+            },
+            {
+              "duration": "1m",
+              "price": 14499
+            }
+          ]
+        }
+      },
+      {
+        "node": {
+          "id": "87ab61ce-3933-45e4-b48c-f98e15b2e32f",
+          "createdAt": "2021-05-28T06:53:03.421Z",
+          "updatedAt": "2021-05-28T06:53:03.421Z",
+          "active": true,
+          "prices": [
+            {
+              "duration": "6m",
+              "price": 2291
+            },
+            {
+              "duration": "1m",
+              "price": 67584
+            },
+            {
+              "duration": "1w",
+              "price": 11008
+            },
+            {
+              "duration": "3m",
+              "price": 20647
+            },
+            {
+              "duration": "12m",
+              "price": 58153
+            }
+          ]
+        }
+      },
+      {
+        "node": {
+          "id": "43342497-e288-4f96-9a96-3df9ec0ab4e1",
+          "createdAt": "2021-05-28T06:53:04.291Z",
+          "updatedAt": "2021-05-28T06:53:04.291Z",
+          "active": true,
+          "prices": [
+            {
+              "duration": "1w",
+              "price": 86733
+            },
+            {
+              "duration": "1m",
+              "price": 99987
+            },
+            {
+              "duration": "6m",
+              "price": 64234
+            },
+            {
+              "duration": "12m",
+              "price": 18092
+            },
+            {
+              "duration": "3m",
+              "price": 96338
+            }
+          ]
+        }
+      },
+      {
+        "node": {
+          "id": "8357ccf9-889b-41c1-aa07-d8b1fefc4a7d",
+          "createdAt": "2021-05-28T06:53:05.283Z",
+          "updatedAt": "2021-05-28T06:53:05.283Z",
+          "active": true,
+          "prices": [
+            {
+              "duration": "12m",
+              "price": 38118
+            },
+            {
+              "duration": "6m",
+              "price": 34596
+            },
+            {
+              "duration": "1w",
+              "price": 17020
+            },
+            {
+              "duration": "1m",
+              "price": 21137
+            },
+            {
+              "duration": "3m",
+              "price": 48510
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

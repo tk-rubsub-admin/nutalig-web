@@ -1,0 +1,47 @@
+<html>
+  <head>
+    <title>LIFF Example</title>
+    <script src="https://d.line-scdn.net/liff/2.0/sdk.js"></script>
+    <script>
+      window.onload = function () {
+        liff.init(
+          { liffId: '2008988361' },
+          () => {
+            // Get user data from the URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId');
+            const key = urlParams.get('key');
+            alert('userId: ' + userId);
+            console.log('userId:', userId);
+            console.log('key:', key);
+
+            // Send the data to the backend or store it for further use
+            // sendToBackend(userId, key);
+          },
+          (err) => {
+            console.error('LIFF initialization failed', err);
+          }
+        );
+      };
+
+      function sendToBackend(userId, key) {
+        // Here you can make an AJAX request to send user data to your backend
+        fetch('/save-user-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, key })
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log('Data saved:', data);
+          })
+          .catch((error) => {
+            console.error('Error sending data:', error);
+          });
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Welcome to LIFF</h1>
+  </body>
+</html>

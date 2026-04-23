@@ -14,7 +14,7 @@ test-results/
 /build
 
 # misc
-.vscode
+.vscodeç
 .DS_Store
 .env.local
 .env.development.local

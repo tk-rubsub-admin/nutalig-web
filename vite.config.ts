@@ -12,8 +12,9 @@ const Config = () => {
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:8005/nutalig',
+          target: 'https://initially-leadless-larae.ngrok-free.dev/nutalig',
           changeOrigin: true,
+          secure: true,
           rewrite: (path) => path.replace(/^\/api/, '')
         }
       }

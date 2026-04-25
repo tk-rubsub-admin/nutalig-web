@@ -60,6 +60,7 @@ import {
   RFQDetailOption,
   RFQDetailTier,
   RFQEmployee,
+  RFQFileResource,
   RFQRecord
 } from 'services/RFQ/rfq-type';
 
@@ -156,6 +157,62 @@ function getEmployeeLabel(employee?: RFQEmployee | null): string {
   return [employeeId, nickname ? `- ${nickname}` : '', name ? `(${name})` : '']
     .filter(Boolean)
     .join(' ');
+}
+
+function getRFQFileUrl(file?: RFQFileResource | null): string {
+  return file?.pictureUrl || file?.fileUrl || '';
+}
+
+function getRFQFileName(file?: RFQFileResource | null, fallbackIndex?: number): string {
+  return (
+    file?.originalFileName ||
+    file?.fileName ||
+    getRFQFileUrl(file).split('/').pop() ||
+    (fallbackIndex !== undefined ? `file-${fallbackIndex + 1}` : 'file')
+  );
+}
+
+function isImageFile(file?: RFQFileResource | null): boolean {
+  const fileType = (file?.fileType || '').toUpperCase();
+  const mimeType = (file?.mimeType || '').toLowerCase();
+  const fileUrl = getRFQFileUrl(file).toLowerCase();
+  console.log('File Type : ' + fileType)
+  if (fileType === 'PICTURE' || fileType === 'IMAGE') {
+    return true;
+  }
+
+  if (fileType === 'ATTACHMENT') {
+    return false;
+  }
+
+  if (mimeType.startsWith('image/')) {
+    return true;
+  }
+
+  return /\.(jpg|jpeg|png|gif|webp|bmp|svg|heic|heif)$/i.test(fileUrl);
+}
+
+function getRFQPictureResources(rfq?: RFQRecord): RFQFileResource[] {
+  const files = Array.isArray(rfq?.files)
+    ? rfq?.files || []
+    : Array.isArray(rfq?.pictures)
+      ? rfq?.pictures || []
+      : [];
+
+  return files.filter((file) => isImageFile(file));
+}
+
+function getRFQAttachmentResources(rfq?: RFQRecord): RFQFileResource[] {
+  console.log('xxx:', rfq)
+  if (Array.isArray(rfq?.pictures) && rfq.pictures.length > 0) {
+    return rfq.pictures.filter((file) => !isImageFile(file));
+  }
+
+  if (Array.isArray(rfq?.attachments) && rfq.attachments.length > 0) {
+    return rfq.attachments;
+  }
+
+  return [];
 }
 
 function getSLADayTypeLabel(dayType?: string): string {
@@ -549,6 +606,8 @@ export default function RFQDetail(): ReactElement {
     () => getSLAStatusPresentation(slaDayLeft, rfq?.serviceLevelAgreement?.dayType, rfq?.status),
     [rfq?.serviceLevelAgreement?.dayType, rfq?.status, slaDayLeft]
   );
+  const pictureResources = useMemo(() => getRFQPictureResources(rfq), [rfq]);
+  const attachmentResources = useMemo(() => getRFQAttachmentResources(rfq), [rfq]);
   const hasDraftDetailOptions = draftDetailOptions.length > 0;
 
   const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history') => {
@@ -621,7 +680,7 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    const remainingSlots = Math.max(0, 5 - (rfq?.pictures?.length || 0));
+    const remainingSlots = Math.max(0, 5 - pictureResources.length);
     const filesToUpload = files.slice(0, remainingSlots);
 
     if (!filesToUpload.length) {
@@ -642,13 +701,15 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleDeletePicture = async (index: number) => {
-    if (!params.id || !rfq?.pictures?.[index]) {
+    const targetPicture = pictureResources[index];
+
+    if (!params.id || !targetPicture) {
       return;
     }
 
     try {
       setIsPictureSubmitting(true);
-      await toast.promise(deleteRFQPicture(params.id, rfq.pictures[index].id), {
+      await toast.promise(deleteRFQPicture(params.id, targetPicture.id), {
         loading: t('toast.loading'),
         success: t('toast.success'),
         error: t('toast.failed')
@@ -1222,13 +1283,13 @@ export default function RFQDetail(): ReactElement {
                       isDisabled={
                         !isSalesPermission ||
                         isPictureSubmitting ||
-                        (rfq?.pictures?.length || 0) >= 5
+                        pictureResources.length >= 5
                       }
                       readOnly={!isSalesPermission}
                       maxFiles={5}
                       isMultiple
                       isError={false}
-                      files={(rfq?.pictures || []).map((picture) => picture.pictureUrl)}
+                      files={pictureResources.map((picture) => getRFQFileUrl(picture))}
                       onError={() => undefined}
                       onDeleted={handleDeletePicture}
                       onSuccess={(files) => {
@@ -1236,6 +1297,66 @@ export default function RFQDetail(): ReactElement {
                       }}
                       fileUploader={FileUploader}
                     />
+                  </GridTextField>
+                  <GridTextField item xs={12}>
+                    <Typography variant="subtitle1" fontWeight={600}>
+                      ไฟล์แนบ
+                    </Typography>
+                  </GridTextField>
+                  <GridTextField item xs={12}>
+                    {attachmentResources.length ? (
+                      <Stack spacing={1.25}>
+                        {attachmentResources.map((attachment, index) => (
+                          <Stack
+                            key={`${attachment.id}-${index}`}
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            justifyContent="space-between"
+                            sx={{
+                              px: 1.5,
+                              py: 1.25,
+                              border: '1px solid #dce4ee',
+                              borderRadius: 2,
+                              backgroundColor: '#fff'
+                            }}>
+                            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                              <Typography fontWeight={600} noWrap>
+                                {getRFQFileName(attachment, index)}
+                              </Typography>
+                              {attachment.updatedDate ? (
+                                <Typography variant="caption" color="text.secondary">
+                                  {dayjs(attachment.updatedDate).format('DD/MM/YYYY HH:mm')}
+                                </Typography>
+                              ) : null}
+                            </Stack>
+                            <Button
+                              component="a"
+                              href={getRFQFileUrl(attachment)}
+                              target="_blank"
+                              rel="noreferrer"
+                              variant="outlined"
+                              sx={outlinedActionButtonSx}>
+                              เปิดไฟล์
+                            </Button>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Box
+                        sx={{
+                          border: '1px dashed #cbd5e1',
+                          borderRadius: 3,
+                          py: 3,
+                          px: 2,
+                          textAlign: 'center',
+                          backgroundColor: '#f8fafc'
+                        }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ยังไม่มีไฟล์แนบ
+                        </Typography>
+                      </Box>
+                    )}
                   </GridTextField>
                 </Grid>
               </CollapsibleWrapper>

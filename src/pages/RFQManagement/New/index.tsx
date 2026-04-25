@@ -1,6 +1,7 @@
-import { ArrowBackIos, Cancel, Save } from '@mui/icons-material';
+import { ArrowBackIos, Cancel, DeleteOutline, Save, UploadFile } from '@mui/icons-material';
 import {
   Autocomplete,
+  Box,
   Button,
   CircularProgress,
   FormControlLabel,
@@ -35,7 +36,7 @@ import { searchCustomerByKeyword } from 'services/Customer/customer-api';
 import { Contact, Customer } from 'services/Customer/customer-type';
 import { getProductFamilies } from 'services/Product/product-api';
 import { ProductFamily } from 'services/Product/product-type';
-import { createRFQ } from 'services/RFQ/rfq-api';
+import { addRFQAttachments, createRFQ } from 'services/RFQ/rfq-api';
 import { getProcurementEmployees, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import * as Yup from 'yup';
@@ -44,20 +45,21 @@ export default function NewRFQ(): JSX.Element {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const history = useHistory();
-  const { getRole, getSalesId } = useAuth();
+  const { getRole, getEmployeeId } = useAuth();
   const { t } = useTranslation();
   const [actionType, setActionType] = useState('');
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [pictureFiles, setPictureFiles] = useState<File[]>([]);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
 
   const pictureUrls = pictureFiles.map((file) => URL.createObjectURL(file));
   const isSalesRole = getRole() === 'SALES';
-  const defaultSalesId = isSalesRole ? getSalesId() : '';
-
+  const defaultSalesId = isSalesRole ? getEmployeeId() : '';
+  console.log('defaultSalesId : ' + defaultSalesId);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedCustomerKeyword(customerKeyword.trim());
@@ -182,6 +184,10 @@ export default function NewRFQ(): JSX.Element {
 
         const rfqId = response?.data?.id;
         if (rfqId) {
+          if (attachmentFiles.length > 0) {
+            await addRFQAttachments(rfqId, attachmentFiles);
+          }
+
           history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfqId));
         } else {
           history.push(ROUTE_PATHS.RFQ_MANAGEMENT);
@@ -237,6 +243,7 @@ export default function NewRFQ(): JSX.Element {
         }
       });
       setPictureFiles([]);
+      setAttachmentFiles([]);
       return;
     }
 
@@ -635,6 +642,128 @@ export default function NewRFQ(): JSX.Element {
               }}
               fileUploader={FileUploader}
             />
+          </GridTextField>
+
+          <GridTextField item xs={12}>
+            <Typography>{t('rfqManagement.form.attachments')}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {t('rfqManagement.form.attachmentHelper')}
+            </Typography>
+            <Box
+              sx={{
+                border: '1px dashed #c8d7ea',
+                borderRadius: 2.5,
+                backgroundColor: '#f8fbff',
+                px: { xs: 2, sm: 2.5 },
+                py: 2
+              }}>
+              {attachmentFiles.length > 0 ? (
+                <Stack spacing={1.5}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    alignItems={{ sm: 'center' }}
+                    justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary">
+                      {`${attachmentFiles.length} ${t('rfqManagement.form.attachments')}`}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      component="label"
+                      className="btn-baby-blue"
+                      startIcon={<UploadFile />}>
+                      {t('inputUpload.submitButton')}
+                      <input
+                        hidden
+                        type="file"
+                        multiple
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files || []);
+
+                          if (files.length > 0) {
+                            setAttachmentFiles((prev) => [...prev, ...files]);
+                          }
+
+                          event.target.value = '';
+                        }}
+                      />
+                    </Button>
+                  </Stack>
+
+                  <Stack spacing={1}>
+                    {attachmentFiles.map((file, index) => (
+                      <Stack
+                        key={`${file.name}-${file.size}-${index}`}
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                        sx={{
+                          px: 1.5,
+                          py: 1.25,
+                          border: '1px solid #dce4ee',
+                          borderRadius: 2,
+                          backgroundColor: '#fff',
+                          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)'
+                        }}>
+                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                          <Typography fontWeight={600} noWrap>
+                            {file.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </Typography>
+                        </Stack>
+                        <Button
+                          color="error"
+                          onClick={() => {
+                            setAttachmentFiles((prev) =>
+                              prev.filter((_, fileIndex) => fileIndex !== index)
+                            );
+                          }}
+                          startIcon={<DeleteOutline />}>
+                          {t('button.delete')}
+                        </Button>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Stack>
+              ) : (
+                <Stack
+                  spacing={1.25}
+                  alignItems="center"
+                  justifyContent="center"
+                  sx={{
+                    minHeight: 160,
+                    textAlign: 'center'
+                  }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('rfqManagement.form.noAttachments')}
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    component="label"
+                    className="btn-baby-blue"
+                    startIcon={<UploadFile />}>
+                    {t('inputUpload.submitButton')}
+                    <input
+                      hidden
+                      type="file"
+                      multiple
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files || []);
+
+                        if (files.length > 0) {
+                          setAttachmentFiles((prev) => [...prev, ...files]);
+                        }
+
+                        event.target.value = '';
+                      }}
+                    />
+                  </Button>
+                </Stack>
+              )}
+            </Box>
           </GridTextField>
         </Grid>
       </Wrapper>

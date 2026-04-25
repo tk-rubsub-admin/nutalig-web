@@ -73,9 +73,27 @@ export interface RFQEmployee {
 export interface RFQPicture {
   id: number;
   pictureUrl: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  originalFileName?: string | null;
+  fileType?: string | null;
+  mimeType?: string | null;
   sort: number;
   updatedDate: string;
   updatedBy: string;
+}
+
+export interface RFQFileResource {
+  id: number;
+  pictureUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  originalFileName?: string | null;
+  fileType?: string | null;
+  mimeType?: string | null;
+  sort?: number | null;
+  updatedDate?: string | null;
+  updatedBy?: string | null;
 }
 
 export interface RFQServiceLevelAgreement {
@@ -143,6 +161,8 @@ export interface RFQRecord {
   customer: RFQCustomer | null;
   orderType: SystemConfig | null;
   pictures: RFQPicture[];
+  files?: RFQFileResource[];
+  attachments?: RFQFileResource[];
   details: RFQDetailOption[];
   additionalCosts: RFQAdditionalCost[];
   productFamily: RFQProductFamily | string | null;

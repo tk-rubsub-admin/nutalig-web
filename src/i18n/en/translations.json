@@ -470,6 +470,9 @@
       "description": "Description",
       "pictures": "Reference Images",
       "pictureHelper": "Upload up to 5 reference images",
+      "attachments": "Attachments",
+      "attachmentHelper": "Upload additional files for this RFQ",
+      "noAttachments": "No attachments uploaded",
       "customerSearchHelper": "Type to search customer",
       "noCustomerOptions": "No customers found"
     },

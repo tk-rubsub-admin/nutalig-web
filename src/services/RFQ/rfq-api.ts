@@ -117,6 +117,27 @@ export const addRFQPictures = async (
   return response;
 };
 
+export const addRFQAttachments = async (
+  id: string,
+  attachments: File[]
+): Promise<UpdateRFQPicturesResponse> => {
+  const formData = new FormData();
+
+  attachments.forEach((attachment) => {
+    formData.append('attachments', attachment);
+  });
+
+  const response: UpdateRFQPicturesResponse = await api
+    .post(`/v1/rfqs/${id}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    .then((response) => response.data);
+
+  return response;
+};
+
 export const deleteRFQPicture = async (
   id: string,
   pictureId: number

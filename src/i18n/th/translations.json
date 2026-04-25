@@ -361,6 +361,9 @@
       "description": "รายละเอียด",
       "pictures": "รูปอ้างอิง",
       "pictureHelper": "อัปโหลดรูปอ้างอิงได้สูงสุด 5 รูป",
+      "attachments": "ไฟล์แนบ",
+      "attachmentHelper": "อัปโหลดไฟล์แนบเพิ่มเติมสำหรับคำขอราคา",
+      "noAttachments": "ยังไม่มีไฟล์แนบ",
       "customerSearchHelper": "พิมพ์เพื่อค้นหาลูกค้า",
       "noCustomerOptions": "ไม่พบข้อมูลลูกค้า"
     },

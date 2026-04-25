@@ -19,6 +19,7 @@ export interface UserProfileResponse {
   displayName: string;
   pictureUrl: string;
   salesId: string;
+  employeeId: string;
 }
 
 export interface SearchUserResponse extends Response {

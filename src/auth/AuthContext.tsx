@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   STAFF_ROLE: 'nutalig:staff_role',
   STAFF_ID: 'nutalig:staff_id',
   SALES_ID: 'nutalig:sales_id',
+  EMPLOYEE_ID: 'nutalig:employee_id',
   TOKEN: 'nutalig:user_token',
   ID: 'nutalig:user_id',
   ACCOUNT: 'nutalig:account',
@@ -51,6 +52,9 @@ interface AuthProps {
 
   setSalesId: (id: string) => void;
   getSalesId: () => string;
+
+  setEmployeeId: (id: string) => void;
+  getEmployeeId: () => string;
 
   getRoleDisplayName: () => string;
 
@@ -92,6 +96,9 @@ const Auth = createContext<AuthProps>({
 
   setSalesId: () => undefined,
   getSalesId: () => '',
+
+  setEmployeeId: () => undefined,
+  getEmployeeId: () => '',
 
   getRoleDisplayName: () => '',
 
@@ -174,6 +181,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   const getSalesId = (): string => {
     return ls.get<string>(STORAGE_KEYS.SALES_ID) || '';
+  };
+
+  const setEmployeeId = (id: string) => {
+    ls.set<string>(STORAGE_KEYS.EMPLOYEE_ID, id);
+  };
+
+  const getEmployeeId = (): string => {
+    return ls.get<string>(STORAGE_KEYS.EMPLOYEE_ID) || '';
   };
 
   const setUsername = (username: string) => {
@@ -264,15 +279,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     setUserId(userProfile.id);
     setRole(userProfile.role.roleCode);
     setUsername(userProfile.username);
-    if (userProfile.role.roleCode === 'SALES' && userProfile.salesId) {
-      setSalesId(userProfile.salesId);
+    if (userProfile.role.roleCode === 'SALES' && userProfile.employeeId) {
+      setEmployeeId(userProfile.employeeId);
     } else {
-      ls.remove(STORAGE_KEYS.SALES_ID);
+      ls.remove(STORAGE_KEYS.EMPLOYEE_ID);
     }
     // setStaffRole(userProfile.staff.role.roleCode);
     // setStaffId(userProfile.staff.id);
     // setPermission(userProfile.permissions);
-    setAdvanceSODays(0);
 
     // return role ไว้ใช้ต่อ
     return userProfile.role.roleCode;
@@ -305,6 +319,9 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
         setSalesId,
         getSalesId,
+
+        setEmployeeId,
+        getEmployeeId,
 
         getRoleDisplayName,
 

@@ -124,7 +124,7 @@ export default function NewQuotation() {
             customerContactId: '',
             docDate: today,
             effectiveDate: today.add(7, 'day'),
-            saleId: '',
+            salesId: '',
             coSaleId: '',
             remark: '',
             discount: 0,
@@ -170,7 +170,7 @@ export default function NewQuotation() {
     const isGeneralSectionCompleted =
         !!formik.values.docDate &&
         !!formik.values.effectiveDate &&
-        !!formik.values.saleId &&
+        !!formik.values.salesId &&
         formik.values.isVat !== undefined;
 
     const isCustomerSectionCompleted =
@@ -395,16 +395,16 @@ export default function NewQuotation() {
                             required
                             label={t('customerManagement.column.salesAccount')}
                             InputLabelProps={{ shrink: true }}
-                            error={Boolean(formik.touched.saleId && formik.errors.saleId)}
-                            helperText={formik.touched.saleId && formik.errors.saleId}
-                            value={formik.values.saleId || ''}
+                            error={Boolean(formik.touched.salesId && formik.errors.salesId)}
+                            helperText={formik.touched.salesId && formik.errors.salesId}
+                            value={formik.values.salesId || ''}
                             disabled={isSalesFetching}
                             onChange={(event) => {
                                 const selectedCode = event.target.value;
                                 if (selectedCode === '') {
-                                    formik.setFieldValue('saleId', selectedCode);
+                                    formik.setFieldValue('salesId', selectedCode);
                                 } else {
-                                    formik.setFieldValue('saleId', selectedCode);
+                                    formik.setFieldValue('salesId', selectedCode);
                                 }
                             }}>
                             <MenuItem value="">{t('general.clearSelected')}</MenuItem>
@@ -1071,7 +1071,7 @@ export default function NewQuotation() {
                     setCustomer(payload.customer);
                     formik.setValues({
                         ...formik.values,
-                        saleId: payload.customer.salesAccount,
+                        salesId: payload.customer.salesAccount,
                         customerId: payload.customer.id,
                         docDate: today,
                         effectiveDate: today.add(7, 'day')

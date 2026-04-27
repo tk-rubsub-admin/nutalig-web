@@ -4,7 +4,6 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { GridLocaleText } from '@material-ui/data-grid';
 import translationEn from './en/translations.json';
 import translationTh from './th/translations.json';
-import translationLa from './la/translations.json';
 import muiEn from './en/mui';
 import muiTh from './th/mui';
 
@@ -13,7 +12,6 @@ declare module 'react-i18next' {
   interface Resources {
     ns1: typeof translationEn;
     ns2: typeof translationTh;
-    ns3: typeof translationLa;
   }
 }
 
@@ -33,9 +31,6 @@ i18n
       },
       th: {
         translation: translationTh
-      },
-      la: {
-        translation: translationLa
       }
     },
     fallbackLng: 'en',

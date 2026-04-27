@@ -4,8 +4,15 @@ import React, { ReactElement, createContext, useContext, useEffect, useState } f
 import ls from 'localstorage-slim';
 import { useTranslation } from 'react-i18next';
 import { getAdminUserRoleLabel } from './roles';
-import { getUserProfile, lineLogin as lineLoginApi, login, logout, oneTimeLogin } from 'services/general-api';
-import { LineLoginRequest, LoginResponse, Role } from 'services/User/user-type';
+import {
+  getUserProfile,
+  lineLogin as lineLoginApi,
+  lineRegister as lineRegisterApi,
+  login,
+  logout,
+  oneTimeLogin
+} from 'services/general-api';
+import { LineLoginRequest, LineRegisterRequest, LoginResponse, Role } from 'services/User/user-type';
 
 export const STORAGE_KEYS = {
   ROLE: 'nutalig:user_role',
@@ -32,6 +39,7 @@ interface AuthProps {
   logInWithGoogle: () => Promise<void>;
   logInWithOneTimeToken: (token: string) => Promise<string>;
   lineLogin: (req: LineLoginRequest) => Promise<LoginResponse>;
+  lineRegister: (req: LineRegisterRequest) => Promise<LoginResponse>;
   logOut: () => Promise<void>;
 
   setToken: (token: string) => void;
@@ -76,6 +84,7 @@ const Auth = createContext<AuthProps>({
   logInWithGoogle: async () => undefined,
   logInWithOneTimeToken: async () => '',
   lineLogin: async () => ({ status: '', data: { token: '' } }),
+  lineRegister: async () => ({ status: '', data: { token: '' } }),
   logOut: async () => undefined,
 
   setToken: () => undefined,
@@ -261,6 +270,25 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     return response;
   };
 
+  const lineRegister = async (req: LineRegisterRequest): Promise<LoginResponse> => {
+    const response = await lineRegisterApi(req);
+    const token =
+      typeof response?.data?.token === 'string'
+        ? response.data.token
+        : typeof (response as any)?.data?.accessToken === 'string'
+          ? (response as any).data.accessToken
+          : typeof (response as any)?.token === 'string'
+            ? (response as any).token
+            : '';
+
+    if (token) {
+      setToken(token);
+      await hydrateUserProfileFromBackend();
+    }
+
+    return response;
+  };
+
   const logOut = async (): Promise<void> => {
     try {
       const uid = getUserId();
@@ -299,6 +327,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         logInWithGoogle,
         logInWithOneTimeToken,
         lineLogin,
+        lineRegister,
         logOut,
 
         setToken,

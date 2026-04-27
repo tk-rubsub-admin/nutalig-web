@@ -43,10 +43,19 @@ import { useAuth } from 'auth/AuthContext';
 import { copyText } from 'utils/copyContent';
 import { useFormik } from 'formik';
 import LoadingDialog from 'components/LoadingDialog';
-import { deleteUser, getAllUserRole, resetUserPassword, searchUser, updateActiveInactiveUser } from 'services/User/user-api';
+import {
+  deleteUser,
+  getAllUserRole,
+  inviteLineRegistration,
+  resetLineBinding,
+  resetUserPassword,
+  searchUser,
+  updateActiveInactiveUser
+} from 'services/User/user-api';
 import Paginate from 'components/Paginate';
 import toast from 'react-hot-toast';
 import ConfirmDialog from 'components/ConfirmDialog';
+import { ROUTE_PATHS } from 'routes';
 
 const TableHeaderColumn = styled.div`
   border-left: 2px solid #e0e0e0;
@@ -81,6 +90,24 @@ export default function AdminManagement(): JSX.Element {
   const [msg, setMsg] = useState<string>('');
   const [action, setAction] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+
+  const resolveInviteLink = (response: any): string => {
+    const inviteUrl =
+      response?.data?.inviteUrl || response?.data?.registrationUrl || response?.data?.url;
+
+    if (typeof inviteUrl === 'string' && inviteUrl) {
+      return inviteUrl;
+    }
+
+    const inviteToken = response?.data?.token || response?.data?.inviteToken;
+
+    if (typeof inviteToken === 'string' && inviteToken) {
+      return `${window.location.origin}${ROUTE_PATHS.LINE_REGISTER}?token=${encodeURIComponent(inviteToken)}`;
+    }
+
+    throw new Error('Invite link is invalid');
+  };
+
   const formik = useFormik({
     initialValues: {
       roleNameEqual: '',
@@ -146,6 +173,29 @@ export default function AdminManagement(): JSX.Element {
       setIsLoading(false);
     });
   };
+  const funcInviteLineRegistration = async (userId: string) => {
+    setIsLoading(true);
+
+    try {
+      const response = await inviteLineRegistration(userId);
+      copyText(resolveInviteLink(response));
+      toast.success('คัดลอกลิงก์ลงทะเบียน LINE แล้ว');
+    } catch (error: any) {
+      toast.error(`${t('toast.failed')} ${error?.response?.data?.message || error?.message || ''}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const funcResetLineBinding = (userId: string) => {
+    setIsLoading(true);
+    toast.promise(resetLineBinding(userId), {
+      loading: t('toast.loading'),
+      success: () => t('toast.success'),
+      error: (error) => t('toast.failed') + ' ' + error.message
+    }).finally(() => {
+      setIsLoading(false);
+    });
+  };
   const { data: roleList, isFetching: fetchingRole } = useQuery('role-list', () =>
     getAllUserRole()
   );
@@ -170,6 +220,30 @@ export default function AdminManagement(): JSX.Element {
           </TableCell>
           <TableCell style={{ textAlign: 'center' }}>
             <TextLineClamp>
+              <Tooltip title="คัดลอกลิงก์ลงทะเบียน LINE">
+                <IconButton
+                  disabled={getRole() !== 'SUPER_ADMIN'}
+                  onClick={() => {
+                    void funcInviteLineRegistration(user.id);
+                  }}>
+                  <ContentCopy />
+                </IconButton>
+              </Tooltip>
+              &nbsp;&nbsp;
+              <Tooltip title="รีเซ็ตการผูกบัญชี LINE">
+                <IconButton
+                  disabled={getRole() !== 'SUPER_ADMIN'}
+                  onClick={() => {
+                    setSelectedUserId(user.id);
+                    setTitle('ยืนยันรีเซ็ตการผูกบัญชี LINE');
+                    setMsg('เมื่อตกลง ผู้ใช้งานจะต้องลงทะเบียนผูกบัญชี LINE ใหม่อีกครั้ง');
+                    setAction('RESET_LINE_BINDING');
+                    setVisibleConfirmationDialog(true);
+                  }}>
+                  <PersonOff />
+                </IconButton>
+              </Tooltip>
+              &nbsp;&nbsp;
               <Tooltip title={t('userManagement.actions.resetPassword')}>
                 <IconButton
                   disabled={getRole() !== 'SUPER_ADMIN'}
@@ -329,6 +403,8 @@ export default function AdminManagement(): JSX.Element {
             funcActiveInactiveUser(selectedUserId, 'ACTIVE');
           } else if (action === 'RESET_PASSWORD') {
             funcResetUserPassword(selectedUserId);
+          } else if (action === 'RESET_LINE_BINDING') {
+            funcResetLineBinding(selectedUserId);
           } else if (action === 'DELETE') {
             funcDeleteUser(selectedUserId);
           }

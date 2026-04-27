@@ -8,7 +8,9 @@ export const ROUTE_PATHS = Object.freeze({
   VIEW_ORDER: '/view-order',
   DASHBOARD: '/dashboard',
   LOGIN: '/login',
+  LINE_REGISTER: '/line-register',
   LOGIN_SUCCESS: '/login-success',
+  LINE_REGISTER_SUCCESS: '/line-register-success',
   LOGIN_FAILURE: '/login-failure',
   LOGOUT: '/logout',
   FORBIDDEN: '/403',
@@ -21,6 +23,8 @@ export const ROUTE_PATHS = Object.freeze({
   SUPPLIER_DETAIL: '/supplier/:id',
   SUPPLIER_NEW: '/supplier-create',
   STAFF_MANAGEMENT: '/staff-management',
+  EMPLOYEE_MANAGEMENT: '/employee-management',
+  EMPLOYEE_DETAIL: '/employee/:id',
   STAFF_NEW: '/staff-create',
   STAFF_DETAIL: '/staff/:id',
   CUSTOMER_MANAGEMENT: '/customer-management',
@@ -71,9 +75,19 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     component: lazy(() => import('./pages/Login' /* webpackChunkName: "app" */))
   },
   {
+    path: ROUTE_PATHS.LINE_REGISTER,
+    isPublic: true,
+    component: lazy(() => import('./pages/LineRegister' /* webpackChunkName: "app" */))
+  },
+  {
     path: ROUTE_PATHS.LOGIN_SUCCESS,
     isPublic: true,
     component: lazy(() => import('./pages/LoginSuccess' /* webpackChunkName: "app" */))
+  },
+  {
+    path: ROUTE_PATHS.LINE_REGISTER_SUCCESS,
+    isPublic: true,
+    component: lazy(() => import('./pages/LineRegisterSuccess' /* webpackChunkName: "app" */))
   },
   {
     path: ROUTE_PATHS.LOGIN_FAILURE,
@@ -129,6 +143,16 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.STAFF_MANAGEMENT,
     component: lazy(() => import('./pages/StaffManagement' /* webpackChunkName: "app" */)),
     allowedRoles: [ROLES.SUPER_ADMIN]
+  },
+  {
+    path: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
+    component: lazy(() => import('./pages/EmployeeManagement' /* webpackChunkName: "app" */)),
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+  },
+  {
+    path: ROUTE_PATHS.EMPLOYEE_DETAIL,
+    component: lazy(() => import('./pages/EmployeeManagement/Detail' /* webpackChunkName: "app" */)),
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
   },
   {
     path: ROUTE_PATHS.STAFF_NEW,

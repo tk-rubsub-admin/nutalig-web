@@ -1,8 +1,10 @@
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import CssBaseline from '@mui/material/CssBaseline';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import {
   Dialog,
@@ -19,8 +21,15 @@ export default function SignInSide(): JSX.Element {
   const [openDialog, setOpenDialog] = useState(false);
   const [isOpenLoading, setIsOpenLoading] = useState(false);
   const [dialogMessage, setDialogMessage] = useState<string>();
+  const [isEmailConsentChecked, setIsEmailConsentChecked] = useState(false);
 
   const handleLineLogin = async () => {
+    if (!isEmailConsentChecked) {
+      setDialogMessage('กรุณายืนยันการยินยอมใช้อีเมลก่อนเข้าสู่ระบบด้วย LINE');
+      setOpenDialog(true);
+      return;
+    }
+
     setIsOpenLoading(true);
 
     try {
@@ -117,7 +126,7 @@ export default function SignInSide(): JSX.Element {
             <Typography
               color="text.secondary"
               sx={{
-                mb: 4.5,
+                mb: 3,
                 textAlign: 'center',
                 maxWidth: 280,
                 lineHeight: 1.7,
@@ -125,9 +134,66 @@ export default function SignInSide(): JSX.Element {
               }}>
               เข้าสู่ระบบเพื่อใช้งานระบบ ผ่านบัญชี LINE ของคุณ
             </Typography>
+            <Box
+              sx={{
+                width: '100%',
+                mb: 3,
+                p: 2.25,
+                borderRadius: 3,
+                border: '1px solid rgba(38, 52, 33, 0.10)',
+                background:
+                  'linear-gradient(180deg, rgba(248, 251, 245, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%)'
+              }}>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  color: '#1f2a1c',
+                  mb: 1
+                }}>
+                การขอใช้อีเมลจากบัญชี LINE
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75, mb: 0.75 }}>
+                ระบบจะขออีเมลจากบัญชี LINE ของคุณเพื่อใช้สำหรับระบุตัวตนผู้ใช้งาน และผูกบัญชีสำหรับเข้าสู่ระบบ Nutalig Portal
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75, mb: 0.75 }}>
+                อีเมลจะถูกใช้เพื่อ:
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+                1. ตรวจสอบและยืนยันตัวตนผู้ใช้งาน
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+                2. เชื่อมบัญชี LINE กับบัญชีผู้ใช้งานในระบบ
+              </Typography>
+            </Box>
+            <FormControlLabel
+              sx={{
+                alignSelf: 'stretch',
+                mb: 3,
+                mx: 0,
+                '& .MuiFormControlLabel-label': {
+                  fontSize: '0.92rem',
+                  color: '#42503e',
+                  lineHeight: 1.6
+                }
+              }}
+              control={
+                <Checkbox
+                  checked={isEmailConsentChecked}
+                  onChange={(event) => setIsEmailConsentChecked(event.target.checked)}
+                  sx={{
+                    color: '#8aa281',
+                    '&.Mui-checked': {
+                      color: '#4d6b41'
+                    }
+                  }}
+                />
+              }
+              label="ฉันยินยอมให้ระบบเข้าถึงอีเมลจากบัญชี LINE ของฉันตามวัตถุประสงค์ข้างต้น"
+            />
             <Button
               onClick={handleLineLogin}
               variant="contained"
+              disabled={!isEmailConsentChecked}
               sx={{
                 backgroundColor: '#06c755 !important',
                 borderRadius: '999px',

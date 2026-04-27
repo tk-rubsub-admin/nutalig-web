@@ -1,4 +1,26 @@
 const components = {
+  MuiButton: {
+    defaultProps: {
+      variant: 'contained',
+      disableElevation: true
+    },
+    styleOverrides: {
+      root: {
+        borderRadius: '8px',
+        textTransform: 'none',
+        fontWeight: 700
+      },
+      contained: {
+        boxShadow: 'none'
+      },
+      outlined: {
+        border: 'none'
+      },
+      text: {
+        backgroundColor: 'rgba(25, 118, 210, 0.12)'
+      }
+    }
+  },
   MuiButtonBase: {
     defaultProps: {
       disableRipple: true

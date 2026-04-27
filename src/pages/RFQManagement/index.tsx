@@ -31,7 +31,7 @@ import { useHistory } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { ROUTE_PATHS } from 'routes';
 import { getRFQList } from 'services/RFQ/rfq-api';
-import { RFQEmployee, RFQRecord } from 'services/RFQ/rfq-type';
+import { RFQEmployee, RFQFileResource, RFQRecord } from 'services/RFQ/rfq-type';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
   if (!productFamily) {
@@ -62,6 +62,29 @@ function getSalesProcurementLabel(rfq: RFQRecord): string {
 
 function getCustomerLabel(rfq: RFQRecord): string | null {
   return rfq.customer?.customerName || rfq.customer?.companyName || null;
+}
+
+function getRFQFileUrl(file?: RFQFileResource | null): string {
+  return file?.pictureUrl || file?.fileUrl || '';
+}
+
+function getPictureResources(rfq: RFQRecord): { id: number; pictureUrl: string }[] {
+  if (Array.isArray(rfq.pictures) && rfq.pictures.length > 0) {
+    return rfq.pictures
+      .filter((file) => (file.fileType || '').toUpperCase() === 'PICTURE')
+      .map((file) => ({
+        id: file.id,
+        pictureUrl: getRFQFileUrl(file)
+      }))
+      .filter((file) => Boolean(file.pictureUrl));
+  }
+
+  return (rfq.pictures || [])
+    .map((picture) => ({
+      id: picture.id,
+      pictureUrl: picture.pictureUrl
+    }))
+    .filter((picture) => Boolean(picture.pictureUrl));
 }
 
 function getSLADayLeft(requestedDate?: string | null, slaDate?: string | null): number | null {
@@ -321,7 +344,7 @@ export default function RFQManagement(): ReactElement {
             <TextLineClamp>{rfq.capacity || '-'}</TextLineClamp>
           </TableCell>
           <TableCell>
-            <RFQPictureGrid pictures={rfq.pictures || []} />
+            <RFQPictureGrid pictures={getPictureResources(rfq)} />
           </TableCell>
         </TableRow>
       ))
@@ -378,7 +401,7 @@ export default function RFQManagement(): ReactElement {
                 {t('rfqManagement.column.productFamily')}:{' '}
                 {getProductFamilyLabel(rfq.productFamily)}
               </Typography>
-              <RFQPictureGrid pictures={rfq.pictures || []} />
+              <RFQPictureGrid pictures={getPictureResources(rfq)} />
             </Stack>
           </TableCell>
         </TableRow>

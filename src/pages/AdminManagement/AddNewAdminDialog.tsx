@@ -17,49 +17,35 @@ import ConfirmDialog from 'components/ConfirmDialog';
 import { useQuery } from 'react-query';
 import { CreateNewUserRequest } from 'services/User/user-type';
 import { createUser, getAllUserRole } from 'services/User/user-api';
-import { Company } from 'services/Company/company-type';
 import { Cancel, Save } from '@mui/icons-material';
 
 interface AddNewAdminDialogProps {
   open: boolean;
   staffId?: string;
-  company?: Company | null | undefined;
   onClose: () => void;
 }
 
 export default function AddNewAdminDialog(props: AddNewAdminDialogProps): JSX.Element {
-  const { open, staffId, company, onClose } = props;
+  const { open, staffId, onClose } = props;
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const { t } = useTranslation();
-  const [showPassword, setShowPassword] = useState(false);
-  const togglePasswordVisibility = () => {
-    setShowPassword((prev) => !prev);
-  };
   const { data: roleList, isFetching: fetchingRole } = useQuery('role-list', () =>
     getAllUserRole()
   );
   const formik = useFormik({
     initialValues: {
-      role: '',
-      email: '',
-      company: company
+      roleCode: ''
     },
     validationSchema: Yup.object().shape({
-      role: Yup.string().max(255).required(t('userManagement.createNewUser.rolePlaceholder')),
-      email: Yup.string()
-        .email(t('userManagement.createNewUser.emailInvalid'))
-        .max(255)
-        .required(t('userManagement.createNewUser.emailPlaceholder'))
+      roleCode: Yup.string().max(255).required(t('userManagement.createNewUser.rolePlaceholder'))
     }),
     enableReinitialize: true,
     onSubmit: (values, actions) => {
       actions.setSubmitting(true);
       toast.promise(
         createUser({
-          email: values.email,
-          role: values.role,
-          staffId: staffId,
-          companyIdList: [values.company?.id]
+          roleCode: values.roleCode,
+          employeeId: staffId || ''
         } as CreateNewUserRequest),
         {
           loading: t('toast.loading'),
@@ -70,35 +56,15 @@ export default function AddNewAdminDialog(props: AddNewAdminDialogProps): JSX.El
             onClose();
             return t('userManagement.createNewUser.createSuccess');
           },
-          error: (error) => t('userManagement.createNewUser.createFailure') + ' : ' + error.message
+          error: (error) => {
+            actions.setSubmitting(false);
+            return t('userManagement.createNewUser.createFailure') + ' : ' + error.message;
+          }
         }
       );
     }
   });
-  const generateRandomPassword = (length = 8): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789!@$%&';
-    let password = '';
 
-    if (window.crypto && window.crypto.getRandomValues) {
-      const array = new Uint32Array(length);
-      window.crypto.getRandomValues(array);
-      for (let i = 0; i < length; i++) {
-        password += chars[array[i] % chars.length];
-      }
-    } else {
-      // fallback เผื่อกรณีไม่มี crypto (เช่น browser เก่ามาก)
-      for (let i = 0; i < length; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-    }
-
-    return password;
-  };
-  const handleGeneratePassword = () => {
-    const pwd = generateRandomPassword(8);
-    formik.setFieldValue('password', pwd);
-    formik.setFieldTouched('password', true, false);
-  };
   return (
     <Dialog open={open} fullWidth aria-labelledby="form-dialog-title">
       <DialogTitle id="form-dialog-title">{t('userManagement.createNewUser.title')}</DialogTitle>
@@ -116,78 +82,15 @@ export default function AddNewAdminDialog(props: AddNewAdminDialogProps): JSX.El
         </GridTextField>
         <GridTextField item xs={12}>
           <TextField
-            type="email"
-            name="email"
-            placeholder={t('userManagement.createNewUser.emailPlaceholder')}
-            label={t('userManagement.createNewUser.email')}
-            fullWidth
-            variant="outlined"
-            value={formik.values.email}
-            error={Boolean(formik.touched.email && formik.errors.email)}
-            helperText={formik.touched.email && formik.errors.email}
-            onChange={({ target }) => formik.setFieldValue('email', target.value)}
-            InputLabelProps={{ shrink: true }}
-          />
-        </GridTextField>
-        {/* <GridTextField item xs={12}>
-          <TextField
-            type="password"
-            name="password"
-            placeholder={t('userManagement.createNewUser.passwordPlaceholder')}
-            id="netflix_add_password"
-            label={t('userManagement.createNewUser.password')}
-            fullWidth
-            variant="outlined"
-            value={formik.values.password}
-            error={Boolean(formik.touched.password && formik.errors.password)}
-            helperText={formik.touched.password && formik.errors.password}
-            onChange={({ target }) => formik.setFieldValue('password', target.value)}
-            InputLabelProps={{ shrink: true }}
-          /> 
-          <Box display="flex" gap={1} alignItems="center">
-            <TextField
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              placeholder={t('userManagement.createNewUser.passwordPlaceholder')}
-              id="netflix_add_password"
-              label={t('userManagement.createNewUser.password')}
-              fullWidth
-              variant="outlined"
-              value={formik.values.password}
-              error={Boolean(formik.touched.password && formik.errors.password)}
-              helperText={formik.touched.password && formik.errors.password}
-              onChange={({ target }) => formik.setFieldValue('password', target.value)}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={togglePasswordVisibility} edge="end">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-
-            <Button
-              variant="contained"
-              onClick={handleGeneratePassword}
-              sx={{ whiteSpace: 'nowrap' }}>
-              {t('userManagement.createNewUser.generatePassword')}
-            </Button>
-          </Box>
-        </GridTextField> */}
-        <GridTextField item xs={12}>
-          <TextField
             disabled={fetchingRole}
             select
             label={t('userManagement.createNewUser.role')}
             fullWidth
             variant="outlined"
-            value={formik.values.role}
-            error={Boolean(formik.touched.role && formik.errors.role)}
-            helperText={formik.touched.role && formik.errors.role}
-            onChange={({ target }) => formik.setFieldValue('role', target.value)}
+            value={formik.values.roleCode}
+            error={Boolean(formik.touched.roleCode && formik.errors.roleCode)}
+            helperText={formik.touched.roleCode && formik.errors.roleCode}
+            onChange={({ target }) => formik.setFieldValue('roleCode', target.value)}
             InputLabelProps={{ shrink: true }}>
             {fetchingRole
               ? ' '
@@ -195,20 +98,10 @@ export default function AddNewAdminDialog(props: AddNewAdminDialogProps): JSX.El
                 ?.filter((role) => role.roleCode !== 'SUPER_ADMIN')
                 .map((role) => (
                   <MenuItem key={role.roleCode} value={role.roleCode}>
-                    {t(`role.${role.roleCode}`)}
+                    {role.roleNameTh} ({role.roleCode})
                   </MenuItem>
                 ))}
           </TextField>
-        </GridTextField>
-        <GridTextField item xs={12}>
-          <TextField
-            type="text"
-            label={t('userManagement.tableHeaders.company')}
-            fullWidth
-            variant="outlined"
-            value={formik.values.company?.nameTh}
-            InputLabelProps={{ shrink: true }}
-          />
         </GridTextField>
       </DialogContent>
       <DialogActions>
@@ -226,6 +119,7 @@ export default function AddNewAdminDialog(props: AddNewAdminDialogProps): JSX.El
           variant="contained"
           className="btn-emerald-green"
           onClick={() => setVisibleConfirmationDialog(true)}
+          disabled={!formik.values.roleCode || !staffId}
           startIcon={<Save />}>
           {t('button.create')}
         </Button>

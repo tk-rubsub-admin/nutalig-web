@@ -2,16 +2,14 @@
 import { useTranslation } from 'react-i18next';
 import { ROUTE_PATHS } from 'routes';
 import {
-  AccountBalanceWallet,
-  AddShoppingCart,
-  Diversity3,
+  AccountCircle,
+  ContactPage,
   FilePresent,
   Group,
   Home,
   ManageAccounts,
+  Person,
   SettingsSuggest,
-  ShoppingBag,
-  ShoppingCartCheckout
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { SidebarItemsType } from './Sidebar/types';
@@ -28,32 +26,18 @@ export function useMenuItems() {
       icon: Home,
       allowedRoles: Object.values(ROLES)
     },
-    // {
-    //   id: 'left_menu__user_management',
-    //   title: t('sidebar.userManagement.title'),
-    //   href: ROUTE_PATHS.USER_MANAGEMENT,
-    //   icon: ManageAccounts,
-    //   allowedPermission: ['PERM_VIEW_USER_LIST']
-    // },
-    // {
-    //   id: 'left_menu__staff_management',
-    //   title: t('sidebar.staffManagement.title'),
-    //   href: ROUTE_PATHS.STAFF_MANAGEMENT,
-    //   icon: Group,
-    //   allowedRoles: [ROLES.SUPER_ADMIN]
-    // },
-    // {
-    //   id: 'left_menu__supplier_management',
-    //   title: t('sidebar.supplierManagement.title'),
-    //   href: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
-    //   icon: Diversity3,
-    //   allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-    // },
+    {
+      id: 'left_menu__user_management',
+      title: t('sidebar.userManagement.title'),
+      href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
+      icon: Group,
+      allowedRoles: [ROLES.SUPER_ADMIN]
+    },
     {
       id: 'left_menu__customer_management',
       title: t('sidebar.customerManagement.title'),
       href: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
-      icon: Group,
+      icon: Person,
       allowedRoles: [ROLES.SUPER_ADMIN]
     },
     {
@@ -62,6 +46,13 @@ export function useMenuItems() {
       href: ROUTE_PATHS.RFQ_MANAGEMENT,
       icon: FilePresent,
       allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
+    },
+    {
+      id: 'left_menu__employee_management',
+      title: t('sidebar.employeeManagement.title'),
+      href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
+      icon: ContactPage,
+      allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
     },
     {
       id: 'left_menu__document_management',

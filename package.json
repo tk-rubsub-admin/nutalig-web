@@ -1,7 +1,7 @@
 {
   "name": "nutalig",
-  "version": "0.0.0.1@20260220",
-  "proxy": "http://localhost:8005/",
+  "version": "0.0.0.1@27042026",
+  "proxy": "http://localhost:8002/",
   "private": true,
   "engines": {
     "node": ">=16",

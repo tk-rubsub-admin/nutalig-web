@@ -50,6 +50,9 @@
     "staffManagement": {
       "title": "พนักงาน"
     },
+    "employeeManagement": {
+      "title": "รายการพนักงาน"
+    },
     "supplierManagement": {
       "title": "คู่ค้า"
     },
@@ -303,6 +306,124 @@
     "confirmMsgNewCustomerDropOff": "คุณแน่ใจหรือว่าต้องการเพิ่มจุดลงของ/จุดส่งของใหม่",
     "deleteCustomerDropOff": "ลบจุดลงของ",
     "confirmMsgDeleteCustomerDropOff": "คุณแน่ใจหรือว่าต้องการลบจุดลงของที่ {{id}} : {{name}}"
+  },
+  "staffManagement": {
+    "title": "การจัดการพนักงาน",
+    "staff": "พนักงาน",
+    "searchPanel": "ค้นหาพนักงาน",
+    "detail": "รายละเอียด",
+    "importStaff": "นำเข้าข้อมูลพนักงาน",
+    "action": {
+      "create": "สร้างพนักงานใหม่",
+      "createUser": "สร้างผู้ใช้งาน",
+      "edit": "แก้ไขรายละเอียด",
+      "view": "ดูรายละเอียด",
+      "inactive": "ระงับการใช้งานชั่วคราว",
+      "active": "เปิดการใช้งาน",
+      "delete": "ลบพนักงาน"
+    },
+    "column": {
+      "id": "รหัสพนักงาน",
+      "employeeId": "รหัสพนักงานอ้างอิง",
+      "displayName": "ชื่อที่แสดง",
+      "name": "ชื่อ",
+      "lastname": "นามสกุล",
+      "nickname": "ชื่อเล่น",
+      "telNo": "เบอร์โทร",
+      "lineId": "LINE ID",
+      "department": "แผนก",
+      "role": "สิทธิ์/ตำแหน่ง",
+      "duty": "หน้าที่รับผิดชอบ",
+      "company": "บริษัท",
+      "workingspace": "สถานที่ทำงาน",
+      "type": "ประเภทพนักงาน",
+      "type2": "รูปแบบการจ้างงาน",
+      "nationality": "สัญชาติ",
+      "status": "สถานะ",
+      "startWorkingDate": "วันที่เริ่มงาน",
+      "startWorkingHour": "เวลาเข้างาน",
+      "endWorkingHour": "เวลาเลิกงาน"
+    },
+    "validateMessage": {
+      "employeeId": "กรุณาระบุรหัสพนักงาน",
+      "firstName": "กรุณาระบุชื่อพนักงาน",
+      "lastName": "กรุณาระบุนามสกุลพนักงาน",
+      "nickname": "กรุณาระบุชื่อเล่น",
+      "nationality": "กรุณาเลือกสัญชาติ",
+      "roleCode": "กรุณาเลือกสิทธิ์ของพนักงาน",
+      "company": "กรุณาเลือกบริษัท",
+      "workspace": "กรุณาเลือกสถานที่ทำงาน"
+    },
+    "newUser": "สร้างผู้ใช้งานใหม่",
+    "confirmMsgNewUser": "คุณแน่ใจหรือว่าต้องการสร้างผู้ใช้งานใหม่",
+    "newStaff": "สร้างพนักงานใหม่",
+    "confirmMsgNewStaff": "คุณแน่ใจหรือว่าต้องการสร้างพนักงานใหม่",
+    "updateStaff": "อัปเดตข้อมูลพนักงาน",
+    "confirmMsgUpdateStaff": "คุณแน่ใจหรือว่าต้องการอัปเดตข้อมูลพนักงาน",
+    "updateStaffSuccess": "อัปเดตข้อมูลพนักงานสำเร็จ",
+    "updateStaffFailed": "อัปเดตข้อมูลพนักงานไม่สำเร็จ เนื่องจาก ",
+    "inactiveStaff": "ระงับการใช้งานชั่วคราว",
+    "confirmMsgInactiveStaff": "คุณแน่ใจหรือว่าต้องการระงับการใช้งานพนักงานชั่วคราว",
+    "activeStaff": "เปิดการใช้งาน",
+    "confirmMsgActiveStaff": "คุณแน่ใจหรือว่าต้องการเปิดการใช้งานพนักงาน",
+    "deleteStaff": "ลบพนักงาน",
+    "confirmMsgDeleteStaff": "คุณแน่ใจหรือว่าต้องการลบพนักงาน (ไม่สามารถกู้คืนข้อมูลได้)",
+    "deleteStaffSuccess": "ลบพนักงานสำเร็จ",
+    "deleteStaffFailed": "ลบพนักงานไม่สำเร็จ เนื่องจาก ",
+    "inactiveStaffSuccess": "ระงับการใช้งานพนักงานสำเร็จ",
+    "inactiveStaffFailed": "ระงับการใช้งานพนักงานไม่สำเร็จ เนื่องจาก ",
+    "activeStaffSuccess": "เปิดการใช้งานพนักงานสำเร็จ",
+    "activeStaffFailed": "เปิดการใช้งานพนักงานไม่สำเร็จ เนื่องจาก ",
+    "createStaffSuccess": "สร้างพนักงานสำเร็จ",
+    "createStaffFailed": "สร้างพนักงานไม่สำเร็จ เนื่องจาก ",
+    "confirmUploadTitle": "ยืนยันนำเข้าข้อมูลพนักงาน",
+    "confirmUploadMsg": "คุณยืนยันนำเข้าข้อมูลพนักงานใช่หรือไม่"
+  },
+  "userManagement": {
+    "status": {
+      "ACTIVE": "กำลังใช้งาน",
+      "INACTIVE": "ระงับการใช้งานชั่วคราว",
+      "PENDING_ACTIVATE": "รอเปิดใช้งาน"
+    }
+  },
+  "employeeManagement": {
+    "title": "รายการพนักงาน",
+    "detailTitle": "รายละเอียดพนักงาน",
+    "userDetailTitle": "รายละเอียดผู้ใช้งาน",
+    "userNotCreated": "ยังไม่ได้สร้างผู้ใช้งาน",
+    "searchPanel": "ค้นหารายการพนักงาน",
+    "column": {
+      "keyword": "คำค้นหา",
+      "employeeId": "รหัสพนักงาน",
+      "name": "ชื่อ - นามสกุล",
+      "nickName": "ชื่อเล่น",
+      "position": "ตำแหน่ง",
+      "team": "ทีม",
+      "phoneNumber": "เบอร์ติดต่อ",
+      "status": "สถานะ",
+      "isDefault": "ค่าเริ่มต้น",
+      "hasUser": "มีผู้ใช้งานในระบบ",
+      "userId": "รหัสผู้ใช้งาน",
+      "username": "อีเมล/ชื่อผู้ใช้งาน",
+      "displayName": "ชื่อที่แสดง",
+      "role": "สิทธิ์ผู้ใช้งาน",
+      "userStatus": "สถานะผู้ใช้งาน",
+      "lineUserId": "LINE User ID",
+      "pictureUrl": "ลิงก์รูปโปรไฟล์"
+    },
+    "action": {
+      "openProfileImage": "เปิดรูปโปรไฟล์",
+      "generateRegisterLink": "สร้างลิ้งลงทะเบียน",
+      "revokeRegister": "ยกเลิกการเชื่อม LINE"
+    },
+    "message": {
+      "generateRegisterLinkSuccess": "คัดลอกลิงก์ลงทะเบียนแล้ว",
+      "resetLineBindingSuccess": "ยกเลิกการเชื่อมต่อสำเร็จ"
+    },
+    "value": {
+      "yes": "ใช่",
+      "no": "ไม่ใช่"
+    }
   },
   "settingConfig": {
     "title": "ตั้งค่าระบบ",

@@ -7,11 +7,17 @@ import { STORAGE_KEYS } from 'auth/AuthContext';
 import packageInfo from '../../package.json';
 
 export const api = axios.create({
-  baseURL: config.dkpApi
+  baseURL: config.dkpApi,
+  headers: {
+    'ngrok-skip-browser-warning': 'true'
+  }
 });
 
 api.interceptors.request.use(
   async (config) => {
+    config.headers = config.headers || {};
+    config.headers['ngrok-skip-browser-warning'] = 'true';
+
     const token = ls.get<string | null>(STORAGE_KEYS.TOKEN);
 
     if (token) {

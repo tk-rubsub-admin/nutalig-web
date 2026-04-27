@@ -2,6 +2,7 @@ import { api } from 'api/api';
 import {
   GoogleCredentialRequest,
   LineLoginRequest,
+  LineRegisterRequest,
   LoginRequest,
   LoginResponse,
   UserProfileResponse
@@ -31,6 +32,14 @@ export const googleLogin = async (req: GoogleCredentialRequest): Promise<LoginRe
 export const lineLogin = async (req: LineLoginRequest): Promise<LoginResponse> => {
   const response: LoginResponse = await api
     .post('/v1/auth/line/login', req)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const lineRegister = async (req: LineRegisterRequest): Promise<LoginResponse> => {
+  const response: LoginResponse = await api
+    .post('/v1/auth/line/register', req)
     .then((response) => response.data);
 
   return response;

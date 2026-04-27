@@ -1,6 +1,12 @@
 /* eslint-disable prettier/prettier */
 import { api } from 'api/api';
-import { CreateNewUserRequest, GetAllRole, SearchUserRequest, UpdateLineConnectRequest } from './user-type';
+import {
+    CreateNewUserRequest,
+    GetAllRole,
+    InviteLineRegistrationResponse,
+    SearchUserRequest,
+    UpdateLineConnectRequest
+} from './user-type';
 
 export const getAllUserRole = async () => {
     const response: GetAllRole = await api
@@ -55,3 +61,17 @@ export const updateLineConnect = async (req: UpdateLineConnectRequest) => {
         .then((response) => response.data);
     return response;
 }
+
+export const inviteLineRegistration = async (userId: string): Promise<InviteLineRegistrationResponse> => {
+    const response = await api
+        .post(`/v1/admin/users/${userId}/invite-line-registration`)
+        .then((response) => response.data);
+    return response;
+};
+
+export const resetLineBinding = async (userId: string) => {
+    const response = await api
+        .post(`/v1/admin/users/${userId}/reset-line-binding`)
+        .then((response) => response.data);
+    return response;
+};

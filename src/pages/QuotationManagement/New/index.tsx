@@ -1026,7 +1026,7 @@ export default function NewQuotation() {
                         onClick={() => {
                             setTitle(t('general.confirmCloseTitle'));
                             setMsg(t('general.confirmCloseMsg'));
-                            setAction('CLOSE');
+                            setAction('back');
                             setVisibleConfirmationDialog(true);
                         }}
                         variant="contained"
@@ -1110,7 +1110,7 @@ export default function NewQuotation() {
                     } else if (action === 'clear') {
                         // handleClear();
                     } else if (action === 'back') {
-                        history.push(ROUTE_PATHS.ROOT);
+                        history.push('/quotation-management')
                     }
                     setVisibleConfirmationDialog(false);
                 }}

@@ -19,6 +19,7 @@ import {
 import ConfirmDialog from 'components/ConfirmDialog';
 import FileUploader from 'components/FileUploader';
 import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
+import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridTextField, Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
@@ -254,6 +255,7 @@ export default function NewRFQ(): JSX.Element {
 
   return (
     <Page>
+      <LoadingDialog open={formik.isSubmitting} />
       <PageTitle title={t('rfqManagement.action.create')} />
       <Wrapper>
         <Stack

@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import ConfirmDialog from 'components/ConfirmDialog';
+import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { Wrapper, GridTextField } from 'components/Styled';
 import * as Yup from 'yup';
@@ -209,6 +210,8 @@ export default function NewCustomer(): JSX.Element {
         error: (err) => {
           return t('customerManagement.message.createNewCustomerFailed', { err });
         }
+      }).finally(() => {
+        actions.setSubmitting(false);
       });
     }
   });
@@ -216,6 +219,7 @@ export default function NewCustomer(): JSX.Element {
   return (
     <FormikProvider value={formik}>
       <Page>
+        <LoadingDialog open={formik.isSubmitting} />
         <PageTitle title={t('customerManagement.action.create')} />
         <Wrapper>
           <Grid container spacing={1}>

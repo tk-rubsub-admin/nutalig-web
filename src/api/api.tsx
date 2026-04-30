@@ -6,6 +6,32 @@ import { browserName } from 'react-device-detect';
 import { STORAGE_KEYS } from 'auth/AuthContext';
 import packageInfo from '../../package.json';
 
+const AUTH_BYPASS_PATHS = [
+  '/v1/login',
+  '/v1/logout',
+  '/v1/auth/line/login',
+  '/v1/auth/line/register',
+  '/v1/auth/one-time-login'
+];
+const FORCED_LOGOUT_MARKER = 'nutalig:forced-logout';
+
+const shouldBypassForcedLogout = (url?: string) =>
+  typeof url === 'string' && AUTH_BYPASS_PATHS.some((path) => url.includes(path));
+
+const forceLogoutToLogin = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (sessionStorage.getItem(FORCED_LOGOUT_MARKER) === '1') {
+    return;
+  }
+
+  sessionStorage.setItem(FORCED_LOGOUT_MARKER, '1');
+  ls.clear();
+  window.location.replace('/login?reason=session-replaced');
+};
+
 export const api = axios.create({
   baseURL: config.dkpApi,
   headers: {
@@ -39,10 +65,15 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
+    const status = error.response?.status;
 
-    if (error.response?.status === 401 && !original._retry) {
+    if (status === 401 && original && !original._retry && !shouldBypassForcedLogout(original.url)) {
       original._retry = true;
       return api(original);
+    }
+
+    if (status === 401 && !shouldBypassForcedLogout(original?.url)) {
+      forceLogoutToLogin();
     }
 
     return Promise.reject(error);

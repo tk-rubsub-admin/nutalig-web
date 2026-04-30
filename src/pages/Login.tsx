@@ -13,7 +13,7 @@ import {
   DialogContentText,
   DialogTitle
 } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import LoadingDialog from 'components/LoadingDialog';
 import { getLineLoginUrl } from 'services/Line/line-api';
 
@@ -22,6 +22,24 @@ export default function SignInSide(): JSX.Element {
   const [isOpenLoading, setIsOpenLoading] = useState(false);
   const [dialogMessage, setDialogMessage] = useState<string>();
   const [isEmailConsentChecked, setIsEmailConsentChecked] = useState(false);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const reason = query.get('reason');
+
+    if (reason !== 'session-replaced') {
+      return;
+    }
+
+    setDialogMessage('บัญชีนี้ถูกเข้าสู่ระบบจากอุปกรณ์อื่นแล้ว ระบบจึงออกจากระบบเครื่องนี้อัตโนมัติ');
+    setOpenDialog(true);
+    sessionStorage.removeItem('nutalig:forced-logout');
+
+    query.delete('reason');
+    const nextQuery = query.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+    window.history.replaceState({}, document.title, nextUrl);
+  }, []);
 
   const handleLineLogin = async () => {
     if (!isEmailConsentChecked) {

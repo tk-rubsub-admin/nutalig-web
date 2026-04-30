@@ -51,7 +51,7 @@
       "title": "พนักงาน"
     },
     "employeeManagement": {
-      "title": "รายการพนักงาน"
+      "title": "พนักงาน"
     },
     "supplierManagement": {
       "title": "คู่ค้า"
@@ -403,6 +403,7 @@
       "status": "สถานะ",
       "isDefault": "ค่าเริ่มต้น",
       "hasUser": "มีผู้ใช้งานในระบบ",
+      "lineConnected": "เชื่อมต่อ LINE",
       "userId": "รหัสผู้ใช้งาน",
       "username": "อีเมล/ชื่อผู้ใช้งาน",
       "displayName": "ชื่อที่แสดง",

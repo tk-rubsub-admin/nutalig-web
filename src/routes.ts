@@ -15,7 +15,6 @@ export const ROUTE_PATHS = Object.freeze({
   LOGOUT: '/logout',
   FORBIDDEN: '/403',
   NOT_FOUND: '/404',
-  LIFF_APP: '/dpk-line-connect',
   RESET_PASSWORD: '/reset-password',
   CHANGE_PASSWORD: '/change-password',
   MAGIC_LINK: '/magic-link',
@@ -103,11 +102,6 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.RESET_PASSWORD,
     isPublic: true,
     component: lazy(() => import('./pages/ResetPassword' /* webpackChunkName: "app" */))
-  },
-  {
-    path: ROUTE_PATHS.LIFF_APP,
-    isPublic: true,
-    component: lazy(() => import('./pages/Liff' /* webpackChunkName: "app" */))
   },
   {
     path: ROUTE_PATHS.CHANGE_PASSWORD,

@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 
 import { Address, Contact, Customer } from "services/Customer/customer-type";
+import { EmployeeDetailResponse, EmployeeRecord } from "services/Employee/employee-type";
 import { Pagination } from "services/general-type";
 
 export interface CreateQuotationRequest {
@@ -40,7 +41,7 @@ export interface Quotation {
     customer: Customer;
     customerAddress: Address;
     customerContact: Contact;
-    salesAccount: null;
+    salesAccount: EmployeeRecord;
     coSalesId: string;
     remark: string;
     status: string;
@@ -71,7 +72,7 @@ export interface SearchQuotationRequest {
     docDateStart: string;
     docDateEnd: string;
     customerIdEqual: string;
-    statusEqual: string;
+    statusEqual: string | null;
 }
 
 export interface SearchQuotationResponse {

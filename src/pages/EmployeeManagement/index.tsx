@@ -1,5 +1,19 @@
-import { DisabledByDefault, Search } from '@mui/icons-material';
-import { Button, CircularProgress, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { Chat, DisabledByDefault, Person, Search } from '@mui/icons-material';
+import {
+  Button,
+  CircularProgress,
+  Grid,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography
+} from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
@@ -38,7 +52,7 @@ export default function EmployeeManagement(): JSX.Element {
   const { t } = useTranslation();
   const history = useHistory();
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [keyword, setKeyword] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
 
@@ -50,6 +64,31 @@ export default function EmployeeManagement(): JSX.Element {
       keepPreviousData: true
     }
   );
+
+  const handleSearch = () => {
+    const nextKeyword = keyword.trim();
+
+    setPage(1);
+
+    if (page === 1 && searchKeyword === nextKeyword) {
+      refetch();
+      return;
+    }
+
+    setSearchKeyword(nextKeyword);
+  };
+
+  const handleClear = () => {
+    setKeyword('');
+    setPage(1);
+
+    if (page === 1 && searchKeyword === '') {
+      refetch();
+      return;
+    }
+
+    setSearchKeyword('');
+  };
 
   const employeeRows = useMemo(() => {
     if (!data?.data?.records?.length) {
@@ -71,7 +110,23 @@ export default function EmployeeManagement(): JSX.Element {
         }
         sx={{ cursor: 'pointer' }}>
         <TableCell align="left">
-          <TextLineClamp>{employee.employeeId}</TextLineClamp>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TextLineClamp>{employee.employeeId}</TextLineClamp>
+            {employee.hasUser ? (
+              <Tooltip title={t('employeeManagement.column.hasUser')} arrow>
+                <Person color="success" />
+              </Tooltip>
+            ) : (
+              <></>
+            )}
+            {employee.isLineConnected ? (
+              <Tooltip title={t('employeeManagement.column.lineConnected')} arrow>
+                <Chat color="success" />
+              </Tooltip>
+            ) : (
+              <></>
+            )}
+          </Stack>
         </TableCell>
         <TableCell align="left">
           <TextLineClamp>{getEmployeeName(employee)}</TextLineClamp>
@@ -109,10 +164,7 @@ export default function EmployeeManagement(): JSX.Element {
             <Button
               variant="contained"
               className="btn-indigo-blue"
-              onClick={() => {
-                setPage(1);
-                setSearchKeyword(keyword);
-              }}
+              onClick={handleSearch}
               startIcon={<Search />}>
               {t('button.search')}
             </Button>
@@ -120,11 +172,7 @@ export default function EmployeeManagement(): JSX.Element {
             <Button
               variant="contained"
               className="btn-amber-orange"
-              onClick={() => {
-                setKeyword('');
-                setPage(1);
-                setSearchKeyword('');
-              }}
+              onClick={handleClear}
               startIcon={<DisabledByDefault />}>
               {t('button.clear')}
             </Button>
@@ -140,8 +188,7 @@ export default function EmployeeManagement(): JSX.Element {
               onChange={(event) => setKeyword(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
-                  setPage(1);
-                  setSearchKeyword(keyword);
+                  handleSearch();
                 }
               }}
             />
@@ -152,13 +199,27 @@ export default function EmployeeManagement(): JSX.Element {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.employeeId')}</TableCell>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.name')}</TableCell>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.nickName')}</TableCell>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.position')}</TableCell>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.team')}</TableCell>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.phoneNumber')}</TableCell>
-                <TableCell className={classes.tableHeader}>{t('employeeManagement.column.status')}</TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.employeeId')}
+                </TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.name')}
+                </TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.nickName')}
+                </TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.position')}
+                </TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.team')}
+                </TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.phoneNumber')}
+                </TableCell>
+                <TableCell className={classes.tableHeader}>
+                  {t('employeeManagement.column.status')}
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

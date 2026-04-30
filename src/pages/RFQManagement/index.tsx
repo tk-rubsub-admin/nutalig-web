@@ -1,4 +1,4 @@
-import { Add } from '@mui/icons-material';
+import { Add, AddCircle } from '@mui/icons-material';
 import {
   Button,
   Box,
@@ -433,7 +433,7 @@ export default function RFQManagement(): ReactElement {
                 <Button
                   variant="contained"
                   className="btn-emerald-green"
-                  startIcon={<Add />}
+                  startIcon={<AddCircle />}
                   onClick={() => history.push(ROUTE_PATHS.RFQ_CREATE)}>
                   {t('rfqManagement.action.create')}
                 </Button>

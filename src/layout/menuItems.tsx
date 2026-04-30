@@ -26,13 +26,13 @@ export function useMenuItems() {
       icon: Home,
       allowedRoles: Object.values(ROLES)
     },
-    {
-      id: 'left_menu__user_management',
-      title: t('sidebar.userManagement.title'),
-      href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
-      icon: Group,
-      allowedRoles: [ROLES.SUPER_ADMIN]
-    },
+    // {
+    //   id: 'left_menu__user_management',
+    //   title: t('sidebar.userManagement.title'),
+    //   href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
+    //   icon: Group,
+    //   allowedRoles: [ROLES.SUPER_ADMIN]
+    // },
     {
       id: 'left_menu__customer_management',
       title: t('sidebar.customerManagement.title'),

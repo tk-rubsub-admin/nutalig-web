@@ -122,6 +122,7 @@
       "status": "Status",
       "isDefault": "Default",
       "hasUser": "Has User",
+      "lineConnected": "LINE Connected",
       "userId": "User ID",
       "username": "Email / Username",
       "displayName": "Display Name",

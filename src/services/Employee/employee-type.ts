@@ -27,6 +27,7 @@ export interface EmployeeRecord {
   position: SystemConfig | null;
   team: SystemConfig | null;
   hasUser?: boolean;
+  isLineConnected?: boolean;
   userId?: string | null;
   userDto?: EmployeeUserDetail | null;
 }

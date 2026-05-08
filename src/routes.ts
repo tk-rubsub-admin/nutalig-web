@@ -23,6 +23,7 @@ export const ROUTE_PATHS = Object.freeze({
   SUPPLIER_NEW: '/supplier-create',
   STAFF_MANAGEMENT: '/staff-management',
   EMPLOYEE_MANAGEMENT: '/employee-management',
+  EMPLOYEE_NEW: '/employee-create',
   EMPLOYEE_DETAIL: '/employee/:id',
   STAFF_NEW: '/staff-create',
   STAFF_DETAIL: '/staff/:id',
@@ -140,6 +141,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
     component: lazy(() => import('./pages/EmployeeManagement' /* webpackChunkName: "app" */)),
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+  },
+  {
+    path: ROUTE_PATHS.EMPLOYEE_NEW,
+    component: lazy(() => import('./pages/EmployeeManagement/New' /* webpackChunkName: "app" */)),
     allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
   },
   {

@@ -42,7 +42,8 @@ import {
   Contact,
   CreateCustomerAddressRequest,
   CreateCustomerContactRequest,
-  Customer
+  Customer,
+  UpdateCustomerRequest
 } from 'services/Customer/customer-type';
 import { GROUP_CODE } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
@@ -136,9 +137,6 @@ export default function CustomerDetail(): JSX.Element {
   const initialValues = useMemo(
     () => ({
       customerName: customer?.customerName ?? '',
-      contactNumber1: customer?.contactNumber1 ?? '',
-      contactNumber2: customer?.contactNumber2 ?? '',
-      contactName: customer?.contactName ?? '',
       email: customer?.email ?? '',
       type: customer?.customerType?.code ?? '',
       taxId: customer?.taxId ?? '',
@@ -146,7 +144,6 @@ export default function CustomerDetail(): JSX.Element {
       companyBranchCode: customer?.branchNumber ?? '',
       companyBranchName: customer?.branchName ?? '',
       creditTerm: customer?.customerCreditTerm?.code ?? '',
-      address: customer?.address ?? '',
       salesAccount: customer?.salesAccount ?? '',
       coSalesAccount: customer?.coSalesAccount ?? ''
     }),
@@ -160,15 +157,6 @@ export default function CustomerDetail(): JSX.Element {
       customerName: Yup.string()
         .max(255)
         .required(t('customerManagement.message.validateCustomerName')),
-      contactName: Yup.string()
-        .max(255)
-        .required(t('customerManagement.message.validateContactName')),
-      contactNumber1: Yup.string()
-        .max(255)
-        .required(t('customerManagement.message.validateContactNumber')),
-      customerAreaType: Yup.string()
-        .max(255)
-        .required(t('customerManagement.message.validateCustomerAreaType')),
       type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
       taxId: Yup.string().required(t('customerManagement.message.validateTaxId')),
       companyName: Yup.string().when('type', {
@@ -186,14 +174,23 @@ export default function CustomerDetail(): JSX.Element {
         then: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
         otherwise: Yup.string().nullable()
       }),
-      creditTerm: Yup.string()
-        .max(255)
-        .required(t('customerManagement.message.validateCreditTerm')),
-      address: Yup.string().trim().nullable()
+      creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm'))
     }),
     onSubmit: (values, actions) => {
       actions.setSubmitting(true);
-      const updatePromise = updateCustomer(customer?.id, values as never);
+      const payload: UpdateCustomerRequest = {
+        customerName: values.customerName || null,
+        customerType: values.type || null,
+        email: values.email || null,
+        taxId: values.taxId || null,
+        companyName: values.companyName || null,
+        branchNumber: values.companyBranchCode || null,
+        branchName: values.companyBranchName || null,
+        creditTerm: values.creditTerm || null,
+        salesAccount: values.salesAccount || null,
+        coSalesAccount: values.coSalesAccount || null
+      };
+      const updatePromise = updateCustomer(customer?.id, payload);
 
       toast.promise(updatePromise, {
         loading: t('toast.loading'),
@@ -212,16 +209,6 @@ export default function CustomerDetail(): JSX.Element {
   });
 
   const isHeadOffice = formik.values.companyBranchCode === '00000';
-
-  const handleHeadOfficeToggle = (checked: boolean) => {
-    if (checked) {
-      formik.setFieldValue('companyBranchCode', '00000');
-      formik.setFieldValue('companyBranchName', 'สำนักงานใหญ่');
-    } else {
-      formik.setFieldValue('companyBranchCode', '');
-      formik.setFieldValue('companyBranchName', '');
-    }
-  };
 
   useEffect(() => {
     if (!customerData) return;
@@ -750,6 +737,21 @@ export default function CustomerDetail(): JSX.Element {
               ))}
             </TextField>
           </GridTextField>
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              type="text"
+              label={t('customerManagement.column.coSalesAccount')}
+              fullWidth
+              onChange={({ target }) => {
+                formik.setFieldValue('coSalesAccount', target.value);
+              }}
+              onBlur={formik.handleBlur}
+              variant="outlined"
+              value={formik.values.coSalesAccount}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: !canEdit }}
+            />
+          </GridTextField>
         </Grid>
       </Wrapper>
       <Grid container spacing={2}>
@@ -816,7 +818,9 @@ export default function CustomerDetail(): JSX.Element {
 
                           {address.addressType && (
                             <Chip
-                              label={t(`customerManagement.column.addressType.${address.addressType?.toLowerCase()}`)}
+                              label={t(
+                                `customerManagement.column.addressType.${address.addressType?.toLowerCase()}`
+                              )}
                               size="small"
                             />
                           )}
@@ -853,7 +857,11 @@ export default function CustomerDetail(): JSX.Element {
                   minHeight: 40
                 }}>
                 <Typography variant="h6">{t('customerManagement.column.contacts')}</Typography>
-                <Button variant="contained" size="small" startIcon={<Add />} onClick={openContactDialog}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<Add />}
+                  onClick={openContactDialog}>
                   {t('customerManagement.addContact')}
                 </Button>
               </Grid>
@@ -871,7 +879,11 @@ export default function CustomerDetail(): JSX.Element {
                       }
                     }}>
                     <Stack direction="row" spacing={1} alignItems="flex-start">
-                      <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack
+                        direction="row"
+                        spacing={2}
+                        alignItems="center"
+                        sx={{ flex: 1, minWidth: 0 }}>
                         <Person sx={{ fontSize: 32 }} />
 
                         <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
@@ -992,7 +1004,11 @@ export default function CustomerDetail(): JSX.Element {
         isShowCancelButton={true}
         isShowConfirmButton={true}
       />
-      <Dialog open={isAddressDialogOpen} onClose={() => setIsAddressDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={isAddressDialogOpen}
+        onClose={() => setIsAddressDialogOpen(false)}
+        fullWidth
+        maxWidth="sm">
         <DialogTitle>{t('customerManagement.column.address.addNew')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -1005,12 +1021,22 @@ export default function CustomerDetail(): JSX.Element {
                 value={addressDialogFormik.values.addressType}
                 onChange={addressDialogFormik.handleChange}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType)}
-                helperText={addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType}
+                error={Boolean(
+                  addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType
+                )}
+                helperText={
+                  addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType
+                }
                 InputLabelProps={{ shrink: true }}>
-                <MenuItem value="BILLING">{t('customerManagement.column.addressType.billing')}</MenuItem>
-                <MenuItem value="SHIPPING">{t('customerManagement.column.addressType.shipping')}</MenuItem>
-                <MenuItem value="OTHER">{t('customerManagement.column.addressType.other')}</MenuItem>
+                <MenuItem value="BILLING">
+                  {t('customerManagement.column.addressType.billing')}
+                </MenuItem>
+                <MenuItem value="SHIPPING">
+                  {t('customerManagement.column.addressType.shipping')}
+                </MenuItem>
+                <MenuItem value="OTHER">
+                  {t('customerManagement.column.addressType.other')}
+                </MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -1035,8 +1061,14 @@ export default function CustomerDetail(): JSX.Element {
                 value={addressDialogFormik.values.addressLine1}
                 onChange={addressDialogFormik.handleChange}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1)}
-                helperText={addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1}
+                error={Boolean(
+                  addressDialogFormik.touched.addressLine1 &&
+                  addressDialogFormik.errors.addressLine1
+                )}
+                helperText={
+                  addressDialogFormik.touched.addressLine1 &&
+                  addressDialogFormik.errors.addressLine1
+                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -1066,8 +1098,12 @@ export default function CustomerDetail(): JSX.Element {
                   addressDialogFormik.setFieldValue('postcode', '');
                 }}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.province && addressDialogFormik.errors.province)}
-                helperText={addressDialogFormik.touched.province && addressDialogFormik.errors.province}
+                error={Boolean(
+                  addressDialogFormik.touched.province && addressDialogFormik.errors.province
+                )}
+                helperText={
+                  addressDialogFormik.touched.province && addressDialogFormik.errors.province
+                }
                 InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {provinces.map((option) => (
@@ -1090,8 +1126,12 @@ export default function CustomerDetail(): JSX.Element {
                   addressDialogFormik.setFieldValue('postcode', '');
                 }}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.district && addressDialogFormik.errors.district)}
-                helperText={addressDialogFormik.touched.district && addressDialogFormik.errors.district}
+                error={Boolean(
+                  addressDialogFormik.touched.district && addressDialogFormik.errors.district
+                )}
+                helperText={
+                  addressDialogFormik.touched.district && addressDialogFormik.errors.district
+                }
                 InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {districts
@@ -1116,8 +1156,12 @@ export default function CustomerDetail(): JSX.Element {
                   addressDialogFormik.setFieldValue('postcode', selected?.zipCode ?? '');
                 }}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict)}
-                helperText={addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict}
+                error={Boolean(
+                  addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict
+                )}
+                helperText={
+                  addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict
+                }
                 InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {subdistricts
@@ -1149,23 +1193,37 @@ export default function CustomerDetail(): JSX.Element {
                 value={addressDialogFormik.values.country}
                 onChange={addressDialogFormik.handleChange}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.country && addressDialogFormik.errors.country)}
-                helperText={addressDialogFormik.touched.country && addressDialogFormik.errors.country}
+                error={Boolean(
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                )}
+                helperText={
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button variant="contained" className="btn-crimson-red" onClick={() => setIsAddressDialogOpen(false)}>
+          <Button
+            variant="contained"
+            className="btn-crimson-red"
+            onClick={() => setIsAddressDialogOpen(false)}>
             {t('button.cancel')}
           </Button>
-          <Button variant="contained" className="btn-emerald-green" onClick={handleAddressSaveClick}>
+          <Button
+            variant="contained"
+            className="btn-emerald-green"
+            onClick={handleAddressSaveClick}>
             {t('button.save')}
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={isContactDialogOpen} onClose={() => setIsContactDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={isContactDialogOpen}
+        onClose={() => setIsContactDialogOpen(false)}
+        fullWidth
+        maxWidth="sm">
         <DialogTitle>{t('customerManagement.addContact')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -1178,8 +1236,12 @@ export default function CustomerDetail(): JSX.Element {
                 value={contactDialogFormik.values.contactName}
                 onChange={contactDialogFormik.handleChange}
                 onBlur={contactDialogFormik.handleBlur}
-                error={Boolean(contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName)}
-                helperText={contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName}
+                error={Boolean(
+                  contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName
+                )}
+                helperText={
+                  contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName
+                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -1192,18 +1254,30 @@ export default function CustomerDetail(): JSX.Element {
                 value={contactDialogFormik.values.contactNumber}
                 onChange={contactDialogFormik.handleChange}
                 onBlur={contactDialogFormik.handleBlur}
-                error={Boolean(contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber)}
-                helperText={contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber}
+                error={Boolean(
+                  contactDialogFormik.touched.contactNumber &&
+                  contactDialogFormik.errors.contactNumber
+                )}
+                helperText={
+                  contactDialogFormik.touched.contactNumber &&
+                  contactDialogFormik.errors.contactNumber
+                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button variant="contained" className="btn-crimson-red" onClick={() => setIsContactDialogOpen(false)}>
+          <Button
+            variant="contained"
+            className="btn-crimson-red"
+            onClick={() => setIsContactDialogOpen(false)}>
             {t('button.cancel')}
           </Button>
-          <Button variant="contained" className="btn-emerald-green" onClick={handleContactSaveClick}>
+          <Button
+            variant="contained"
+            className="btn-emerald-green"
+            onClick={handleContactSaveClick}>
             {t('button.save')}
           </Button>
         </DialogActions>

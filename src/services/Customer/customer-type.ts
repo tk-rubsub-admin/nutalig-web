@@ -104,9 +104,15 @@ export interface SearchCustomerResponse {
 
 export interface UpdateCustomerRequest {
   customerName: string | null;
-  contactNumber1: string | null;
+  customerType: string | null;
+  email: string | null;
   taxId: string | null;
-  billingHeader: string | null;
+  companyName: string | null;
+  branchNumber: string | null;
+  branchName: string | null;
+  creditTerm: string | null;
+  salesAccount: string | null;
+  coSalesAccount: string | null;
 }
 
 export interface Customer {

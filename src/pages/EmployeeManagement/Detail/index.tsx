@@ -1,20 +1,32 @@
-import { ArrowBackIos, ContentCopy, LinkOff, PersonAdd } from '@mui/icons-material';
-import { Avatar, Button, Chip, Grid, TextField, Typography } from '@mui/material';
+import {
+  ArrowBackIos,
+  Cancel,
+  ContentCopy,
+  Edit,
+  LinkOff,
+  PersonAdd,
+  Save
+} from '@mui/icons-material';
+import { Avatar, Button, Chip, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import AddNewAdminDialog from 'pages/AdminManagement/AddNewAdminDialog';
+import ConfirmDialog from 'components/ConfirmDialog';
 import PageTitle from 'components/PageTitle';
 import LoadingDialog from 'components/LoadingDialog';
 import { GridTextField, Wrapper } from 'components/Styled';
+import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
-import { getEmployee } from 'services/Employee/employee-api';
-import { EmployeeRecord } from 'services/Employee/employee-type';
+import { getSystemConfig } from 'services/Config/config-api';
+import { getEmployee, updateEmployee } from 'services/Employee/employee-api';
+import { EmployeeRecord, UpdateEmployeeRequest } from 'services/Employee/employee-type';
 import { inviteLineRegistration, resetLineBinding } from 'services/User/user-api';
 import { copyText } from 'utils/copyContent';
 import toast from 'react-hot-toast';
+import * as Yup from 'yup';
 
 interface EmployeeDetailParam {
   id: string;
@@ -52,12 +64,73 @@ export default function EmployeeDetail(): JSX.Element {
   const { t } = useTranslation();
   const history = useHistory();
   const { id } = useParams<EmployeeDetailParam>();
+  const [canEdit, setCanEdit] = useState(false);
+  const [actionType, setActionType] = useState('');
+  const [titleDialog, setTitleDialog] = useState('');
+  const [msg, setMsg] = useState('');
+  const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [openCreateUserDialog, setOpenCreateUserDialog] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isResettingLink, setIsResettingLink] = useState(false);
 
-  const { data: employee, isFetching } = useQuery(['employee-detail', id], () => getEmployee(id), {
+  const {
+    data: employee,
+    isFetching,
+    refetch
+  } = useQuery(['employee-detail', id], () => getEmployee(id), {
     refetchOnWindowFocus: false
+  });
+  const { data: teamOptions = [], isFetching: isTeamFetching } = useQuery(
+    ['employee-team-options'],
+    () => getSystemConfig('TEAM'),
+    { refetchOnWindowFocus: false }
+  );
+  const { data: positionOptions = [], isFetching: isPositionFetching } = useQuery(
+    ['employee-position-options'],
+    () => getSystemConfig('POSITION'),
+    { refetchOnWindowFocus: false }
+  );
+
+  const formik = useFormik<UpdateEmployeeRequest>({
+    initialValues: {
+      firstNameTh: employee?.firstNameTh ?? '',
+      lastNameTh: employee?.lastNameTh ?? '',
+      nickName: employee?.nickName ?? '',
+      position: employee?.position?.code ?? '',
+      phoneNumber: employee?.phoneNumber ?? '',
+      status: employee?.status ?? '',
+      additional: employee?.additional ?? '',
+      team: employee?.team?.code ?? ''
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object().shape({
+      firstNameTh: Yup.string().required(t('employeeManagement.validation.firstNameTh')),
+      lastNameTh: Yup.string().required(t('employeeManagement.validation.lastNameTh')),
+      nickName: Yup.string().required(t('employeeManagement.validation.nickName')),
+      position: Yup.string().required(t('employeeManagement.validation.position')),
+      phoneNumber: Yup.string().required(t('employeeManagement.validation.phoneNumber')),
+      team: Yup.string().required(t('employeeManagement.validation.team'))
+    }),
+    onSubmit: (values, actions) => {
+      if (!employee?.employeeId) return;
+      actions.setSubmitting(true);
+
+      const updatePromise = updateEmployee(employee.employeeId, values);
+
+      toast.promise(updatePromise, {
+        loading: t('toast.loading'),
+        success: () => {
+          setCanEdit(false);
+          refetch();
+          return t('employeeManagement.message.updateSuccess');
+        },
+        error: t('employeeManagement.message.updateFailed')
+      });
+
+      updatePromise.finally(() => {
+        actions.setSubmitting(false);
+      });
+    }
   });
 
   const title = useMemo(() => {
@@ -103,24 +176,76 @@ export default function EmployeeDetail(): JSX.Element {
     }
   };
 
+  const handleStartEdit = () => {
+    formik.resetForm();
+    setCanEdit(true);
+  };
+
+  const handleCancelEdit = () => {
+    formik.resetForm();
+    setCanEdit(false);
+  };
+
   return (
     <Page>
-      <LoadingDialog open={isFetching || isGeneratingLink || isResettingLink} />
+      <LoadingDialog
+        open={
+          isFetching ||
+          isGeneratingLink ||
+          isResettingLink ||
+          formik.isSubmitting ||
+          isTeamFetching ||
+          isPositionFetching
+        }
+      />
       <PageTitle title={title} />
       <Wrapper>
-        <Grid container spacing={1} alignItems="center">
-          <Grid item xs={12} sm={6}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap sx={{ justifyContent: { sm: 'flex-end' } }}>
+          <Button
+            variant="contained"
+            className="btn-cool-grey"
+            startIcon={<ArrowBackIos />}
+            onClick={() => history.push(ROUTE_PATHS.EMPLOYEE_MANAGEMENT)}>
+            {t('button.back')}
+          </Button>
+          {canEdit ? (
+            <>
+              <Button
+                variant="contained"
+                className="btn-amber-orange"
+                startIcon={<Cancel />}
+                onClick={handleCancelEdit}>
+                {t('button.cancel')}
+              </Button>
+              <Button
+                variant="contained"
+                className="btn-emerald-green"
+                startIcon={<Save />}
+                onClick={() => {
+                  setActionType('update');
+                  setTitleDialog(t('employeeManagement.action.update'));
+                  setMsg(t('employeeManagement.message.confirmUpdate'));
+                  setVisibleConfirmationDialog(true);
+                }}>
+                {t('button.update')}
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="contained"
+              className="btn-emerald-green"
+              startIcon={<Edit />}
+              onClick={handleStartEdit}>
+              {t('button.edit')}
+            </Button>
+          )}
+        </Stack>
+
+        <Grid container spacing={1} alignItems="center" sx={{ mt: 1 }}>
+          <Grid item xs={12}>
             <Typography variant="h6" component="h2">
               {t('employeeManagement.detailTitle')}
             </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6} style={{ textAlign: 'right' }}>
-            <Button
-              variant="contained"
-              startIcon={<ArrowBackIos />}
-              onClick={() => history.push(ROUTE_PATHS.EMPLOYEE_MANAGEMENT)}>
-              {t('button.back')}
-            </Button>
           </Grid>
         </Grid>
 
@@ -156,47 +281,115 @@ export default function EmployeeDetail(): JSX.Element {
           <GridTextField item xs={12} sm={6}>
             <TextField
               fullWidth
-              label={t('employeeManagement.column.name')}
-              value={getEmployeeName(employee)}
-              InputProps={{ readOnly: true }}
+              name="firstNameTh"
+              label={t('employeeManagement.column.firstName')}
+              value={formik.values.firstNameTh}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={Boolean(formik.touched.firstNameTh && formik.errors.firstNameTh)}
+              helperText={formik.touched.firstNameTh && formik.errors.firstNameTh}
+              InputProps={{ readOnly: !canEdit }}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
           <GridTextField item xs={12} sm={6}>
             <TextField
               fullWidth
+              name="lastNameTh"
+              label={t('employeeManagement.column.lastName')}
+              value={formik.values.lastNameTh}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={Boolean(formik.touched.lastNameTh && formik.errors.lastNameTh)}
+              helperText={formik.touched.lastNameTh && formik.errors.lastNameTh}
+              InputProps={{ readOnly: !canEdit }}
+              InputLabelProps={{ shrink: true }}
+            />
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              name="nickName"
               label={t('employeeManagement.column.nickName')}
-              value={employee?.nickName || '-'}
-              InputProps={{ readOnly: true }}
-              InputLabelProps={{ shrink: true }}
-            />
-          </GridTextField>
-
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label={t('employeeManagement.column.position')}
-              value={employee?.position?.nameTh || '-'}
-              InputProps={{ readOnly: true }}
+              value={formik.values.nickName}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={Boolean(formik.touched.nickName && formik.errors.nickName)}
+              helperText={formik.touched.nickName && formik.errors.nickName}
+              InputProps={{ readOnly: !canEdit }}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
           <GridTextField item xs={12} sm={6}>
             <TextField
               fullWidth
-              label={t('employeeManagement.column.team')}
-              value={employee?.team?.nameTh || '-'}
-              InputProps={{ readOnly: true }}
-              InputLabelProps={{ shrink: true }}
-            />
-          </GridTextField>
-
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
+              name="phoneNumber"
               label={t('employeeManagement.column.phoneNumber')}
-              value={employee?.phoneNumber || '-'}
-              InputProps={{ readOnly: true }}
+              value={formik.values.phoneNumber}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={Boolean(formik.touched.phoneNumber && formik.errors.phoneNumber)}
+              helperText={formik.touched.phoneNumber && formik.errors.phoneNumber}
+              InputProps={{ readOnly: !canEdit }}
+              InputLabelProps={{ shrink: true }}
+            />
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              name="position"
+              select
+              label={t('employeeManagement.column.position')}
+              value={formik.values.position}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={Boolean(formik.touched.position && formik.errors.position)}
+              helperText={formik.touched.position && formik.errors.position}
+              disabled={!canEdit || isPositionFetching}
+              InputLabelProps={{ shrink: true }}>
+              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+              {positionOptions.map((option) => (
+                <MenuItem key={option.code} value={option.code}>
+                  {option.nameTh}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              name="team"
+              select
+              label={t('employeeManagement.column.team')}
+              value={formik.values.team}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={Boolean(formik.touched.team && formik.errors.team)}
+              helperText={formik.touched.team && formik.errors.team}
+              disabled={!canEdit || isTeamFetching}
+              InputLabelProps={{ shrink: true }}>
+              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+              {teamOptions.map((option) => (
+                <MenuItem key={option.code} value={option.code}>
+                  {option.nameTh}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+
+          <GridTextField item xs={12}>
+            <TextField
+              fullWidth
+              name="additional"
+              label={t('employeeManagement.column.additional')}
+              value={formik.values.additional}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              InputProps={{ readOnly: !canEdit }}
+              multiline
+              minRows={3}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
@@ -369,6 +562,22 @@ export default function EmployeeDetail(): JSX.Element {
         open={openCreateUserDialog}
         staffId={employee?.employeeId}
         onClose={() => setOpenCreateUserDialog(false)}
+      />
+      <ConfirmDialog
+        open={visibleConfirmationDialog}
+        title={titleDialog}
+        message={msg}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        onConfirm={() => {
+          if (actionType === 'update') {
+            formik.handleSubmit();
+          }
+          setVisibleConfirmationDialog(false);
+        }}
+        onCancel={() => setVisibleConfirmationDialog(false)}
+        isShowCancelButton={true}
+        isShowConfirmButton={true}
       />
     </Page>
   );

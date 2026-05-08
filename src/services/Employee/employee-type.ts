@@ -2,6 +2,46 @@ import { SystemConfig } from 'services/Config/config-type';
 import { Pagination } from 'services/general-type';
 import { Role } from 'services/User/user-type';
 
+export interface CreateEmployeeRequest {
+  employeeId: string;
+  firstNameTh: string;
+  lastNameTh: string;
+  nickName: string;
+  position: string;
+  phoneNumber: string;
+  status: string;
+  additional: string;
+  team: string;
+}
+
+export interface CreateEmployeeResponse {
+  status: string;
+  data?: EmployeeRecord;
+}
+
+export interface CheckExistingEmployeeResponse {
+  status: string;
+  data: {
+    exists: boolean;
+  };
+}
+
+export interface UpdateEmployeeRequest {
+  firstNameTh: string;
+  lastNameTh: string;
+  nickName: string;
+  position: string;
+  phoneNumber: string;
+  status: string;
+  additional: string;
+  team: string;
+}
+
+export interface UpdateEmployeeResponse {
+  status: string;
+  data?: EmployeeRecord;
+}
+
 export interface EmployeeUserDetail {
   id: string;
   username: string;

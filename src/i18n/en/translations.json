@@ -108,6 +108,7 @@
   },
   "employeeManagement": {
     "title": "Employee List",
+    "createTitle": "Create Employee",
     "detailTitle": "Employee Detail",
     "userDetailTitle": "User Detail",
     "userNotCreated": "User has not been created yet",
@@ -115,12 +116,15 @@
     "column": {
       "keyword": "Keyword",
       "employeeId": "Employee ID",
+      "firstName": "First Name",
+      "lastName": "Last Name",
       "name": "Full Name",
       "nickName": "Nickname",
       "position": "Position",
       "team": "Team",
       "phoneNumber": "Phone Number",
       "status": "Status",
+      "additional": "Additional",
       "isDefault": "Default",
       "hasUser": "Has User",
       "lineConnected": "LINE Connected",
@@ -133,13 +137,32 @@
       "pictureUrl": "Profile Image URL"
     },
     "action": {
+      "create": "Create Employee",
+      "update": "Update Employee",
       "openProfileImage": "Open Profile Image",
       "generateRegisterLink": "Generate Register Link",
       "revokeRegister": "Disconnected LINE"
     },
     "message": {
+      "confirmCreate": "Are you sure you want to create a new employee?",
+      "confirmUpdate": "Are you sure you want to update employee details?",
+      "createSuccess": "Employee created successfully",
+      "createFailed": "Failed to create employee",
+      "updateSuccess": "Employee updated successfully",
+      "updateFailed": "Failed to update employee",
       "generateRegisterLinkSuccess": "Registration link copied",
       "resetLineBindingSuccess": "LINE connection has been removed"
+    },
+    "validation": {
+      "employeeId": "Please input employee ID",
+      "employeeIdDuplicate": "Duplicate employee ID. Please enter a new one",
+      "firstNameTh": "Please input first name",
+      "lastNameTh": "Please input last name",
+      "nickName": "Please input nickname",
+      "position": "Please input position",
+      "phoneNumber": "Please input phone number",
+      "status": "Please select status",
+      "team": "Please input team"
     },
     "value": {
       "yes": "Yes",

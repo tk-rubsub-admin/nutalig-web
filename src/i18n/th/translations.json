@@ -464,6 +464,7 @@
   },
   "employeeManagement": {
     "title": "รายการพนักงาน",
+    "createTitle": "สร้างพนักงาน",
     "detailTitle": "รายละเอียดพนักงาน",
     "userDetailTitle": "รายละเอียดผู้ใช้งาน",
     "userNotCreated": "ยังไม่ได้สร้างผู้ใช้งาน",
@@ -471,12 +472,15 @@
     "column": {
       "keyword": "คำค้นหา",
       "employeeId": "รหัสพนักงาน",
+      "firstName": "ชื่อ",
+      "lastName": "นามสกุล",
       "name": "ชื่อ - นามสกุล",
       "nickName": "ชื่อเล่น",
       "position": "ตำแหน่ง",
       "team": "ทีม",
       "phoneNumber": "เบอร์ติดต่อ",
       "status": "สถานะ",
+      "additional": "ข้อมูลเพิ่มเติม",
       "isDefault": "ค่าเริ่มต้น",
       "hasUser": "มีผู้ใช้งานในระบบ",
       "lineConnected": "เชื่อมต่อ LINE",
@@ -489,13 +493,32 @@
       "pictureUrl": "ลิงก์รูปโปรไฟล์"
     },
     "action": {
+      "create": "สร้างพนักงาน",
+      "update": "อัปเดตข้อมูลพนักงาน",
       "openProfileImage": "เปิดรูปโปรไฟล์",
       "generateRegisterLink": "สร้างลิ้งลงทะเบียน",
       "revokeRegister": "ยกเลิกการเชื่อม LINE"
     },
     "message": {
+      "confirmCreate": "คุณแน่ใจหรือว่าต้องการสร้างพนักงานใหม่",
+      "confirmUpdate": "คุณแน่ใจหรือว่าต้องการอัปเดตข้อมูลพนักงาน",
+      "createSuccess": "สร้างพนักงานสำเร็จ",
+      "createFailed": "สร้างพนักงานไม่สำเร็จ",
+      "updateSuccess": "อัปเดตข้อมูลพนักงานสำเร็จ",
+      "updateFailed": "อัปเดตข้อมูลพนักงานไม่สำเร็จ",
       "generateRegisterLinkSuccess": "คัดลอกลิงก์ลงทะเบียนแล้ว",
       "resetLineBindingSuccess": "ยกเลิกการเชื่อมต่อสำเร็จ"
+    },
+    "validation": {
+      "employeeId": "กรุณาระบุรหัสพนักงาน",
+      "employeeIdDuplicate": "รหัสพนักงานซ้ำ กรุณากรอกใหม่",
+      "firstNameTh": "กรุณาระบุชื่อ",
+      "lastNameTh": "กรุณาระบุนามสกุล",
+      "nickName": "กรุณาระบุชื่อเล่น",
+      "position": "กรุณาระบุตำแหน่ง",
+      "phoneNumber": "กรุณาระบุเบอร์ติดต่อ",
+      "status": "กรุณาระบุสถานะ",
+      "team": "กรุณาระบุทีม"
     },
     "value": {
       "yes": "ใช่",

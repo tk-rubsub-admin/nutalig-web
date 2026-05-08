@@ -1,4 +1,4 @@
-import { Chat, DisabledByDefault, Person, Search } from '@mui/icons-material';
+import { Add, Chat, DisabledByDefault, Person, Search } from '@mui/icons-material';
 import {
   Button,
   CircularProgress,
@@ -161,6 +161,14 @@ export default function EmployeeManagement(): JSX.Element {
             </Typography>
           </Grid>
           <Grid item xs={12} sm={6} style={{ textAlign: 'right' }}>
+            <Button
+              variant="contained"
+              className="btn-emerald-green"
+              onClick={() => history.push(ROUTE_PATHS.EMPLOYEE_NEW)}
+              startIcon={<Add />}>
+              {t('button.create')}
+            </Button>
+            &nbsp;&nbsp;
             <Button
               variant="contained"
               className="btn-indigo-blue"

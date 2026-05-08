@@ -110,7 +110,6 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   },
   {
     path: ROUTE_PATHS.DASHBOARD,
-    isPublic: true,
     component: lazy(() => import('./pages/Dashboard' /* webpackChunkName: "app" */))
   },
   {

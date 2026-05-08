@@ -38,7 +38,7 @@ export function useMenuItems() {
       title: t('sidebar.customerManagement.title'),
       href: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
       icon: Person,
-      allowedRoles: [ROLES.SUPER_ADMIN]
+      allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
     },
     {
       id: 'left_menu__rfq_management',

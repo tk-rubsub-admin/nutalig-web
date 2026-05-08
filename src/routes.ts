@@ -162,13 +162,7 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
     component: lazy(() => import('./pages/CustomerManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
   },
   {
     path: ROUTE_PATHS.SYSTEM_CONFIG_MANAGEMENT,

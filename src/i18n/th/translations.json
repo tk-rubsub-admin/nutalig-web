@@ -93,6 +93,7 @@
     "signIn": "เข้าสู่ระบบ",
     "signOut": "ออกจากระบบ",
     "create": "สร้าง",
+    "edit": "แก้ไขข้อมูล",
     "update": "อัพเดตข้อมูล",
     "delete": "ลบ",
     "cancel": "ยกเลิก",
@@ -199,6 +200,76 @@
   "home": {
     "title": "ยินดีต้อนรับเข้าสู่ Nutalig"
   },
+  "dashboard": {
+    "title": "แดชบอร์ดงาน",
+    "subtitle": "ภาพรวมร่วมสำหรับฝ่ายขาย จัดซื้อ และทีมปฏิบัติการ โดยแสดงข้อมูลตามบทบาทการใช้งาน",
+    "lastUpdated": "อัปเดตล่าสุด",
+    "fallbackNotice": "ยังไม่มี Dashboard API จาก backend จึงแสดงข้อมูลตัวอย่างเพื่อใช้ดู layout ชั่วคราว",
+    "loadFailed": "ไม่สามารถโหลดข้อมูลแดชบอร์ดได้",
+    "viewAll": "ดูทั้งหมด",
+    "noPendingItems": "ไม่มีงานค้างในส่วนนี้",
+    "range": {
+      "last7Days": "7 วันล่าสุด"
+    },
+    "filters": {
+      "dateFrom": "วันที่เริ่มต้น",
+      "dateTo": "วันที่สิ้นสุด",
+      "appliedRange": "ช่วงวันที่ที่ใช้"
+    },
+    "sections": {
+      "metrics": "ภาพรวม 7 วันล่าสุด",
+      "workQueues": "รายการงานสำคัญ",
+      "quickLinks": "เมนูลัด"
+    },
+    "metrics": {
+      "rfqNew": "RFQ ใหม่",
+      "rfqNewSubtitle": "คำขอราคาใหม่ในช่วง 7 วันล่าสุด",
+      "quotationNew": "ใบเสนอราคาใหม่",
+      "quotationNewSubtitle": "ใบเสนอราคาที่สร้างในช่วง 7 วันล่าสุด",
+      "saleOrderNew": "ออเดอร์ขายใหม่",
+      "saleOrderNewSubtitle": "ออเดอร์ขายที่สร้างในช่วง 7 วันล่าสุด",
+      "invoiceOverdue": "ใบแจ้งหนี้ค้างชำระ",
+      "invoiceOverdueSubtitle": "รายการที่ต้องติดตามการชำระเงิน",
+      "purchasePending": "งานจัดซื้อค้าง",
+      "purchasePendingSubtitle": "งานจัดซื้อที่ยังเปิดค้างอยู่"
+    },
+    "charts": {
+      "documentVolumeTitle": "แนวโน้มปริมาณเอกสาร",
+      "documentVolumeSubtitle": "ความเคลื่อนไหวของ RFQ ใบเสนอราคา และออเดอร์ขายในช่วง 7 วันล่าสุด",
+      "teamLoadTitle": "ภาระงานค้างแยกตามทีม",
+      "teamLoadSubtitle": "ภาพรวมงานค้างของแต่ละสายงาน",
+      "salesPipelineTitle": "สถานะงานขาย",
+      "salesPipelineSubtitle": "สัดส่วนงานติดตามในฝ่ายขาย",
+      "procurementStatusTitle": "สถานะงานจัดซื้อ",
+      "procurementStatusSubtitle": "สัดส่วนงานจัดซื้อที่เปิดอยู่ตามขั้นตอนปัจจุบัน",
+      "financeStatusTitle": "สถานะวางบิลและใบแจ้งหนี้",
+      "financeStatusSubtitle": "ภาพรวมภาระงานด้านการเงินและเอกสาร"
+    },
+    "queues": {
+      "rfqFollowUpTitle": "RFQ ที่ต้องติดตาม",
+      "rfqFollowUpSubtitle": "คำขอราคาใหม่หรือค้างที่ต้องดำเนินการ",
+      "quotationExpiringTitle": "ใบเสนอราคาใกล้หมดอายุ",
+      "quotationExpiringSubtitle": "ใบเสนอราคาที่ควรติดตามก่อนหมดอายุ",
+      "purchaseOrderTitle": "Purchase Order ที่ต้องดำเนินการ",
+      "purchaseOrderSubtitle": "งานซื้อ รับสินค้า หรือรายการที่ติดปัญหา",
+      "invoiceOverdueTitle": "ใบแจ้งหนี้เกินกำหนดหรือครบกำหนดวันนี้",
+      "invoiceOverdueSubtitle": "รายการที่ต้องติดตามฝั่งการเงิน"
+    },
+    "quickLinks": {
+      "createRfq": "สร้าง RFQ",
+      "createRfqDesc": "เริ่มคำขอราคาใหม่",
+      "quotationList": "รายการใบเสนอราคา",
+      "quotationListDesc": "ติดตามใบเสนอราคาที่ยังเปิดอยู่",
+      "purchaseOrders": "รายการจัดซื้อ",
+      "purchaseOrdersDesc": "ตรวจงานซื้อและงานรับสินค้า",
+      "invoiceCenter": "ศูนย์ใบแจ้งหนี้",
+      "invoiceCenterDesc": "ดูรายการค้างชำระและติดตามการชำระเงิน",
+      "customerList": "รายการลูกค้า",
+      "customerListDesc": "เปิดข้อมูลลูกค้าและบัญชีที่เกี่ยวข้อง",
+      "receiveProduct": "รับสินค้า",
+      "receiveProductDesc": "จัดการรายการรับสินค้าวันนี้"
+    }
+  },
   "forbidden": {
     "title": "403 - คุณไม่มีสิทธิ์ในการเข้าถึง",
     "msg": "คุณไม่มีสิทธิ์เข้าถึงหน้านี้ กรุณาติดต่อผู้ดูแลระบบ"
@@ -235,6 +306,7 @@
       "taxId": "เลขบัตรประชาชน/เลขประจำตัวผู้เสียภาษี",
       "address": {
         "title": "ที่อยู่",
+        "addNew": "เพิ่มที่อยู่",
         "invoice": "ที่อยู่ในการออกเอกสาร",
         "type": "ประเภทที่อยู่",
         "addressLine1": "ที่อยู่บรรทัดที่ 1",
@@ -297,6 +369,10 @@
     },
     "newCustomer": "สร้างลูกค้าใหม่",
     "confirmMsgNewCustomer": "คุณแน่ใจหรือว่าต้องการสร้างลูกค้าใหม่",
+    "confirmMsgAddCustomerAddress": "คุณแน่ใจหรือว่าต้องการเพิ่มที่อยู่",
+    "confirmMsgAddCustomerContact": "คุณแน่ใจหรือว่าต้องการเพิ่มผู้ติดต่อ",
+    "confirmMsgDeleteCustomerAddress": "คุณแน่ใจหรือว่าต้องการลบที่อยู่ {{label}}",
+    "confirmMsgDeleteCustomerContact": "คุณแน่ใจหรือว่าต้องการลบผู้ติดต่อ {{name}}",
     "updateCustomer": "อัพเดตข้อมูลลูกค้า",
     "confirmMsgUpdateCustomer": "คุณแน่ใจหรือว่าต้องการอัพเดตลูกค้า",
     "updateCustomerSuccess": "อัพเดตข้อมูลลูกค้าใหม่สำเร็จ",

@@ -63,6 +63,7 @@
     "signIn": "Sign in",
     "signOut": "Sign out",
     "create": "Create",
+    "edit": "Edit",
     "update": "Update",
     "delete": "Delete",
     "cancel": "Cancel",
@@ -377,7 +378,7 @@
       "taxId": "เลขบัตรประชาชน/เลขประจำตัวผู้เสียภาษี",
       "address": {
         "title": "ที่อยู่",
-        "addNew": "เพิ่มข้อมูลที่อยู่",
+        "addNew": "Add Address",
         "tumbon": "ตำบล/แขวง",
         "amphure": "อำเภอ/เขต",
         "province": "จังหวัด",
@@ -423,15 +424,88 @@
       "customerFirstName": "กรุณาระบุชื่อลูกค้า",
       "customerLastName": "กรุณาระบุนามสกุลลูกค้า",
       "phoneNumber": "กรุณาระบุเบอร์ติดต่อลูุกค้า"
-    }
+    },
+    "addContact": "Add Contact",
+    "confirmMsgAddCustomerAddress": "Are you sure you want to add this address?",
+    "confirmMsgAddCustomerContact": "Are you sure you want to add this contact?",
+    "confirmMsgDeleteCustomerAddress": "Are you sure you want to delete address {{label}}?",
+    "confirmMsgDeleteCustomerContact": "Are you sure you want to delete contact {{name}}?"
   },
   "dashboard": {
+    "title": "Operations Dashboard",
+    "subtitle": "Shared overview for sales, procurement, and operations with role-based focus areas.",
     "orderToday": "Today's Order",
     "more": "More >",
     "businessAnalytics": "Business Analytics",
     "revenue": "Revenue",
     "totalOrder": "Total Orders",
     "cancelledOrder": "Cancelled Orders",
+    "lastUpdated": "Last updated",
+    "fallbackNotice": "Dashboard API is not available yet. Showing sample data for layout preview.",
+    "loadFailed": "Unable to load dashboard data.",
+    "viewAll": "View all",
+    "noPendingItems": "No pending work in this section.",
+    "range": {
+      "last7Days": "Last 7 days"
+    },
+    "filters": {
+      "dateFrom": "Date from",
+      "dateTo": "Date to",
+      "appliedRange": "Applied range"
+    },
+    "sections": {
+      "metrics": "7-day highlights",
+      "workQueues": "Priority work queues",
+      "quickLinks": "Quick actions"
+    },
+    "metrics": {
+      "rfqNew": "New RFQs",
+      "rfqNewSubtitle": "Incoming RFQs in the last 7 days",
+      "quotationNew": "New Quotations",
+      "quotationNewSubtitle": "Quotations created in the last 7 days",
+      "saleOrderNew": "New Sale Orders",
+      "saleOrderNewSubtitle": "Orders created in the last 7 days",
+      "invoiceOverdue": "Overdue Invoices",
+      "invoiceOverdueSubtitle": "Invoices that need follow-up",
+      "purchasePending": "Pending Purchase Orders",
+      "purchasePendingSubtitle": "Purchase work still open"
+    },
+    "charts": {
+      "documentVolumeTitle": "Document volume trend",
+      "documentVolumeSubtitle": "RFQ, quotation, and sale order activity across the last 7 days",
+      "teamLoadTitle": "Open workload by function",
+      "teamLoadSubtitle": "Cross-team open operational items",
+      "salesPipelineTitle": "Sales pipeline status",
+      "salesPipelineSubtitle": "Quotation and sales follow-up mix",
+      "procurementStatusTitle": "Procurement status mix",
+      "procurementStatusSubtitle": "Open procurement work grouped by current stage",
+      "financeStatusTitle": "Billing and invoice status",
+      "financeStatusSubtitle": "Operational finance workload snapshot"
+    },
+    "queues": {
+      "rfqFollowUpTitle": "RFQs to follow up",
+      "rfqFollowUpSubtitle": "New or pending RFQs that need action",
+      "quotationExpiringTitle": "Quotations nearing expiry",
+      "quotationExpiringSubtitle": "Quotes that need follow-up before expiry",
+      "purchaseOrderTitle": "Purchase orders needing action",
+      "purchaseOrderSubtitle": "Buying, receiving, or blocked purchase orders",
+      "invoiceOverdueTitle": "Invoices overdue or due today",
+      "invoiceOverdueSubtitle": "Finance follow-up items"
+    },
+    "quickLinks": {
+      "createRfq": "Create RFQ",
+      "createRfqDesc": "Start a new quotation request",
+      "quotationList": "Quotation List",
+      "quotationListDesc": "Follow up open quotations",
+      "purchaseOrders": "Purchase Orders",
+      "purchaseOrdersDesc": "Review buying and receiving tasks",
+      "invoiceCenter": "Invoice Center",
+      "invoiceCenterDesc": "Check overdue and payment follow-up",
+      "customerList": "Customer List",
+      "customerListDesc": "Open customer records and account details",
+      "receiveProduct": "Receive Product",
+      "receiveProductDesc": "Process receiving tasks for today"
+    },
     "criteriaDays": {
       "today": "Today",
       "lastWeek": "Last 7 days",

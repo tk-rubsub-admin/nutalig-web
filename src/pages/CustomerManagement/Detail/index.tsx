@@ -1,22 +1,22 @@
-import { ArrowBackIos, Cancel, LocalPhone, Person, Save } from '@mui/icons-material';
+import { Add, ArrowBackIos, Cancel, DeleteOutline, Edit, Person, Save } from '@mui/icons-material';
 import {
   Button,
   Chip,
-  Divider,
-  FormControlLabel,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
-  InputAdornment,
+  IconButton,
   MenuItem,
   Paper,
   Stack,
-  Switch,
   TextField,
   Typography,
   useMediaQuery,
   useTheme
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useAuth } from 'auth/AuthContext';
 import ConfirmDialog from 'components/ConfirmDialog';
 import PageTitle from 'components/PageTitle';
 import { GridTextField, Wrapper } from 'components/Styled';
@@ -28,8 +28,22 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
-import { getCustomer, updateCustomer } from 'services/Customer/customer-api';
-import { Customer } from 'services/Customer/customer-type';
+import { getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
+import {
+  addCustomerContact,
+  addCustomerAddress,
+  getCustomer,
+  removeCustomerAddress,
+  removeCustomerContact,
+  updateCustomer
+} from 'services/Customer/customer-api';
+import {
+  Address,
+  Contact,
+  CreateCustomerAddressRequest,
+  CreateCustomerContactRequest,
+  Customer
+} from 'services/Customer/customer-type';
 import { GROUP_CODE } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import { getSales } from 'services/Sales/sales-api';
@@ -74,11 +88,16 @@ export default function CustomerDetail(): JSX.Element {
   const params = useParams<CustomerParam>();
   const { t } = useTranslation();
   const [customer, setCustomer] = useState<Customer>();
-  const [canEdit, setCanEdit] = useState<boolean>(true);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [canEdit, setCanEdit] = useState<boolean>(false);
   const [actionType, setActionType] = useState<string>('');
   const [title, setTitle] = useState<string>('');
   const [msg, setMsg] = useState<string>('');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
+  const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   const {
     data: customerData,
@@ -104,6 +123,15 @@ export default function CustomerDetail(): JSX.Element {
     () => getSales(1, 20),
     { refetchOnWindowFocus: false }
   );
+  const { data: provinces = [] } = useQuery('province', () => getProvince(), {
+    refetchOnWindowFocus: false
+  });
+  const { data: districts = [] } = useQuery('district', () => getDistrict(), {
+    refetchOnWindowFocus: false
+  });
+  const { data: subdistricts = [] } = useQuery('subdistrict', () => getSubDistrict(), {
+    refetchOnWindowFocus: false
+  });
 
   const initialValues = useMemo(
     () => ({
@@ -165,10 +193,20 @@ export default function CustomerDetail(): JSX.Element {
     }),
     onSubmit: (values, actions) => {
       actions.setSubmitting(true);
-      toast.promise(updateCustomer(customer?.id, values), {
+      const updatePromise = updateCustomer(customer?.id, values as never);
+
+      toast.promise(updatePromise, {
         loading: t('toast.loading'),
-        success: t('toast.success'),
+        success: () => {
+          setCanEdit(false);
+          customerRefetch();
+          return t('toast.success');
+        },
         error: t('toast.failed')
+      });
+
+      updatePromise.finally(() => {
+        actions.setSubmitting(false);
       });
     }
   });
@@ -189,12 +227,339 @@ export default function CustomerDetail(): JSX.Element {
     if (!customerData) return;
 
     setCustomer(customerData);
+    setAddresses(customerData.addresses ?? []);
   }, [customerData]);
+
+  const handleStartEdit = () => {
+    formik.resetForm();
+    setCanEdit(true);
+  };
+
+  const handleCancelEdit = () => {
+    formik.resetForm();
+    setAddresses(customer?.addresses ?? []);
+    setCanEdit(false);
+  };
+
+  const buildFullAddress = (address: {
+    addressLine1: string;
+    addressLine2: string;
+    subdistrict: string;
+    district: string;
+    province: string;
+    postcode: string;
+  }) => {
+    const isBangkok = address.province === 'กรุงเทพมหานคร';
+    const subdistrictPrefix = isBangkok ? 'แขวง' : 'ตำบล';
+    const districtPrefix = isBangkok ? 'เขต' : 'อำเภอ';
+
+    return [
+      address.addressLine1,
+      address.addressLine2,
+      address.subdistrict && `${subdistrictPrefix}${address.subdistrict}`,
+      address.district && `${districtPrefix}${address.district}`,
+      address.province && `จังหวัด${address.province}`,
+      address.postcode
+    ]
+      .filter(Boolean)
+      .join(' ');
+  };
+
+  const addressDialogFormik = useFormik({
+    initialValues: {
+      addressType: 'BILLING',
+      isDefault: addresses.length === 0,
+      label: '',
+      addressLine1: '',
+      addressLine2: '',
+      province: '',
+      district: '',
+      subdistrict: '',
+      postcode: '',
+      country: 'TH'
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object().shape({
+      addressType: Yup.string().required(t('customerManagement.column.address.type')),
+      addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
+      province: Yup.string().required(t('customerManagement.message.validateProvince')),
+      district: Yup.string().required(t('customerManagement.message.validateDistrict')),
+      subdistrict: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
+      country: Yup.string().required(t('customerManagement.column.address.country'))
+    }),
+    onSubmit: () => undefined
+  });
+
+  const openAddressDialog = () => {
+    addressDialogFormik.resetForm({
+      values: {
+        addressType: 'BILLING',
+        isDefault: addresses.length === 0,
+        label: '',
+        addressLine1: '',
+        addressLine2: '',
+        province: '',
+        district: '',
+        subdistrict: '',
+        postcode: '',
+        country: 'TH'
+      }
+    });
+    setIsAddressDialogOpen(true);
+  };
+
+  const getAddressPayload = (): CreateCustomerAddressRequest => {
+    const values = addressDialogFormik.values;
+    const selectedProvince = provinces.find((item) => item.id === values.province);
+    const selectedDistrict = districts.find((item) => item.id === values.district);
+    const selectedSubdistrict = subdistricts.find((item) => item.id === values.subdistrict);
+
+    return {
+      addressType: values.addressType,
+      isDefault: values.isDefault,
+      label: values.label,
+      addressLine1: values.addressLine1,
+      addressLine2: values.addressLine2,
+      subdistrict: selectedSubdistrict?.nameTh,
+      district: selectedDistrict?.nameTh,
+      province: selectedProvince?.nameTh,
+      postcode: values.postcode,
+      country: values.country
+    };
+  };
+
+  const handleAddressSaveClick = async () => {
+    const errors = await addressDialogFormik.validateForm();
+    addressDialogFormik.setTouched({
+      addressType: true,
+      label: true,
+      addressLine1: true,
+      addressLine2: true,
+      province: true,
+      district: true,
+      subdistrict: true,
+      postcode: true,
+      country: true
+    });
+
+    if (Object.keys(errors).length > 0) return;
+
+    setActionType('add-address');
+    setTitle(t('customerManagement.column.address.addNew'));
+    setMsg(t('customerManagement.confirmMsgAddCustomerAddress'));
+    setVisibleConfirmationDialog(true);
+  };
+
+  const handleConfirmAddAddress = () => {
+    addressDialogFormik.setSubmitting(true);
+    const addAddressPromise = addCustomerAddress(customer?.id, getAddressPayload());
+
+    toast.promise(addAddressPromise, {
+      loading: t('toast.loading'),
+      success: () => {
+        customerRefetch();
+        addressDialogFormik.resetForm();
+        setIsAddressDialogOpen(false);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+
+    addAddressPromise.finally(() => {
+      addressDialogFormik.setSubmitting(false);
+    });
+  };
+
+  const handleDeleteAddressClick = (address: Address) => {
+    setSelectedAddress(address);
+    setActionType('delete-address');
+    setTitle(t('button.delete'));
+    setMsg(
+      t('customerManagement.confirmMsgDeleteCustomerAddress', {
+        label: address.label || address.fullAddress || address.addressLine1
+      })
+    );
+    setVisibleConfirmationDialog(true);
+  };
+
+  const handleConfirmDeleteAddress = () => {
+    if (!customer?.id || !selectedAddress?.id) return;
+
+    const deleteAddressPromise = removeCustomerAddress(customer.id, selectedAddress.id);
+
+    toast.promise(deleteAddressPromise, {
+      loading: t('toast.loading'),
+      success: () => {
+        customerRefetch();
+        setSelectedAddress(null);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+  };
+
+  const handleDeleteContactClick = (contact: Contact) => {
+    setSelectedContact(contact);
+    setActionType('delete-contact');
+    setTitle(t('button.delete'));
+    setMsg(
+      t('customerManagement.confirmMsgDeleteCustomerContact', {
+        name: contact.contactName || '-'
+      })
+    );
+    setVisibleConfirmationDialog(true);
+  };
+
+  const handleConfirmDeleteContact = () => {
+    if (!customer?.id || !selectedContact?.id) return;
+
+    const deleteContactPromise = removeCustomerContact(customer.id, selectedContact.id);
+
+    toast.promise(deleteContactPromise, {
+      loading: t('toast.loading'),
+      success: () => {
+        customerRefetch();
+        setSelectedContact(null);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+  };
+
+  const contactDialogFormik = useFormik({
+    initialValues: {
+      contactName: '',
+      contactNumber: ''
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object().shape({
+      contactName: Yup.string()
+        .max(255)
+        .required(t('customerManagement.message.validateContactName')),
+      contactNumber: Yup.string()
+        .matches(/^[0-9]{9,10}$/, t('customerManagement.message.invalidPhoneNumberFormat'))
+        .required(t('customerManagement.message.validateContactNumber'))
+    }),
+    onSubmit: () => undefined
+  });
+
+  const openContactDialog = () => {
+    contactDialogFormik.resetForm({
+      values: {
+        contactName: '',
+        contactNumber: ''
+      }
+    });
+    setIsContactDialogOpen(true);
+  };
+
+  const getContactPayload = (): CreateCustomerContactRequest => ({
+    contactName: contactDialogFormik.values.contactName,
+    contactNumber: contactDialogFormik.values.contactNumber
+  });
+
+  const handleContactSaveClick = async () => {
+    const errors = await contactDialogFormik.validateForm();
+    contactDialogFormik.setTouched({
+      contactName: true,
+      contactNumber: true
+    });
+
+    if (Object.keys(errors).length > 0) return;
+
+    setActionType('add-contact');
+    setTitle(t('customerManagement.addContact'));
+    setMsg(t('customerManagement.confirmMsgAddCustomerContact'));
+    setVisibleConfirmationDialog(true);
+  };
+
+  const handleConfirmAddContact = () => {
+    contactDialogFormik.setSubmitting(true);
+    const addContactPromise = addCustomerContact(customer?.id, getContactPayload());
+
+    toast.promise(addContactPromise, {
+      loading: t('toast.loading'),
+      success: () => {
+        customerRefetch();
+        contactDialogFormik.resetForm();
+        setIsContactDialogOpen(false);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+
+    addContactPromise.finally(() => {
+      contactDialogFormik.setSubmitting(false);
+    });
+  };
 
   return (
     <Page>
-      <LoadingDialog open={isFetching} />
+      <LoadingDialog
+        open={
+          isFetching ||
+          formik.isSubmitting ||
+          addressDialogFormik.isSubmitting ||
+          contactDialogFormik.isSubmitting
+        }
+      />
       <PageTitle title={customer?.customerName} />
+      <Wrapper>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          useFlexGap
+          sx={{
+            mt: 1,
+            justifyContent: { sm: 'flex-end' }, // right-align when in row
+            alignItems: { xs: 'flex-end', sm: 'center' } // right-align when stacked
+          }}>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-cool-grey"
+            onClick={() => {
+              history.push(ROUTE_PATHS.CUSTOMER_MANAGEMENT);
+            }}
+            startIcon={<ArrowBackIos />}>
+            {t('button.back')}
+          </Button>
+          {canEdit ? (
+            <>
+              <Button
+                fullWidth={isDownSm}
+                variant="contained"
+                className="btn-amber-orange"
+                onClick={handleCancelEdit}
+                startIcon={<Cancel />}>
+                {t('button.cancel')}
+              </Button>
+              <Button
+                fullWidth={isDownSm}
+                variant="contained"
+                className="btn-emerald-green"
+                onClick={() => {
+                  setActionType('update');
+                  setTitle(t('customerManagement.updateCustomer'));
+                  setMsg(t('customerManagement.confirmMsgUpdateCustomer'));
+                  setVisibleConfirmationDialog(true);
+                }}
+                startIcon={<Save />}>
+                {t('button.update')}
+              </Button>
+            </>
+          ) : (
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              onClick={handleStartEdit}
+              startIcon={<Edit />}>
+              {t('button.edit')}
+            </Button>
+          )}
+        </Stack>
+      </Wrapper>
       <Wrapper>
         <Grid container spacing={1}>
           <GridTextField item xs={12} sm={12}>
@@ -224,9 +589,12 @@ export default function CustomerDetail(): JSX.Element {
               fullWidth
               variant="outlined"
               value={formik.values.customerName}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               error={Boolean(formik.touched.customerName && formik.errors.customerName)}
               helperText={formik.touched.customerName && formik.errors.customerName}
               InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: !canEdit }}
             />
           </GridTextField>
 
@@ -237,7 +605,7 @@ export default function CustomerDetail(): JSX.Element {
               select
               fullWidth
               label={t('customerManagement.column.type')}
-              disabled={isCustomerTypeFetching}
+              disabled={isCustomerTypeFetching || !canEdit}
               InputLabelProps={{ shrink: true }}
               error={Boolean(formik.touched.type && formik.errors.type)}
               helperText={formik.touched.type && formik.errors.type}
@@ -267,6 +635,7 @@ export default function CustomerDetail(): JSX.Element {
               error={Boolean(formik.touched.taxId && formik.errors.taxId)}
               helperText={formik.touched.taxId && formik.errors.taxId}
               InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: !canEdit }}
             />
           </GridTextField>
 
@@ -280,9 +649,9 @@ export default function CustomerDetail(): JSX.Element {
                   label={t('customerManagement.column.company.branchCode')}
                   fullWidth
                   variant="outlined"
-                  disabled={formik.values.companyBranchCode === '00000'}
+                  disabled={!canEdit || formik.values.companyBranchCode === '00000'}
                   value={formik.values.companyBranchCode}
-                  onChange={formik.handleChange} // ← fix: previously set branchNumber
+                  onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   error={Boolean(
                     formik.touched.companyBranchCode && formik.errors.companyBranchCode
@@ -299,7 +668,7 @@ export default function CustomerDetail(): JSX.Element {
                   label={t('customerManagement.column.company.branchName')}
                   fullWidth
                   variant="outlined"
-                  disabled={formik.values.companyBranchCode === '00000'}
+                  disabled={!canEdit || formik.values.companyBranchCode === '00000'}
                   value={formik.values.companyBranchName}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -327,6 +696,7 @@ export default function CustomerDetail(): JSX.Element {
               error={Boolean(formik.touched.email && formik.errors.email)}
               helperText={formik.touched.email && formik.errors.email}
               InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: !canEdit }}
             />
           </GridTextField>
 
@@ -343,7 +713,7 @@ export default function CustomerDetail(): JSX.Element {
               value={formik.values.creditTerm ?? ''}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              disabled={isCreditTermFetching}>
+              disabled={isCreditTermFetching || !canEdit}>
               <MenuItem value="">{t('general.clearSelected')}</MenuItem>
               {creditTermList?.map((option) => (
                 <MenuItem key={option.code} value={option.code}>
@@ -360,7 +730,6 @@ export default function CustomerDetail(): JSX.Element {
               required
               label={t('customerManagement.column.salesAccount')}
               InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: true }}
               error={Boolean(formik.touched.salesAccount && formik.errors.salesAccount)}
               helperText={formik.touched.salesAccount && formik.errors.salesAccount}
               value={formik.values.salesAccount || ''}
@@ -387,10 +756,26 @@ export default function CustomerDetail(): JSX.Element {
         <Grid item xs={12} sm={6}>
           <Wrapper>
             <Grid container spacing={2}>
-              <Grid item xs={12}>
+              <Grid
+                item
+                xs={12}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 1,
+                  minHeight: 40
+                }}>
                 <Typography variant="h6">{t('customerManagement.column.address.title')}</Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<Add />}
+                  onClick={openAddressDialog}>
+                  {t('customerManagement.column.address.addNew')}
+                </Button>
               </Grid>
-              {customer?.addresses?.map((address, index) => (
+              {addresses.map((address, index) => (
                 <Grid item xs={12} key={address.id || index}>
                   <Paper
                     elevation={0}
@@ -402,56 +787,50 @@ export default function CustomerDetail(): JSX.Element {
                         backgroundColor: '#fafafa'
                       }
                     }}>
-                    <Stack spacing={1}>
-                      {/* Label */}
-                      {address.label && (
-                        <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 500 }}>
-                          {address.label}
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+                        {/* Label */}
+                        {address.label && (
+                          <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 500 }}>
+                            {address.label}
+                          </Typography>
+                        )}
+
+                        {/* Address */}
+                        <Typography variant="body2" sx={{ color: '#555' }}>
+                          {buildFullAddress(address)}
                         </Typography>
-                      )}
 
-                      {/* Address */}
-                      <Typography variant="body2" sx={{ color: '#555' }}>
-                        {(() => {
-                          const isBangkok = address.province === 'กรุงเทพมหานคร';
+                        {/* Tags */}
+                        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                          {address.isDefault && (
+                            <Chip
+                              label="ค่าเริ่มต้น"
+                              size="small"
+                              sx={{
+                                bgcolor: '#ff5722',
+                                color: '#000'
+                              }}
+                            />
+                          )}
 
-                          const subdistrictPrefix = isBangkok ? 'แขวง' : 'ตำบล';
-                          const districtPrefix = isBangkok ? 'เขต' : 'อำเภอ';
+                          {address.addressType && (
+                            <Chip
+                              label={t(`customerManagement.column.addressType.${address.addressType?.toLowerCase()}`)}
+                              size="small"
+                            />
+                          )}
+                        </Stack>
+                      </Stack>
 
-                          return [
-                            address.addressLine1,
-                            address.addressLine2,
-                            address.subdistrict && `${subdistrictPrefix}${address.subdistrict}`,
-                            address.district && `${districtPrefix}${address.district}`,
-                            address.province && `จังหวัด${address.province}`,
-                            address.postcode
-                          ]
-                            .filter(Boolean)
-                            .join(' ');
-                        })()}
-                      </Typography>
-
-                      {/* Tags */}
-                      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                        {address.isDefault && (
-                          <Chip
-                            label="ค่าเริ่มต้น"
-                            size="small"
-                            sx={{
-                              borderColor: '#ff5722',
-                              color: '#ff5722'
-                            }}
-                            variant="outlined"
-                          />
-                        )}
-
-                        {address.addressType && (
-                          <Chip
-                            label={t(`customerManagement.column.addressType.${address.addressType?.toLowerCase()}`)}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
+                      <Stack direction="row" justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={t('button.delete')}
+                          onClick={() => handleDeleteAddressClick(address)}>
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
                       </Stack>
                     </Stack>
                   </Paper>
@@ -463,11 +842,23 @@ export default function CustomerDetail(): JSX.Element {
         <Grid item xs={12} sm={6}>
           <Wrapper>
             <Grid container spacing={2}>
-              <Grid item xs={12} sx={{ mt: 2 }}>
+              <Grid
+                item
+                xs={12}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 1,
+                  minHeight: 40
+                }}>
                 <Typography variant="h6">{t('customerManagement.column.contacts')}</Typography>
+                <Button variant="contained" size="small" startIcon={<Add />} onClick={openContactDialog}>
+                  {t('customerManagement.addContact')}
+                </Button>
               </Grid>
 
-              {customer?.contacts?.map((contact, index) => (
+              {customer?.contacts?.map((contact: Contact, index) => (
                 <Grid item xs={12} key={contact.id || index}>
                   <Paper
                     elevation={0}
@@ -479,20 +870,29 @@ export default function CustomerDetail(): JSX.Element {
                         backgroundColor: '#fafafa'
                       }
                     }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+                        <Person sx={{ fontSize: 32 }} />
 
-                      {/* Person Icon */}
-                      <Person sx={{ fontSize: 32 }} />
+                        <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body1" fontWeight={600}>
+                            {contact.contactName || '-'}
+                          </Typography>
 
-                      {/* Contact Info */}
-                      <Stack spacing={0.5}>
-                        <Typography variant="body1" fontWeight={600}>
-                          {contact.contactName || '-'}
-                        </Typography>
+                          <Typography variant="body2" sx={{ color: '#666' }}>
+                            {contact.contactNumber || '-'}
+                          </Typography>
+                        </Stack>
+                      </Stack>
 
-                        <Typography variant="body2" sx={{ color: '#666' }}>
-                          {contact.contactNumber || '-'}
-                        </Typography>
+                      <Stack direction="row" justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={t('button.delete')}
+                          onClick={() => handleDeleteContactClick(contact)}>
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
                       </Stack>
                     </Stack>
                   </Paper>
@@ -523,32 +923,40 @@ export default function CustomerDetail(): JSX.Element {
             startIcon={<ArrowBackIos />}>
             {t('button.back')}
           </Button>
-          {/* <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            className="btn-amber-orange"
-            onClick={() => {
-              setActionType('clear');
-              setTitle(t('message.clearDataTitle'));
-              setMsg(t('message.clearDataMsg'));
-              setVisibleConfirmationDialog(true);
-            }}
-            startIcon={<Cancel />}>
-            {t('button.clear')}
-          </Button>
-          <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            className="btn-emerald-green"
-            onClick={() => {
-              setActionType('update');
-              setTitle(t('customerManagement.updateCustomer'));
-              setMsg(t('customerManagement.confirmMsgUpdateCustomer'));
-              setVisibleConfirmationDialog(true);
-            }}
-            startIcon={<Save />}>
-            {t('button.update')}
-          </Button> */}
+          {canEdit ? (
+            <>
+              <Button
+                fullWidth={isDownSm}
+                variant="contained"
+                className="btn-amber-orange"
+                onClick={handleCancelEdit}
+                startIcon={<Cancel />}>
+                {t('button.cancel')}
+              </Button>
+              <Button
+                fullWidth={isDownSm}
+                variant="contained"
+                className="btn-emerald-green"
+                onClick={() => {
+                  setActionType('update');
+                  setTitle(t('customerManagement.updateCustomer'));
+                  setMsg(t('customerManagement.confirmMsgUpdateCustomer'));
+                  setVisibleConfirmationDialog(true);
+                }}
+                startIcon={<Save />}>
+                {t('button.update')}
+              </Button>
+            </>
+          ) : (
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              onClick={handleStartEdit}
+              startIcon={<Edit />}>
+              {t('button.edit')}
+            </Button>
+          )}
         </Stack>
       </Wrapper>
       <ConfirmDialog
@@ -558,23 +966,248 @@ export default function CustomerDetail(): JSX.Element {
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         onConfirm={() => {
-          if (actionType === 'add') {
-            dropOffFormik.handleSubmit();
-          } else if (actionType === 'delete') {
-            removeCustomerDropOff();
-          } else if (actionType === 'back') {
-            history.push(ROUTE_PATHS.CUSTOMER_MANAGEMENT);
-          } else if (actionType === 'clear') {
+          if (actionType === 'clear') {
             formik.resetForm();
+          } else if (actionType === 'add-address') {
+            handleConfirmAddAddress();
+          } else if (actionType === 'add-contact') {
+            handleConfirmAddContact();
+          } else if (actionType === 'delete-address') {
+            handleConfirmDeleteAddress();
+          } else if (actionType === 'delete-contact') {
+            handleConfirmDeleteContact();
           } else if (actionType === 'update') {
             formik.handleSubmit();
           }
           setVisibleConfirmationDialog(false);
         }}
-        onCancel={() => setVisibleConfirmationDialog(false)}
+        onCancel={() => {
+          if (actionType === 'delete-address') {
+            setSelectedAddress(null);
+          } else if (actionType === 'delete-contact') {
+            setSelectedContact(null);
+          }
+          setVisibleConfirmationDialog(false);
+        }}
         isShowCancelButton={true}
         isShowConfirmButton={true}
       />
-    </Page >
+      <Dialog open={isAddressDialogOpen} onClose={() => setIsAddressDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{t('customerManagement.column.address.addNew')}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="addressType"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.type')}
+                value={addressDialogFormik.values.addressType}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType)}
+                helperText={addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="BILLING">{t('customerManagement.column.addressType.billing')}</MenuItem>
+                <MenuItem value="SHIPPING">{t('customerManagement.column.addressType.shipping')}</MenuItem>
+                <MenuItem value="OTHER">{t('customerManagement.column.addressType.other')}</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="label"
+                type="text"
+                label={t('customerManagement.column.address.label')}
+                fullWidth
+                value={addressDialogFormik.values.label}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                name="addressLine1"
+                type="text"
+                label={t('customerManagement.column.address.addressLine1')}
+                fullWidth
+                required
+                value={addressDialogFormik.values.addressLine1}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1)}
+                helperText={addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                name="addressLine2"
+                type="text"
+                label={t('customerManagement.column.address.addressLine2')}
+                fullWidth
+                value={addressDialogFormik.values.addressLine2}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="province"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.province')}
+                value={addressDialogFormik.values.province}
+                onChange={(event) => {
+                  addressDialogFormik.setFieldValue('province', event.target.value);
+                  addressDialogFormik.setFieldValue('district', '');
+                  addressDialogFormik.setFieldValue('subdistrict', '');
+                  addressDialogFormik.setFieldValue('postcode', '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.province && addressDialogFormik.errors.province)}
+                helperText={addressDialogFormik.touched.province && addressDialogFormik.errors.province}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {provinces.map((option) => (
+                  <MenuItem key={option.id} value={option.id}>
+                    {option.nameTh}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="district"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.amphure')}
+                value={addressDialogFormik.values.district}
+                onChange={(event) => {
+                  addressDialogFormik.setFieldValue('district', event.target.value);
+                  addressDialogFormik.setFieldValue('subdistrict', '');
+                  addressDialogFormik.setFieldValue('postcode', '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.district && addressDialogFormik.errors.district)}
+                helperText={addressDialogFormik.touched.district && addressDialogFormik.errors.district}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {districts
+                  .filter((option) => option.provinceId === addressDialogFormik.values.province)
+                  .map((option) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.nameTh}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="subdistrict"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.tumbon')}
+                value={addressDialogFormik.values.subdistrict}
+                onChange={(event) => {
+                  const selected = subdistricts.find((item) => item.id === event.target.value);
+                  addressDialogFormik.setFieldValue('subdistrict', selected?.id ?? '');
+                  addressDialogFormik.setFieldValue('postcode', selected?.zipCode ?? '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict)}
+                helperText={addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {subdistricts
+                  .filter((option) => option.districtId === addressDialogFormik.values.district)
+                  .map((option) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.nameTh}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="postcode"
+                type="text"
+                label={t('customerManagement.column.address.postalCode')}
+                fullWidth
+                disabled
+                value={addressDialogFormik.values.postcode}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="country"
+                type="text"
+                label={t('customerManagement.column.address.country')}
+                fullWidth
+                value={addressDialogFormik.values.country}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.country && addressDialogFormik.errors.country)}
+                helperText={addressDialogFormik.touched.country && addressDialogFormik.errors.country}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button variant="contained" className="btn-crimson-red" onClick={() => setIsAddressDialogOpen(false)}>
+            {t('button.cancel')}
+          </Button>
+          <Button variant="contained" className="btn-emerald-green" onClick={handleAddressSaveClick}>
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={isContactDialogOpen} onClose={() => setIsContactDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{t('customerManagement.addContact')}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="contactName"
+                label={t('customerManagement.column.contactName')}
+                fullWidth
+                required
+                value={contactDialogFormik.values.contactName}
+                onChange={contactDialogFormik.handleChange}
+                onBlur={contactDialogFormik.handleBlur}
+                error={Boolean(contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName)}
+                helperText={contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="contactNumber"
+                label={t('customerManagement.column.contactNumber')}
+                fullWidth
+                required
+                value={contactDialogFormik.values.contactNumber}
+                onChange={contactDialogFormik.handleChange}
+                onBlur={contactDialogFormik.handleBlur}
+                error={Boolean(contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber)}
+                helperText={contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button variant="contained" className="btn-crimson-red" onClick={() => setIsContactDialogOpen(false)}>
+            {t('button.cancel')}
+          </Button>
+          <Button variant="contained" className="btn-emerald-green" onClick={handleContactSaveClick}>
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Page>
   );
 }

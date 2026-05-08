@@ -3,6 +3,8 @@ import {
   SearchCustomerRequest,
   SearchCustomerResponse,
   CreateCustomerRequest,
+  CreateCustomerAddressRequest,
+  CreateCustomerContactRequest,
   CreateCustomerResponse,
   UpdateCustomerRequest,
   Customer,
@@ -68,6 +70,34 @@ export const getCustomer = async (id: string) => {
 export const updateCustomer = async (id: string, data: UpdateCustomerRequest) => {
   const response: Customer = await api
     .patch(`/v1/customers/${id}`, data)
+    .then((response) => response.data);
+  return response;
+};
+
+export const addCustomerAddress = async (id: string, data: CreateCustomerAddressRequest) => {
+  const response: Customer = await api
+    .post(`/v1/customers/${id}/addresses`, data)
+    .then((response) => response.data);
+  return response;
+};
+
+export const removeCustomerAddress = async (id: string, addressId: string) => {
+  const response: Customer = await api
+    .delete(`/v1/customers/${id}/addresses/${addressId}`)
+    .then((response) => response.data);
+  return response;
+};
+
+export const addCustomerContact = async (id: string, data: CreateCustomerContactRequest) => {
+  const response: Customer = await api
+    .post(`/v1/customers/${id}/contacts`, data)
+    .then((response) => response.data);
+  return response;
+};
+
+export const removeCustomerContact = async (id: string, contactId: string) => {
+  const response: Customer = await api
+    .delete(`/v1/customers/${id}/contacts/${contactId}`)
     .then((response) => response.data);
   return response;
 };

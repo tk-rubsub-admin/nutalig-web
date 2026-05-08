@@ -144,7 +144,9 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   },
   {
     path: ROUTE_PATHS.EMPLOYEE_DETAIL,
-    component: lazy(() => import('./pages/EmployeeManagement/Detail' /* webpackChunkName: "app" */)),
+    component: lazy(
+      () => import('./pages/EmployeeManagement/Detail' /* webpackChunkName: "app" */)
+    ),
     allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
   },
   {
@@ -192,26 +194,14 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.CUSTOMER_NEW,
     component: lazy(() => import('./pages/CustomerManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
   },
   {
     path: ROUTE_PATHS.CUSTOMER_DETAIL,
     component: lazy(
       () => import('./pages/CustomerManagement/Detail' /* webpackChunkName: "app" */)
     ),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
   },
   {
     path: ROUTE_PATHS.QUOTATION_CREATE,
@@ -226,7 +216,7 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.RECEIVE_PRODUCT,
     component: lazy(() => import('./pages/ReceiveProduct' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.RECEIVER, ROLES.RECEIVER_PAK_KLONG,]
+    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.RECEIVER, ROLES.RECEIVER_PAK_KLONG]
   },
   {
     path: ROUTE_PATHS.BUYING_PRODUCT,

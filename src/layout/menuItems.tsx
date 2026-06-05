@@ -7,6 +7,7 @@ import {
   FilePresent,
   Group,
   Home,
+  Inventory2,
   ManageAccounts,
   Person,
   SettingsSuggest,
@@ -21,8 +22,8 @@ export function useMenuItems() {
   const pagesSection = [
     {
       id: 'left_menu__home',
-      title: t('sidebar.home'),
-      href: ROUTE_PATHS.ROOT,
+      title: t('sidebar.dashboard'),
+      href: ROUTE_PATHS.DASHBOARD,
       icon: Home,
       allowedRoles: Object.values(ROLES)
     },
@@ -41,9 +42,30 @@ export function useMenuItems() {
       allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
     },
     {
+      id: 'left_menu__supplier_management',
+      title: t('sidebar.supplierManagement.title'),
+      href: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
+      icon: AccountCircle,
+      allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    },
+    {
+      id: 'left_menu__product_family_management',
+      title: t('sidebar.productFamilyManagement.title'),
+      href: ROUTE_PATHS.PRODUCT_FAMILY_MANAGEMENT,
+      icon: Inventory2,
+      allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    },
+    {
       id: 'left_menu__rfq_management',
       title: t('sidebar.rfqManagement.title'),
       href: ROUTE_PATHS.RFQ_MANAGEMENT,
+      icon: FilePresent,
+      allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
+    },
+    {
+      id: 'left_menu__price_inquiry_management',
+      title: t('sidebar.priceInquiryManagement.title'),
+      href: ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT,
       icon: FilePresent,
       allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
     },

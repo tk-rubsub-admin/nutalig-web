@@ -5,10 +5,10 @@ import { makeStyles } from "@mui/styles";
 import PageTitle from "components/PageTitle";
 import { GridTextField, Wrapper } from "components/Styled";
 import { Page } from "layout/LayoutRoute";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "react-query";
-import { useHistory } from "react-router-dom";
+import { useHistory, useParams } from "react-router-dom";
 import { Address, Contact, Customer } from "services/Customer/customer-type";
 import { getSales } from "services/Sales/sales-api";
 import { useTheme } from "styled-components";
@@ -27,6 +27,9 @@ import toast from "react-hot-toast";
 import { createQuotation } from "services/Document/document-api";
 import LoadingDialog from "components/LoadingDialog";
 import { formatCurrency, formatNumber } from "utils/utils";
+import { getRFQ } from "services/RFQ/rfq-api";
+import { RFQDetailOption, RFQDetailTier, RFQRecord } from "services/RFQ/rfq-type";
+import { SystemConfig } from "services/Config/config-type";
 
 const createEmptyRow = (): CreateQuotationItem => ({
     id: Date.now() + Math.floor(Math.random() * 1000),
@@ -55,10 +58,100 @@ const fieldSx = {
     }
 };
 
+interface QuotationFromRFQParams {
+    rfqId?: string;
+}
+
+const getConfigLabel = (config?: SystemConfig | null): string => {
+    if (!config) return '';
+
+    if (config.nameTh && config.nameEn) {
+        return `${config.nameTh} (${config.nameEn})`;
+    }
+
+    return config.nameTh || config.nameEn || config.code || '';
+};
+
+const getProductFamilyLabel = (productFamily: RFQRecord['productFamily']): string => {
+    if (!productFamily) return '';
+
+    if (typeof productFamily === 'string') return productFamily;
+
+    if (productFamily.nameTh && productFamily.nameEn) {
+        return `${productFamily.nameTh} (${productFamily.nameEn})`;
+    }
+
+    return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
+};
+
+const getMaterialLabel = (material: RFQRecord['material']): string => {
+    if (!material) return '';
+
+    if (typeof material === 'string') return material;
+
+    if (material.nameTh && material.nameEn) {
+        return `${material.nameTh} (${material.nameEn})`;
+    }
+
+    return material.nameTh || material.nameEn || material.code || '';
+};
+
+const getTierUnitPrice = (tier?: RFQDetailTier): number => {
+    if (!tier) return 0;
+
+    return Number(tier.seaTotalPrice || tier.landTotalPrice || tier.productPrice || 0);
+};
+
+const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
+    const imagePreview = (rfq.pictures || [])?.[0]?.pictureUrl || '';
+    const type = getConfigLabel(rfq.orderType);
+    const capacity = rfq.capacity || '';
+    const productFamily = getProductFamilyLabel(rfq.productFamily);
+    const material = getMaterialLabel(rfq.material);
+
+    if (!rfq.details?.length) {
+        return [{
+            ...createEmptyRow(),
+            name: productFamily,
+            type,
+            capacity,
+            spec: [material, rfq.description].filter(Boolean).join('\n'),
+            imagePreview
+        }];
+    }
+
+    return rfq.details.flatMap((detail: RFQDetailOption) => {
+        const tiers = detail.tiers?.length ? detail.tiers : [undefined];
+
+        return tiers.map((tier, tierIndex) => {
+            const quantity = Number(tier?.quantity || 1);
+            const unitPrice = getTierUnitPrice(tier);
+            const tierLabel = detail.tiers?.length && detail.tiers.length > 1
+                ? ` - Tier ${tierIndex + 1}`
+                : '';
+
+            return {
+                ...createEmptyRow(),
+                name: `${detail.optionName || productFamily}${tierLabel}`,
+                type,
+                capacity,
+                spec: [detail.spec, material, rfq.description].filter(Boolean).join('\n'),
+                quantity,
+                unitPrice,
+                unitPriceInput: String(unitPrice),
+                amount: quantity * unitPrice,
+                imagePreview
+            };
+        });
+    });
+};
+
 export default function NewQuotation() {
     const { t } = useTranslation();
     const theme = useTheme();
     const history = useHistory();
+    const { rfqId } = useParams<QuotationFromRFQParams>();
+    const isCreateFromRFQ = Boolean(rfqId);
     const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
     const useStyles = makeStyles({
         hideObject: {
@@ -103,7 +196,7 @@ export default function NewQuotation() {
         }
     });
     const classes = useStyles();
-    const [openSearchCustomerAndDocDialog, setOpenSearchCustomerAndDocDialog] = useState(true);
+    const [openSearchCustomerAndDocDialog, setOpenSearchCustomerAndDocDialog] = useState(!isCreateFromRFQ);
     const [isLoading, setIsLoading] = useState(false);
     const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
     const [title, setTitle] = useState<string>('')
@@ -112,6 +205,14 @@ export default function NewQuotation() {
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [rows, setRows] = useState<CreateQuotationItem[]>([createEmptyRow()])
     const today = dayjs();
+    const { data: rfq, isFetching: isRFQFetching } = useQuery(
+        ['quotation-from-rfq', rfqId],
+        () => getRFQ(rfqId || ''),
+        {
+            enabled: isCreateFromRFQ,
+            refetchOnWindowFocus: false
+        }
+    );
     const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
         'quotation-sales-options',
         () => getSales(1, 20),
@@ -166,6 +267,44 @@ export default function NewQuotation() {
                 });
         }
     });
+
+    useEffect(() => {
+        if (!rfq) return;
+
+        const customerAddresses = rfq.customer?.addresses || [];
+        const customerContacts = rfq.customer?.contacts || [];
+        const defaultAddress =
+            customerAddresses.find((address) => address.isDefault) ||
+            customerAddresses[0];
+        const defaultContact =
+            customerContacts.find((contact) => contact.contactName === rfq.contactName) ||
+            customerContacts.find((contact) => contact.isDefault) ||
+            customerContacts[0];
+        const salesId = rfq.sales?.salesId || rfq.sales?.employeeId || rfq.customer?.salesAccount || '';
+        const rfqAdditionalCostTotal = (rfq.additionalCosts || []).reduce(
+            (sum, cost) => sum + Number(cost.value || 0),
+            0
+        );
+
+        setCustomer(rfq.customer ? {
+            ...rfq.customer,
+            addresses: customerAddresses,
+            contacts: customerContacts
+        } as Customer : null);
+        formik.setValues({
+            ...formik.values,
+            customerId: rfq.customer?.id || '',
+            customerAddressId: defaultAddress?.id || '',
+            customerContactId: defaultContact?.id || '',
+            docDate: today,
+            effectiveDate: today.add(7, 'day'),
+            salesId,
+            coSaleId: rfq.customer?.coSalesAccount || '',
+            remark: rfq.finalRemark || rfq.description || '',
+            freight: rfqAdditionalCostTotal,
+            items: createQuotationItemsFromRFQ(rfq)
+        });
+    }, [rfq]);
 
     const isGeneralSectionCompleted =
         !!formik.values.docDate &&
@@ -472,7 +611,7 @@ export default function NewQuotation() {
                             InputLabelProps={{ shrink: true }}
                         />
                     </GridTextField>
-                    {customer?.customerType.code === 'COMPANY' ?
+                    {customer?.customerType?.code === 'COMPANY' ?
                         <>
                             <GridTextField item xs={12} sm={6}>
                                 <TextField
@@ -499,7 +638,7 @@ export default function NewQuotation() {
                             onChange={(e) => formik.setFieldValue('customerAddressId', e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             helperText={
-                                customer?.addresses.length
+                                (customer?.addresses || []).length
                                     ? undefined
                                     : t('customerManagement.column.address.noAddress')
                             }
@@ -1119,7 +1258,7 @@ export default function NewQuotation() {
                 isShowConfirmButton={true}
             />
             <LoadingDialog
-                open={isLoading}
+                open={isLoading || isRFQFetching}
             />
         </Page >
     );

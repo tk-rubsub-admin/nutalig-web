@@ -38,6 +38,9 @@
     "rfqManagement": {
       "title": "Request for Quotation"
     },
+    "priceInquiryManagement": {
+      "title": "Price Inquiry"
+    },
     "leadManagement": "Lead Management",
     "customerRelationshipManagement": {
       "title": "Customer Relationship Management",
@@ -53,6 +56,9 @@
     },
     "supplierManagement": {
       "title": "Supplier Management"
+    },
+    "productFamilyManagement": {
+      "title": "Product Families"
     },
     "purchaseOrderManagement": {
       "title": "Purchase Order Management"
@@ -232,6 +238,11 @@
     "title": "Supplier Management",
     "supplier": "Supplier",
     "searchPanel": "Search supplier",
+    "detail": {
+      "generalInfo": "General information",
+      "contactInfo": "Contact information",
+      "allContacts": "All contacts"
+    },
     "action": {
       "create": "Create supplier",
       "edit": "Edit supplier",
@@ -241,6 +252,16 @@
     "column": {
       "id": "Supplier id",
       "name": "Supplier name",
+      "code": "Code",
+      "email": "Email",
+      "fullAddress": "Address",
+      "fullAddressEn": "Address (EN)",
+      "countryCode": "Country",
+      "city": "City",
+      "street": "Street",
+      "detailAddress": "Detail address",
+      "additional": "Additional",
+      "wechat": "WeChat",
       "status": "Status",
       "rank": "Rank",
       "type": "Supplier type",
@@ -271,6 +292,23 @@
         "number": "Account number",
         "bankName": "Bank name"
       }
+    }
+  },
+  "productFamilyManagement": {
+    "title": "Product Families",
+    "searchPanel": "Search product family",
+    "searchPlaceholder": "Search by code, family, material or usage",
+    "summary": {
+      "familyCount": "{{count}} families",
+      "materialCount": "{{count}} materials",
+      "usageCount": "{{count}} product subtype1"
+    },
+    "label": {
+      "code": "Code",
+      "materials": "Materials",
+      "productUsages": "Product Subtype1",
+      "systemMechanics": "Product Subtype2",
+      "optionalMechanic": "Optional"
     }
   },
   "staffManagement": {
@@ -607,8 +645,8 @@
       "salesId": "Sales",
       "orderTypeCode": "Order Type",
       "productFamily": "Product Family",
-      "productUsage": "Product Usage",
-      "systemMechanic": "System Mechanic",
+      "productUsage": "Product Subtype1",
+      "systemMechanic": "Product Subtype2",
       "material": "Material",
       "capacity": "Capacity",
       "description": "Description",
@@ -627,8 +665,8 @@
       "salesId": "Please select sales",
       "orderTypeCode": "Please select order type",
       "productFamily": "Please input product family",
-      "productUsage": "Please input product usage",
-      "systemMechanic": "Please input system mechanic",
+      "productUsage": "Please input product subtype1",
+      "systemMechanic": "Please input product subtype2",
       "material": "Please input material",
       "capacity": "Please input capacity",
       "description": "Please input description"
@@ -650,6 +688,30 @@
       "QUOTED": "Quoted",
       "CANCELED": "Canceled",
       "COMPLETED": "Completed"
+    }
+  },
+  "priceInquiryManagement": {
+    "title": "Price Inquiry",
+    "listTitle": "Price Inquiry List",
+    "mobileTitle": "Price Inquiries",
+    "suggestSupplier": {
+      "title": "Suggest Supplier",
+      "loading": "Loading data",
+      "capabilities": "Capabilities",
+      "allMaterials": "All Materials",
+      "noCapabilities": "No capability data found",
+      "noData": "No suggest supplier data found"
+    },
+    "generateInquiry": {
+      "title": "Generated Inquiry Message",
+      "thaiMessage": "Thai Message",
+      "chineseMessage": "Chinese Message",
+      "button": "Generate Message",
+      "confirmUpdateTitle": "Confirm inquiry message update",
+      "confirmUpdateMsg": "Do you want to save changes to this inquiry message?"
+    },
+    "action": {
+      "create": "Create Inquiry"
     }
   },
   "inputUpload": {

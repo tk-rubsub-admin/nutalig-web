@@ -1,73 +1,101 @@
 import { api } from 'api/api';
+import { Pagination } from 'services/general-type';
 import {
-  CreateSupplierRequest,
-  CreateSupplierResponse,
-  GetAllSupplierType,
-  GetSupplier,
+  GetSupplierResponse,
   SearchSupplierRequest,
-  SearchSupplierResponse
+  SearchSupplierResponse,
+  Supplier
 } from './supplier-type';
 
-export const searchSupplier = async (data: SearchSupplierRequest, page: number, size: number) => {
-  const response: SearchSupplierResponse = await api
+const normalizeSupplierSearchResponse = (
+  response: any,
+  page: number,
+  size: number
+): SearchSupplierResponse => {
+  const rawSuppliers: Supplier[] =
+    response?.data?.suppliers ??
+    response?.suppliers ??
+    response?.data ??
+    response ??
+    [];
+
+  const suppliers: Supplier[] = Array.isArray(rawSuppliers)
+    ? rawSuppliers.map((supplier) => {
+      const defaultContact = supplier.contacts?.find((contact) => contact.isDefault) || supplier.contacts?.[0];
+
+      return {
+        ...supplier,
+        supplierId: supplier.supplierId || supplier.id,
+        supplierShortName: supplier.supplierShortName || supplier.supplierCode,
+        contactName: supplier.contactName || defaultContact?.contactName || '',
+        contactNumber: supplier.contactNumber || defaultContact?.contactNumber || '',
+        phoneContactName:
+          supplier.phoneContactName || defaultContact?.contactName || supplier.supplierName,
+        lineContactName: supplier.lineContactName ?? defaultContact?.contactName ?? null,
+        lineId: supplier.lineId ?? defaultContact?.wechat ?? null
+      };
+    })
+    : [];
+
+  const pagination: Pagination =
+    response?.data?.pagination ??
+    response?.pagination ?? {
+      page,
+      size,
+      totalPage: 1,
+      totalRecords: Array.isArray(suppliers) ? suppliers.length : 0
+    };
+
+  return {
+    status: response?.status,
+    data: {
+      suppliers: Array.isArray(suppliers) ? suppliers : [],
+      pagination
+    }
+  };
+};
+
+export const getSupplierList = async (
+  data: Partial<SearchSupplierRequest>,
+  page: number,
+  size: number
+) => {
+  const response = await api
     .post(`/v1/suppliers/search`, data, {
       params: {
         page,
         size
       }
     })
-    .then((response) => response.data);
-  return response;
+    .then((res) => res.data);
+
+  return normalizeSupplierSearchResponse(response, page, size);
 };
 
-export const getSupplierById = async (id: string) => {
-  const response: GetSupplier = await api
-    .get(`/v1/suppliers/${id}`)
-    .then((response) => response.data);
-  return response.data;
-};
+export const searchSupplier = async (data: SearchSupplierRequest, page: number, size: number) =>
+  getSupplierList(data, page, size);
 
-export const getSupplierType = async () => {
-  const response: GetAllSupplierType = await api
-    .get(`/v1/suppliers/type`)
-    .then((response) => response.data);
-  return response.data;
-};
+export const getSupplierById = async (supplierId: string): Promise<Supplier> => {
+  const response: GetSupplierResponse = await api
+    .get(`/v1/suppliers/${supplierId}`)
+    .then((res) => res.data);
 
-export const createSupplier = async (
-  req: CreateSupplierRequest
-): Promise<CreateSupplierResponse> => {
-  const response = await api.post(`/v1/suppliers`, req).then((response) => response.data);
-  return response;
-};
+  const normalized = normalizeSupplierSearchResponse(
+    {
+      status: response?.status,
+      data: {
+        suppliers: response?.data ? [response.data] : [],
+        pagination: {
+          page: 1,
+          size: 1,
+          totalPage: 1,
+          totalRecords: response?.data ? 1 : 0
+        }
+      }
+    },
+    1,
+    1
+  );
 
-export const uploadSupplierProfileImage = async (id: string, data: FormData) => {
-  const config = {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  };
-
-  const response = await api
-    .post(`/v1/suppliers/${id}/profile-image`, data, config)
-    .then((response) => response.data);
-  return response;
-};
-
-export const uploadSupplier = async (data: FormData) => {
-  const config = {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  };
-
-  const response = await api
-    .post(`/v1/suppliers/upload`, data, config)
-    .then((response) => response.data);
-  return response.data;
-};
-
-export const exportSupplier = async (data: SearchSupplierRequest) => {
-  const response = await api.post(`/v1/suppliers/export`, data, {
-    responseType: 'blob'
-  });
-  return response;
+  return normalized.data.suppliers[0];
 };

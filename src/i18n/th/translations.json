@@ -47,6 +47,9 @@
     "rfqManagement": {
       "title": "ขอราคา"
     },
+    "priceInquiryManagement": {
+      "title": "สอบถามราคา"
+    },
     "staffManagement": {
       "title": "พนักงาน"
     },
@@ -55,6 +58,9 @@
     },
     "supplierManagement": {
       "title": "คู่ค้า"
+    },
+    "productFamilyManagement": {
+      "title": "Product Family"
     },
     "purchaseOrderManagement": {
       "title": "ออเดอร์"
@@ -383,6 +389,83 @@
     "deleteCustomerDropOff": "ลบจุดลงของ",
     "confirmMsgDeleteCustomerDropOff": "คุณแน่ใจหรือว่าต้องการลบจุดลงของที่ {{id}} : {{name}}"
   },
+  "supplierManagement": {
+    "title": "การจัดการข้อมูลคู่ค้า",
+    "supplier": "คู่ค้า",
+    "searchPanel": "ค้นหาข้อมูลคู่ค้า",
+    "detail": {
+      "generalInfo": "ข้อมูลทั่วไป",
+      "contactInfo": "ข้อมูลผู้ติดต่อ",
+      "allContacts": "ผู้ติดต่อทั้งหมด"
+    },
+    "action": {
+      "create": "สร้างคู่ค้าใหม่",
+      "edit": "แก้ไขรายละเอียด",
+      "view": "ดูรายละเอียด",
+      "action": "Action"
+    },
+    "column": {
+      "id": "รหัสคู่ค้า",
+      "name": "ชื่อคู่ค้า",
+      "code": "รหัสย่อ",
+      "email": "อีเมล",
+      "fullAddress": "ที่อยู่",
+      "fullAddressEn": "ที่อยู่ภาษาอังกฤษ",
+      "countryCode": "ประเทศ",
+      "city": "เมือง",
+      "street": "ถนน",
+      "detailAddress": "รายละเอียดที่อยู่",
+      "additional": "ข้อมูลเพิ่มเติม",
+      "wechat": "WeChat",
+      "status": "สถานะ",
+      "rank": "ระดับคู่ค้า",
+      "type": "ประเภทคู่ค้า",
+      "mainProduct": "สินค้าหลัก",
+      "productType": "รูปแบบคู่ค้า",
+      "contactName": "ผู้ติดต่อ",
+      "contactNumber": "เบอร์ติดต่อ",
+      "phoneContactName": "ชื่อผู้ติดต่อโทรศัพท์",
+      "lineContactName": "ชื่อผู้ติดต่อ LINE",
+      "behavior": "พฤติกรรมการขาย",
+      "senderName": "ชื่อผู้ส่ง",
+      "workingHours": "เวลาทำการ",
+      "period": "รอบส่ง",
+      "orderMethod": "วิธีสั่งซื้อ",
+      "sendingMethod": "วิธีจัดส่ง",
+      "address": {
+        "title": "ที่อยู่",
+        "tumbon": "ตำบล/แขวง",
+        "amphure": "อำเภอ/เขต",
+        "province": "จังหวัด",
+        "postalCode": "รหัสไปรษณีย์",
+        "location": "พิกัดที่อยู่"
+      },
+      "creditTerm": "เครดิตเทอม",
+      "transferMethod": "วิธีโอนเงิน",
+      "account": {
+        "name": "ชื่อบัญชี",
+        "number": "เลขบัญชี",
+        "bankName": "ธนาคาร"
+      }
+    }
+  },
+  "productFamilyManagement": {
+    "title": "รายการ Product Family",
+    "searchPanel": "ค้นหา Product Family",
+    "searchPlaceholder": "ค้นหาจากรหัส ชื่อ family material หรือ product subtype1",
+    "summary": {
+      "familyCount": "{{count}} product family",
+      "materialCount": "{{count}} material",
+      "usageCount": "{{count}} product subtype1"
+    },
+    "label": {
+      "code": "รหัส",
+      "materials": "Material",
+      "productUsages": "Product Subtype1",
+      "systemMechanics": "Product Subtype2",
+      "optionalMechanic": "ไม่บังคับเลือก"
+    }
+  },
   "staffManagement": {
     "title": "การจัดการพนักงาน",
     "staff": "พนักงาน",
@@ -575,8 +658,8 @@
       "salesId": "เซลล์ผู้ดูแล",
       "orderTypeCode": "ประเภทงาน",
       "productFamily": "Product Family",
-      "productUsage": "Product Usage",
-      "systemMechanic": "System Mechanic",
+      "productUsage": "Product Subtype1",
+      "systemMechanic": "Product Subtype2",
       "material": "Material",
       "capacity": "Capacity",
       "description": "รายละเอียด",
@@ -595,8 +678,8 @@
       "salesId": "กรุณาเลือกเซลล์ผู้ดูแล",
       "orderTypeCode": "กรุณาเลือกประเภทงาน",
       "productFamily": "กรุณาระบุ Product Family",
-      "productUsage": "กรุณาระบุ Product Usage",
-      "systemMechanic": "กรุณาระบุ System Mechanic",
+      "productUsage": "กรุณาระบุ Product Subtype1",
+      "systemMechanic": "กรุณาระบุ Product Subtype2",
       "material": "กรุณาระบุ Material",
       "capacity": "กรุณาระบุ Capacity",
       "description": "กรุณาระบุรายละเอียด"
@@ -618,6 +701,30 @@
       "QUOTED": "ได้ราคาแล้ว",
       "CANCELED": "ยกเลิก",
       "COMPLETED": "เสร็จสิ้น"
+    }
+  },
+  "priceInquiryManagement": {
+    "title": "สอบถามราคา",
+    "listTitle": "รายการสอบถามราคา",
+    "mobileTitle": "รายการสอบถามราคา",
+    "suggestSupplier": {
+      "title": "แนะนำคู่ค้า",
+      "loading": "กำลังโหลดข้อมูล",
+      "capabilities": "ความสามารถการผลิต/จำหน่าย",
+      "allMaterials": "รองรับทุก Material",
+      "noCapabilities": "ไม่พบข้อมูล capability",
+      "noData": "ไม่พบข้อมูลแนะนำคู่ค้า"
+    },
+    "generateInquiry": {
+      "title": "ข้อความสอบถามราคาที่สร้างแล้ว",
+      "thaiMessage": "ข้อความภาษาไทย",
+      "chineseMessage": "ข้อความภาษาจีน",
+      "button": "Generate ข้อความ",
+      "confirmUpdateTitle": "ยืนยันอัปเดตข้อความสอบถามราคา",
+      "confirmUpdateMsg": "คุณต้องการบันทึกการแก้ไขข้อความสอบถามราคานี้ใช่หรือไม่"
+    },
+    "action": {
+      "create": "สร้างรายการสอบถามราคา"
     }
   },
   "documentManagement": {

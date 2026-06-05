@@ -73,9 +73,36 @@ export interface ProductFamily {
   code: string;
   nameTh: string;
   nameEn: string;
+  materialList?: ProductMaterial[];
+  productMaterialList?: ProductMaterial[];
+  subtype1List: ProductSubtype1[];
+}
+
+export interface ProductMaterial {
+  code: string;
+  productFamilyCode: string;
+  nameTh: string;
+  nameEn: string;
+}
+
+export interface ProductSubtype1 {
+  code: string;
+  productFamilyCode: string;
+  nameTh: string;
+  nameEn: string;
+  subtype2Required: boolean;
+  subtype2List: ProductSubtype2[];
+}
+
+export interface ProductSubtype2 {
+  code: string;
+  productSubtype1Code: string;
+  nameTh: string;
+  nameEn: string;
 }
 
 export interface ProductFamilyResponse {
+  status: string;
   data: ProductFamily[];
 }
 

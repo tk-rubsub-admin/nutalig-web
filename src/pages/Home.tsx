@@ -1,8 +1,6 @@
-import { useTranslation } from 'react-i18next';
-import { Page } from 'layout/LayoutRoute';
+import { Redirect } from 'react-router-dom';
+import { ROUTE_PATHS } from 'routes';
 
 export default function Home(): JSX.Element {
-  const { t } = useTranslation();
-
-  return <Page>{t('home.title')}</Page>;
+  return <Redirect to={ROUTE_PATHS.DASHBOARD} />;
 }

@@ -25,22 +25,69 @@ import { GridTextField, Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
-import { getSystemConfig } from 'services/Config/config-api';
+import { createSystemConfig, getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
 import { searchCustomerByKeyword } from 'services/Customer/customer-api';
 import { Contact, Customer } from 'services/Customer/customer-type';
 import { getProductFamilies } from 'services/Product/product-api';
-import { ProductFamily } from 'services/Product/product-type';
+import {
+  ProductFamily,
+  ProductMaterial,
+  ProductSubtype1,
+  ProductSubtype2
+} from 'services/Product/product-type';
 import { addRFQAttachments, createRFQ } from 'services/RFQ/rfq-api';
 import { getProcurementEmployees, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import * as Yup from 'yup';
+
+const CUSTOM_UNIT_OPTION = '__custom_unit__';
+
+function getProductFamilyDisplayName(productFamily: ProductFamily): string {
+  if (productFamily.nameTh && productFamily.nameEn) {
+    return `${productFamily.nameTh} (${productFamily.nameEn})`;
+  }
+
+  return productFamily.nameTh || productFamily.nameEn || productFamily.code;
+}
+
+function getProductSubtype1DisplayName(productSubtype1: ProductSubtype1): string {
+  if (productSubtype1.nameTh && productSubtype1.nameEn) {
+    return `${productSubtype1.nameTh} (${productSubtype1.nameEn})`;
+  }
+
+  return productSubtype1.nameTh || productSubtype1.nameEn || productSubtype1.code;
+}
+
+function getProductSubtype2DisplayName(productSubtype2: ProductSubtype2): string {
+  if (productSubtype2.nameTh && productSubtype2.nameEn) {
+    return `${productSubtype2.nameTh} (${productSubtype2.nameEn})`;
+  }
+
+  return productSubtype2.nameTh || productSubtype2.nameEn || productSubtype2.code;
+}
+
+function getProductMaterialDisplayName(productMaterial: ProductMaterial): string {
+  if (productMaterial.nameTh && productMaterial.nameEn) {
+    return `${productMaterial.nameTh} (${productMaterial.nameEn})`;
+  }
+
+  return productMaterial.nameTh || productMaterial.nameEn || productMaterial.code;
+}
+
+function getSystemConfigDisplayName(systemConfig: SystemConfig): string {
+  if (systemConfig.nameTh && systemConfig.nameEn) {
+    return `${systemConfig.nameTh} (${systemConfig.nameEn})`;
+  }
+
+  return systemConfig.nameTh || systemConfig.nameEn || systemConfig.code;
+}
 
 export default function NewRFQ(): JSX.Element {
   const theme = useTheme();
@@ -56,6 +103,8 @@ export default function NewRFQ(): JSX.Element {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
+  const [customUnitInput, setCustomUnitInput] = useState('');
+  const [isCreatingUnit, setIsCreatingUnit] = useState(false);
 
   const pictureUrls = pictureFiles.map((file) => URL.createObjectURL(file));
   const isSalesRole = getRole() === 'SALES';
@@ -77,6 +126,14 @@ export default function NewRFQ(): JSX.Element {
     }
   );
 
+  const { data: unitOptions = [], isFetching: isUnitFetching, refetch: refetchUnitOptions } = useQuery(
+    'rfq-unit-options',
+    () => getSystemConfig('UNIT'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
   const { data: customerOptions = [], isFetching: isCustomerFetching } = useQuery(
     ['rfq-customer-options', debouncedCustomerKeyword],
     () => searchCustomerByKeyword(debouncedCustomerKeyword, 1, 100),
@@ -86,7 +143,7 @@ export default function NewRFQ(): JSX.Element {
     }
   );
 
-  const { data: productFamilyList = [] } = useQuery(
+  const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
     'rfq-product-family-list',
     () => getProductFamilies(),
     {
@@ -137,6 +194,7 @@ export default function NewRFQ(): JSX.Element {
       systemMechanic: '',
       material: '',
       capacity: '',
+      capacityUnit: '',
       description: ''
     },
     validationSchema: Yup.object().shape({
@@ -156,7 +214,7 @@ export default function NewRFQ(): JSX.Element {
       orderTypeCode: Yup.string().required(t('rfqManagement.validation.orderTypeCode')),
       productFamily: Yup.string().max(255).required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
-      systemMechanic: Yup.string().max(255).required(t('rfqManagement.validation.systemMechanic')),
+      systemMechanic: Yup.string().max(255),
       material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
@@ -165,6 +223,12 @@ export default function NewRFQ(): JSX.Element {
       actions.setSubmitting(true);
 
       try {
+        let selectedCapacityUnit = values.capacityUnit;
+
+        if (selectedCapacityUnit === CUSTOM_UNIT_OPTION) {
+          selectedCapacityUnit = (await createCustomUnit()) || '';
+        }
+
         const response = await createRFQ({
           customerId: values.customerMode === 'EXISTING' ? values.customerId : undefined,
           contactName: values.contactName,
@@ -176,7 +240,9 @@ export default function NewRFQ(): JSX.Element {
           productUsage: values.productUsage,
           systemMechanic: values.systemMechanic,
           material: values.material,
-          capacity: values.capacity,
+          capacity: selectedCapacityUnit
+            ? `${values.capacity.trim()} ${selectedCapacityUnit}`.trim()
+            : values.capacity,
           description: values.description,
           pictures: pictureFiles
         });
@@ -209,8 +275,79 @@ export default function NewRFQ(): JSX.Element {
     }
   );
 
+  const selectedProductFamily = useMemo(
+    () =>
+      productFamilyList.find(
+        (productFamily: ProductFamily) => productFamily.code === formik.values.productFamily
+      ),
+    [formik.values.productFamily, productFamilyList]
+  );
+
+  const productUsageOptions = selectedProductFamily?.subtype1List || [];
+
+  const selectedProductUsage = useMemo(
+    () =>
+      productUsageOptions.find(
+        (productSubtype1: ProductSubtype1) => productSubtype1.code === formik.values.productUsage
+      ),
+    [formik.values.productUsage, productUsageOptions]
+  );
+
+  const systemMechanicOptions = selectedProductUsage?.subtype2List || [];
+  const materialOptions =
+    selectedProductFamily?.materialList || selectedProductFamily?.productMaterialList || [];
+
+  const createCustomUnit = async (): Promise<string | null> => {
+    const trimmedValue = customUnitInput.trim();
+
+    if (!trimmedValue) {
+      return null;
+    }
+
+    const matchedUnit = unitOptions.find(
+      (unit: SystemConfig) => unit.code.toLowerCase() === trimmedValue.toLowerCase()
+    );
+
+    if (matchedUnit) {
+      formik.setFieldValue('capacityUnit', matchedUnit.code);
+      setCustomUnitInput('');
+      return matchedUnit.code;
+    }
+
+    setIsCreatingUnit(true);
+
+    try {
+      await toast.promise(
+        createSystemConfig({
+          groupCode: 'UNIT',
+          code: trimmedValue,
+          nameTh: trimmedValue,
+          nameEn: trimmedValue,
+          sort: 99
+        }),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
+
+      await refetchUnitOptions();
+      formik.setFieldValue('capacityUnit', trimmedValue);
+      setCustomUnitInput('');
+
+      return trimmedValue;
+    } finally {
+      setIsCreatingUnit(false);
+    }
+  };
+
   useEffect(() => {
-    if (!formik.values.salesId || formik.values.purchaseAccount || procurementOptions.length === 0) {
+    if (
+      !formik.values.salesId ||
+      formik.values.purchaseAccount ||
+      procurementOptions.length === 0
+    ) {
       return;
     }
 
@@ -253,6 +390,26 @@ export default function NewRFQ(): JSX.Element {
     }
   };
 
+  const handleProductFamilyChange = (event: ChangeEvent<HTMLInputElement>) => {
+    formik.handleChange(event);
+    formik.setFieldValue('productUsage', '');
+    formik.setFieldValue('systemMechanic', '');
+    formik.setFieldValue('material', '');
+  };
+
+  const handleProductUsageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    formik.handleChange(event);
+    formik.setFieldValue('systemMechanic', '');
+  };
+
+  const handleCapacityUnitChange = (event: ChangeEvent<HTMLInputElement>) => {
+    formik.handleChange(event);
+
+    if (event.target.value !== CUSTOM_UNIT_OPTION) {
+      setCustomUnitInput('');
+    }
+  };
+
   return (
     <Page>
       <LoadingDialog open={formik.isSubmitting} />
@@ -271,9 +428,7 @@ export default function NewRFQ(): JSX.Element {
             fullWidth={isDownSm}
             variant="contained"
             className="btn-cool-grey"
-            onClick={() =>
-              handleOpenConfirm('back', t('message.backTitle'), t('message.backMsg'))
-            }
+            onClick={() => handleOpenConfirm('back', t('message.backTitle'), t('message.backMsg'))}
             startIcon={<ArrowBackIos />}>
             {t('button.back')}
           </Button>
@@ -377,11 +532,15 @@ export default function NewRFQ(): JSX.Element {
                 options={customerOptions}
                 loading={isCustomerFetching}
                 filterOptions={(options) => options}
-                value={customerOptions.find((customer) => customer.id === formik.values.customerId) || null}
+                value={
+                  customerOptions.find((customer) => customer.id === formik.values.customerId) ||
+                  null
+                }
                 getOptionLabel={(option: Customer) => '(' + option.id + ') ' + option.customerName}
                 onChange={(_event, value) => {
                   const defaultContact =
-                    value?.contacts?.find((contact: Contact) => contact.isDefault) || value?.contacts?.[0];
+                    value?.contacts?.find((contact: Contact) => contact.isDefault) ||
+                    value?.contacts?.[0];
 
                   formik.setFieldValue('customerId', value?.id || '');
                   formik.setFieldValue('contactName', defaultContact?.contactName || '');
@@ -420,7 +579,9 @@ export default function NewRFQ(): JSX.Element {
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {isCustomerFetching ? <CircularProgress color="inherit" size={20} /> : null}
+                          {isCustomerFetching ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
                           {params.InputProps.endAdornment}
                         </>
                       )
@@ -483,9 +644,7 @@ export default function NewRFQ(): JSX.Element {
               onBlur={formik.handleBlur}
               disabled={!formik.values.salesId || isProcurementFetching}
               SelectProps={{ displayEmpty: true }}
-              error={
-                formik.touched.purchaseAccount && Boolean(formik.errors.purchaseAccount)
-              }
+              error={formik.touched.purchaseAccount && Boolean(formik.errors.purchaseAccount)}
               helperText={formik.touched.purchaseAccount && formik.errors.purchaseAccount}>
               {!formik.values.salesId ? (
                 <MenuItem disabled value="">
@@ -531,6 +690,8 @@ export default function NewRFQ(): JSX.Element {
             </TextField>
           </GridTextField>
 
+          <GridTextField item xs={12} sm={6} />
+
           <GridTextField item xs={12} sm={6}>
             <TextField
               select
@@ -539,18 +700,88 @@ export default function NewRFQ(): JSX.Element {
               InputLabelProps={{ shrink: true }}
               name="productFamily"
               value={formik.values.productFamily}
-              onChange={formik.handleChange}
+              onChange={handleProductFamilyChange}
               onBlur={formik.handleBlur}
+              disabled={isProductFamilyFetching}
               error={formik.touched.productFamily && Boolean(formik.errors.productFamily)}
               helperText={formik.touched.productFamily && formik.errors.productFamily}>
+              {isProductFamilyFetching ? (
+                <MenuItem disabled value="">
+                  กำลังโหลดข้อมูล
+                </MenuItem>
+              ) : null}
+              {!isProductFamilyFetching && productFamilyList.length === 0 ? (
+                <MenuItem disabled value="">
+                  ไม่พบข้อมูล Product Family
+                </MenuItem>
+              ) : null}
               {productFamilyList.map((productFamily: ProductFamily) => (
                 <MenuItem key={productFamily.code} value={productFamily.code}>
-                  {productFamily.nameTh || productFamily.nameEn || productFamily.code}
+                  {getProductFamilyDisplayName(productFamily)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
+              label={t('rfqManagement.form.productUsage')}
+              InputLabelProps={{ shrink: true }}
+              name="productUsage"
+              value={formik.values.productUsage}
+              onChange={handleProductUsageChange}
+              onBlur={formik.handleBlur}
+              disabled={!formik.values.productFamily || isProductFamilyFetching}
+              error={formik.touched.productUsage && Boolean(formik.errors.productUsage)}
+              helperText={formik.touched.productUsage && formik.errors.productUsage}>
+              {!formik.values.productFamily ? (
+                <MenuItem disabled value="">
+                  กรุณาเลือก Product Family ก่อน
+                </MenuItem>
+              ) : null}
+              {formik.values.productFamily && productUsageOptions.length === 0 ? (
+                <MenuItem disabled value="">
+                  ไม่พบข้อมูล Product Subtype1
+                </MenuItem>
+              ) : null}
+              {productUsageOptions.map((productSubtype1: ProductSubtype1) => (
+                <MenuItem key={productSubtype1.code} value={productSubtype1.code}>
+                  {getProductSubtype1DisplayName(productSubtype1)}
                 </MenuItem>
               ))}
             </TextField>
           </GridTextField>
           <GridTextField item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
+              label={t('rfqManagement.form.systemMechanic')}
+              InputLabelProps={{ shrink: true }}
+              name="systemMechanic"
+              value={formik.values.systemMechanic}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              disabled={!formik.values.productUsage || isProductFamilyFetching}
+              error={formik.touched.systemMechanic && Boolean(formik.errors.systemMechanic)}
+              helperText={formik.touched.systemMechanic && formik.errors.systemMechanic}>
+              {!formik.values.productUsage ? (
+                <MenuItem disabled value="">
+                  กรุณาเลือก Product Subtype1 ก่อน
+                </MenuItem>
+              ) : null}
+              {formik.values.productUsage ? <MenuItem value="">ไม่บังคับเลือก</MenuItem> : null}
+              {formik.values.productUsage &&
+                systemMechanicOptions.map((productSubtype2: ProductSubtype2) => (
+                  <MenuItem key={productSubtype2.code} value={productSubtype2.code}>
+                    {getProductSubtype2DisplayName(productSubtype2)}
+                  </MenuItem>
+                ))}
+            </TextField>
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={5}>
             <TextField
               fullWidth
               label={t('rfqManagement.form.capacity')}
@@ -564,35 +795,58 @@ export default function NewRFQ(): JSX.Element {
             />
           </GridTextField>
 
-          <GridTextField item xs={12} sm={6}>
+          <GridTextField item xs={12} sm={1}>
             <TextField
+              select
               fullWidth
-              label={t('rfqManagement.form.productUsage')}
+              label="Unit"
               InputLabelProps={{ shrink: true }}
-              name="productUsage"
-              value={formik.values.productUsage}
-              onChange={formik.handleChange}
+              name="capacityUnit"
+              value={formik.values.capacityUnit}
+              onChange={handleCapacityUnitChange}
               onBlur={formik.handleBlur}
-              error={formik.touched.productUsage && Boolean(formik.errors.productUsage)}
-              helperText={formik.touched.productUsage && formik.errors.productUsage}
-            />
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label={t('rfqManagement.form.systemMechanic')}
-              InputLabelProps={{ shrink: true }}
-              name="systemMechanic"
-              value={formik.values.systemMechanic}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.systemMechanic && Boolean(formik.errors.systemMechanic)}
-              helperText={formik.touched.systemMechanic && formik.errors.systemMechanic}
-            />
+              disabled={isUnitFetching || isCreatingUnit}>
+              {isUnitFetching ? (
+                <MenuItem disabled value="">
+                  กำลังโหลดข้อมูล
+                </MenuItem>
+              ) : null}
+              {!isUnitFetching && unitOptions.length === 0 ? (
+                <MenuItem disabled value="">
+                  ไม่พบข้อมูล Unit
+                </MenuItem>
+              ) : null}
+              {unitOptions.map((unit: SystemConfig) => (
+                <MenuItem key={unit.code} value={unit.code}>
+                  {getSystemConfigDisplayName(unit)}
+                </MenuItem>
+              ))}
+              <MenuItem value={CUSTOM_UNIT_OPTION}>เพิ่มตัวเลือกใหม่</MenuItem>
+            </TextField>
+            {formik.values.capacityUnit === CUSTOM_UNIT_OPTION ? (
+              <TextField
+                fullWidth
+                label="New Unit"
+                value={customUnitInput}
+                onChange={(event) => setCustomUnitInput(event.target.value)}
+                onBlur={() => {
+                  void createCustomUnit();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void createCustomUnit();
+                  }
+                }}
+                disabled={isCreatingUnit}
+                sx={{ mt: 1 }}
+              />
+            ) : null}
           </GridTextField>
 
-          <GridTextField item xs={12}>
+          <GridTextField item xs={6}>
             <TextField
+              select
               fullWidth
               label={t('rfqManagement.form.material')}
               InputLabelProps={{ shrink: true }}
@@ -600,9 +854,25 @@ export default function NewRFQ(): JSX.Element {
               value={formik.values.material}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              disabled={!formik.values.productFamily || isProductFamilyFetching}
               error={formik.touched.material && Boolean(formik.errors.material)}
-              helperText={formik.touched.material && formik.errors.material}
-            />
+              helperText={formik.touched.material && formik.errors.material}>
+              {!formik.values.productFamily ? (
+                <MenuItem disabled value="">
+                  กรุณาเลือก Product Family ก่อน
+                </MenuItem>
+              ) : null}
+              {formik.values.productFamily && materialOptions.length === 0 ? (
+                <MenuItem disabled value="">
+                  ไม่พบข้อมูล Material
+                </MenuItem>
+              ) : null}
+              {materialOptions.map((productMaterial: ProductMaterial) => (
+                <MenuItem key={productMaterial.code} value={productMaterial.code}>
+                  {getProductMaterialDisplayName(productMaterial)}
+                </MenuItem>
+              ))}
+            </TextField>
           </GridTextField>
 
           <GridTextField item xs={12}>

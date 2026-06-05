@@ -1,8 +1,30 @@
 import { Pagination } from 'services/general-type';
 import { SystemConfig } from 'services/Config/config-type';
+import { Supplier } from 'services/Supplier/supplier-type';
 
 export interface RFQProductFamily {
   code: string;
+  nameTh: string;
+  nameEn: string;
+}
+
+export interface RFQProductSubtype1 {
+  code: string;
+  productFamilyCode: string;
+  nameTh: string;
+  nameEn: string;
+}
+
+export interface RFQProductSubtype2 {
+  code: string;
+  productSubtype1Code?: string;
+  nameTh: string;
+  nameEn: string;
+}
+
+export interface RFQProductMaterial {
+  code: string;
+  productFamilyCode: string;
   nameTh: string;
   nameEn: string;
 }
@@ -166,15 +188,23 @@ export interface RFQRecord {
   details: RFQDetailOption[];
   additionalCosts: RFQAdditionalCost[];
   productFamily: RFQProductFamily | string | null;
-  productUsage: string;
-  systemMechanic: string;
-  material: string;
+  productUsage?: string;
+  productSubtype1?: RFQProductSubtype1 | null;
+  systemMechanic?: string;
+  productSubType2?: RFQProductSubtype2 | null;
+  material: RFQProductMaterial | string | null;
   capacity: string;
   description: string;
   createdBy: string;
   updatedBy: string;
   createdDate: string;
   updatedDate: string;
+  finalSupplier?: Supplier | null;
+  finalSupplierQuoteId?: string | null;
+  finalLandFreightCost?: number | null;
+  finalSeaFreightCost?: number | null;
+  finalRemark?: string | null;
+  finalPriceDate?: string | null;
 }
 
 export interface SearchRFQResponse {
@@ -236,6 +266,7 @@ export interface CreateRFQDetailRequest {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  supplierId?: string;
   tiers: CreateRFQDetailTierRequest[];
 }
 
@@ -245,6 +276,7 @@ export interface CreateRFQAdditionalCostRequest {
   unit: string;
   value: string;
   sortOrder: number;
+  supplierId?: string;
 }
 
 export interface UpdateRFQResponse {
@@ -254,4 +286,102 @@ export interface UpdateRFQResponse {
 
 export interface UpdateRFQPicturesResponse {
   status: string;
+}
+
+export interface RFQInquiryMessage {
+  id: string;
+  rfqId: string;
+  supplierId?: string | null;
+  versionNo: number;
+  status: string;
+  thaiMessage: string;
+  chineseMessage: string;
+  sourceSnapshot?: string | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface GenerateRFQInquiryResponse {
+  status: string;
+  data?: RFQInquiryMessage;
+}
+
+export interface GenerateRFQInquiryRequest {
+  supplierId: string;
+}
+
+export interface UpdateRFQInquiryRequest {
+  thaiMessage: string;
+  chineseMessage: string;
+}
+
+export interface RFQSupplierQuoteTier {
+  id?: number;
+  quantity: number;
+  productPrice: number;
+  landFreightCost: number;
+  seaFreightCost: number;
+  landTotalPrice: number;
+  seaTotalPrice: number;
+  sortOrder: number;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface RFQSupplierQuoteDetail {
+  id?: number;
+  rfqDetailId?: number | null;
+  optionName: string;
+  spec: string;
+  sortOrder: number;
+  remark: string | null;
+  tiers: RFQSupplierQuoteTier[];
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface RFQSupplierQuoteAdditionalCost {
+  id?: number;
+  description: string;
+  unit: string | null;
+  value: string | null;
+  sortOrder: number;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface RFQSupplierQuote {
+  id: string;
+  rfqId: string;
+  supplier: Supplier;
+  inquiryId?: string | null;
+  status: string;
+  remark?: string | null;
+  details: RFQSupplierQuoteDetail[];
+  additionalCosts: RFQSupplierQuoteAdditionalCost[];
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface UpsertRFQSupplierQuoteRequest {
+  supplierId: string;
+  inquiryId?: string | null;
+  status?: string;
+  remark?: string | null;
+  details: RFQSupplierQuoteDetail[];
+  additionalCosts: RFQSupplierQuoteAdditionalCost[];
+}
+
+export interface RFQSupplierQuoteListResponse {
+  status: string;
+  data?: RFQSupplierQuote[];
+}
+
+export interface RFQSupplierQuoteResponse {
+  status: string;
+  data?: RFQSupplierQuote;
 }

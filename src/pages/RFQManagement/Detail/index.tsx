@@ -1,4 +1,4 @@
-import { Add, ArrowBackIos, DeleteOutline, ExpandLess, ExpandMore, Save } from '@mui/icons-material';
+import { Add, ArrowBackIos, DeleteOutline, ExpandLess, ExpandMore, FilePresent, Save } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -32,8 +32,9 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
-import { ReactElement, SyntheticEvent, useMemo, useState } from 'react';
+import { ChangeEvent, ReactElement, SyntheticEvent, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { ROUTE_PATHS } from 'routes';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
@@ -42,7 +43,11 @@ import { getActivityHistory } from 'services/ActivityHistory/activity-history-ap
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
 import { getProductFamilies } from 'services/Product/product-api';
-import { ProductFamily } from 'services/Product/product-type';
+import {
+  ProductFamily,
+  ProductSubtype1,
+  ProductSubtype2
+} from 'services/Product/product-type';
 import {
   createRFQAdditionalCosts,
   addRFQPictures,
@@ -63,6 +68,7 @@ import {
   RFQFileResource,
   RFQRecord
 } from 'services/RFQ/rfq-type';
+import CreateRFQCustomerDialog from './CreateRFQCustomerDialog';
 
 interface RFQDetailParam {
   id: string;
@@ -140,7 +146,35 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
     return productFamily;
   }
 
+  if (productFamily.nameTh && productFamily.nameEn) {
+    return `${productFamily.nameTh} (${productFamily.nameEn})`;
+  }
+
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
+}
+
+function getProductFamilyDisplayName(productFamily: ProductFamily): string {
+  if (productFamily.nameTh && productFamily.nameEn) {
+    return `${productFamily.nameTh} (${productFamily.nameEn})`;
+  }
+
+  return productFamily.nameTh || productFamily.nameEn || productFamily.code;
+}
+
+function getProductSubtype1DisplayName(productSubtype1: ProductSubtype1): string {
+  if (productSubtype1.nameTh && productSubtype1.nameEn) {
+    return `${productSubtype1.nameTh} (${productSubtype1.nameEn})`;
+  }
+
+  return productSubtype1.nameTh || productSubtype1.nameEn || productSubtype1.code;
+}
+
+function getProductSubtype2DisplayName(productSubtype2: ProductSubtype2): string {
+  if (productSubtype2.nameTh && productSubtype2.nameEn) {
+    return `${productSubtype2.nameTh} (${productSubtype2.nameEn})`;
+  }
+
+  return productSubtype2.nameTh || productSubtype2.nameEn || productSubtype2.code;
 }
 
 function getEmployeeLabel(employee?: RFQEmployee | null): string {
@@ -500,6 +534,9 @@ export default function RFQDetail(): ReactElement {
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [visibleDetailSaveConfirmationDialog, setVisibleDetailSaveConfirmationDialog] =
     useState(false);
+  const [visibleMissingCustomerConfirmationDialog, setVisibleMissingCustomerConfirmationDialog] =
+    useState(false);
+  const [visibleCreateCustomerDialog, setVisibleCreateCustomerDialog] = useState(false);
   const [draftDetailOptions, setDraftDetailOptions] = useState<RFQDetailOption[]>([]);
   const [draftDetailErrors, setDraftDetailErrors] = useState<
     Record<number, DraftDetailValidationError>
@@ -541,7 +578,7 @@ export default function RFQDetail(): ReactElement {
     }
   );
 
-  const { data: productFamilyList = [] } = useQuery(
+  const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
     'rfq-detail-product-family-list',
     () => getProductFamilies(),
     {
@@ -555,7 +592,7 @@ export default function RFQDetail(): ReactElement {
       orderTypeCode: Yup.string().required(t('rfqManagement.validation.orderTypeCode')),
       productFamily: Yup.string().required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
-      systemMechanic: Yup.string().max(255).required(t('rfqManagement.validation.systemMechanic')),
+      systemMechanic: Yup.string().max(255),
       material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
@@ -584,11 +621,79 @@ export default function RFQDetail(): ReactElement {
       ?.nameTh;
   }, [formik.values.orderTypeCode, orderTypeList]);
 
+  const selectedProductFamily = useMemo(
+    () =>
+      productFamilyList.find(
+        (item: ProductFamily) => item.code === formik.values.productFamily
+      ),
+    [formik.values.productFamily, productFamilyList]
+  );
+
+  const productUsageOptions = selectedProductFamily?.subtype1List || [];
+
+  const selectedProductUsage = useMemo(
+    () =>
+      productUsageOptions.find(
+        (item: ProductSubtype1) => item.code === formik.values.productUsage
+      ),
+    [formik.values.productUsage, productUsageOptions]
+  );
+
+  const systemMechanicOptions = selectedProductUsage?.subtype2List || [];
+
   const productFamilyLabel = useMemo(() => {
-    return productFamilyList.find(
-      (item: ProductFamily) => item.code === formik.values.productFamily
-    )?.nameTh;
-  }, [formik.values.productFamily, productFamilyList]);
+    return selectedProductFamily ? getProductFamilyDisplayName(selectedProductFamily) : undefined;
+  }, [selectedProductFamily]);
+
+  const productUsageLabel = useMemo(() => {
+    const selectedProductUsage = productUsageOptions.find(
+      (item: ProductSubtype1) => item.code === formik.values.productUsage
+    );
+
+    return selectedProductUsage ? getProductSubtype1DisplayName(selectedProductUsage) : undefined;
+  }, [formik.values.productUsage, productUsageOptions]);
+
+  const systemMechanicLabel = useMemo(() => {
+    const selectedSystemMechanic = systemMechanicOptions.find(
+      (item: ProductSubtype2) => item.code === formik.values.systemMechanic
+    );
+
+    return selectedSystemMechanic
+      ? getProductSubtype2DisplayName(selectedSystemMechanic)
+      : undefined;
+  }, [formik.values.systemMechanic, systemMechanicOptions]);
+
+  const handleProductFamilyChange = (event: ChangeEvent<HTMLInputElement>) => {
+    formik.handleChange(event);
+    formik.setFieldValue('productUsage', '');
+    formik.setFieldValue('systemMechanic', '');
+  };
+
+  const handleProductUsageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    formik.handleChange(event);
+    formik.setFieldValue('systemMechanic', '');
+  };
+
+  const handleRequestQuotation = () => {
+    if (!rfq?.customer) {
+      setVisibleMissingCustomerConfirmationDialog(true);
+      return;
+    }
+
+    history.push(ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ.replace(':rfqId', params.id));
+  };
+
+  const hasProductUsageOption = useMemo(() => {
+    return productUsageOptions.some(
+      (productSubtype1: ProductSubtype1) => productSubtype1.code === formik.values.productUsage
+    );
+  }, [formik.values.productUsage, productUsageOptions]);
+
+  const hasSystemMechanicOption = useMemo(() => {
+    return systemMechanicOptions.some(
+      (productSubtype2: ProductSubtype2) => productSubtype2.code === formik.values.systemMechanic
+    );
+  }, [formik.values.systemMechanic, systemMechanicOptions]);
 
   const detailOptions = useMemo(
     () => getSortedDetailOptions([...(rfq?.details || []), ...draftDetailOptions]),
@@ -1004,6 +1109,15 @@ export default function RFQDetail(): ReactElement {
       <Wrapper>
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="flex-end">
+            {rfq?.status === 'QUOTED' ? (
+              <Button
+                variant="contained"
+                startIcon={<FilePresent />}
+                sx={actionButtonSx}
+                onClick={handleRequestQuotation}
+              >
+                ขอใบเสนอราคา
+              </Button>) : null}
             <Button
               variant="contained"
               className="btn-cool-grey"
@@ -1043,7 +1157,7 @@ export default function RFQDetail(): ReactElement {
                 title="รายละเอียดการขอราคา"
                 defaultExpanded
                 action={
-                  isSalesPermission ? (
+                  isSalesPermission && rfq?.status !== 'QUOTED' ? (
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
                       <Button
                         variant="contained"
@@ -1156,15 +1270,20 @@ export default function RFQDetail(): ReactElement {
                         productFamilyLabel ||
                         getProductFamilyLabel(rfq?.productFamily)
                       }
-                      onChange={formik.handleChange}
+                      onChange={handleProductFamilyChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.productFamily && formik.errors.productFamily)}
                       helperText={formik.touched.productFamily && formik.errors.productFamily}
                       InputLabelProps={{ shrink: true }}
-                      disabled={!isSalesPermission}>
+                      disabled={!isSalesPermission || isProductFamilyFetching}>
+                      {isProductFamilyFetching ? (
+                        <MenuItem disabled value="">
+                          กำลังโหลดข้อมูล
+                        </MenuItem>
+                      ) : null}
                       {productFamilyList.map((productFamily: ProductFamily) => (
                         <MenuItem key={productFamily.code} value={productFamily.code}>
-                          {productFamily.nameTh || productFamily.nameEn || productFamily.code}
+                          {getProductFamilyDisplayName(productFamily)}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -1172,31 +1291,79 @@ export default function RFQDetail(): ReactElement {
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField
+                      select
                       fullWidth
-                      label="Product Usage"
+                      label="Product Subtype1"
                       name="productUsage"
-                      value={formik.values.productUsage}
-                      onChange={formik.handleChange}
+                      value={
+                        formik.values.productUsage ||
+                        productUsageLabel ||
+                        rfq?.productUsage ||
+                        ''
+                      }
+                      onChange={handleProductUsageChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.productUsage && formik.errors.productUsage)}
                       helperText={formik.touched.productUsage && formik.errors.productUsage}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: !isSalesPermission }}
-                    />
+                      disabled={!isSalesPermission || !formik.values.productFamily || isProductFamilyFetching}>
+                      {!formik.values.productFamily ? (
+                        <MenuItem disabled value="">
+                          กรุณาเลือก Product Family ก่อน
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productUsage && !hasProductUsageOption ? (
+                        <MenuItem value={formik.values.productUsage}>
+                          {productUsageLabel || formik.values.productUsage}
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productFamily && productUsageOptions.length === 0 ? (
+                        <MenuItem disabled value="">
+                          ไม่พบข้อมูล Product Subtype1
+                        </MenuItem>
+                      ) : null}
+                      {productUsageOptions.map((productSubtype1: ProductSubtype1) => (
+                        <MenuItem key={productSubtype1.code} value={productSubtype1.code}>
+                          {getProductSubtype1DisplayName(productSubtype1)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
                   <GridTextField item xs={12} sm={6}>
                     <TextField
+                      select
                       fullWidth
-                      label="System Mechanic"
+                      label="Product Subtype2"
                       name="systemMechanic"
-                      value={formik.values.systemMechanic}
+                      value={
+                        formik.values.systemMechanic ||
+                        systemMechanicLabel ||
+                        rfq?.systemMechanic ||
+                        ''
+                      }
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.systemMechanic && formik.errors.systemMechanic)}
                       helperText={formik.touched.systemMechanic && formik.errors.systemMechanic}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: !isSalesPermission }}
-                    />
+                      disabled={!isSalesPermission || !formik.values.productUsage || isProductFamilyFetching}>
+                      {!formik.values.productUsage ? (
+                        <MenuItem disabled value="">
+                          กรุณาเลือก Product Subtype1 ก่อน
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productUsage ? <MenuItem value="">ไม่บังคับเลือก</MenuItem> : null}
+                      {formik.values.systemMechanic && !hasSystemMechanicOption ? (
+                        <MenuItem value={formik.values.systemMechanic}>
+                          {systemMechanicLabel || formik.values.systemMechanic}
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productUsage && systemMechanicOptions.map((productSubtype2: ProductSubtype2) => (
+                        <MenuItem key={productSubtype2.code} value={productSubtype2.code}>
+                          {getProductSubtype2DisplayName(productSubtype2)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
                   <GridTextField item xs={12} sm={6}>
                     <TextField
@@ -1364,32 +1531,33 @@ export default function RFQDetail(): ReactElement {
                 title="ตัวเลือกราคา"
                 defaultExpanded
                 action={
-                  isProcurementPermission ? (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<Add />}
-                        className="btn-emerald-green"
-                        sx={actionButtonSx}
-                        onClick={handleAddDetailOption}
-                        disabled={formik.isSubmitting || isPictureSubmitting}>
-                        เพิ่มตัวเลือกราคา
-                      </Button>
-                      {hasDraftDetailOptions ? (
-                        <Button
-                          variant="contained"
-                          size="small"
-                          startIcon={<Save />}
-                          className="btn-emerald-green"
-                          sx={actionButtonSx}
-                          onClick={() => setVisibleDetailSaveConfirmationDialog(true)}
-                          disabled={formik.isSubmitting || isPictureSubmitting}>
-                          บันทึกตัวเลือกราคา
-                        </Button>
-                      ) : null}
-                    </Stack>
-                  ) : null
+                  // isProcurementPermission ? (
+                  //   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
+                  //     <Button
+                  //       variant="contained"
+                  //       size="small"
+                  //       startIcon={<Add />}
+                  //       className="btn-emerald-green"
+                  //       sx={actionButtonSx}
+                  //       onClick={handleAddDetailOption}
+                  //       disabled={formik.isSubmitting || isPictureSubmitting}>
+                  //       เพิ่มตัวเลือกราคา
+                  //     </Button>
+                  //     {hasDraftDetailOptions ? (
+                  //       <Button
+                  //         variant="contained"
+                  //         size="small"
+                  //         startIcon={<Save />}
+                  //         className="btn-emerald-green"
+                  //         sx={actionButtonSx}
+                  //         onClick={() => setVisibleDetailSaveConfirmationDialog(true)}
+                  //         disabled={formik.isSubmitting || isPictureSubmitting}>
+                  //         บันทึกตัวเลือกราคา
+                  //       </Button>
+                  //     ) : null}
+                  //   </Stack>
+                  // ) : null
+                  null
                 }>
                 <Stack spacing={2}>
                   {detailOptions.length ? (
@@ -2069,32 +2237,33 @@ export default function RFQDetail(): ReactElement {
                 title="รายละเอียดเพิ่มเติม"
                 defaultExpanded
                 action={
-                  isProcurementPermission ? (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<Add />}
-                        className="btn-emerald-green"
-                        sx={actionButtonSx}
-                        onClick={handleAddAdditionalCost}
-                        disabled={formik.isSubmitting || isPictureSubmitting}>
-                        เพิ่มรายละเอียด
-                      </Button>
-                      {draftAdditionalCosts.length ? (
-                        <Button
-                          variant="contained"
-                          size="small"
-                          startIcon={<Save />}
-                          className="btn-emerald-green"
-                          sx={actionButtonSx}
-                          onClick={handleSaveAdditionalCosts}
-                          disabled={formik.isSubmitting || isPictureSubmitting}>
-                          บันทึก
-                        </Button>
-                      ) : null}
-                    </Stack>
-                  ) : null
+                  // isProcurementPermission ? (
+                  //   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
+                  //     <Button
+                  //       variant="contained"
+                  //       size="small"
+                  //       startIcon={<Add />}
+                  //       className="btn-emerald-green"
+                  //       sx={actionButtonSx}
+                  //       onClick={handleAddAdditionalCost}
+                  //       disabled={formik.isSubmitting || isPictureSubmitting}>
+                  //       เพิ่มรายละเอียด
+                  //     </Button>
+                  //     {draftAdditionalCosts.length ? (
+                  //       <Button
+                  //         variant="contained"
+                  //         size="small"
+                  //         startIcon={<Save />}
+                  //         className="btn-emerald-green"
+                  //         sx={actionButtonSx}
+                  //         onClick={handleSaveAdditionalCosts}
+                  //         disabled={formik.isSubmitting || isPictureSubmitting}>
+                  //         บันทึก
+                  //       </Button>
+                  //     ) : null}
+                  //   </Stack>
+                  // ) : null
+                  null
                 }>
                 {additionalCosts.length || draftAdditionalCosts.length ? (
                   <Box
@@ -2300,6 +2469,29 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleDeleteAdditionalCost}
         onCancel={() => setSelectedAdditionalCostToDelete(null)}
+      />
+      <ConfirmDialog
+        open={visibleMissingCustomerConfirmationDialog}
+        title="ยังไม่มีข้อมูลลูกค้า"
+        message="ยังไม่มีข้อมูลลูกค้าในระบบ กรุณาสร้างข้อมูลลูกค้าก่อนออกใบเสนอราคา"
+        confirmText="ยืนยัน"
+        cancelText="ปิด"
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={() => {
+          setVisibleMissingCustomerConfirmationDialog(false);
+          setVisibleCreateCustomerDialog(true);
+        }}
+        onCancel={() => setVisibleMissingCustomerConfirmationDialog(false)}
+      />
+      <CreateRFQCustomerDialog
+        open={visibleCreateCustomerDialog}
+        rfq={rfq}
+        onClose={() => setVisibleCreateCustomerDialog(false)}
+        onCreated={async () => {
+          setVisibleCreateCustomerDialog(false);
+          await refetchRFQ();
+        }}
       />
     </Page>
   );

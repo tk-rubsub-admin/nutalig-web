@@ -161,7 +161,7 @@ export default function Dashboard(): JSX.Element {
   return (
     <Page>
       <PageTitle title={t('dashboard.title')} />
-      <Wrapper
+      {/* {/* <Wrapper
         sx={{
           background: 'rgba(80, 157, 62, 0.18)',
           border: '1px solid rgba(77, 138, 63, 0.12)'
@@ -490,7 +490,7 @@ export default function Dashboard(): JSX.Element {
             </Stack>
           </Wrapper>
         </Grid>
-      </Grid>
+      </Grid> */}
     </Page>
   );
 }

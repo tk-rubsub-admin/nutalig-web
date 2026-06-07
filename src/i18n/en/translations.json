@@ -35,6 +35,9 @@
     "systemConfigManagement": {
       "title": "System Configuration"
     },
+    "permissionManagement": {
+      "title": "Permission Management"
+    },
     "rfqManagement": {
       "title": "Request for Quotation"
     },
@@ -831,5 +834,100 @@
     "shippingFeeMethod": "Shipping Fee Payment Method",
     "transportationMethod": "Mode of Transportation",
     "addressName": "Delivery Location"
+  },
+  "documentManagement": {
+    "title": "Document Management",
+    "message": {
+      "confirmCreateQuotationTitle": "Confirm Create Quotation",
+      "confirmCreateQuotationMsg": "Do you want to create a new quotation?"
+    },
+    "quotation": {
+      "title": "Quotation",
+      "searchPanel": "Search Quotation",
+      "newQuotation": "Create New Quotation",
+      "newQuotationButton": "Create Quotation",
+      "detail": "Detail",
+      "editQuotation": "Edit Quotation",
+      "viewQuotation": "View Quotation",
+      "viewQuotationTitle": "Quotation No. {{docNo}}",
+      "downloadQuotation": "Download Quotation",
+      "generalSection": "Quotation Information",
+      "confirmUpdateTitle": "Confirm Save Quotation",
+      "confirmUpdateMsg": "Do you want to save changes to this quotation?",
+      "docNo": "Document No.",
+      "docDate": "Document Date",
+      "status": "Status",
+      "expectiveDate": "Expiry Date",
+      "remark": "Customer Remark",
+      "salesAccount": "Sales Account",
+      "coSalesAccount": "External / Freelance Sales",
+      "currency": "Currency",
+      "taxSection": {
+        "title": "Price and Tax",
+        "include": "VAT Included",
+        "exclude": "VAT Excluded",
+        "noVat": "No VAT"
+      },
+      "customerSection": {
+        "title": "Customer Information",
+        "branch": "Branch",
+        "contactName": "Contact Name",
+        "contactNumber": "Contact Number"
+      },
+      "itemSection": {
+        "title": "Items",
+        "image": "Image",
+        "name": "Item",
+        "description": "Description",
+        "type": "Item Type",
+        "capacity": "Capacity",
+        "spec": "Specification",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "totalAmount": "Amount",
+        "addItem": "Add Item",
+        "noImage": "No Image",
+        "uploadImage": "Upload",
+        "removeImage": "Remove Image"
+      },
+      "summarySection": {
+        "title": "Summary",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "freight": "Freight",
+        "vat": "VAT",
+        "grandTotal": "Grand Total",
+        "vatRate": "VAT Rate",
+        "total": "Total"
+      }
+    }
+  },
+  "permissionManagement": {
+    "title": "User Permission Management",
+    "matrixTitle": "Role Permission Matrix",
+    "matrixDescription": "Rows are permissions and columns are roles that have each permission.",
+    "loadFailed": "Unable to load permission data.",
+    "noData": "No permissions found.",
+    "confirmSaveTitle": "Confirm Permission Changes",
+    "confirmSaveMessage": "Do you want to save the user permission changes?",
+    "resetDefault": "Reset to Default",
+    "table": {
+      "permission": "Permission"
+    },
+    "group": {
+      "account": "Account",
+      "dashboard": "Dashboard",
+      "document": "Document",
+      "freight": "Freight",
+      "master_data": "Master Data",
+      "customer": "Customer",
+      "employee": "Employee",
+      "operation": "Operation",
+      "product": "Product",
+      "rfq": "Request for Quotation",
+      "support": "Support",
+      "system": "System",
+      "supplier": "Supplier"
+    }
   }
 }

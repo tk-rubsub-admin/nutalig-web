@@ -51,6 +51,23 @@ export interface Role {
   roleNameEn: string;
 }
 
+export interface Permission {
+  code: string;
+  nameTh?: string | null;
+  nameEn?: string | null;
+  group?: string | null;
+}
+
+export interface RolePermission extends Role {
+  permissions: Permission[];
+}
+
+export type UpdateRolePermissionRequest = Record<string, Record<string, boolean>>;
+
+export interface GetAllRolePermission {
+  data: RolePermission[];
+}
+
 export interface CreateNewUserRequest {
   roleCode: string;
   employeeId: string;

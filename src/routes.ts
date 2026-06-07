@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { ROLES } from 'auth/roles';
+import { PERMISSIONS } from 'auth/permissions';
 import { LayoutRouteProps } from './layout/LayoutRoute';
 
 export const ROUTE_PATHS = Object.freeze({
@@ -54,6 +55,7 @@ export const ROUTE_PATHS = Object.freeze({
   PRODUCT_SUPPLIER: '/product-supplier',
   PRODUCT_PRICE: '/product-price',
   USER_MANAGEMENT: '/user-management',
+  USER_PERMISSION_MANAGEMENT: '/user-permission-management',
   RECEIVE_PRODUCT: '/receive-product',
   BUYING_PRODUCT: '/buying-product',
   PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
@@ -69,7 +71,7 @@ export const ROUTE_PATHS = Object.freeze({
   QUOTATION_CREATE: '/quotation-create',
   QUOTATION_CREATE_FROM_RFQ: '/create-quotation-rfq/:rfqId',
   QUOTATION_MANAGEMENT: '/quotation-management',
-  QUOTATION_DETAIL: '/quotation/:id'
+  QUOTATION_DETAIL: '/quotation-detail'
 });
 
 export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
@@ -140,19 +142,19 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
     component: lazy(() => import('./pages/SupplierManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.SUPPLIER_VIEW]
   },
   {
     path: ROUTE_PATHS.SUPPLIER_NEW,
     component: lazy(() => import('./pages/SupplierManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.SUPPLIER_VIEW]
   },
   {
     path: ROUTE_PATHS.SUPPLIER_DETAIL,
     component: lazy(
       () => import('./pages/SupplierManagement/Detail' /* webpackChunkName: "app" */)
     ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.SUPPLIER_VIEW]
   },
   {
     path: ROUTE_PATHS.STAFF_MANAGEMENT,
@@ -162,19 +164,19 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
     component: lazy(() => import('./pages/EmployeeManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.EMPLOYEE_VIEW]
   },
   {
     path: ROUTE_PATHS.EMPLOYEE_NEW,
     component: lazy(() => import('./pages/EmployeeManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.EMPLOYEE_VIEW]
   },
   {
     path: ROUTE_PATHS.EMPLOYEE_DETAIL,
     component: lazy(
       () => import('./pages/EmployeeManagement/Detail' /* webpackChunkName: "app" */)
     ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.EMPLOYEE_VIEW]
   },
   {
     path: ROUTE_PATHS.STAFF_NEW,
@@ -189,70 +191,75 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
     component: lazy(() => import('./pages/CustomerManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.CUSTOMER_VIEW]
   },
   {
     path: ROUTE_PATHS.PRODUCT_FAMILY_MANAGEMENT,
     component: lazy(() => import('./pages/ProductFamilyManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.PRODUCT_FAMILY_VIEW]
   },
   {
     path: ROUTE_PATHS.SYSTEM_CONFIG_MANAGEMENT,
     component: lazy(() => import('./pages/SystemConfigManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN]
+    requiredPermissions: [PERMISSIONS.SYSTEM_CONFIG_VIEW]
   },
   {
     path: ROUTE_PATHS.RFQ_MANAGEMENT,
     component: lazy(() => import('./pages/RFQManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.RFQ_VIEW]
   },
   {
     path: ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT,
     component: lazy(() => import('./pages/PriceInquiryManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.PRICE_INQUIRY_VIEW]
   },
   {
     path: ROUTE_PATHS.PRICE_INQUIRY,
     component: lazy(() => import('./pages/PriceInquiry' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.PRICE_INQUIRY_VIEW]
   },
   {
     path: ROUTE_PATHS.RFQ_CREATE,
     component: lazy(() => import('./pages/RFQManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.RFQ_CREATE]
   },
   {
     path: ROUTE_PATHS.RFQ_DETAIL,
     component: lazy(() => import('./pages/RFQManagement/Detail' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.PROCUREMENT, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.RFQ_VIEW]
   },
 
   {
     path: ROUTE_PATHS.CUSTOMER_NEW,
     component: lazy(() => import('./pages/CustomerManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.CUSTOMER_CREATE]
   },
   {
     path: ROUTE_PATHS.CUSTOMER_DETAIL,
     component: lazy(
       () => import('./pages/CustomerManagement/Detail' /* webpackChunkName: "app" */)
     ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.CUSTOMER_VIEW]
   },
   {
     path: ROUTE_PATHS.QUOTATION_CREATE,
     component: lazy(() => import('./pages/QuotationManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES]
+    requiredPermissions: [PERMISSIONS.QUOTATION_CREATE]
   },
   {
     path: ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ,
     component: lazy(() => import('./pages/QuotationManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.SALES_ADMIN, ROLES.PROCUREMENT, ROLES.ADMIN]
+    requiredPermissions: [PERMISSIONS.QUOTATION_CREATE]
   },
   {
     path: ROUTE_PATHS.QUOTATION_MANAGEMENT,
     component: lazy(() => import('./pages/QuotationManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.SALES]
+    requiredPermissions: [PERMISSIONS.QUOTATION_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.QUOTATION_DETAIL,
+    component: lazy(() => import('./pages/QuotationManagement/Detail' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.QUOTATION_VIEW]
   },
   {
     path: ROUTE_PATHS.RECEIVE_PRODUCT,
@@ -489,6 +496,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.USER_MANAGEMENT,
     component: lazy(() => import('./pages/AdminManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: ['PERM_VIEW_USER_LIST']
+  },
+  {
+    path: ROUTE_PATHS.USER_PERMISSION_MANAGEMENT,
+    component: lazy(() => import('./pages/UserPermissionManagement' /* webpackChunkName: "app" */)),
+    allowedRoles: [ROLES.SUPER_ADMIN]
   },
   {
     path: ROUTE_PATHS.FREIGHT,

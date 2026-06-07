@@ -50,6 +50,8 @@ import { getSystemConfig } from 'services/Config/config-api';
 import { getSales } from 'services/Sales/sales-api';
 import toast from 'react-hot-toast';
 import LoadingDialog from 'components/LoadingDialog';
+import { PERMISSIONS } from 'auth/permissions';
+import Can from 'auth/Can';
 
 export interface CustomerParam {
   id: string;
@@ -536,14 +538,16 @@ export default function CustomerDetail(): JSX.Element {
               </Button>
             </>
           ) : (
-            <Button
-              fullWidth={isDownSm}
-              variant="contained"
-              className="btn-emerald-green"
-              onClick={handleStartEdit}
-              startIcon={<Edit />}>
-              {t('button.edit')}
-            </Button>
+            <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+              <Button
+                fullWidth={isDownSm}
+                variant="contained"
+                className="btn-emerald-green"
+                onClick={handleStartEdit}
+                startIcon={<Edit />}>
+                {t('button.edit')}
+              </Button>
+            </Can>
           )}
         </Stack>
       </Wrapper>
@@ -769,13 +773,15 @@ export default function CustomerDetail(): JSX.Element {
                   minHeight: 40
                 }}>
                 <Typography variant="h6">{t('customerManagement.column.address.title')}</Typography>
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<Add />}
-                  onClick={openAddressDialog}>
-                  {t('customerManagement.column.address.addNew')}
-                </Button>
+                <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Add />}
+                    onClick={openAddressDialog}>
+                    {t('customerManagement.column.address.addNew')}
+                  </Button>
+                </Can>
               </Grid>
               {addresses.map((address, index) => (
                 <Grid item xs={12} key={address.id || index}>
@@ -828,13 +834,15 @@ export default function CustomerDetail(): JSX.Element {
                       </Stack>
 
                       <Stack direction="row" justifyContent="flex-end">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          aria-label={t('button.delete')}
-                          onClick={() => handleDeleteAddressClick(address)}>
-                          <DeleteOutline fontSize="small" />
-                        </IconButton>
+                        <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            aria-label={t('button.delete')}
+                            onClick={() => handleDeleteAddressClick(address)}>
+                            <DeleteOutline fontSize="small" />
+                          </IconButton>
+                        </Can>
                       </Stack>
                     </Stack>
                   </Paper>
@@ -857,13 +865,15 @@ export default function CustomerDetail(): JSX.Element {
                   minHeight: 40
                 }}>
                 <Typography variant="h6">{t('customerManagement.column.contacts')}</Typography>
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<Add />}
-                  onClick={openContactDialog}>
-                  {t('customerManagement.addContact')}
-                </Button>
+                <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Add />}
+                    onClick={openContactDialog}>
+                    {t('customerManagement.addContact')}
+                  </Button>
+                </Can>
               </Grid>
 
               {customer?.contacts?.map((contact: Contact, index) => (
@@ -898,13 +908,15 @@ export default function CustomerDetail(): JSX.Element {
                       </Stack>
 
                       <Stack direction="row" justifyContent="flex-end">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          aria-label={t('button.delete')}
-                          onClick={() => handleDeleteContactClick(contact)}>
-                          <DeleteOutline fontSize="small" />
-                        </IconButton>
+                        <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            aria-label={t('button.delete')}
+                            onClick={() => handleDeleteContactClick(contact)}>
+                            <DeleteOutline fontSize="small" />
+                          </IconButton>
+                        </Can>
                       </Stack>
                     </Stack>
                   </Paper>
@@ -960,14 +972,16 @@ export default function CustomerDetail(): JSX.Element {
               </Button>
             </>
           ) : (
-            <Button
-              fullWidth={isDownSm}
-              variant="contained"
-              className="btn-emerald-green"
-              onClick={handleStartEdit}
-              startIcon={<Edit />}>
-              {t('button.edit')}
-            </Button>
+            <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+              <Button
+                fullWidth={isDownSm}
+                variant="contained"
+                className="btn-emerald-green"
+                onClick={handleStartEdit}
+                startIcon={<Edit />}>
+                {t('button.edit')}
+              </Button>
+            </Can>
           )}
         </Stack>
       </Wrapper>

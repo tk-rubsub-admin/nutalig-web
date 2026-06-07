@@ -1,4 +1,4 @@
-import { Add, ArrowBackIos, DeleteOutline, ExpandLess, ExpandMore, FilePresent, Save } from '@mui/icons-material';
+import { Add, ArrowBackIos, DeleteOutline, Download, ExpandLess, ExpandMore, FilePresent, Save } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -42,6 +42,8 @@ import * as Yup from 'yup';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
+import { viewQuotation } from 'services/Document/document-api';
+import { DownloadDocumentResponse } from 'services/general-type';
 import { getProductFamilies } from 'services/Product/product-api';
 import {
   ProductFamily,
@@ -68,6 +70,7 @@ import {
   RFQFileResource,
   RFQRecord
 } from 'services/RFQ/rfq-type';
+import { base64ToBlob } from 'utils';
 import CreateRFQCustomerDialog from './CreateRFQCustomerDialog';
 
 interface RFQDetailParam {
@@ -549,6 +552,7 @@ export default function RFQDetail(): ReactElement {
   const [selectedAdditionalCostToDelete, setSelectedAdditionalCostToDelete] =
     useState<RFQAdditionalCost | null>(null);
   const [isPictureSubmitting, setIsPictureSubmitting] = useState(false);
+  const [isQuotationDocumentLoading, setIsQuotationDocumentLoading] = useState(false);
   const isSalesPermission = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SALES].includes(roleCode);
   const isProcurementPermission = [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT].includes(roleCode);
 
@@ -681,6 +685,42 @@ export default function RFQDetail(): ReactElement {
     }
 
     history.push(ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ.replace(':rfqId', params.id));
+  };
+
+  const handleDownloadQuotation = async () => {
+    if (!rfq?.quotationNo) {
+      return;
+    }
+
+    setIsQuotationDocumentLoading(true);
+
+    try {
+      await toast.promise(viewQuotation(rfq.quotationNo, true, false), {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const data = response.data as DownloadDocumentResponse;
+
+          if (!data.files?.length) {
+            throw new Error('No quotation file');
+          }
+
+          const file = data.files[0];
+          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+
+          link.href = url;
+          link.download = file.fileName;
+          link.click();
+          window.URL.revokeObjectURL(url);
+
+          return t('toast.success');
+        },
+        error: () => t('toast.failed')
+      });
+    } finally {
+      setIsQuotationDocumentLoading(false);
+    }
   };
 
   const hasProductUsageOption = useMemo(() => {
@@ -1065,7 +1105,11 @@ export default function RFQDetail(): ReactElement {
     <Page>
       <LoadingDialog
         open={
-          isRFQFetching || isActivityHistoryFetching || formik.isSubmitting || isPictureSubmitting
+          isRFQFetching ||
+          isActivityHistoryFetching ||
+          formik.isSubmitting ||
+          isPictureSubmitting ||
+          isQuotationDocumentLoading
         }
       />
       <PageTitle title={rfq?.id || 'RFQ Detail'}>
@@ -1109,7 +1153,17 @@ export default function RFQDetail(): ReactElement {
       <Wrapper>
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="flex-end">
-            {rfq?.status === 'QUOTED' ? (
+            {rfq?.quotationNo ? (
+              <Button
+                variant="contained"
+                startIcon={<Download />}
+                sx={actionButtonSx}
+                disabled={isQuotationDocumentLoading}
+                onClick={handleDownloadQuotation}
+              >
+                ดาวน์โหลด ใบเสนอราคา
+              </Button>
+            ) : rfq?.status === 'QUOTED' ? (
               <Button
                 variant="contained"
                 startIcon={<FilePresent />}
@@ -1117,7 +1171,8 @@ export default function RFQDetail(): ReactElement {
                 onClick={handleRequestQuotation}
               >
                 ขอใบเสนอราคา
-              </Button>) : null}
+              </Button>
+            ) : null}
             <Button
               variant="contained"
               className="btn-cool-grey"

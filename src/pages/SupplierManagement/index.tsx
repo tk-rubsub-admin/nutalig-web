@@ -25,6 +25,8 @@ import {
   useTheme
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import Can from 'auth/Can';
+import { PERMISSIONS } from 'auth/permissions';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { GridSearchSection, TextLineClamp, Wrapper } from 'components/Styled';
@@ -254,15 +256,17 @@ export default function SupplierManagement(): JSX.Element {
             alignItems: { xs: 'flex-end', sm: 'center' }
           }}
         >
-          <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            className="btn-emerald-green"
-            onClick={() => history.push(ROUTE_PATHS.SUPPLIER_NEW)}
-            startIcon={<PersonAddAlt1 />}
-          >
-            {t('supplierManagement.action.create')}
-          </Button>
+          <Can permission={PERMISSIONS.SUPPLIER_EDIT}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              onClick={() => history.push(ROUTE_PATHS.SUPPLIER_NEW)}
+              startIcon={<PersonAddAlt1 />}
+            >
+              {t('supplierManagement.action.create')}
+            </Button>
+          </Can>
           <Button
             fullWidth={isDownSm}
             variant="contained"

@@ -44,6 +44,9 @@
     "systemConfigManagement": {
       "title": "ตั้งค่าระบบ"
     },
+    "permissionManagement": {
+      "title": "จัดการสิทธิ์"
+    },
     "rfqManagement": {
       "title": "ขอราคา"
     },
@@ -738,12 +741,17 @@
       "searchPanel": "ค้นหาใบเสนอราคา",
       "newQuotation": "สร้างใบเสนอราคาใหม่",
       "newQuotationButton": "สร้างใบเสนอราคา",
+      "detail": "รายละเอียด",
       "viewQuotation": "ดูใบเสนอราคา",
       "viewQuotationTitle": "ใบเสนอราคาเลขที่ {{docNo}}",
       "downloadQuotation": "ดาวน์โหลดใบเสนอราคา",
       "generalSection": "ข้อมูลใบเสนอราคา",
+      "editQuotation": "แก้ไขใบเสนอราคา",
+      "confirmUpdateTitle": "ยืนยันบันทึกใบเสนอราคา",
+      "confirmUpdateMsg": "คุณยืนยันบันทึกการแก้ไขใบเสนอราคานี้ใช่หรือไม่",
       "docNo": "เลขที่เอกสาร",
       "docDate": "วันที่เอกสาร",
+      "status": "สถานะ",
       "expectiveDate": "วันที่หมดอายุ",
       "remark": "หมายเหตุสำหรับลูกค้า",
       "salesAccount": "เซลล์ที่ดูแล",
@@ -757,10 +765,13 @@
       },
       "customerSection": {
         "title": "ข้อมูลลูกค้า",
-        "branch": "สาขา"
+        "branch": "สาขา",
+        "contactName": "ผู้ติดต่อ",
+        "contactNumber": "เบอร์ติดต่อ"
       },
       "itemSection": {
         "title": "รายการสินค้า",
+        "image": "รูปสินค้า",
         "name": "สินค้า",
         "description": "รายละเอียด",
         "type": "ประเภทสินค้า",
@@ -784,6 +795,34 @@
         "vatRate": "อัตราภาษี",
         "total": "ยอดเงิน"
       }
+    }
+  },
+  "permissionManagement": {
+    "title": "จัดการสิทธิ์ผู้ใช้งาน",
+    "matrixTitle": "ตารางสิทธิ์ตาม Role",
+    "matrixDescription": "แถวคือ permission และคอลัมน์คือ role ที่ได้รับสิทธิ์นั้น",
+    "loadFailed": "ไม่สามารถโหลดข้อมูลสิทธิ์ได้",
+    "noData": "ไม่พบข้อมูลสิทธิ์",
+    "confirmSaveTitle": "ยืนยันการบันทึกสิทธิ์",
+    "confirmSaveMessage": "คุณต้องการบันทึกการเปลี่ยนแปลงสิทธิ์ผู้ใช้งานใช่หรือไม่",
+    "resetDefault": "ย้อนกลับค่าเริ่มต้น",
+    "table": {
+      "permission": "สิทธิ์"
+    },
+    "group": {
+      "account": "บัญชีผู้ใช้งาน",
+      "dashboard": "แดชบอร์ด",
+      "document": "เอกสาร",
+      "freight": "ค่าขนส่ง",
+      "master_data": "ข้อมูลหลัก",
+      "employee": "พนักงาน",
+      "customer": "ลูกค้า",
+      "operation": "ปฏิบัติการ",
+      "product": "สินค้า",
+      "rfq": "ขอราคา",
+      "support": "สนับสนุน",
+      "system": "ระบบ",
+      "supplier": "ซัพพลายเออร์"
     }
   }
 }

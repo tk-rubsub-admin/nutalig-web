@@ -16,6 +16,7 @@ export interface CreateQuotationRequest {
     discount: number;
     freight: number;
     isVat: boolean;
+    rfqId: string;
     items: CreateQuotationItem[];
 };
 
@@ -41,10 +42,13 @@ export interface Quotation {
     customer: Customer;
     customerAddress: Address;
     customerContact: Contact;
+    saleAccount?: EmployeeRecord;
     salesAccount: EmployeeRecord;
     coSalesId: string;
+    coSaleId?: string;
     remark: string;
     status: string;
+    revNo?: number;
     discount: number;
     freight: number;
     subTotal: number;
@@ -55,7 +59,7 @@ export interface Quotation {
 }
 
 export interface QuotationItem {
-    id: number;
+    id: number | string;
     name: string;
     type: string;
     capacity: string;
@@ -64,7 +68,13 @@ export interface QuotationItem {
     unitPrice: number;
     quantity: number;
     amount: number;
+    imagePreview?: string;
     imageUrl: string;
+}
+
+export interface UpdateQuotationRequest {
+    remark: string;
+    items: QuotationItem[];
 }
 
 export interface SearchQuotationRequest {
@@ -80,4 +90,8 @@ export interface SearchQuotationResponse {
         quotationList: Quotation[];
         pagination: Pagination;
     }
+}
+
+export interface GetQuotationResponse {
+    data: Quotation;
 }

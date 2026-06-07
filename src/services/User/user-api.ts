@@ -3,14 +3,30 @@ import { api } from 'api/api';
 import {
     CreateNewUserRequest,
     GetAllRole,
+    GetAllRolePermission,
     InviteLineRegistrationResponse,
     SearchUserRequest,
+    UpdateRolePermissionRequest,
     UpdateLineConnectRequest
 } from './user-type';
 
 export const getAllUserRole = async () => {
     const response: GetAllRole = await api
         .get(`/v1/user/roles`)
+        .then((response) => response.data);
+    return response.data;
+};
+
+export const getAllRolePermissions = async () => {
+    const response: GetAllRolePermission = await api
+        .get(`/v1/admin/role-permissions`)
+        .then((response) => response.data);
+    return response.data;
+};
+
+export const updateRolePermissions = async (data: UpdateRolePermissionRequest) => {
+    const response: GetAllRolePermission = await api
+        .patch(`/v1/admin/role-permissions`, data)
         .then((response) => response.data);
     return response.data;
 };

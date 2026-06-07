@@ -160,6 +160,10 @@ export default function QuotationManagement(): JSX.Element {
         setQuotationFilter(defaultFilter);
     };
 
+    const openQuotationDetail = (quotationNo: string) => {
+        history.push(`${ROUTE_PATHS.QUOTATION_DETAIL}?id=${encodeURIComponent(quotationNo)}`);
+    };
+
     const quotationRows = useMemo(() => {
         if (!quotationList?.data?.quotationList?.length) {
             return (
@@ -175,25 +179,31 @@ export default function QuotationManagement(): JSX.Element {
             <TableRow
                 hover
                 id={`quotation__index-${quo.quotationNo}`}
-                key={quo.quotationNo}>
+                key={quo.quotationNo}
+                sx={{ cursor: 'pointer' }}
+                onClick={() => openQuotationDetail(quo.quotationNo)}>
                 <TableCell align="center">
                     <Stack spacing={1} alignItems="center">
                         <Typography variant="body2">{quo.quotationNo}</Typography>
-                        <Chip label={quo.status} size="small" />
+                        <Stack direction="row" spacing={0.75} justifyContent="center" flexWrap="wrap" useFlexGap>
+                            <Chip label={quo.status} size="small" />
+                        </Stack>
                     </Stack>
                 </TableCell>
                 <TableCell align="center">{quo.docDate || '-'}</TableCell>
                 <TableCell align="center">
                     {quo.customer ? `(${quo.customer.id}) ${quo.customer.customerName}` : '-'}
                 </TableCell>
-                <TableCell align="center">{getEmployeeName(quo.salesAccount)}</TableCell>
+                <TableCell align="center">{getEmployeeName(quo.saleAccount || quo.salesAccount)}</TableCell>
                 <TableCell align="center">{formatNumber(quo.grandTotal)}</TableCell>
                 <TableCell align="center">
                     <Tooltip title={t('documentManagement.quotation.viewQuotation')} arrow>
                         <span>
                             <IconButton
                                 disabled={quo.status === 'CANCELLED'}
-                                onClick={() => {
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={(event) => {
+                                    event.stopPropagation();
                                     viewQuotationFunction(quo);
                                 }}
                                 component="span">
@@ -218,21 +228,23 @@ export default function QuotationManagement(): JSX.Element {
         }
 
         return quotationList.data.quotationList.map((quo) => (
-            <TableRow hover key={quo.quotationNo}>
+            <TableRow hover key={quo.quotationNo} sx={{ cursor: 'pointer' }} onClick={() => openQuotationDetail(quo.quotationNo)}>
                 <TableCell sx={{ pt: 2, pb: 2 }}>
                     <Stack spacing={1}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                             <Typography variant="body1" fontWeight={600}>
                                 {quo.quotationNo}
                             </Typography>
-                            <Chip label={quo.status} size="small" />
+                            <Stack direction="row" spacing={0.75} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                                <Chip label={quo.status} size="small" />
+                            </Stack>
                         </Stack>
                         <Typography variant="body2">{quo.docDate || '-'}</Typography>
                         <Typography variant="body2">
                             {quo.customer ? `(${quo.customer.id}) ${quo.customer.customerName}` : '-'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            {getEmployeeName(quo.salesAccount)}
+                            {getEmployeeName(quo.saleAccount || quo.salesAccount)}
                         </Typography>
                         <Typography variant="body1" fontWeight={600}>
                             {formatNumber(quo.grandTotal)}
@@ -242,7 +254,9 @@ export default function QuotationManagement(): JSX.Element {
                                 <span>
                                     <IconButton
                                         disabled={quo.status === 'CANCELLED'}
-                                        onClick={() => {
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
                                             viewQuotationFunction(quo);
                                         }}
                                         component="span">

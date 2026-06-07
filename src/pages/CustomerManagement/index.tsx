@@ -26,6 +26,8 @@ import {
   MenuItem
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import Can from 'auth/Can';
+import { PERMISSIONS } from 'auth/permissions';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { Wrapper, GridSearchSection, TextLineClamp } from 'components/Styled';
@@ -268,14 +270,16 @@ export default function CustomerManagement(): JSX.Element {
             justifyContent: { sm: 'flex-end' }, // right-align when in row
             alignItems: { xs: 'flex-end', sm: 'center' } // right-align when stacked
           }}>
-          <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            className="btn-emerald-green"
-            onClick={() => history.push(ROUTE_PATHS.CUSTOMER_NEW)}
-            startIcon={<PersonAddAlt1 />}>
-            {t('customerManagement.action.create')}
-          </Button>
+          <Can permission={PERMISSIONS.CUSTOMER_CREATE}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              onClick={() => history.push(ROUTE_PATHS.CUSTOMER_NEW)}
+              startIcon={<PersonAddAlt1 />}>
+              {t('customerManagement.action.create')}
+            </Button>
+          </Can>
           <Button
             fullWidth={isDownSm}
             variant="contained"

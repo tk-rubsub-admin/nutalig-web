@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/browser';
 import { Integrations } from '@sentry/tracing';
 import { StylesProvider, CssBaseline } from '@material-ui/core';
 import { AuthProvider } from 'auth/AuthContext';
+import { PermissionProvider } from 'auth/PermissionContext';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import theme from 'theme';
 import { ThemeProvider } from 'styled-components';
@@ -47,9 +48,11 @@ ReactDOM.render(
         {/* <GoogleOAuthProvider clientId="1068212294951-tuieul1537t5bujd6irtvg1206lpr8cj.apps.googleusercontent.com"> */}
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            {/* <NotificationProvider> */}
-            <App />
-            {/* </NotificationProvider> */}
+            <PermissionProvider>
+              {/* <NotificationProvider> */}
+              <App />
+              {/* </NotificationProvider> */}
+            </PermissionProvider>
           </AuthProvider>
         </QueryClientProvider>
 

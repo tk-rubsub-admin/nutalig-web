@@ -48,6 +48,7 @@ import { SalesRecord } from 'services/Sales/sales-type';
 import * as Yup from 'yup';
 
 const CUSTOM_UNIT_OPTION = '__custom_unit__';
+const RFQ_SALES_TEAM_CODES = ['SALES_ONLINE', 'SALES_OFFLINE'];
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
   if (productFamily.nameTh && productFamily.nameEn) {
@@ -159,7 +160,11 @@ export default function NewRFQ(): JSX.Element {
     }
   );
 
-  const groupedSalesOptions = salesOptions.reduce(
+  const rfqSalesOptions = salesOptions.filter((sales) =>
+    sales.team?.code ? RFQ_SALES_TEAM_CODES.includes(sales.team.code) : false
+  );
+
+  const groupedSalesOptions = rfqSalesOptions.reduce(
     (groups: { groupLabel: string; records: SalesRecord[] }[], sales: SalesRecord) => {
       const groupLabel =
         sales.team?.nameTh || sales.team?.nameEn || sales.team?.code || 'ไม่ระบุทีม';
@@ -615,7 +620,7 @@ export default function NewRFQ(): JSX.Element {
                   Loading...
                 </MenuItem>
               ) : null}
-              {!isSalesFetching && salesOptions.length === 0 ? (
+              {!isSalesFetching && rfqSalesOptions.length === 0 ? (
                 <MenuItem disabled value="">
                   No sales data
                 </MenuItem>

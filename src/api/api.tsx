@@ -32,6 +32,14 @@ const forceLogoutToLogin = () => {
   window.location.replace('/login?reason=session-replaced');
 };
 
+const notifyAuthorizationStale = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent('nutalig:authorization-stale'));
+};
+
 export const api = axios.create({
   baseURL: config.dkpApi,
   headers: {
@@ -74,6 +82,11 @@ api.interceptors.response.use(
 
     if (status === 401 && !shouldBypassForcedLogout(original?.url)) {
       forceLogoutToLogin();
+    }
+
+    if (status === 403 && original && !original._authorizationRefreshRequested) {
+      original._authorizationRefreshRequested = true;
+      notifyAuthorizationStale();
     }
 
     return Promise.reject(error);

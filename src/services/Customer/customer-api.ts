@@ -38,7 +38,7 @@ export const getAllCustomer = async (data: SearchCustomerRequest) => {
 
 export const searchCustomerByKeyword = async (keyword: string, page: number, size: number): Promise<Customer[]> => {
   const response = await api
-    .get(`/v1/customers?weyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`)
+    .get(`/v1/customers?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`)
     .then((response) => response.data);
 
   if (Array.isArray(response?.data?.customers)) {

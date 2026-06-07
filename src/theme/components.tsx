@@ -6,18 +6,35 @@ const components = {
     },
     styleOverrides: {
       root: {
-        borderRadius: '8px',
+        minHeight: 40,
+        paddingLeft: 18,
+        paddingRight: 18,
+        borderRadius: 999,
         textTransform: 'none',
-        fontWeight: 700
+        fontWeight: 700,
+        boxShadow: 'none',
+        '&:hover': {
+          boxShadow: 'none'
+        }
       },
       contained: {
-        boxShadow: 'none'
+        boxShadow: 'none',
+        '&:hover': {
+          boxShadow: 'none'
+        }
       },
       outlined: {
-        border: 'none'
+        borderWidth: 1.5,
+        '&:hover': {
+          borderWidth: 1.5,
+          boxShadow: 'none'
+        }
       },
       text: {
-        backgroundColor: 'rgba(25, 118, 210, 0.12)'
+        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+        '&:hover': {
+          boxShadow: 'none'
+        }
       }
     }
   },

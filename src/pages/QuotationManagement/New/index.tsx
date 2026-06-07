@@ -220,6 +220,7 @@ export default function NewQuotation() {
     );
     const formik = useFormik({
         initialValues: {
+            rfqId: rfqId || '',
             customerId: '',
             customerAddressId: '',
             customerContactId: '',
@@ -293,6 +294,7 @@ export default function NewQuotation() {
         } as Customer : null);
         formik.setValues({
             ...formik.values,
+            rfqId: rfqId || '',
             customerId: rfq.customer?.id || '',
             customerAddressId: defaultAddress?.id || '',
             customerContactId: defaultContact?.id || '',

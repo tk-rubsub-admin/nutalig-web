@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { api } from 'api/api';
-import { CreateQuotationRequest, SearchQuotationRequest, SearchQuotationResponse } from './document-type';
+import { CreateQuotationRequest, GetQuotationResponse, SearchQuotationRequest, SearchQuotationResponse, UpdateQuotationRequest } from './document-type';
 
 export const createQuotation = async (data: CreateQuotationRequest) => {
     const response: string = await api
@@ -15,6 +15,28 @@ export const searchQuotation = async (data: SearchQuotationRequest, page: number
             params: {
                 page,
                 size
+            }
+        })
+        .then((response) => response.data);
+    return response;
+};
+
+export const getQuotation = async (id: string) => {
+    const response: GetQuotationResponse = await api
+        .get('/v1/quotation', {
+            params: {
+                id
+            }
+        })
+        .then((response) => response.data);
+    return response;
+};
+
+export const updateQuotation = async (id: string, data: UpdateQuotationRequest) => {
+    const response: GetQuotationResponse = await api
+        .patch('/v1/quotation', data, {
+            params: {
+                id
             }
         })
         .then((response) => response.data);

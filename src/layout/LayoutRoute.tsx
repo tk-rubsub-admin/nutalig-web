@@ -1,5 +1,6 @@
 import React, { ComponentType, useState } from 'react';
 import { Route, Redirect, RouteComponentProps } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import styled from 'styled-components';
 import { useAuth } from 'auth/AuthContext';
 import { Role, hasAllowedRole } from 'auth/roles';
@@ -73,13 +74,23 @@ function PrivateRoute({
   allowedRoles,
   requiredPermissions
 }: AuthenticatedRouteProps): JSX.Element {
-  const { getToken, getRole, getPermission } = useAuth();
+  const { authReady, getToken, getRole, getPermission } = useAuth();
   const isAuthenticated = !!getToken();
 
   const role = getRole();
   const permissions = getPermission?.() || [];
 
   const render = (props: RouteComponentProps): React.ReactNode => {
+    if (!authReady) {
+      return (
+        <Main>
+          <Box width="100%" minHeight="60vh" display="flex" alignItems="center" justifyContent="center">
+            <CircularProgress />
+          </Box>
+        </Main>
+      );
+    }
+
     if (!isAuthenticated) {
       return <Redirect to={{ pathname: ROUTE_PATHS.LOGIN, state: { from: props.location } }} />;
     }

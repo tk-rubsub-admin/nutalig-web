@@ -19,17 +19,15 @@ function SidebarNavList({ pages, depth, onClick }: SidebarNavListProps): ReactEl
   const userPermissions = getPermission();
 
   const canAccessPage = (page: SidebarItemsType) => {
-    // 1. เช็ค Role
-    if (page.allowedRoles) {
-      return hasAllowedRole(currentUserRole, page.allowedRoles);
-    }
-
-    // 2. เช็ค Permission
+    // Permission is the primary authorization source. Role remains as migration fallback.
     if (page.allowedPermission) {
       return page.allowedPermission.some((p) => userPermissions.includes(p));
     }
 
-    // 3. ไม่กำหนดอะไร = เข้าถึงได้
+    if (page.allowedRoles) {
+      return hasAllowedRole(currentUserRole, page.allowedRoles);
+    }
+
     return true;
   };
 

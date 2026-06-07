@@ -172,6 +172,7 @@ export interface RFQAdditionalCost {
 
 export interface RFQRecord {
   id: string;
+  quotationNo?: string | null;
   requestedDate: string;
   status: string;
   serviceLevelAgreement?: RFQServiceLevelAgreement | null;

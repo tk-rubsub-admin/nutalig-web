@@ -68,6 +68,9 @@ import {
   RFQDetailTier,
   RFQEmployee,
   RFQFileResource,
+  RFQProductMaterial,
+  RFQProductSubtype1,
+  RFQProductSubtype2,
   RFQRecord
 } from 'services/RFQ/rfq-type';
 import { base64ToBlob } from 'utils';
@@ -154,6 +157,36 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   }
 
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
+}
+
+function getNamedCodeValueCode<T extends { code?: string }>(value?: T | string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return value.code || '';
+}
+
+function getNamedCodeValueLabel<T extends { code?: string; nameTh?: string | null; nameEn?: string | null }>(
+  value?: T | string | null
+): string {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value.nameTh && value.nameEn) {
+    return `${value.nameTh} (${value.nameEn})`;
+  }
+
+  return value.nameTh || value.nameEn || value.code || '';
 }
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
@@ -347,9 +380,9 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
     orderTypeCode: rfq?.orderType?.code || '',
     productFamily: getProductFamilyCode(rfq?.productFamily),
-    productUsage: rfq?.productUsage || '',
-    systemMechanic: rfq?.systemMechanic || '',
-    material: rfq?.material || '',
+    productUsage: getNamedCodeValueCode<RFQProductSubtype1>(rfq?.productSubtype1) || rfq?.productUsage || '',
+    systemMechanic: getNamedCodeValueCode<RFQProductSubtype2>(rfq?.productSubType2) || rfq?.systemMechanic || '',
+    material: getNamedCodeValueCode<RFQProductMaterial>(rfq?.material),
     capacity: rfq?.capacity || '',
     description: rfq?.description || ''
   };
@@ -646,26 +679,46 @@ export default function RFQDetail(): ReactElement {
   const systemMechanicOptions = selectedProductUsage?.subtype2List || [];
 
   const productFamilyLabel = useMemo(() => {
-    return selectedProductFamily ? getProductFamilyDisplayName(selectedProductFamily) : undefined;
-  }, [selectedProductFamily]);
+    if (selectedProductFamily) {
+      return getProductFamilyDisplayName(selectedProductFamily);
+    }
+
+    return getProductFamilyLabel(rfq?.productFamily) || undefined;
+  }, [selectedProductFamily, rfq?.productFamily]);
+
+  const hasProductFamilyOption = useMemo(() => {
+    return productFamilyList.some(
+      (productFamily: ProductFamily) => productFamily.code === formik.values.productFamily
+    );
+  }, [formik.values.productFamily, productFamilyList]);
 
   const productUsageLabel = useMemo(() => {
     const selectedProductUsage = productUsageOptions.find(
       (item: ProductSubtype1) => item.code === formik.values.productUsage
     );
 
-    return selectedProductUsage ? getProductSubtype1DisplayName(selectedProductUsage) : undefined;
-  }, [formik.values.productUsage, productUsageOptions]);
+    if (selectedProductUsage) {
+      return getProductSubtype1DisplayName(selectedProductUsage);
+    }
+
+    return getNamedCodeValueLabel<RFQProductSubtype1>(rfq?.productSubtype1) || undefined;
+  }, [formik.values.productUsage, productUsageOptions, rfq?.productSubtype1]);
 
   const systemMechanicLabel = useMemo(() => {
     const selectedSystemMechanic = systemMechanicOptions.find(
       (item: ProductSubtype2) => item.code === formik.values.systemMechanic
     );
 
-    return selectedSystemMechanic
-      ? getProductSubtype2DisplayName(selectedSystemMechanic)
-      : undefined;
-  }, [formik.values.systemMechanic, systemMechanicOptions]);
+    if (selectedSystemMechanic) {
+      return getProductSubtype2DisplayName(selectedSystemMechanic);
+    }
+
+    return getNamedCodeValueLabel<RFQProductSubtype2>(rfq?.productSubType2) || undefined;
+  }, [formik.values.systemMechanic, systemMechanicOptions, rfq?.productSubType2]);
+
+  const materialLabel = useMemo(() => {
+    return getNamedCodeValueLabel<RFQProductMaterial>(rfq?.material);
+  }, [rfq?.material]);
 
   const handleProductFamilyChange = (event: ChangeEvent<HTMLInputElement>) => {
     formik.handleChange(event);
@@ -1320,11 +1373,7 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       label="Product Family"
                       name="productFamily"
-                      value={
-                        formik.values.productFamily ||
-                        productFamilyLabel ||
-                        getProductFamilyLabel(rfq?.productFamily)
-                      }
+                      value={formik.values.productFamily}
                       onChange={handleProductFamilyChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.productFamily && formik.errors.productFamily)}
@@ -1334,6 +1383,11 @@ export default function RFQDetail(): ReactElement {
                       {isProductFamilyFetching ? (
                         <MenuItem disabled value="">
                           กำลังโหลดข้อมูล
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productFamily && !hasProductFamilyOption ? (
+                        <MenuItem value={formik.values.productFamily}>
+                          {productFamilyLabel || formik.values.productFamily}
                         </MenuItem>
                       ) : null}
                       {productFamilyList.map((productFamily: ProductFamily) => (
@@ -1350,12 +1404,7 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       label="Product Subtype1"
                       name="productUsage"
-                      value={
-                        formik.values.productUsage ||
-                        productUsageLabel ||
-                        rfq?.productUsage ||
-                        ''
-                      }
+                      value={formik.values.productUsage}
                       onChange={handleProductUsageChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.productUsage && formik.errors.productUsage)}
@@ -1390,12 +1439,7 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       label="Product Subtype2"
                       name="systemMechanic"
-                      value={
-                        formik.values.systemMechanic ||
-                        systemMechanicLabel ||
-                        rfq?.systemMechanic ||
-                        ''
-                      }
+                      value={formik.values.systemMechanic}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.systemMechanic && formik.errors.systemMechanic)}
@@ -1425,7 +1469,7 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       label="Material"
                       name="material"
-                      value={formik.values.material}
+                      value={isSalesPermission ? formik.values.material : (materialLabel || formik.values.material)}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.material && formik.errors.material)}

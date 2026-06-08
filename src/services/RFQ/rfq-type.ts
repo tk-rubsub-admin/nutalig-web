@@ -4,29 +4,33 @@ import { Supplier } from 'services/Supplier/supplier-type';
 
 export interface RFQProductFamily {
   code: string;
-  nameTh: string;
-  nameEn: string;
+  nameTh?: string | null;
+  nameEn?: string | null;
+  materialList?: RFQProductMaterial[] | null;
+  subtype1List?: RFQProductSubtype1[] | null;
 }
 
 export interface RFQProductSubtype1 {
   code: string;
-  productFamilyCode: string;
-  nameTh: string;
-  nameEn: string;
+  productFamilyCode?: string | null;
+  nameTh?: string | null;
+  nameEn?: string | null;
+  subtype2Required?: boolean | null;
+  subtype2List?: RFQProductSubtype2[] | null;
 }
 
 export interface RFQProductSubtype2 {
   code: string;
-  productSubtype1Code?: string;
-  nameTh: string;
-  nameEn: string;
+  productSubtype1Code?: string | null;
+  nameTh?: string | null;
+  nameEn?: string | null;
 }
 
 export interface RFQProductMaterial {
   code: string;
-  productFamilyCode: string;
-  nameTh: string;
-  nameEn: string;
+  productFamilyCode?: string | null;
+  nameTh?: string | null;
+  nameEn?: string | null;
 }
 
 export interface RFQAddress {

@@ -1,6 +1,6 @@
 {
   "name": "nutalig",
-  "version": "0.0.0.1@050062026",
+  "version": "0.0.0.1@08062026",
   "proxy": "http://localhost:8002/",
   "private": true,
   "engines": {

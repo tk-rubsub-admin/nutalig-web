@@ -720,6 +720,18 @@ export default function RFQDetail(): ReactElement {
     return getNamedCodeValueLabel<RFQProductMaterial>(rfq?.material);
   }, [rfq?.material]);
 
+  const materialCode = useMemo(() => {
+    return getNamedCodeValueCode<RFQProductMaterial>(rfq?.material);
+  }, [rfq?.material]);
+
+  const materialDisplayValue = useMemo(() => {
+    if (materialLabel && formik.values.material === materialCode) {
+      return materialLabel;
+    }
+
+    return formik.values.material;
+  }, [formik.values.material, materialCode, materialLabel]);
+
   const handleProductFamilyChange = (event: ChangeEvent<HTMLInputElement>) => {
     formik.handleChange(event);
     formik.setFieldValue('productUsage', '');
@@ -1469,7 +1481,7 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       label="Material"
                       name="material"
-                      value={isSalesPermission ? formik.values.material : (materialLabel || formik.values.material)}
+                      value={materialDisplayValue}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.material && formik.errors.material)}

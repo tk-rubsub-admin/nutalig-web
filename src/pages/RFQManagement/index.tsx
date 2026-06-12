@@ -1,4 +1,4 @@
-import { Add, AddCircle } from '@mui/icons-material';
+import { AddCircle } from '@mui/icons-material';
 import {
   Button,
   Box,
@@ -371,7 +371,7 @@ export default function RFQManagement(): ReactElement {
                   {rfq.id}
                 </Typography>
                 <Chip
-                  label={t(`rfqManagement.status.${rfq.status}`)}
+                  label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
                   size="small"
                   sx={{
                     backgroundColor: '#e8f5e9',

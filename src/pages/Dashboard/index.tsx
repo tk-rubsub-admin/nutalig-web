@@ -31,7 +31,7 @@ import { Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
 import { Page } from 'layout/LayoutRoute';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-google-charts';
 import { useQuery } from 'react-query';

@@ -6,6 +6,7 @@ import {
   ContactPage,
   FilePresent,
   Group,
+  Leaderboard,
   Home,
   Inventory2,
   ManageAccounts,
@@ -24,9 +25,15 @@ export function useMenuItems() {
   const pagesSection = [
     {
       id: 'left_menu__home',
+      title: t('sidebar.home'),
+      href: ROUTE_PATHS.ROOT,
+      icon: Home
+    },
+    {
+      id: 'left_menu__dashboard',
       title: t('sidebar.dashboard'),
       href: ROUTE_PATHS.DASHBOARD,
-      icon: Home,
+      icon: Leaderboard,
       allowedPermission: [PERMISSIONS.DASHBOARD_VIEW]
     },
     // {

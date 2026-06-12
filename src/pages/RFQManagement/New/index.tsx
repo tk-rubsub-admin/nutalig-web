@@ -849,7 +849,7 @@ export default function NewRFQ(): JSX.Element {
             ) : null}
           </GridTextField>
 
-          <GridTextField item xs={6}>
+          <GridTextField item xs={12} sm={6}>
             <TextField
               select
               fullWidth

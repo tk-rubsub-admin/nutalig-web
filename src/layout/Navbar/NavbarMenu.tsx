@@ -4,12 +4,13 @@ import { Link, useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'auth/AuthContext';
 import { ROUTE_PATHS } from 'routes';
-import { Avatar, Badge, Box, Grid, Typography, IconButton } from '@mui/material';
+import { Avatar, Badge, Box, Grid, IconButton, Typography } from '@mui/material';
 import { Logout, Person } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import ConfirmDialog from 'components/ConfirmDialog';
 import { useState } from 'react';
 import { getUserProfile } from 'services/general-api';
+import { Role } from 'services/User/user-type';
 
 const MenuLink = styled(Link)`
   text-decoration: none;
@@ -62,6 +63,11 @@ const RoleNameText = styled(Typography)`
   max-width: 100%;
 `;
 
+const getRoleLabel = (role?: Role | null) => {
+  if (!role) return 'ไม่ระบุบทบาท';
+  return role.roleNameTh?.trim() || role.roleNameEn?.trim() || role.roleCode || 'ไม่ระบุบทบาท';
+};
+
 function NavbarMenu({ ...rest }): JSX.Element {
   const { t } = useTranslation();
   const history = useHistory();
@@ -92,7 +98,7 @@ function NavbarMenu({ ...rest }): JSX.Element {
   const picture = profile?.pictureUrl;
   const hasPicture = !!picture && picture.trim() !== ''; // ✅ แก้ logic
   const displayName = profile?.displayName?.trim() || '-';
-  const roleName = profile?.role?.roleNameTh?.trim() || 'ไม่ระบุบทบาท';
+  const roleName = getRoleLabel(profile?.role);
 
   return (
     <Footer {...rest}>
@@ -121,7 +127,11 @@ function NavbarMenu({ ...rest }): JSX.Element {
           <Grid item xs style={{ textAlign: 'left' }}>
             <ProfileInfo>
               <DisplayNameText title={displayName}>{displayName}</DisplayNameText>
-              <RoleNameText title={roleName}>{roleName}</RoleNameText>
+              <RoleNameText
+                title={roleName}
+              >
+                {roleName}
+              </RoleNameText>
             </ProfileInfo>
           </Grid>
 

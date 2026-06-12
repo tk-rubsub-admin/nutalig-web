@@ -15,6 +15,8 @@ import {
   Typography
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import Can from 'auth/Can';
+import { PERMISSIONS } from 'auth/permissions';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { GridSearchSection, TextLineClamp, Wrapper } from 'components/Styled';
@@ -161,13 +163,15 @@ export default function EmployeeManagement(): JSX.Element {
             </Typography>
           </Grid>
           <Grid item xs={12} sm={6} style={{ textAlign: 'right' }}>
-            <Button
-              variant="contained"
-              className="btn-emerald-green"
-              onClick={() => history.push(ROUTE_PATHS.EMPLOYEE_NEW)}
-              startIcon={<Add />}>
-              {t('button.create')}
-            </Button>
+            <Can permission={PERMISSIONS.EMPLOYEE_CREATE}>
+              <Button
+                variant="contained"
+                className="btn-emerald-green"
+                onClick={() => history.push(ROUTE_PATHS.EMPLOYEE_NEW)}
+                startIcon={<Add />}>
+                {t('button.create')}
+              </Button>
+            </Can>
             &nbsp;&nbsp;
             <Button
               variant="contained"

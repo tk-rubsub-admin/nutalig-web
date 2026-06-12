@@ -10,22 +10,41 @@ import {
   UpdateEmployeeResponse
 } from './employee-type';
 
+interface SearchEmployeesResponse {
+  status: string;
+  data: {
+    pagination: GetEmployeesResponse['data']['pagination'];
+    employees: GetEmployeesResponse['data']['records'];
+  };
+}
+
 export const getEmployees = async (
   page: number,
   size: number,
   keyword: string
 ): Promise<GetEmployeesResponse> => {
-  const response: GetEmployeesResponse = await api
-    .get('/v1/employees', {
-      params: {
-        page,
-        size,
+  const response: SearchEmployeesResponse = await api
+    .post(
+      '/v1/employees/search',
+      {
         keyword: keyword.trim()
+      },
+      {
+        params: {
+          page,
+          size
+        }
       }
-    })
+    )
     .then((response) => response.data);
 
-  return response;
+  return {
+    status: response.status,
+    data: {
+      pagination: response.data.pagination,
+      records: response.data.employees
+    }
+  };
 };
 
 export const getEmployee = async (id: string): Promise<EmployeeRecord> => {

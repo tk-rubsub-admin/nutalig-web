@@ -94,7 +94,7 @@ export default function NewRFQ(): JSX.Element {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const history = useHistory();
-  const { getRole, getEmployeeId } = useAuth();
+  const { hasRole, getEmployeeId } = useAuth();
   const { t } = useTranslation();
   const [actionType, setActionType] = useState('');
   const [dialogTitle, setDialogTitle] = useState('');
@@ -108,7 +108,7 @@ export default function NewRFQ(): JSX.Element {
   const [isCreatingUnit, setIsCreatingUnit] = useState(false);
 
   const pictureUrls = pictureFiles.map((file) => URL.createObjectURL(file));
-  const isSalesRole = getRole() === 'SALES';
+  const isSalesRole = hasRole('SALES');
   const defaultSalesId = isSalesRole ? getEmployeeId() : '';
   console.log('defaultSalesId : ' + defaultSalesId);
   useEffect(() => {

@@ -27,7 +27,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
-import { getAllCompany } from 'services/Company/company-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import {
@@ -159,11 +158,8 @@ export default function StaffDetail(): JSX.Element {
     () => getSystemConfig(GROUP_CODE.WORKSPACE),
     { refetchOnWindowFocus: false }
   );
-  const { data: companyList, isFetching: isCompanyFetching } = useQuery(
-    'company-list',
-    () => getAllCompany(),
-    { refetchOnWindowFocus: false }
-  );
+  const companyList: Company[] = [];
+  const isCompanyFetching = false;
 
   const onAutoCompleteChange = (field: string, value: SystemConfig, reason: string) => {
     if (reason === 'clear') {

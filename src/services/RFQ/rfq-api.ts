@@ -11,6 +11,7 @@ import {
   RFQSupplierQuoteListResponse,
   RFQSupplierQuoteResponse,
   SearchRFQResponse,
+  LinkRFQSalesOrderRequest,
   UpdateRFQInquiryRequest,
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
@@ -171,6 +172,17 @@ export const updateRFQ = async (
 ): Promise<UpdateRFQResponse> => {
   const response: UpdateRFQResponse = await api
     .patch(`/v1/rfqs/${id}`, payload)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const linkRFQSalesOrder = async (
+  id: string,
+  payload: LinkRFQSalesOrderRequest
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .patch(`/v1/rfqs/${id}/sales-order`, payload)
     .then((response) => response.data);
 
   return response;

@@ -267,12 +267,12 @@ export default function RFQManagement(): ReactElement {
   const classes = useStyles();
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
-  const { getRole } = useAuth();
+  const { hasAnyRole } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
-  const canCreateRFQ = [ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN].includes(getRole());
+  const canCreateRFQ = hasAnyRole([ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN]);
 
   const {
     data: rfqResponse,

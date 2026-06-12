@@ -156,6 +156,7 @@ export interface RFQDetailOption {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  supplier?: Supplier | null;
   tiers: RFQDetailTier[];
   createdDate: string;
   updatedDate: string;
@@ -177,6 +178,12 @@ export interface RFQAdditionalCost {
 export interface RFQRecord {
   id: string;
   quotationNo?: string | null;
+  saleOrderId?: string | null;
+  confirmedDetailId?: number | null;
+  confirmedTierId?: number | null;
+  confirmedShippingMethod?: string | null;
+  confirmedPrice?: number | null;
+  confirmedDate?: string | null;
   requestedDate: string;
   status: string;
   serviceLevelAgreement?: RFQServiceLevelAgreement | null;
@@ -254,6 +261,14 @@ export interface UpdateRFQRequest {
   material: string;
   capacity: string;
   description: string;
+}
+
+export interface LinkRFQSalesOrderRequest {
+  saleOrderId: string;
+  detailId: number;
+  tierId: number;
+  shippingMethod: 'LAND' | 'SEA';
+  price?: number | null;
 }
 
 export interface CreateRFQDetailTierRequest {

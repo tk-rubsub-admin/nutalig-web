@@ -1,14 +1,17 @@
 /* eslint-disable prettier/prettier */
 import { api } from 'api/api';
-import { CreateOrderFormValues } from 'pages/PurchaseOrderManagement/New/utils';
 import {
     AssignPORequest,
     CreateSaleOrderLineRequestV2,
     CreateSaleOrderRequest,
+    CreateSalesOrderRequestV1,
     GetSaleOrderResponse,
+    GetSalesOrderResponseV1,
     OrderPackage,
     SearchOrderResponse,
     SearchSaleOrderRequest,
+    SearchSalesOrderRequestV1,
+    SearchSalesOrderResponseV1,
     UpdatePOLineRequest,
     UpdateSaleOrderBilling,
     UpdateSaleOrderLineSupplierRequest,
@@ -16,7 +19,7 @@ import {
     UpdateSaleOrderRequest
 } from './sale-order-type';
 
-export const createOrder = async (formValues: CreateOrderFormValues) => {
+export const createOrder = async (formValues: any) => {
     const { orderMakerId, sendingTime, freight, additionalItem, notes } = formValues.orderInfo;
     const request = {
         customerId: formValues.customerInfo.customerId,
@@ -40,9 +43,28 @@ export const createSaleOrder = async (data: CreateSaleOrderRequest) => {
     return response;
 };
 
+export const createSalesOrderV1 = async (data: CreateSalesOrderRequestV1) => {
+    const response = await api
+        .post(`/v1/sales-orders`, data)
+        .then((response) => response.data);
+    return response;
+};
+
 export const searchOrder = async (data: SearchSaleOrderRequest, page: number, size: number) => {
     const response: SearchOrderResponse = await api
         .post(`/v1/sale-orders/search`, data, {
+            params: {
+                page,
+                size
+            }
+        })
+        .then((response) => response.data);
+    return response;
+};
+
+export const searchSalesOrdersV1 = async (data: SearchSalesOrderRequestV1, page: number, size: number) => {
+    const response: SearchSalesOrderResponseV1 = await api
+        .post(`/v1/sales-orders/search`, data, {
             params: {
                 page,
                 size
@@ -59,9 +81,27 @@ export const getSaleOrder = async (id: string) => {
     return response.data;
 };
 
+export const getSalesOrderV1 = async (id: string) => {
+    const response: GetSalesOrderResponseV1 = await api
+        .get(`/v1/sales-orders`, {
+            params: {
+                id
+            }
+        })
+        .then((response) => response.data);
+    return response.data;
+};
+
 export const downloadSaleOrder = async (id: string, format: string, original: boolean, copy: boolean) => {
     const response = await api
-        .get(`/v1/sale-orders/${id}/document?format=${format}&isOriginal=${original}&isCopy=${copy}`)
+        .get(`/v1/sales-orders/document`, {
+            params: {
+                id,
+                format,
+                isOriginal: original,
+                isCopy: copy
+            }
+        })
         .then(response => response)
     return response
 }

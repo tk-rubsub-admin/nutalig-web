@@ -27,6 +27,8 @@ import { inviteLineRegistration, resetLineBinding } from 'services/User/user-api
 import { copyText } from 'utils/copyContent';
 import toast from 'react-hot-toast';
 import * as Yup from 'yup';
+import { PERMISSIONS } from 'auth/permissions';
+import Can from 'auth/Can';
 
 interface EmployeeDetailParam {
   id: string;
@@ -42,6 +44,14 @@ function getEmployeeName(employee?: EmployeeRecord): string {
 
 function getStatusColor(status?: string): 'success' | 'default' {
   return status === 'ACTIVE' ? 'success' : 'default';
+}
+
+function getUserRoleDisplay(user?: EmployeeRecord['userDto'] | null): string {
+  const role = user?.role;
+  if (!role) {
+    return '-';
+  }
+  return `${role.roleNameTh || role.roleNameEn || role.roleCode} (${role.roleCode})`;
 }
 
 function resolveInviteLink(response: any): string {
@@ -186,6 +196,8 @@ export default function EmployeeDetail(): JSX.Element {
     setCanEdit(false);
   };
 
+  const isReadOnly = !canEdit;
+
   return (
     <Page>
       <LoadingDialog
@@ -208,37 +220,39 @@ export default function EmployeeDetail(): JSX.Element {
             onClick={() => history.push(ROUTE_PATHS.EMPLOYEE_MANAGEMENT)}>
             {t('button.back')}
           </Button>
-          {canEdit ? (
-            <>
-              <Button
-                variant="contained"
-                className="btn-amber-orange"
-                startIcon={<Cancel />}
-                onClick={handleCancelEdit}>
-                {t('button.cancel')}
-              </Button>
+          <Can permission={PERMISSIONS.EMPLOYEE_EDIT}>
+            {canEdit ? (
+              <>
+                <Button
+                  variant="contained"
+                  className="btn-amber-orange"
+                  startIcon={<Cancel />}
+                  onClick={handleCancelEdit}>
+                  {t('button.cancel')}
+                </Button>
+                <Button
+                  variant="contained"
+                  className="btn-emerald-green"
+                  startIcon={<Save />}
+                  onClick={() => {
+                    setActionType('update');
+                    setTitleDialog(t('employeeManagement.action.update'));
+                    setMsg(t('employeeManagement.message.confirmUpdate'));
+                    setVisibleConfirmationDialog(true);
+                  }}>
+                  {t('button.update')}
+                </Button>
+              </>
+            ) : (
               <Button
                 variant="contained"
                 className="btn-emerald-green"
-                startIcon={<Save />}
-                onClick={() => {
-                  setActionType('update');
-                  setTitleDialog(t('employeeManagement.action.update'));
-                  setMsg(t('employeeManagement.message.confirmUpdate'));
-                  setVisibleConfirmationDialog(true);
-                }}>
-                {t('button.update')}
+                startIcon={<Edit />}
+                onClick={handleStartEdit}>
+                {t('button.edit')}
               </Button>
-            </>
-          ) : (
-            <Button
-              variant="contained"
-              className="btn-emerald-green"
-              startIcon={<Edit />}
-              onClick={handleStartEdit}>
-              {t('button.edit')}
-            </Button>
-          )}
+            )}
+          </Can>
         </Stack>
 
         <Grid container spacing={1} alignItems="center" sx={{ mt: 1 }}>
@@ -288,7 +302,7 @@ export default function EmployeeDetail(): JSX.Element {
               onBlur={formik.handleBlur}
               error={Boolean(formik.touched.firstNameTh && formik.errors.firstNameTh)}
               helperText={formik.touched.firstNameTh && formik.errors.firstNameTh}
-              InputProps={{ readOnly: !canEdit }}
+              InputProps={{ readOnly: isReadOnly }}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
@@ -302,7 +316,7 @@ export default function EmployeeDetail(): JSX.Element {
               onBlur={formik.handleBlur}
               error={Boolean(formik.touched.lastNameTh && formik.errors.lastNameTh)}
               helperText={formik.touched.lastNameTh && formik.errors.lastNameTh}
-              InputProps={{ readOnly: !canEdit }}
+              InputProps={{ readOnly: isReadOnly }}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
@@ -317,7 +331,7 @@ export default function EmployeeDetail(): JSX.Element {
               onBlur={formik.handleBlur}
               error={Boolean(formik.touched.nickName && formik.errors.nickName)}
               helperText={formik.touched.nickName && formik.errors.nickName}
-              InputProps={{ readOnly: !canEdit }}
+              InputProps={{ readOnly: isReadOnly }}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
@@ -331,7 +345,7 @@ export default function EmployeeDetail(): JSX.Element {
               onBlur={formik.handleBlur}
               error={Boolean(formik.touched.phoneNumber && formik.errors.phoneNumber)}
               helperText={formik.touched.phoneNumber && formik.errors.phoneNumber}
-              InputProps={{ readOnly: !canEdit }}
+              InputProps={{ readOnly: isReadOnly }}
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
@@ -347,7 +361,8 @@ export default function EmployeeDetail(): JSX.Element {
               onBlur={formik.handleBlur}
               error={Boolean(formik.touched.position && formik.errors.position)}
               helperText={formik.touched.position && formik.errors.position}
-              disabled={!canEdit || isPositionFetching}
+              disabled={isPositionFetching}
+              SelectProps={{ readOnly: isReadOnly }}
               InputLabelProps={{ shrink: true }}>
               <MenuItem value="">{t('general.clearSelected')}</MenuItem>
               {positionOptions.map((option) => (
@@ -368,7 +383,8 @@ export default function EmployeeDetail(): JSX.Element {
               onBlur={formik.handleBlur}
               error={Boolean(formik.touched.team && formik.errors.team)}
               helperText={formik.touched.team && formik.errors.team}
-              disabled={!canEdit || isTeamFetching}
+              disabled={isTeamFetching}
+              SelectProps={{ readOnly: isReadOnly }}
               InputLabelProps={{ shrink: true }}>
               <MenuItem value="">{t('general.clearSelected')}</MenuItem>
               {teamOptions.map((option) => (
@@ -387,7 +403,7 @@ export default function EmployeeDetail(): JSX.Element {
               value={formik.values.additional}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              InputProps={{ readOnly: !canEdit }}
+              InputProps={{ readOnly: isReadOnly }}
               multiline
               minRows={3}
               InputLabelProps={{ shrink: true }}
@@ -403,35 +419,37 @@ export default function EmployeeDetail(): JSX.Element {
                   {t('employeeManagement.userDetailTitle')}
                 </Typography>
               </Grid>
-              <Grid item xs={12} sm="auto" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                <Grid container spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
-                  {employee?.userId && employee?.userDto?.status === 'PENDING_ACTIVATE' ? (
-                    <Grid item>
-                      <Button
-                        variant="contained"
-                        startIcon={<ContentCopy />}
-                        onClick={() => {
-                          void handleGenerateRegisterLink();
-                        }}>
-                        {t('employeeManagement.action.generateRegisterLink')}
-                      </Button>
-                    </Grid>
-                  ) : null}
-                  {employee?.userId && employee?.userDto?.status === 'ACTIVE' ? (
-                    <Grid item>
-                      <Button
-                        variant="contained"
-                        color="error"
-                        startIcon={<LinkOff />}
-                        onClick={() => {
-                          void handleResetLineBinding();
-                        }}>
-                        {t('employeeManagement.action.revokeRegister')}
-                      </Button>
-                    </Grid>
-                  ) : null}
+              <Can permission={PERMISSIONS.EMPLOYEE_EDIT}>
+                <Grid item xs={12} sm="auto" sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                  <Grid container spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
+                    {employee?.userId && employee?.userDto?.status === 'PENDING_ACTIVATE' ? (
+                      <Grid item>
+                        <Button
+                          variant="contained"
+                          startIcon={<ContentCopy />}
+                          onClick={() => {
+                            void handleGenerateRegisterLink();
+                          }}>
+                          {t('employeeManagement.action.generateRegisterLink')}
+                        </Button>
+                      </Grid>
+                    ) : null}
+                    {employee?.userId && employee?.userDto?.status === 'ACTIVE' ? (
+                      <Grid item>
+                        <Button
+                          variant="contained"
+                          color="error"
+                          startIcon={<LinkOff />}
+                          onClick={() => {
+                            void handleResetLineBinding();
+                          }}>
+                          {t('employeeManagement.action.revokeRegister')}
+                        </Button>
+                      </Grid>
+                    ) : null}
+                  </Grid>
                 </Grid>
-              </Grid>
+              </Can>
             </Grid>
           </GridTextField>
           {employee?.hasUser === false ? (
@@ -454,15 +472,17 @@ export default function EmployeeDetail(): JSX.Element {
                     {t('employeeManagement.userNotCreated')}
                   </Typography>
                 </Grid>
-                <Grid item xs={12}>
-                  <Button
-                    variant="contained"
-                    className="btn-indigo-blue"
-                    startIcon={<PersonAdd />}
-                    onClick={() => setOpenCreateUserDialog(true)}>
-                    {t('staffManagement.action.createUser')}
-                  </Button>
-                </Grid>
+                <Can permission={PERMISSIONS.EMPLOYEE_EDIT}>
+                  <Grid item xs={12}>
+                    <Button
+                      variant="contained"
+                      className="btn-indigo-blue"
+                      startIcon={<PersonAdd />}
+                      onClick={() => setOpenCreateUserDialog(true)}>
+                      {t('staffManagement.action.createUser')}
+                    </Button>
+                  </Grid>
+                </Can>
               </Grid>
             </GridTextField>
           ) : (
@@ -517,11 +537,7 @@ export default function EmployeeDetail(): JSX.Element {
                 <TextField
                   fullWidth
                   label={t('employeeManagement.column.role')}
-                  value={
-                    employee?.userDto?.role
-                      ? `${employee.userDto.role.roleNameTh} (${employee.userDto.role.roleCode})`
-                      : '-'
-                  }
+                  value={getUserRoleDisplay(employee?.userDto)}
                   InputProps={{ readOnly: true }}
                   InputLabelProps={{ shrink: true }}
                 />

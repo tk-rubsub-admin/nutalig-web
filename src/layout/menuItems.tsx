@@ -82,7 +82,12 @@ export function useMenuItems() {
       id: 'left_menu__document_management',
       title: t('sidebar.documentManagement.title'),
       icon: Description,
-      allowedPermission: [PERMISSIONS.QUOTATION_VIEW, PERMISSIONS.INVOICE_VIEW, PERMISSIONS.BILLING_VIEW],
+      allowedPermission: [
+        PERMISSIONS.QUOTATION_VIEW,
+        PERMISSIONS.SALE_ORDER_VIEW,
+        PERMISSIONS.INVOICE_VIEW,
+        PERMISSIONS.BILLING_VIEW
+      ],
       children: [
         {
           id: 'left_menu__quotation',
@@ -91,17 +96,11 @@ export function useMenuItems() {
           allowedPermission: [PERMISSIONS.QUOTATION_VIEW]
         },
         {
-          id: 'left_menu__invoice',
-          title: t('sidebar.documentManagement.invoice'),
-          href: ROUTE_PATHS.PRODUCT_LIST,
-          allowedPermission: [PERMISSIONS.INVOICE_VIEW]
-        },
-        {
-          id: 'left_menu__billing',
-          title: t('sidebar.documentManagement.billing'),
-          href: ROUTE_PATHS.PRODUCT_LIST,
-          allowedPermission: [PERMISSIONS.BILLING_VIEW]
-        },
+          id: 'left_menu__sales_order',
+          title: t('sidebar.documentManagement.salesOrder'),
+          href: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.SALE_ORDER_VIEW]
+        }
       ]
     },
     {

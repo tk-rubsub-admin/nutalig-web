@@ -1,7 +1,6 @@
-import { Company } from 'services/Company/company-type';
 import { SystemConfig } from 'services/Config/config-type';
 import { Pagination } from 'services/general-type';
-import { Role } from 'services/User/user-type';
+import { Company, Role } from 'services/User/user-type';
 
 export interface Staff {
   id: string;

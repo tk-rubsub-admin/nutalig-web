@@ -33,6 +33,84 @@ export interface CreateSaleOrderLineRequest {
     remark: string,
     isClaimed: boolean
 }
+
+export type CreateSalesOrderStatus = 'DRAFT' | 'CREATED';
+
+export interface CreateSalesOrderDetailRequest {
+    supplierId: string;
+    name: string;
+    type?: string | null;
+    capacity?: string | null;
+    size?: string | null;
+    spec?: string | null;
+    unitPrice: number;
+    quantity: number;
+    imageUrl?: string | null;
+}
+
+export interface CreateSalesOrderRequestV1 {
+    rfqId?: string;
+    status: CreateSalesOrderStatus;
+    docDate?: string;
+    expireDate?: string;
+    customerId: string;
+    customerAddressId?: string;
+    customerContactId?: string;
+    salesId: string;
+    coSaleId?: string;
+    discount?: number;
+    freight?: number;
+    isVat: boolean;
+    shippingType?: string;
+    remark?: string;
+    items: CreateSalesOrderDetailRequest[];
+}
+
+export interface SearchSalesOrderRequestV1 {
+    salesOrderNo?: string;
+    docDateStart?: string;
+    docDateEnd?: string;
+    customerId?: string;
+    salesId?: string;
+    status?: string;
+    statuses?: string[];
+    keyword?: string;
+}
+
+export interface SalesOrderV1 {
+    salesOrderNo: string;
+    docDate: string | null;
+    expireDate: string | null;
+    status: string;
+    currency: string;
+    customer: Customer | null;
+    saleAccount: Staff | null;
+    coSaleId: string | null;
+    subTotal: number;
+    discount: number;
+    freight: number;
+    vat: number;
+    grandTotal: number;
+    shippingType: string | null;
+    vatRate: number;
+    remark: string | null;
+    revNo: number;
+    items: any[];
+}
+
+export interface SearchSalesOrderResponseV1 {
+    status: string;
+    data: {
+        records: SalesOrderV1[];
+        pagination: Pagination;
+    };
+}
+
+export interface GetSalesOrderResponseV1 {
+    status: string;
+    data: SalesOrderV1;
+}
+
 export interface SearchSaleOrderRequest {
     createdDate: string | null;
     deliveryDate: string | null;

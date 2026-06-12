@@ -63,6 +63,11 @@ const TableHeaderColumn = styled.div`
   padding-left: 10px;
 `;
 
+const getUserRoleDisplay = (user: UserProfileResponse): string => {
+  const role = user.role;
+  return role ? role.roleNameTh || role.roleNameEn || role.roleCode || '-' : '-';
+};
+
 export default function AdminManagement(): JSX.Element {
   const useStyles = makeStyles({
     noResultMessage: {
@@ -213,7 +218,7 @@ export default function AdminManagement(): JSX.Element {
             <TextLineClamp>{user.username}</TextLineClamp>
           </TableCell>
           <TableCell align="left">
-            <TextLineClamp>{user.role.roleNameTh}</TextLineClamp>
+            <TextLineClamp>{getUserRoleDisplay(user)}</TextLineClamp>
           </TableCell>
           <TableCell align="center">
             <TextLineClamp>{t(`userManagement.status.${user.status}`)}</TextLineClamp>

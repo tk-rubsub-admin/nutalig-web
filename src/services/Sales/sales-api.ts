@@ -84,14 +84,19 @@ const toSalesRecord = (employee: EmployeeRecordResponse): SalesRecord => {
 
 export const getSales = async (page = 1, size = 20): Promise<SalesRecord[]> => {
   const response: GetEmployeesResponse = await api
-    .get('/v1/employees', {
-      params: {
-        page,
-        size,
+    .post(
+      '/v1/employees/search',
+      {
         positionEqual: 'INTERNAL_SALES',
         statusEqual: 'ACTIVE'
+      },
+      {
+        params: {
+          page,
+          size
+        }
       }
-    })
+    )
     .then((response) => response.data);
 
   const salesRecords = getEmployeeRecords(response).map(toSalesRecord);

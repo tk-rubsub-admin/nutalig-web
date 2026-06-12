@@ -49,6 +49,9 @@ interface AuthProps {
 
   setRole: (role: Role | string) => void;
   getRole: () => string;
+  getRoles: () => string[];
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
 
   setPermission: (perm: string[]) => void;
   getPermission: () => string[];
@@ -97,6 +100,9 @@ const Auth = createContext<AuthProps>({
 
   setRole: () => undefined,
   getRole: () => '',
+  getRoles: () => [],
+  hasRole: () => false,
+  hasAnyRole: () => false,
 
   setPermission: () => undefined,
   getPermission: () => [],
@@ -202,6 +208,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   const getRole = (): string => {
     return roleState || ls.get<string>(STORAGE_KEYS.ROLE) || '';
+  };
+
+  const getRoles = (): string[] => {
+    const role = getRole();
+    return role ? [role] : [];
   };
 
   const clearRoleAndPermissions = () => {
@@ -372,9 +383,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     await login({ userId: userProfile.id });
 
     setUserId(userProfile.id);
-    setRole(userProfile.role.roleCode);
+    setRole(userProfile.role?.roleCode || '');
     setUsername(userProfile.username);
-    // setPermission(mergePermissions(userProfile.role.roleCode, userProfile.permissions));
     setPermission(userProfile.permissions);
     if (userProfile.employeeId) {
       setEmployeeId(userProfile.employeeId);
@@ -390,12 +400,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
 
     // return role ไว้ใช้ต่อ
-    return userProfile.role.roleCode;
+    return userProfile.role?.roleCode || '';
   };
 
   const hasPermission = (permission: string): boolean => getPermission().includes(permission);
   const hasAnyPermission = (permissions: string[]): boolean =>
     permissions.some((permission) => hasPermission(permission));
+  const hasRole = (role: string): boolean => getRoles().includes(role);
+  const hasAnyRole = (roles: string[]): boolean => roles.some((role) => hasRole(role));
 
   return (
     <Auth.Provider
@@ -413,6 +425,9 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
         setRole,
         getRole,
+        getRoles,
+        hasRole,
+        hasAnyRole,
 
         setPermission,
         getPermission,

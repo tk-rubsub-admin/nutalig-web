@@ -37,7 +37,7 @@ export default function AddNewAdminDialog(props: AddNewAdminDialogProps): JSX.El
       roleCode: ''
     },
     validationSchema: Yup.object().shape({
-      roleCode: Yup.string().max(255).required(t('userManagement.createNewUser.rolePlaceholder'))
+      roleCode: Yup.string().required(t('userManagement.createNewUser.rolePlaceholder'))
     }),
     enableReinitialize: true,
     onSubmit: (values, actions) => {

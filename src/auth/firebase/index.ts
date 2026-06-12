@@ -1,25 +1,19 @@
-import { getApp, getApps, initializeApp } from 'firebase/app';
-import { GoogleAuthProvider, getAuth } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import config from 'config';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: config.firebaseApiKey,
-  authDomain: 'dpk-flower.firebaseapp.com',
-  projectId: 'dpk-flower',
-  storageBucket: 'dpk-flower.firebasestorage.app',
-  messagingSenderId: '761822600699',
-  appId: '1:761822600699:web:f71dfbfdd63ec5379dff5e'
+  apiKey: 'AIzaSyDLqd_K8WiUVFWbtG68XL4AaNSVt_bgTzY',
+  authDomain: 'nutalig-project.firebaseapp.com',
+  projectId: 'nutalig-project',
+  storageBucket: 'nutalig-project.firebasestorage.app',
+  messagingSenderId: '589365124114',
+  appId: '1:589365124114:web:12783b15c7639256300ccb'
 };
 
 // Initialize Firebase
-const fireStoreApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const googleAuthProvider = new GoogleAuthProvider();
-const auth = getAuth(fireStoreApp);
+const app = initializeApp(firebaseConfig);
+const messaging = getMessaging(app);
 
-// 👇 Force Google to show account selection every time
-googleAuthProvider.setCustomParameters({
-  prompt: 'select_account'
-});
-
-export { auth, googleAuthProvider };
+export { messaging, getToken, onMessage };

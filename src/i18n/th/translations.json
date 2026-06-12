@@ -28,6 +28,7 @@
     "documentManagement": {
       "title": "เอกสาร",
       "quotation": "ใบเสนอราคา",
+      "salesOrder": "ใบยืนยันสั่งซื้อ",
       "invoice": "ใบแจ้งหนี้",
       "billing": "ใบวางบิล"
     },

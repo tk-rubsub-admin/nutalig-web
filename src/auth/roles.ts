@@ -17,11 +17,20 @@ export const ROLES = Object.freeze({
   SUPER_ADMIN: 'SUPER_ADMIN'
 });
 
+export type Role = string;
+
 export const hasAllowedRole = (role?: string | null, allowedRoles?: Role[]): boolean => {
   if (!allowedRoles || !allowedRoles.length) {
     return true;
   }
   return !!role && allowedRoles.includes(role);
+};
+
+export const hasAllowedRoles = (roles?: string[] | null, allowedRoles?: Role[]): boolean => {
+  if (!allowedRoles || !allowedRoles.length) {
+    return true;
+  }
+  return !!roles?.length && roles.some((role) => allowedRoles.includes(role));
 };
 
 export const getAdminUserRoleLabel = (

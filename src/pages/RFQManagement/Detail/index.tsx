@@ -1,13 +1,34 @@
-import { Add, ArrowBackIos, DeleteOutline, Download, ExpandLess, ExpandMore, FilePresent, Save } from '@mui/icons-material';
+import {
+  Add,
+  ArrowDropDown,
+  ArrowBackIos,
+  CheckCircle,
+  DeleteOutline,
+  DirectionsBoat,
+  Download,
+  ExpandLess,
+  ExpandMore,
+  FilePresent,
+  LocalShipping,
+  Save
+} from '@mui/icons-material';
 import {
   Box,
   Button,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
+  Radio,
   Stack,
   Tab,
   Table,
@@ -20,7 +41,7 @@ import {
   Typography
 } from '@mui/material';
 import { useAuth } from 'auth/AuthContext';
-import { ROLES } from 'auth/roles';
+import { PERMISSIONS } from 'auth/permissions';
 import { useFormik } from 'formik';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
@@ -32,7 +53,15 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
-import { ChangeEvent, ReactElement, SyntheticEvent, useMemo, useState } from 'react';
+import {
+  ChangeEvent,
+  Fragment,
+  MouseEvent as ReactMouseEvent,
+  ReactElement,
+  SyntheticEvent,
+  useMemo,
+  useState
+} from 'react';
 import toast from 'react-hot-toast';
 import { ROUTE_PATHS } from 'routes';
 import { useTranslation } from 'react-i18next';
@@ -45,13 +74,11 @@ import { SystemConfig } from 'services/Config/config-type';
 import { viewQuotation } from 'services/Document/document-api';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { getProductFamilies } from 'services/Product/product-api';
-import {
-  ProductFamily,
-  ProductSubtype1,
-  ProductSubtype2
-} from 'services/Product/product-type';
+import { ProductFamily, ProductSubtype1, ProductSubtype2 } from 'services/Product/product-type';
+import { downloadSaleOrder } from 'services/SaleOrder/sale-order-api';
 import {
   createRFQAdditionalCosts,
+  addRFQAttachments,
   addRFQPictures,
   createRFQDetails,
   deleteRFQAdditionalCost,
@@ -75,6 +102,7 @@ import {
 } from 'services/RFQ/rfq-type';
 import { base64ToBlob } from 'utils';
 import CreateRFQCustomerDialog from './CreateRFQCustomerDialog';
+import Can from 'auth/Can';
 
 interface RFQDetailParam {
   id: string;
@@ -109,6 +137,13 @@ interface DraftAdditionalCost {
   description: string;
   value: string;
   unit: string;
+}
+
+interface ConfirmRfqTierRow {
+  key: string;
+  detail: RFQDetailOption;
+  tier: RFQDetailTier;
+  optionIndex: number;
 }
 
 function TabPanel({
@@ -171,9 +206,9 @@ function getNamedCodeValueCode<T extends { code?: string }>(value?: T | string |
   return value.code || '';
 }
 
-function getNamedCodeValueLabel<T extends { code?: string; nameTh?: string | null; nameEn?: string | null }>(
-  value?: T | string | null
-): string {
+function getNamedCodeValueLabel<
+  T extends { code?: string; nameTh?: string | null; nameEn?: string | null }
+>(value?: T | string | null): string {
   if (!value) {
     return '';
   }
@@ -220,13 +255,57 @@ function getEmployeeLabel(employee?: RFQEmployee | null): string {
 
   const employeeId = employee.employeeId || employee.salesId || '';
   const nickname = employee.nickName || employee.nickname || '';
-  const name = [employee.firstNameTh, employee.lastNameTh]
-    .filter(Boolean)
-    .join(' ');
+  const name = [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ');
 
   return [employeeId, nickname ? `- ${nickname}` : '', name ? `(${name})` : '']
     .filter(Boolean)
     .join(' ');
+}
+
+function AttachmentFileUploader({
+  id,
+  inputId,
+  isDisabled,
+  readOnly,
+  isMultiple,
+  onChange
+}: {
+  id: string;
+  inputId: string;
+  isDisabled: boolean;
+  readOnly?: boolean;
+  isMultiple: boolean;
+  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+  isError: boolean;
+}): JSX.Element {
+  return (
+    <Stack direction="column" alignItems="center" spacing={1}>
+      <Stack direction="row" alignItems="center">
+        {!readOnly && (
+          <Button
+            id={`${id}__upload_button_${inputId}`}
+            variant="contained"
+            className="btn-baby-blue"
+            component="label"
+            startIcon={<FilePresent />}
+            size="large"
+            sx={{ mt: 1 }}
+            disabled={isDisabled}>
+            อัปโหลดไฟล์
+            <input
+              hidden
+              type="file"
+              multiple={isMultiple}
+              id={`${id}_document_uploader_button_${inputId}`}
+              name={inputId}
+              onChange={onChange}
+              disabled={isDisabled}
+            />
+          </Button>
+        )}
+      </Stack>
+    </Stack>
+  );
 }
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
@@ -246,7 +325,7 @@ function isImageFile(file?: RFQFileResource | null): boolean {
   const fileType = (file?.fileType || '').toUpperCase();
   const mimeType = (file?.mimeType || '').toLowerCase();
   const fileUrl = getRFQFileUrl(file).toLowerCase();
-  console.log('File Type : ' + fileType)
+  console.log('File Type : ' + fileType);
   if (fileType === 'PICTURE' || fileType === 'IMAGE') {
     return true;
   }
@@ -273,7 +352,7 @@ function getRFQPictureResources(rfq?: RFQRecord): RFQFileResource[] {
 }
 
 function getRFQAttachmentResources(rfq?: RFQRecord): RFQFileResource[] {
-  console.log('xxx:', rfq)
+  console.log('xxx:', rfq);
   if (Array.isArray(rfq?.pictures) && rfq.pictures.length > 0) {
     return rfq.pictures.filter((file) => !isImageFile(file));
   }
@@ -380,8 +459,10 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
     orderTypeCode: rfq?.orderType?.code || '',
     productFamily: getProductFamilyCode(rfq?.productFamily),
-    productUsage: getNamedCodeValueCode<RFQProductSubtype1>(rfq?.productSubtype1) || rfq?.productUsage || '',
-    systemMechanic: getNamedCodeValueCode<RFQProductSubtype2>(rfq?.productSubType2) || rfq?.systemMechanic || '',
+    productUsage:
+      getNamedCodeValueCode<RFQProductSubtype1>(rfq?.productSubtype1) || rfq?.productUsage || '',
+    systemMechanic:
+      getNamedCodeValueCode<RFQProductSubtype2>(rfq?.productSubType2) || rfq?.systemMechanic || '',
     material: getNamedCodeValueCode<RFQProductMaterial>(rfq?.material),
     capacity: rfq?.capacity || '',
     description: rfq?.description || ''
@@ -402,6 +483,16 @@ const actionButtonSx = {
   fontWeight: 700,
   boxShadow: 'none',
   '&:hover': {
+    boxShadow: 'none'
+  }
+};
+
+const confirmPriceButtonSx = {
+  ...actionButtonSx,
+  backgroundColor: '#16A34A',
+  color: '#FFFFFF',
+  '&:hover': {
+    backgroundColor: '#15803D',
     boxShadow: 'none'
   }
 };
@@ -441,6 +532,16 @@ function formatAdditionalCostValue(value?: string | null, unit?: string | null):
 
 function getSortedDetailOptions(details?: RFQDetailOption[]): RFQDetailOption[] {
   return [...(details || [])].sort((left, right) => left.sortOrder - right.sortOrder);
+}
+
+type ConfirmRfqShippingMethod = 'LAND' | 'SEA';
+
+function getConfirmRfqTierKey(
+  detailId: number,
+  tierId: number,
+  shippingMethod: ConfirmRfqShippingMethod
+): string {
+  return `${detailId}:${tierId}:${shippingMethod}`;
 }
 
 function getSortedAdditionalCosts(additionalCosts?: RFQAdditionalCost[]): RFQAdditionalCost[] {
@@ -541,7 +642,7 @@ function validateDraftDetail(detail: RFQDetailOption): DraftDetailValidationErro
     }
 
     if (!isNonNegativeNumber(tier.landFreightCost)) {
-      tierError.landFreightCost = `Tier ${index + 1}: ค่าขนส่งทางบกต้องเป็น 0 หรือมากกว่า`;
+      tierError.landFreightCost = `Tier ${index + 1}: ค่าขนส่งทางรถต้องเป็น 0 หรือมากกว่า`;
     }
 
     if (!isNonNegativeNumber(tier.seaFreightCost)) {
@@ -564,8 +665,7 @@ export default function RFQDetail(): ReactElement {
   const params = useParams<RFQDetailParam>();
   const { t } = useTranslation();
   const history = useHistory();
-  const { getRole } = useAuth();
-  const roleCode = getRole();
+  const { hasPermission } = useAuth();
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [visibleDetailSaveConfirmationDialog, setVisibleDetailSaveConfirmationDialog] =
@@ -573,6 +673,8 @@ export default function RFQDetail(): ReactElement {
   const [visibleMissingCustomerConfirmationDialog, setVisibleMissingCustomerConfirmationDialog] =
     useState(false);
   const [visibleCreateCustomerDialog, setVisibleCreateCustomerDialog] = useState(false);
+  const [visibleConfirmRfqDialog, setVisibleConfirmRfqDialog] = useState(false);
+  const [selectedConfirmRfqTierKey, setSelectedConfirmRfqTierKey] = useState('');
   const [draftDetailOptions, setDraftDetailOptions] = useState<RFQDetailOption[]>([]);
   const [draftDetailErrors, setDraftDetailErrors] = useState<
     Record<number, DraftDetailValidationError>
@@ -586,8 +688,10 @@ export default function RFQDetail(): ReactElement {
     useState<RFQAdditionalCost | null>(null);
   const [isPictureSubmitting, setIsPictureSubmitting] = useState(false);
   const [isQuotationDocumentLoading, setIsQuotationDocumentLoading] = useState(false);
-  const isSalesPermission = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SALES].includes(roleCode);
-  const isProcurementPermission = [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT].includes(roleCode);
+  const [downloadMenuAnchorEl, setDownloadMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const isSalesPermission = hasPermission(PERMISSIONS.RFQ_EDIT);
+  const isAllowUploadAttachment = hasPermission(PERMISSIONS.RFQ_UPLOAD_FILE);
+  const isDownloadMenuOpen = Boolean(downloadMenuAnchorEl);
 
   const {
     data: rfq,
@@ -660,9 +764,7 @@ export default function RFQDetail(): ReactElement {
 
   const selectedProductFamily = useMemo(
     () =>
-      productFamilyList.find(
-        (item: ProductFamily) => item.code === formik.values.productFamily
-      ),
+      productFamilyList.find((item: ProductFamily) => item.code === formik.values.productFamily),
     [formik.values.productFamily, productFamilyList]
   );
 
@@ -670,9 +772,7 @@ export default function RFQDetail(): ReactElement {
 
   const selectedProductUsage = useMemo(
     () =>
-      productUsageOptions.find(
-        (item: ProductSubtype1) => item.code === formik.values.productUsage
-      ),
+      productUsageOptions.find((item: ProductSubtype1) => item.code === formik.values.productUsage),
     [formik.values.productUsage, productUsageOptions]
   );
 
@@ -752,7 +852,88 @@ export default function RFQDetail(): ReactElement {
     history.push(ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ.replace(':rfqId', params.id));
   };
 
+  const handleOpenConfirmRfqDialog = () => {
+    if (rfq?.saleOrderId) {
+      history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', rfq.saleOrderId));
+      return;
+    }
+
+    if (!confirmRfqTierRows.length) {
+      toast.error('ยังไม่มี Option, Tier หรือวิธีการขนส่งสำหรับคอนเฟิร์มราคา');
+      return;
+    }
+
+    setSelectedConfirmRfqTierKey('');
+    setVisibleConfirmRfqDialog(true);
+  };
+
+  const handleConfirmRfqPrice = () => {
+    if (!selectedConfirmRfqTierKey) {
+      toast.error('กรุณาเลือก Option, MOQ และวิธีการขนส่งที่ต้องการคอนเฟิร์มราคา');
+      return;
+    }
+
+    const [selectedDetailId, selectedTierId, selectedShippingMethod] =
+      selectedConfirmRfqTierKey.split(':');
+    const selectedDetailIndex = detailOptions.findIndex(
+      (detail) => detail.id === Number(selectedDetailId)
+    );
+    const selectedDetail = detailOptions[selectedDetailIndex];
+    const selectedTier = selectedDetail?.tiers.find((tier) => tier.id === Number(selectedTierId));
+
+    if (!selectedDetail || !selectedTier) {
+      toast.error('ไม่พบข้อมูล Option หรือ MOQ ที่เลือก');
+      return;
+    }
+
+    const optionLabel = selectedDetail.optionName || `Option ${selectedDetailIndex + 1}`;
+    const shippingLabel = selectedShippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
+    const selectedPrice =
+      selectedShippingMethod === 'SEA' ? selectedTier.seaTotalPrice : selectedTier.landTotalPrice;
+
+    const query = new URLSearchParams({
+      detailId: String(selectedDetail.id),
+      tierId: String(selectedTier.id),
+      shippingMethod: selectedShippingMethod
+    });
+
+    setVisibleConfirmRfqDialog(false);
+    toast.success(
+      `เลือก ${optionLabel} MOQ ${formatQuantity(selectedTier.quantity)} ${shippingLabel} ราคา ${formatPrice(selectedPrice)}`
+    );
+    history.push(
+      `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', params.id)}?${query.toString()}`
+    );
+  };
+
+  const handleOpenDownloadMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    setDownloadMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseDownloadMenu = () => {
+    setDownloadMenuAnchorEl(null);
+  };
+
+  const downloadDocumentFiles = (data: DownloadDocumentResponse, emptyMessage: string) => {
+    if (!data.files?.length) {
+      throw new Error(emptyMessage);
+    }
+
+    data.files.forEach((file) => {
+      const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.download = file.fileName;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    });
+  };
+
   const handleDownloadQuotation = async () => {
+    handleCloseDownloadMenu();
+
     if (!rfq?.quotationNo) {
       return;
     }
@@ -765,19 +946,33 @@ export default function RFQDetail(): ReactElement {
         success: (response) => {
           const data = response.data as DownloadDocumentResponse;
 
-          if (!data.files?.length) {
-            throw new Error('No quotation file');
-          }
+          downloadDocumentFiles(data, 'No quotation file');
 
-          const file = data.files[0];
-          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
+          return t('toast.success');
+        },
+        error: () => t('toast.failed')
+      });
+    } finally {
+      setIsQuotationDocumentLoading(false);
+    }
+  };
 
-          link.href = url;
-          link.download = file.fileName;
-          link.click();
-          window.URL.revokeObjectURL(url);
+  const handleDownloadSalesOrder = async () => {
+    handleCloseDownloadMenu();
+
+    if (!rfq?.saleOrderId) {
+      return;
+    }
+
+    setIsQuotationDocumentLoading(true);
+
+    try {
+      await toast.promise(downloadSaleOrder(rfq.saleOrderId, 'PDF', true, false), {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const data = response.data as DownloadDocumentResponse;
+
+          downloadDocumentFiles(data, 'No sales order file');
 
           return t('toast.success');
         },
@@ -804,6 +999,20 @@ export default function RFQDetail(): ReactElement {
     () => getSortedDetailOptions([...(rfq?.details || []), ...draftDetailOptions]),
     [draftDetailOptions, rfq?.details]
   );
+  const confirmRfqTierRows = useMemo<ConfirmRfqTierRow[]>(() => {
+    return detailOptions.flatMap((detail, optionIndex) => {
+      const sortedTiers = [...(detail.tiers || [])].sort(
+        (left, right) => left.sortOrder - right.sortOrder
+      );
+
+      return sortedTiers.map((tier) => ({
+        key: getConfirmRfqTierKey(detail.id, tier.id, 'LAND'),
+        detail,
+        tier,
+        optionIndex
+      }));
+    });
+  }, [detailOptions]);
   const additionalCosts = useMemo(
     () => getSortedAdditionalCosts(rfq?.additionalCosts),
     [rfq?.additionalCosts]
@@ -817,6 +1026,7 @@ export default function RFQDetail(): ReactElement {
     [rfq?.serviceLevelAgreement?.dayType, rfq?.status, slaDayLeft]
   );
   const pictureResources = useMemo(() => getRFQPictureResources(rfq), [rfq]);
+  const canEditPictures = isAllowUploadAttachment && pictureResources.length < 5;
   const attachmentResources = useMemo(() => getRFQAttachmentResources(rfq), [rfq]);
   const hasDraftDetailOptions = draftDetailOptions.length > 0;
 
@@ -900,6 +1110,24 @@ export default function RFQDetail(): ReactElement {
     try {
       setIsPictureSubmitting(true);
       await toast.promise(addRFQPictures(params.id, filesToUpload), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+      await refetchRFQ();
+    } finally {
+      setIsPictureSubmitting(false);
+    }
+  };
+
+  const handleUploadAttachments = async (files: File[]) => {
+    if (!params.id || !files.length) {
+      return;
+    }
+
+    try {
+      setIsPictureSubmitting(true);
+      await toast.promise(addRFQAttachments(params.id, files), {
         loading: t('toast.loading'),
         success: t('toast.success'),
         error: t('toast.failed')
@@ -1217,24 +1445,63 @@ export default function RFQDetail(): ReactElement {
       </PageTitle>
       <Wrapper>
         <Stack spacing={2}>
-          <Stack direction="row" justifyContent="flex-end">
-            {rfq?.quotationNo ? (
-              <Button
-                variant="contained"
-                startIcon={<Download />}
-                sx={actionButtonSx}
-                disabled={isQuotationDocumentLoading}
-                onClick={handleDownloadQuotation}
-              >
-                ดาวน์โหลด ใบเสนอราคา
-              </Button>
+          <Stack direction="row" justifyContent="flex-end" spacing={1} flexWrap="wrap" useFlexGap>
+            {rfq?.status === 'QUOTED' ? (
+              <Can permission={PERMISSIONS.RFQ_CONFIRM}>
+                <Button
+                  variant="contained"
+                  startIcon={<CheckCircle />}
+                  sx={confirmPriceButtonSx}
+                  onClick={handleOpenConfirmRfqDialog}>
+                  คอนเฟิร์มราคา
+                </Button>
+              </Can>
+            ) : null}
+            {rfq?.saleOrderId || rfq?.quotationNo ? (
+              <>
+                <Button
+                  variant="contained"
+                  startIcon={<Download />}
+                  endIcon={<ArrowDropDown />}
+                  sx={actionButtonSx}
+                  disabled={isQuotationDocumentLoading}
+                  onClick={handleOpenDownloadMenu}
+                  aria-controls={isDownloadMenuOpen ? 'rfq-download-menu' : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={isDownloadMenuOpen ? 'true' : undefined}>
+                  ดาวน์โหลด
+                </Button>
+                <Menu
+                  id="rfq-download-menu"
+                  anchorEl={downloadMenuAnchorEl}
+                  open={isDownloadMenuOpen}
+                  onClose={handleCloseDownloadMenu}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                  PaperProps={{
+                    sx: {
+                      minWidth: downloadMenuAnchorEl?.offsetWidth || undefined
+                    }
+                  }}
+                  keepMounted>
+                  {rfq?.quotationNo ? (
+                    <MenuItem onClick={handleDownloadQuotation} sx={{ width: '100%' }}>
+                      <ListItemText primary="ใบเสนอราคา" />
+                    </MenuItem>
+                  ) : null}
+                  {rfq?.saleOrderId ? (
+                    <MenuItem onClick={handleDownloadSalesOrder} sx={{ width: '100%' }}>
+                      <ListItemText primary="ใบยืนยันสั่งซื้อ" />
+                    </MenuItem>
+                  ) : null}
+                </Menu>
+              </>
             ) : rfq?.status === 'QUOTED' ? (
               <Button
                 variant="contained"
                 startIcon={<FilePresent />}
                 sx={actionButtonSx}
-                onClick={handleRequestQuotation}
-              >
+                onClick={handleRequestQuotation}>
                 ขอใบเสนอราคา
               </Button>
             ) : null}
@@ -1422,7 +1689,11 @@ export default function RFQDetail(): ReactElement {
                       error={Boolean(formik.touched.productUsage && formik.errors.productUsage)}
                       helperText={formik.touched.productUsage && formik.errors.productUsage}
                       InputLabelProps={{ shrink: true }}
-                      disabled={!isSalesPermission || !formik.values.productFamily || isProductFamilyFetching}>
+                      disabled={
+                        !isSalesPermission ||
+                        !formik.values.productFamily ||
+                        isProductFamilyFetching
+                      }>
                       {!formik.values.productFamily ? (
                         <MenuItem disabled value="">
                           กรุณาเลือก Product Family ก่อน
@@ -1457,23 +1728,28 @@ export default function RFQDetail(): ReactElement {
                       error={Boolean(formik.touched.systemMechanic && formik.errors.systemMechanic)}
                       helperText={formik.touched.systemMechanic && formik.errors.systemMechanic}
                       InputLabelProps={{ shrink: true }}
-                      disabled={!isSalesPermission || !formik.values.productUsage || isProductFamilyFetching}>
+                      disabled={
+                        !isSalesPermission || !formik.values.productUsage || isProductFamilyFetching
+                      }>
                       {!formik.values.productUsage ? (
                         <MenuItem disabled value="">
                           กรุณาเลือก Product Subtype1 ก่อน
                         </MenuItem>
                       ) : null}
-                      {formik.values.productUsage ? <MenuItem value="">ไม่บังคับเลือก</MenuItem> : null}
+                      {formik.values.productUsage ? (
+                        <MenuItem value="">ไม่บังคับเลือก</MenuItem>
+                      ) : null}
                       {formik.values.systemMechanic && !hasSystemMechanicOption ? (
                         <MenuItem value={formik.values.systemMechanic}>
                           {systemMechanicLabel || formik.values.systemMechanic}
                         </MenuItem>
                       ) : null}
-                      {formik.values.productUsage && systemMechanicOptions.map((productSubtype2: ProductSubtype2) => (
-                        <MenuItem key={productSubtype2.code} value={productSubtype2.code}>
-                          {getProductSubtype2DisplayName(productSubtype2)}
-                        </MenuItem>
-                      ))}
+                      {formik.values.productUsage &&
+                        systemMechanicOptions.map((productSubtype2: ProductSubtype2) => (
+                          <MenuItem key={productSubtype2.code} value={productSubtype2.code}>
+                            {getProductSubtype2DisplayName(productSubtype2)}
+                          </MenuItem>
+                        ))}
                     </TextField>
                   </GridTextField>
                   <GridTextField item xs={12} sm={6}>
@@ -1511,7 +1787,8 @@ export default function RFQDetail(): ReactElement {
                       label="Created Date"
                       value={
                         rfq?.createdDate
-                          ? `${dayjs(rfq.createdDate).format('DD/MM/YYYY HH:mm')} By ${rfq?.createdBy || '-'}`
+                          ? `${dayjs(rfq.createdDate).format('DD/MM/YYYY HH:mm')} By ${rfq?.createdBy || '-'
+                          }`
                           : ''
                       }
                       InputLabelProps={{ shrink: true }}
@@ -1524,7 +1801,8 @@ export default function RFQDetail(): ReactElement {
                       label="Updated Date"
                       value={
                         rfq?.updatedDate
-                          ? `${dayjs(rfq.updatedDate).format('DD/MM/YYYY HH:mm')} By ${rfq?.updatedBy || '-'}`
+                          ? `${dayjs(rfq.updatedDate).format('DD/MM/YYYY HH:mm')} By ${rfq?.updatedBy || '-'
+                          }`
                           : ''
                       }
                       InputLabelProps={{ shrink: true }}
@@ -1558,12 +1836,8 @@ export default function RFQDetail(): ReactElement {
                     <ImageFileUploaderWrapper
                       id="rfq-detail-picture-uploader"
                       inputId="rfq-detail-pictures"
-                      isDisabled={
-                        !isSalesPermission ||
-                        isPictureSubmitting ||
-                        pictureResources.length >= 5
-                      }
-                      readOnly={!isSalesPermission}
+                      isDisabled={!canEditPictures || isPictureSubmitting}
+                      readOnly={!canEditPictures}
                       maxFiles={5}
                       isMultiple
                       isError={false}
@@ -1580,6 +1854,23 @@ export default function RFQDetail(): ReactElement {
                     <Typography variant="subtitle1" fontWeight={600}>
                       ไฟล์แนบ
                     </Typography>
+                  </GridTextField>
+                  <GridTextField item xs={12}>
+                    <ImageFileUploaderWrapper
+                      id="rfq-detail-attachment-uploader"
+                      inputId="rfq-detail-attachments"
+                      isDisabled={!isAllowUploadAttachment || isPictureSubmitting}
+                      readOnly={!isAllowUploadAttachment}
+                      isMultiple
+                      isError={false}
+                      files={[]}
+                      onError={() => undefined}
+                      onDeleted={() => undefined}
+                      onSuccess={(files) => {
+                        void handleUploadAttachments(files);
+                      }}
+                      fileUploader={AttachmentFileUploader}
+                    />
                   </GridTextField>
                   <GridTextField item xs={12}>
                     {attachmentResources.length ? (
@@ -1638,38 +1929,7 @@ export default function RFQDetail(): ReactElement {
                   </GridTextField>
                 </Grid>
               </CollapsibleWrapper>
-              <CollapsibleWrapper
-                title="ตัวเลือกราคา"
-                defaultExpanded
-                action={
-                  // isProcurementPermission ? (
-                  //   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-                  //     <Button
-                  //       variant="contained"
-                  //       size="small"
-                  //       startIcon={<Add />}
-                  //       className="btn-emerald-green"
-                  //       sx={actionButtonSx}
-                  //       onClick={handleAddDetailOption}
-                  //       disabled={formik.isSubmitting || isPictureSubmitting}>
-                  //       เพิ่มตัวเลือกราคา
-                  //     </Button>
-                  //     {hasDraftDetailOptions ? (
-                  //       <Button
-                  //         variant="contained"
-                  //         size="small"
-                  //         startIcon={<Save />}
-                  //         className="btn-emerald-green"
-                  //         sx={actionButtonSx}
-                  //         onClick={() => setVisibleDetailSaveConfirmationDialog(true)}
-                  //         disabled={formik.isSubmitting || isPictureSubmitting}>
-                  //         บันทึกตัวเลือกราคา
-                  //       </Button>
-                  //     ) : null}
-                  //   </Stack>
-                  // ) : null
-                  null
-                }>
+              <CollapsibleWrapper title="ตัวเลือกราคา" defaultExpanded action={null}>
                 <Stack spacing={2}>
                   {detailOptions.length ? (
                     detailOptions.map((detail, index) => {
@@ -1822,22 +2082,6 @@ export default function RFQDetail(): ReactElement {
                                   <ExpandLess fontSize="small" />
                                 )}
                               </IconButton>
-                              {isProcurementPermission ? (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => setSelectedDetailToDelete(detail)}
-                                  disabled={formik.isSubmitting || isPictureSubmitting}
-                                  sx={{
-                                    color: '#c62828',
-                                    backgroundColor: '#fff5f5',
-                                    border: '1px solid #ffd7d7',
-                                    '&:hover': {
-                                      backgroundColor: '#ffe5e5'
-                                    }
-                                  }}>
-                                  <DeleteOutline fontSize="small" />
-                                </IconButton>
-                              ) : null}
                             </Stack>
                           </Box>
 
@@ -1880,9 +2124,9 @@ export default function RFQDetail(): ReactElement {
                                         }}>
                                         <TableCell>MOQ</TableCell>
                                         <TableCell>ราคาสินค้า</TableCell>
-                                        <TableCell>ค่าขนส่งทางบก</TableCell>
+                                        <TableCell>ค่าขนส่งทางรถ</TableCell>
                                         <TableCell>ค่าขนส่งทางเรือ</TableCell>
-                                        <TableCell align="right">รวมทางบก</TableCell>
+                                        <TableCell align="right">รวมทางรถ</TableCell>
                                         <TableCell align="right">รวมทางเรือ</TableCell>
                                         <TableCell align="center">จัดการ</TableCell>
                                       </TableRow>
@@ -2025,8 +2269,8 @@ export default function RFQDetail(): ReactElement {
                                       }}>
                                       <TableCell>MOQ</TableCell>
                                       <TableCell align="right">ราคาสินค้า</TableCell>
-                                      <TableCell align="right">ค่าขนส่งทางบก</TableCell>
-                                      <TableCell align="right">รวมทางบก</TableCell>
+                                      <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
+                                      <TableCell align="right">รวมทางรถ</TableCell>
                                       <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
                                       <TableCell align="right">รวมทางเรือ</TableCell>
                                     </TableRow>
@@ -2077,9 +2321,7 @@ export default function RFQDetail(): ReactElement {
                               )}
                             </Box>
 
-                            <Stack
-                              spacing={1.5}
-                              sx={{ display: { xs: 'flex', md: 'none' }, p: 2 }}>
+                            <Stack spacing={1.5} sx={{ display: { xs: 'flex', md: 'none' }, p: 2 }}>
                               {isDraftDetail ? (
                                 <>
                                   <Stack
@@ -2124,7 +2366,9 @@ export default function RFQDetail(): ReactElement {
                                               error={Boolean(
                                                 detailError.tierErrors?.[tier.id]?.quantity
                                               )}
-                                              helperText={detailError.tierErrors?.[tier.id]?.quantity}
+                                              helperText={
+                                                detailError.tierErrors?.[tier.id]?.quantity
+                                              }
                                               onChange={(event) =>
                                                 handleDraftTierChange(
                                                   detail.id,
@@ -2163,7 +2407,7 @@ export default function RFQDetail(): ReactElement {
                                               fullWidth
                                               size="small"
                                               type="number"
-                                              label="ค่าขนส่งทางบก"
+                                              label="ค่าขนส่งทางรถ"
                                               value={tier.landFreightCost}
                                               error={Boolean(
                                                 detailError.tierErrors?.[tier.id]?.landFreightCost
@@ -2206,7 +2450,7 @@ export default function RFQDetail(): ReactElement {
                                           </Grid>
                                           <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">
-                                              รวมทางบก
+                                              รวมทางรถ
                                             </Typography>
                                             <Typography
                                               variant="body2"
@@ -2277,7 +2521,7 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
-                                          ค่าขนส่งทางบก
+                                          ค่าขนส่งทางรถ
                                         </Typography>
                                         <Typography variant="body2" fontWeight={600}>
                                           {formatPrice(tier.landFreightCost)}
@@ -2285,9 +2529,12 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
-                                          รวมทางบก
+                                          รวมทางรถ
                                         </Typography>
-                                        <Typography variant="body2" fontWeight={700} color="#1565c0">
+                                        <Typography
+                                          variant="body2"
+                                          fontWeight={700}
+                                          color="#1565c0">
                                           {formatPrice(tier.landTotalPrice)}
                                         </Typography>
                                       </Grid>
@@ -2303,7 +2550,10 @@ export default function RFQDetail(): ReactElement {
                                         <Typography variant="caption" color="text.secondary">
                                           รวมทางเรือ
                                         </Typography>
-                                        <Typography variant="body2" fontWeight={700} color="#00897b">
+                                        <Typography
+                                          variant="body2"
+                                          fontWeight={700}
+                                          color="#00897b">
                                           {formatPrice(tier.seaTotalPrice)}
                                         </Typography>
                                       </Grid>
@@ -2344,38 +2594,7 @@ export default function RFQDetail(): ReactElement {
                   )}
                 </Stack>
               </CollapsibleWrapper>
-              <CollapsibleWrapper
-                title="รายละเอียดเพิ่มเติม"
-                defaultExpanded
-                action={
-                  // isProcurementPermission ? (
-                  //   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-                  //     <Button
-                  //       variant="contained"
-                  //       size="small"
-                  //       startIcon={<Add />}
-                  //       className="btn-emerald-green"
-                  //       sx={actionButtonSx}
-                  //       onClick={handleAddAdditionalCost}
-                  //       disabled={formik.isSubmitting || isPictureSubmitting}>
-                  //       เพิ่มรายละเอียด
-                  //     </Button>
-                  //     {draftAdditionalCosts.length ? (
-                  //       <Button
-                  //         variant="contained"
-                  //         size="small"
-                  //         startIcon={<Save />}
-                  //         className="btn-emerald-green"
-                  //         sx={actionButtonSx}
-                  //         onClick={handleSaveAdditionalCosts}
-                  //         disabled={formik.isSubmitting || isPictureSubmitting}>
-                  //         บันทึก
-                  //       </Button>
-                  //     ) : null}
-                  //   </Stack>
-                  // ) : null
-                  null
-                }>
+              <CollapsibleWrapper title="รายละเอียดเพิ่มเติม" defaultExpanded action={null}>
                 {additionalCosts.length || draftAdditionalCosts.length ? (
                   <Box
                     sx={{
@@ -2398,11 +2617,6 @@ export default function RFQDetail(): ReactElement {
                             Name
                           </TableCell>
                           <TableCell>Description</TableCell>
-                          {isProcurementPermission ? (
-                            <TableCell align="center" width="88">
-                              จัดการ
-                            </TableCell>
-                          ) : null}
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -2418,24 +2632,6 @@ export default function RFQDetail(): ReactElement {
                             <TableCell>
                               {formatAdditionalCostValue(additionalCost.value, additionalCost.unit)}
                             </TableCell>
-                            {isProcurementPermission ? (
-                              <TableCell align="center">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => setSelectedAdditionalCostToDelete(additionalCost)}
-                                  disabled={formik.isSubmitting || isPictureSubmitting}
-                                  sx={{
-                                    color: '#c62828',
-                                    backgroundColor: '#fff5f5',
-                                    border: '1px solid #ffd7d7',
-                                    '&:hover': {
-                                      backgroundColor: '#ffe5e5'
-                                    }
-                                  }}>
-                                  <DeleteOutline fontSize="small" />
-                                </IconButton>
-                              </TableCell>
-                            ) : null}
                           </TableRow>
                         ))}
                         {draftAdditionalCosts.map((additionalCost) => (
@@ -2489,23 +2685,6 @@ export default function RFQDetail(): ReactElement {
                                 />
                               </Stack>
                             </TableCell>
-                            {isProcurementPermission ? (
-                              <TableCell align="center">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteDraftAdditionalCost(additionalCost.id)}
-                                  sx={{
-                                    color: '#c62828',
-                                    backgroundColor: '#fff5f5',
-                                    border: '1px solid #ffd7d7',
-                                    '&:hover': {
-                                      backgroundColor: '#ffe5e5'
-                                    }
-                                  }}>
-                                  <DeleteOutline fontSize="small" />
-                                </IconButton>
-                              </TableCell>
-                            ) : null}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -2573,7 +2752,8 @@ export default function RFQDetail(): ReactElement {
       <ConfirmDialog
         open={Boolean(selectedAdditionalCostToDelete)}
         title="ยืนยันลบรายละเอียดเพิ่มเติม"
-        message={`คุณยืนยันลบ ${selectedAdditionalCostToDelete?.description || 'รายละเอียดเพิ่มเติม'} ใช่หรือไม่`}
+        message={`คุณยืนยันลบ ${selectedAdditionalCostToDelete?.description || 'รายละเอียดเพิ่มเติม'
+          } ใช่หรือไม่`}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -2595,6 +2775,195 @@ export default function RFQDetail(): ReactElement {
         }}
         onCancel={() => setVisibleMissingCustomerConfirmationDialog(false)}
       />
+      <Dialog
+        open={visibleConfirmRfqDialog}
+        fullWidth
+        maxWidth="lg"
+        disableEnforceFocus
+        onClose={() => setVisibleConfirmRfqDialog(false)}>
+        <DialogTitle>คอนเฟิร์มราคา</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              เลือก Option, MOQ และวิธีการขนส่งที่ต้องการใช้สำหรับคอนเฟิร์มราคา
+            </Typography>
+            {confirmRfqTierRows.length ? (
+              <Box sx={{ overflowX: 'auto' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        '& th': {
+                          fontWeight: 700,
+                          backgroundColor: '#f8fafc',
+                          whiteSpace: 'nowrap'
+                        }
+                      }}>
+                      <TableCell align="center" width={64}>
+                        เลือก
+                      </TableCell>
+                      <TableCell align="center">MOQ</TableCell>
+                      <TableCell align="center">วิธีการขนส่งสินค้า</TableCell>
+                      <TableCell align="center">ราคาสินค้า</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {detailOptions.map((detail, optionIndex) => {
+                      const sortedTiers = [...(detail.tiers || [])].sort(
+                        (left, right) => left.sortOrder - right.sortOrder
+                      );
+
+                      return (
+                        <Fragment key={detail.id}>
+                          <TableRow
+                            key={`option-${detail.id}`}
+                            sx={{
+                              '& td': {
+                                backgroundColor: '#eef6ff',
+                                borderBottom: '1px solid #cfe4ff'
+                              }
+                            }}>
+                            <TableCell colSpan={4}>
+                              <Stack spacing={0.5}>
+                                <Typography variant="body2" fontWeight={800} color="#185ea8">
+                                  {detail.optionName || `Option ${optionIndex + 1}`}
+                                </Typography>
+                                {detail.spec ? (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ whiteSpace: 'pre-line' }}>
+                                    {detail.spec}
+                                  </Typography>
+                                ) : null}
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                          {sortedTiers.length ? (
+                            sortedTiers.map((tier) => {
+                              const landKey = getConfirmRfqTierKey(detail.id, tier.id, 'LAND');
+                              const seaKey = getConfirmRfqTierKey(detail.id, tier.id, 'SEA');
+                              const optionLabel = detail.optionName || `Option ${optionIndex + 1}`;
+
+                              return (
+                                <Fragment key={`${detail.id}-${tier.id}`}>
+                                  <TableRow
+                                    hover
+                                    selected={selectedConfirmRfqTierKey === landKey}
+                                    onClick={() => setSelectedConfirmRfqTierKey(landKey)}
+                                    sx={{
+                                      cursor: 'pointer'
+                                    }}>
+                                    <TableCell align="center">
+                                      <Radio
+                                        checked={selectedConfirmRfqTierKey === landKey}
+                                        value={landKey}
+                                        onChange={(event) =>
+                                          setSelectedConfirmRfqTierKey(event.target.value)
+                                        }
+                                        inputProps={{
+                                          'aria-label': `${optionLabel} MOQ ${formatQuantity(tier.quantity)} ส่งทางรถ ${formatPrice(tier.landTotalPrice)}`
+                                        }}
+                                      />
+                                    </TableCell>
+                                    <TableCell align="center" sx={{ fontWeight: 600 }}>
+                                      {formatQuantity(tier.quantity)}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Stack direction="row" spacing={0.75} alignItems="center">
+                                        <Typography variant="body2">ส่งทางรถ</Typography>
+                                        <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                      </Stack>
+                                    </TableCell>
+                                    <TableCell
+                                      align="center"
+                                      sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                      {formatPrice(tier.landTotalPrice)}
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow
+                                    hover
+                                    selected={selectedConfirmRfqTierKey === seaKey}
+                                    onClick={() => setSelectedConfirmRfqTierKey(seaKey)}
+                                    sx={{
+                                      cursor: 'pointer'
+                                    }}>
+                                    <TableCell align="center">
+                                      <Radio
+                                        checked={selectedConfirmRfqTierKey === seaKey}
+                                        value={seaKey}
+                                        onChange={(event) =>
+                                          setSelectedConfirmRfqTierKey(event.target.value)
+                                        }
+                                        inputProps={{
+                                          'aria-label': `${optionLabel} MOQ ${formatQuantity(tier.quantity)} ส่งทางเรือ ${formatPrice(tier.seaTotalPrice)}`
+                                        }}
+                                      />
+                                    </TableCell>
+                                    <TableCell align="center" sx={{ fontWeight: 600 }}>
+                                      {formatQuantity(tier.quantity)}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Stack direction="row" spacing={0.75} alignItems="center">
+                                        <Typography variant="body2">ส่งทางเรือ</Typography>
+                                        <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
+                                      </Stack>
+                                    </TableCell>
+                                    <TableCell
+                                      align="center"
+                                      sx={{ fontWeight: 700, color: '#00897b' }}>
+                                      {formatPrice(tier.seaTotalPrice)}
+                                    </TableCell>
+                                  </TableRow>
+                                </Fragment>
+                              );
+                            })
+                          ) : (
+                            <TableRow key={`empty-${detail.id}`}>
+                              <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary' }}>
+                                ยังไม่มี MOQ ใน Option นี้
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: 3,
+                  py: 4,
+                  px: 2,
+                  textAlign: 'center',
+                  backgroundColor: '#f8fafc'
+                }}>
+                <Typography variant="body1" fontWeight={600}>
+                  ยังไม่มี Option, Tier หรือวิธีการขนส่งสำหรับคอนเฟิร์มราคา
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setVisibleConfirmRfqDialog(false)}
+            className="btn-crimson-red"
+            variant="contained">
+            {t('button.cancel')}
+          </Button>
+          <Button
+            onClick={handleConfirmRfqPrice}
+            className="btn-emerald-green"
+            variant="contained"
+            disabled={!selectedConfirmRfqTierKey}>
+            {t('button.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <CreateRFQCustomerDialog
         open={visibleCreateCustomerDialog}
         rfq={rfq}

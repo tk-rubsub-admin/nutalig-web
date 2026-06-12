@@ -24,12 +24,10 @@ import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
 import { useState } from 'react';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { useQuery } from 'react-query';
-import { getAllCompany } from 'services/Company/company-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { createStaff, getRoleList } from 'services/Staff/staff-api';
-import { Company } from 'services/Company/company-type';
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF, resizeFile } from 'utils';
-import { Role } from 'services/User/user-type';
+import { Company, Role } from 'services/User/user-type';
 import toast from 'react-hot-toast';
 import { CreateStaffResponse } from 'services/Staff/staff-type';
 import ConfirmDialog from 'components/ConfirmDialog';
@@ -103,11 +101,8 @@ export default function NewStaff(): JSX.Element {
     () => getSystemConfig(GROUP_CODE.WORKSPACE),
     { refetchOnWindowFocus: false }
   );
-  const { data: companyList, isFetching: isCompanyFetching } = useQuery(
-    'company-list',
-    () => getAllCompany(),
-    { refetchOnWindowFocus: false }
-  );
+  const companyList: Company[] = [];
+  const isCompanyFetching = false;
 
   const onAutoCompleteChange = (field: string, value: SystemConfig, reason: string) => {
     if (reason === 'clear') {

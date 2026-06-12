@@ -1,6 +1,6 @@
 import { ReactElement, Fragment } from 'react';
 import { useLocation } from 'react-router-dom';
-import { hasAllowedRole } from 'auth/roles';
+import { hasAllowedRoles } from 'auth/roles';
 import { useAuth } from 'auth/AuthContext';
 import { SidebarItemsType } from './types';
 import reduceChildRoutes from './reduceChildRoutes';
@@ -13,9 +13,9 @@ interface SidebarNavListProps {
 
 function SidebarNavList({ pages, depth, onClick }: SidebarNavListProps): ReactElement {
   const router = useLocation();
-  const { getRole, getPermission } = useAuth();
+  const { getRoles, getPermission } = useAuth();
   const currentRoute = router.pathname;
-  const currentUserRole = getRole();
+  const currentUserRoles = getRoles();
   const userPermissions = getPermission();
 
   const canAccessPage = (page: SidebarItemsType) => {
@@ -25,7 +25,7 @@ function SidebarNavList({ pages, depth, onClick }: SidebarNavListProps): ReactEl
     }
 
     if (page.allowedRoles) {
-      return hasAllowedRole(currentUserRole, page.allowedRoles);
+      return hasAllowedRoles(currentUserRoles, page.allowedRoles);
     }
 
     return true;

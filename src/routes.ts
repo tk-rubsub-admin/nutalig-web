@@ -38,35 +38,12 @@ export const ROUTE_PATHS = Object.freeze({
   RFQ_DETAIL: '/rfq/:id',
   CUSTOMER_NEW: '/customer-create',
   CUSTOMER_DETAIL: '/customer/:id',
-  SALE_ORDER_MANAGEMENT: '/sale-order-management',
-  SALE_ORDER_CREATE: '/sale-order-create',
-  SALE_ORDER_DETAIL: '/sale-order/:id',
-  BILLING_MANAGEMENT: '/billing-note-management',
-  BILLING_DETAIL: '/billing-note/:id',
-  BILLING_CREATE: '/billing-note-create',
-  INVOICE_MANAGEMENT: '/invoice-management',
-  INVOICE_DETAIL: '/invoice/:id',
-  NEW_INVOICE: '/invoice-create',
-  INVOICE_GROUP_MANAGEMENT: '/invoice-group-management',
-  INVOICE_GROUP_DETAIL: '/invoice-group/:id',
-  NEW_INVOICE_GROUP: '/invoice-group-create',
-  PRODUCT_LIST: '/product-list',
-  NEW_PRODUCT: '/new-product',
-  PRODUCT_SUPPLIER: '/product-supplier',
-  PRODUCT_PRICE: '/product-price',
+  SALE_ORDER_MANAGEMENT: '/sales-order-management',
+  SALE_ORDER_CREATE: '/sales-order-create',
+  SALE_ORDER_CREATE_FROM_RFQ: '/create-sales-order-rfq/:rfqId',
+  SALE_ORDER_DETAIL: '/sales-order/:id',
   USER_MANAGEMENT: '/user-management',
   USER_PERMISSION_MANAGEMENT: '/user-permission-management',
-  RECEIVE_PRODUCT: '/receive-product',
-  BUYING_PRODUCT: '/buying-product',
-  PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
-  PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
-  NEW_PURCHASE_ORDER: '/purchase-order-create',
-  ADVANCE_PURCHASE_ORDER_MANAGEMENT: '/advance-purchase-order-management',
-  ADVANCE_PURCHASE_ORDER: '/advance-purchase-order/:id',
-  FREIGHT: '/freight-management',
-  PRICE_LIST: '/price-lists',
-  PRICE_LIST_CREATE: '/new-price-list',
-  PRICE_LIST_VIEW: '/price-list/:id',
   MANUAL: '/manual',
   QUOTATION_CREATE: '/quotation-create',
   QUOTATION_CREATE_FROM_RFQ: '/create-quotation-rfq/:rfqId',
@@ -215,7 +192,9 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   },
   {
     path: ROUTE_PATHS.PRICE_INQUIRY,
-    component: lazy(() => import('./pages/PriceInquiry' /* webpackChunkName: "app" */)),
+    component: lazy(
+      () => import('./pages/PriceInquiryManagement/Detail' /* webpackChunkName: "app" */)
+    ),
     requiredPermissions: [PERMISSIONS.PRICE_INQUIRY_VIEW]
   },
   {
@@ -252,205 +231,33 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     requiredPermissions: [PERMISSIONS.QUOTATION_CREATE]
   },
   {
+    path: ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ,
+    component: lazy(() => import('./pages/SalesOrderRFQ' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.SALE_ORDER_CREATE]
+  },
+  {
+    path: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
+    component: lazy(() => import('./pages/SalesOrderManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.SALE_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.SALE_ORDER_DETAIL,
+    component: lazy(
+      () => import('./pages/SalesOrderManagement/Detail' /* webpackChunkName: "app" */)
+    ),
+    requiredPermissions: [PERMISSIONS.SALE_ORDER_VIEW]
+  },
+  {
     path: ROUTE_PATHS.QUOTATION_MANAGEMENT,
     component: lazy(() => import('./pages/QuotationManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.QUOTATION_VIEW]
   },
   {
     path: ROUTE_PATHS.QUOTATION_DETAIL,
-    component: lazy(() => import('./pages/QuotationManagement/Detail' /* webpackChunkName: "app" */)),
+    component: lazy(
+      () => import('./pages/QuotationManagement/Detail' /* webpackChunkName: "app" */)
+    ),
     requiredPermissions: [PERMISSIONS.QUOTATION_VIEW]
-  },
-  {
-    path: ROUTE_PATHS.RECEIVE_PRODUCT,
-    component: lazy(() => import('./pages/ReceiveProduct' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.RECEIVER, ROLES.RECEIVER_PAK_KLONG]
-  },
-  {
-    path: ROUTE_PATHS.BUYING_PRODUCT,
-    component: lazy(() => import('./pages/BuyingProduct' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,
-    component: lazy(() => import('./pages/PurchaseOrderManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.ADVANCE_PURCHASE_ORDER_MANAGEMENT,
-    component: lazy(() => import('./pages/AdvancePurchaseOrder' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.ADVANCE_PURCHASE_ORDER,
-    component: lazy(
-      () => import('./pages/AdvancePurchaseOrder/Detail' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.NEW_PURCHASE_ORDER,
-    component: lazy(
-      () => import('./pages/PurchaseOrderManagement/New' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.PURCHASE_ORDER_DETAIL,
-    component: lazy(
-      () => import('./pages/PurchaseOrderManagement/Detail' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.PROCUREMENT, ROLES.PROCUREMENT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
-    component: lazy(() => import('./pages/SaleOrderManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ORDER_BKK,
-      ROLES.ORDER_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN,
-      ROLES.PROCUREMENT,
-      ROLES.PROCUREMENT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.SALE_ORDER_CREATE,
-    component: lazy(() => import('./pages/SaleOrderManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN_BKK, ROLES.ADMIN_PROVINCE]
-  },
-  {
-    path: ROUTE_PATHS.SALE_ORDER_DETAIL,
-    component: lazy(
-      () => import('./pages/SaleOrderManagement/Detail' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ORDER_BKK,
-      ROLES.ORDER_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN,
-      ROLES.PROCUREMENT,
-      ROLES.PROCUREMENT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.BILLING_MANAGEMENT,
-    component: lazy(() => import('./pages/BillingManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.BILLING_CREATE,
-    component: lazy(() => import('./pages/BillingManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.BILLING_DETAIL,
-    component: lazy(() => import('./pages/BillingManagement/Detail' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.INVOICE_MANAGEMENT,
-    component: lazy(() => import('./pages/InvoiceManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.NEW_INVOICE,
-    component: lazy(() => import('./pages/InvoiceManagement/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.INVOICE_GROUP_MANAGEMENT,
-    component: lazy(() => import('./pages/InvoiceGroupManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.INVOICE_GROUP_DETAIL,
-    component: lazy(
-      () => import('./pages/InvoiceGroupManagement/Detail' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.NEW_INVOICE_GROUP,
-    component: lazy(
-      () => import('./pages/InvoiceGroupManagement/New' /* webpackChunkName: "app" */)
-    ),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.INVOICE_DETAIL,
-    component: lazy(() => import('./pages/InvoiceManagement/Detail' /* webpackChunkName: "app" */)),
-    allowedRoles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN
-    ]
-  },
-  {
-    path: ROUTE_PATHS.PRODUCT_LIST,
-    component: lazy(() => import('./pages/ProductList' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN_BKK, ROLES.ADMIN_PROVINCE]
-  },
-  {
-    path: ROUTE_PATHS.NEW_PRODUCT,
-    component: lazy(() => import('./pages/ProductList/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ADMIN_BKK, ROLES.ADMIN_PROVINCE]
   },
   {
     path: ROUTE_PATHS.MANUAL,
@@ -473,26 +280,6 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     ]
   },
   {
-    path: ROUTE_PATHS.PRODUCT_PRICE,
-    component: lazy(() => import('./pages/ProductPrice' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ACCOUNT, ROLES.ACCOUNT_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.PRICE_LIST,
-    component: lazy(() => import('./pages/PriceList' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.PRICE_LIST_CREATE,
-    component: lazy(() => import('./pages/PriceList/New' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.PRICE_LIST_VIEW,
-    component: lazy(() => import('./pages/PriceList/Detail' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN]
-  },
-  {
     path: ROUTE_PATHS.USER_MANAGEMENT,
     component: lazy(() => import('./pages/AdminManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: ['PERM_VIEW_USER_LIST']
@@ -501,11 +288,6 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.USER_PERMISSION_MANAGEMENT,
     component: lazy(() => import('./pages/UserPermissionManagement' /* webpackChunkName: "app" */)),
     allowedRoles: [ROLES.SUPER_ADMIN]
-  },
-  {
-    path: ROUTE_PATHS.FREIGHT,
-    component: lazy(() => import('./pages/FreightManagement' /* webpackChunkName: "app" */)),
-    allowedRoles: [ROLES.SUPER_ADMIN, ROLES.ACCOUNT, ROLES.ACCOUNT_ADMIN]
   },
   {
     path: ROUTE_PATHS.ROOT,

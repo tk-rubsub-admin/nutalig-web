@@ -165,3 +165,16 @@
   color: #f3f4f6 !important;
   cursor: not-allowed;
 }
+
+/* Dialog action ordering: primary action first, cancel/close on the right. */
+.MuiDialogActions-root .btn-emerald-green,
+.MuiDialogActions-root .btn-indigo-blue,
+.MuiDialogActions-root .btn-green-teal,
+.MuiDialogActions-root .btn-forest-green {
+  order: 1;
+}
+
+.MuiDialogActions-root .btn-crimson-red,
+.MuiDialogActions-root .btn-cool-grey {
+  order: 2;
+}

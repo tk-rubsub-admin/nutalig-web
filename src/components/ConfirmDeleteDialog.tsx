@@ -39,11 +39,11 @@ export default function ConfirmDeleteDialog(props: ConfirmDeleteDialogProps): JS
       <DialogContent>
         <DialogContentText>{message}</DialogContentText>
         <DialogActions>
-          <Button onClick={onCancel} color="error" variant="outlined" aria-label="cancel">
-            {cancelText || 'Cancel'}
-          </Button>
           <Button onClick={onConfirm} color="error" variant="contained" aria-label="confirm">
             {confirmText || 'Confirm'}
+          </Button>
+          <Button onClick={onCancel} color="error" variant="outlined" aria-label="cancel">
+            {cancelText || 'Cancel'}
           </Button>
         </DialogActions>
       </DialogContent>

@@ -194,6 +194,7 @@ export default function NewRFQ(): JSX.Element {
       salesId: defaultSalesId,
       purchaseAccount: '',
       orderTypeCode: '',
+      shippingMethod: 'ALL',
       productFamily: '',
       productUsage: '',
       systemMechanic: '',
@@ -217,6 +218,7 @@ export default function NewRFQ(): JSX.Element {
       salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
       purchaseAccount: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
       orderTypeCode: Yup.string().required(t('rfqManagement.validation.orderTypeCode')),
+      shippingMethod: Yup.string().oneOf(['ALL', 'LAND', 'SEA']).required(),
       productFamily: Yup.string().max(255).required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
       systemMechanic: Yup.string().max(255),
@@ -241,6 +243,7 @@ export default function NewRFQ(): JSX.Element {
           salesId: values.salesId,
           procurementId: values.purchaseAccount || undefined,
           orderTypeCode: values.orderTypeCode,
+          shippingMethod: values.shippingMethod as 'ALL' | 'LAND' | 'SEA',
           productFamily: values.productFamily,
           productUsage: values.productUsage,
           systemMechanic: values.systemMechanic,
@@ -695,7 +698,22 @@ export default function NewRFQ(): JSX.Element {
             </TextField>
           </GridTextField>
 
-          <GridTextField item xs={12} sm={6} />
+          <GridTextField item xs={12} sm={6}>
+            <Box>
+              <Typography variant="body2" sx={{ mb: 0.75, color: 'text.secondary' }}>
+                การขนส่ง
+              </Typography>
+              <RadioGroup
+                row
+                name="shippingMethod"
+                value={formik.values.shippingMethod}
+                onChange={formik.handleChange}>
+                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทั้งหมด" />
+                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
+                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
+              </RadioGroup>
+            </Box>
+          </GridTextField>
 
           <GridTextField item xs={12} sm={6}>
             <TextField

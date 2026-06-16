@@ -1,0 +1,569 @@
+import { Edit } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  Chip,
+  Grid,
+  InputAdornment,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography
+} from '@mui/material';
+import { ReactElement } from 'react';
+import { RFQSupplierQuote, RFQSupplierQuoteAdditionalCost } from 'services/RFQ/rfq-type';
+import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
+import { SupplierQuoteDialogDetail } from './SupplierQuoteDialog';
+
+interface SupplierQuoteDraftAdditionalCost {
+  id: number;
+  description: string;
+  value: string;
+  unit: string;
+}
+
+interface SupplierQuoteSectionProps {
+  quotes: RFQSupplierQuote[];
+  editingQuoteId: string | null;
+  quoteDraftDetails: SupplierQuoteDialogDetail[];
+  quoteDraftAdditionalCosts: SupplierQuoteDraftAdditionalCost[];
+  quoteDraftErrors: Record<number, any>;
+  isSubmitting: boolean;
+  onEditQuote: (quote: RFQSupplierQuote) => void;
+  onCancelEditQuote: () => void;
+  onSaveEditQuote: () => void;
+  onDetailChange: (
+    detailId: number,
+    field:
+      | 'optionName'
+      | 'spec'
+      | 'remark'
+      | 'packageDimension'
+      | 'packageWeight'
+      | 'packageCapacity'
+      | 'packageBoxWidth'
+      | 'packageBoxLength'
+      | 'packageBoxHeight'
+      | 'packagePiecesPerBox'
+      | 'packageWeightPerBoxKg',
+    value: string
+  ) => void;
+  onTierChange: (
+    detailId: number,
+    tierId: number,
+    field: 'quantity' | 'productPrice' | 'shippingCost',
+    value: string
+  ) => void;
+  onAdditionalCostChange: (
+    additionalCostId: number,
+    field: 'description' | 'value' | 'unit',
+    value: string
+  ) => void;
+  formatQuantity: (value?: number | null) => string;
+  formatPrice: (value?: number | null, currency?: string | null) => string;
+  formatSupplierQuoteAdditionalCost: (additionalCost: RFQSupplierQuoteAdditionalCost) => string;
+  getSupplierDisplayName: (supplier?: RFQSupplierQuote['supplier'] | null) => string;
+}
+
+export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactElement {
+  const {
+    quotes,
+    editingQuoteId,
+    quoteDraftDetails,
+    quoteDraftAdditionalCosts,
+    quoteDraftErrors,
+    isSubmitting,
+    onEditQuote,
+    onCancelEditQuote,
+    onSaveEditQuote,
+    onDetailChange,
+    onTierChange,
+    onAdditionalCostChange,
+    formatQuantity,
+    formatPrice,
+    formatSupplierQuoteAdditionalCost,
+    getSupplierDisplayName
+  } = props;
+
+  return (
+    <Box
+      sx={{
+        border: '1px solid #e6ebf1',
+        borderRadius: 3,
+        overflow: 'hidden',
+        backgroundColor: '#fff'
+      }}>
+      <Stack spacing={2} sx={{ p: 2 }}>
+        {quotes.length ? (
+          quotes.map((quote) => {
+            const isEditing = editingQuoteId === quote.id;
+
+            return (
+              <Box
+                key={quote.id}
+                sx={{
+                  border: '1px solid #dce4ee',
+                  borderRadius: 3,
+                  p: 2,
+                  backgroundColor: '#fff'
+                }}>
+                <Stack spacing={2}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1.5}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          {getSupplierDisplayName(quote.supplier)}
+                        </Typography>
+                        {/* <Chip
+                          size="small"
+                          label={quote.status || 'DRAFT'}
+                          sx={{
+                            backgroundColor: '#e8f5e9',
+                            color: '#2e7d32',
+                            border: '1px solid #2e7d3233',
+                            fontWeight: 700
+                          }}
+                        /> */}
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary">
+                        {quote.supplier?.supplierCode || quote.supplier?.id || '-'}
+                      </Typography>
+                      {quote.remark ? (
+                        <Typography variant="body2" sx={{ mt: 0.5 }}>
+                          Remark: {quote.remark}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {isEditing ? (
+                        <>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            disabled={isSubmitting}
+                            sx={outlinedActionButtonSx}
+                            onClick={onSaveEditQuote}>
+                            บันทึก
+                          </Button>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            className="btn-crimson-red"
+                            sx={outlinedActionButtonSx}
+                            disabled={isSubmitting}
+                            onClick={onCancelEditQuote}>
+                            ยกเลิก
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<Edit />}
+                          sx={outlinedActionButtonSx}
+                          disabled={isSubmitting}
+                          onClick={() => onEditQuote(quote)}>
+                          แก้ไขราคา
+                        </Button>
+                      )}
+                    </Stack>
+                  </Stack>
+
+                  {isEditing ? (
+                    <Grid container spacing={1.5}>
+                      {quoteDraftDetails.map((detail) => (
+                        <Grid item xs={12} key={`package-${detail.id}`}>
+                          <Grid container spacing={1.5}>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="Package Dimension"
+                                value={detail.packageDimension || ''}
+                                InputLabelProps={{ shrink: true }}
+                                onChange={(event) =>
+                                  onDetailChange(detail.id, 'packageDimension', event.target.value)
+                                }
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="Package Weight"
+                                value={detail.packageWeight || ''}
+                                InputLabelProps={{ shrink: true }}
+                                onChange={(event) =>
+                                  onDetailChange(detail.id, 'packageWeight', event.target.value)
+                                }
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="Package Capacity"
+                                value={detail.packageCapacity || ''}
+                                InputLabelProps={{ shrink: true }}
+                                onChange={(event) =>
+                                  onDetailChange(detail.id, 'packageCapacity', event.target.value)
+                                }
+                              />
+                            </Grid>
+                          </Grid>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Grid container spacing={1.5}>
+                      {quote.details?.[0]?.packageDimension ||
+                        quote.details?.[0]?.packageWeight ||
+                        quote.details?.[0]?.packageCapacity ? (
+                        <>
+                          <Grid item xs={12} md={4}>
+                            <Typography variant="caption" color="text.secondary">
+                              ขนาดบรรจุ
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {quote.details[0].packageDimension || '-'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <Typography variant="caption" color="text.secondary">
+                              น้ำหนักบรรจุ
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {quote.details[0].packageWeight || '-'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <Typography variant="caption" color="text.secondary">
+                              ความจุ
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {quote.details[0].packageCapacity || '-'}
+                            </Typography>
+                          </Grid>
+                        </>
+                      ) : null}
+                    </Grid>
+                  )}
+
+                  {(isEditing ? quoteDraftDetails : quote.details)?.length ? (
+                    (isEditing ? quoteDraftDetails : quote.details).map((detail, detailIndex) => {
+                      const detailError = isEditing ? quoteDraftErrors[detail.id] || {} : {};
+
+                      return (
+                        <Box
+                          key={detail.id || `${quote.id}-${detailIndex}`}
+                          sx={{
+                            border: '1px solid #edf2f7',
+                            borderRadius: 2,
+                            p: 1.5,
+                            backgroundColor: '#fbfdff'
+                          }}>
+                          <Stack spacing={1.25}>
+                            <Box>
+                              {isEditing ? (
+                                <Grid container spacing={1.5}>
+                                  <Grid item xs={12} md={4}>
+                                    <TextField
+                                      fullWidth
+                                      size="small"
+                                      label="Option"
+                                      value={detail.optionName || ''}
+                                      error={Boolean(detailError.optionName)}
+                                      helperText={detailError.optionName}
+                                      InputLabelProps={{ shrink: true }}
+                                      onChange={(event) =>
+                                        onDetailChange(detail.id, 'optionName', event.target.value)
+                                      }
+                                    />
+                                  </Grid>
+                                  <Grid item xs={12} md={8}>
+                                    <TextField
+                                      fullWidth
+                                      size="small"
+                                      label="Spec"
+                                      value={detail.spec || ''}
+                                      error={Boolean(detailError.spec)}
+                                      helperText={detailError.spec}
+                                      InputLabelProps={{ shrink: true }}
+                                      onChange={(event) =>
+                                        onDetailChange(detail.id, 'spec', event.target.value)
+                                      }
+                                    />
+                                  </Grid>
+                                  <Grid item xs={12}>
+                                    <TextField
+                                      fullWidth
+                                      size="small"
+                                      label="Remark"
+                                      value={detail.remark || ''}
+                                      InputLabelProps={{ shrink: true }}
+                                      onChange={(event) =>
+                                        onDetailChange(detail.id, 'remark', event.target.value)
+                                      }
+                                    />
+                                  </Grid>
+                                </Grid>
+                              ) : (
+                                <>
+                                  <Typography variant="body2" fontWeight={700}>
+                                    {detail.optionName || `Option ${detailIndex + 1}`}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {detail.spec || '-'}
+                                  </Typography>
+                                  {detail.remark ? (
+                                    <Typography variant="caption" color="text.secondary">
+                                      Remark: {detail.remark}
+                                    </Typography>
+                                  ) : null}
+                                </>
+                              )}
+                            </Box>
+
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow
+                                  sx={{
+                                    '& th': {
+                                      fontWeight: 700,
+                                      backgroundColor: '#f8fafc',
+                                      whiteSpace: 'nowrap'
+                                    }
+                                  }}>
+                                  <TableCell>MOQ</TableCell>
+                                  <TableCell align="right">ราคาสินค้า</TableCell>
+                                  <TableCell align="right">ค่าขนส่ง</TableCell>
+                                  <TableCell align="right">รวม</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {detail.tiers.map((tier, tierIndex) => {
+                                  const tierError = isEditing
+                                    ? detailError.tierErrors?.[tier.id] || {}
+                                    : {};
+                                  const quantity = Number(tier.quantity);
+                                  const productPrice = Number(tier.productPrice);
+                                  const shippingCostValue = tier.shippingCost ?? null;
+                                  const shippingCost =
+                                    shippingCostValue === null || shippingCostValue === undefined
+                                      ? null
+                                      : Number(shippingCostValue);
+                                  const totalPrice =
+                                    Number.isFinite(quantity) &&
+                                      Number.isFinite(productPrice) &&
+                                      shippingCost !== null &&
+                                      Number.isFinite(shippingCost)
+                                      ? productPrice * quantity + shippingCost
+                                      : null;
+                                  const currency = tier.currency ?? null;
+
+                                  return (
+                                    <TableRow
+                                      key={tier.id || `${detail.id || detailIndex}-${tierIndex}`}>
+                                      <TableCell sx={{ fontWeight: 600 }}>
+                                        {isEditing ? (
+                                          <TextField
+                                            fullWidth
+                                            size="small"
+                                            type="number"
+                                            value={tier.quantity}
+                                            error={Boolean(tierError.quantity)}
+                                            helperText={tierError.quantity}
+                                            onChange={(event) =>
+                                              onTierChange(
+                                                detail.id,
+                                                tier.id || -(tierIndex + 1),
+                                                'quantity',
+                                                event.target.value
+                                              )
+                                            }
+                                          />
+                                        ) : (
+                                          formatQuantity(tier.quantity)
+                                        )}
+                                      </TableCell>
+                                      <TableCell align="right">
+                                        {isEditing ? (
+                                          <TextField
+                                            fullWidth
+                                            size="small"
+                                            type="number"
+                                            value={tier.productPrice}
+                                            error={Boolean(tierError.productPrice)}
+                                            helperText={tierError.productPrice}
+                                            InputProps={{
+                                              endAdornment: (
+                                                <InputAdornment position="end">
+                                                  หยวน​ (¥)
+                                                </InputAdornment>
+                                              )
+                                            }}
+                                            onChange={(event) =>
+                                              onTierChange(
+                                                detail.id,
+                                                tier.id || -(tierIndex + 1),
+                                                'productPrice',
+                                                event.target.value
+                                              )
+                                            }
+                                          />
+                                        ) : (
+                                          formatPrice(productPrice, currency)
+                                        )}
+                                      </TableCell>
+                                      <TableCell align="right">
+                                        {isEditing ? (
+                                          <TextField
+                                            fullWidth
+                                            size="small"
+                                            type="number"
+                                            value={tier.shippingCost ?? 0}
+                                            error={Boolean(tierError.shippingCost)}
+                                            helperText={tierError.shippingCost}
+                                            InputProps={{
+                                              endAdornment: (
+                                                <InputAdornment position="end">
+                                                  หยวน​ (¥)
+                                                </InputAdornment>
+                                              )
+                                            }}
+                                            onChange={(event) =>
+                                              onTierChange(
+                                                detail.id,
+                                                tier.id || -(tierIndex + 1),
+                                                'shippingCost',
+                                                event.target.value
+                                              )
+                                            }
+                                          />
+                                        ) : (
+                                          formatPrice(shippingCost, currency)
+                                        )}
+                                      </TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                                        {formatPrice(totalPrice, currency)}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </Stack>
+                        </Box>
+                      );
+                    })
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      ยังไม่มีรายละเอียดราคา
+                    </Typography>
+                  )}
+
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                      Additional Cost
+                    </Typography>
+                    {(isEditing ? quoteDraftAdditionalCosts : quote.additionalCosts)?.length ? (
+                      <Stack spacing={0.75}>
+                        {(isEditing ? quoteDraftAdditionalCosts : quote.additionalCosts).map(
+                          (additionalCost, index) =>
+                            isEditing ? (
+                              <Grid
+                                container
+                                spacing={1}
+                                key={additionalCost.id || `${additionalCost.description}-${index}`}>
+                                <Grid item xs={12} md={5}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Name"
+                                    value={additionalCost.description}
+                                    onChange={(event) =>
+                                      onAdditionalCostChange(
+                                        additionalCost.id || -(index + 1),
+                                        'description',
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </Grid>
+                                <Grid item xs={12} md={4}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Value"
+                                    value={additionalCost.value || ''}
+                                    onChange={(event) =>
+                                      onAdditionalCostChange(
+                                        additionalCost.id || -(index + 1),
+                                        'value',
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </Grid>
+                                <Grid item xs={12} md={3}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Unit"
+                                    value={additionalCost.unit || ''}
+                                    onChange={(event) =>
+                                      onAdditionalCostChange(
+                                        additionalCost.id || -(index + 1),
+                                        'unit',
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </Grid>
+                              </Grid>
+                            ) : (
+                              <Typography
+                                key={additionalCost.id || `${additionalCost.description}-${index}`}
+                                variant="body2">
+                                {formatSupplierQuoteAdditionalCost(additionalCost) || '-'}
+                              </Typography>
+                            )
+                        )}
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        ไม่มี Additional Cost
+                      </Typography>
+                    )}
+                  </Box>
+                </Stack>
+              </Box>
+            );
+          })
+        ) : (
+          <Box
+            sx={{
+              border: '1px dashed #cbd5e1',
+              borderRadius: 3,
+              py: 4,
+              px: 2,
+              textAlign: 'center',
+              backgroundColor: '#f8fafc'
+            }}>
+            <Typography variant="body1" fontWeight={600}>
+              ยังไม่มี supplier quote
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+    </Box>
+  );
+}

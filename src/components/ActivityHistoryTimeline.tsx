@@ -1,3 +1,5 @@
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LaptopMacIcon from '@mui/icons-material/LaptopMac';
 import Timeline from '@mui/lab/Timeline';
 import TimelineConnector from '@mui/lab/TimelineConnector';
@@ -5,10 +7,10 @@ import TimelineContent from '@mui/lab/TimelineContent';
 import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineItem from '@mui/lab/TimelineItem';
 import TimelineSeparator from '@mui/lab/TimelineSeparator';
-import { Box, Grid, Stack, Typography } from '@mui/material';
+import { Box, Collapse, Grid, IconButton, Stack, Typography } from '@mui/material';
 import { useAuth } from 'auth/AuthContext';
 import dayjs from 'dayjs';
-import { ReactElement } from 'react';
+import { ReactElement, useState } from 'react';
 import { ActivityHistoryRecord } from 'services/ActivityHistory/activity-history-type';
 
 interface ActivityHistoryTimelineProps {
@@ -70,7 +72,11 @@ function formatFieldValue(value: unknown): string {
   }
 }
 
-function renderCompareSections(detailJson?: string | null): ReactElement | null {
+function renderCompareSections(
+  detailJson: string | null | undefined,
+  expanded: boolean,
+  onToggle: () => void
+): ReactElement | null {
   const parsed = parseDetailJson(detailJson);
 
   if (
@@ -93,87 +99,118 @@ function renderCompareSections(detailJson?: string | null): ReactElement | null 
         overflow: 'hidden',
         backgroundColor: '#fcfdff'
       }}>
-      <Grid container>
-        <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid #e6ebf1' } }}>
-          <Box
-            sx={{ px: 2, py: 1.25, backgroundColor: '#fff7ed', borderBottom: '1px solid #e6ebf1' }}>
-            <Typography variant="subtitle2" fontWeight={700}>
-              Before
-            </Typography>
-          </Box>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Box
-            sx={{ px: 2, py: 1.25, backgroundColor: '#ecfeff', borderBottom: '1px solid #e6ebf1' }}>
-            <Typography variant="subtitle2" fontWeight={700}>
-              After
-            </Typography>
-          </Box>
-        </Grid>
-      </Grid>
+      <Box
+        sx={{
+          px: 2,
+          py: 1,
+          borderBottom: '1px solid #e6ebf1',
+          backgroundColor: '#f8fafc'
+        }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            รายละเอียดการเปลี่ยนแปลง
+          </Typography>
+          <IconButton size="small" onClick={onToggle} aria-label={expanded ? 'Collapse' : 'Expand'}>
+            {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </IconButton>
+        </Stack>
+      </Box>
 
-      {fields.map((field, index) => {
-        const beforeValue = parsed.before?.[field];
-        const afterValue = parsed.after?.[field];
-        const isChanged = formatFieldValue(beforeValue) !== formatFieldValue(afterValue);
-
-        return (
-          <Grid
-            container
-            key={field}
-            sx={{
-              borderBottom: index < fields.length - 1 ? '1px solid #eef2f7' : 'none',
-              backgroundColor: isChanged ? '#f8fafc' : '#fff'
-            }}>
-            <Grid
-              item
-              xs={12}
-              md={6}
+      <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <Grid container>
+          <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid #e6ebf1' } }}>
+            <Box
               sx={{
                 px: 2,
-                py: 1.5,
-                borderRight: { md: '1px solid #eef2f7' }
+                py: 1.25,
+                backgroundColor: '#fff7ed',
+                borderBottom: '1px solid #e6ebf1'
               }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 0.5 }}>
-                {formatFieldLabel(field)}
+              <Typography variant="subtitle2" fontWeight={700}>
+                Before
               </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontFamily:
-                    isPlainObject(beforeValue) || Array.isArray(beforeValue)
-                      ? 'monospace'
-                      : 'inherit'
-                }}>
-                {formatFieldValue(beforeValue)}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6} sx={{ px: 2, py: 1.5 }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 0.5 }}>
-                {formatFieldLabel(field)}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontFamily:
-                    isPlainObject(afterValue) || Array.isArray(afterValue) ? 'monospace' : 'inherit'
-                }}>
-                {formatFieldValue(afterValue)}
-              </Typography>
-            </Grid>
+            </Box>
           </Grid>
-        );
-      })}
+          <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                px: 2,
+                py: 1.25,
+                backgroundColor: '#ecfeff',
+                borderBottom: '1px solid #e6ebf1'
+              }}>
+              <Typography variant="subtitle2" fontWeight={700}>
+                After
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+
+        {fields.map((field, index) => {
+          const beforeValue = parsed.before?.[field];
+          const afterValue = parsed.after?.[field];
+          const isChanged = formatFieldValue(beforeValue) !== formatFieldValue(afterValue);
+
+          return (
+            <Grid
+              container
+              key={field}
+              sx={{
+                borderBottom: index < fields.length - 1 ? '1px solid #eef2f7' : 'none',
+                backgroundColor: isChanged ? '#f8fafc' : '#fff'
+              }}>
+              <Grid
+                item
+                xs={12}
+                md={6}
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  borderRight: { md: '1px solid #eef2f7' }
+                }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 0.5 }}>
+                  {formatFieldLabel(field)}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontFamily:
+                      isPlainObject(beforeValue) || Array.isArray(beforeValue)
+                        ? 'monospace'
+                        : 'inherit'
+                  }}>
+                  {formatFieldValue(beforeValue)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6} sx={{ px: 2, py: 1.5 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 0.5 }}>
+                  {formatFieldLabel(field)}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontFamily:
+                      isPlainObject(afterValue) || Array.isArray(afterValue)
+                        ? 'monospace'
+                        : 'inherit'
+                  }}>
+                  {formatFieldValue(afterValue)}
+                </Typography>
+              </Grid>
+            </Grid>
+          );
+        })}
+      </Collapse>
     </Box>
   );
 }
@@ -184,6 +221,15 @@ export default function ActivityHistoryTimeline({
 }: ActivityHistoryTimelineProps): ReactElement {
   const { getRole } = useAuth();
   const isSuperAdmin = getRole() === 'SUPER_ADMIN';
+  const [collapsedCompareIds, setCollapsedCompareIds] = useState<number[]>([]);
+
+  const handleToggleCompareSection = (historyId: number) => {
+    setCollapsedCompareIds((previous) =>
+      previous.includes(historyId)
+        ? previous.filter((id) => id !== historyId)
+        : [...previous, historyId]
+    );
+  };
 
   if (!records.length) {
     return (
@@ -249,7 +295,13 @@ export default function ActivityHistoryTimeline({
                   ผู้ใช้งาน: {history.actorId || '-'}
                 </Typography>
 
-                {isSuperAdmin ? renderCompareSections(history.detailJson) : null}
+                {isSuperAdmin
+                  ? renderCompareSections(
+                    history.detailJson,
+                    !collapsedCompareIds.includes(history.id),
+                    () => handleToggleCompareSection(history.id)
+                  )
+                  : null}
               </Stack>
             </Box>
           </TimelineContent>

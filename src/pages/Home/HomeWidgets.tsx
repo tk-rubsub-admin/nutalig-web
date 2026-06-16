@@ -1,8 +1,13 @@
 import {
+  Business,
   CalendarMonth,
   CheckCircle,
   Checklist,
-  RadioButtonUnchecked
+  FlightTakeoff,
+  LocalShipping,
+  EventAvailable,
+  RadioButtonUnchecked,
+  Groups
 } from '@mui/icons-material';
 import {
   Box,
@@ -158,6 +163,101 @@ const buildCalendarColors = (colorCode: string) => {
   };
 };
 
+interface CalendarMonthGridEventProps {
+  calendarEvent: {
+    title?: string;
+    start?: unknown;
+    calendarId?: string;
+    eventType?: string | null;
+    status?: string | null;
+    sourceModule?: string | null;
+  };
+}
+
+function getCalendarEventIcon(calendarEvent: CalendarMonthGridEventProps['calendarEvent']) {
+  const eventType = calendarEvent.eventType?.trim().toUpperCase();
+
+  if (eventType === 'AIR_SHIPPING') {
+    return FlightTakeoff;
+  }
+
+  if (eventType === 'SEA_SHIPPING' || eventType === 'LAND_SHIPPING') {
+    return LocalShipping;
+  }
+
+  if (eventType === 'INTERNAL') {
+    return Groups;
+  }
+
+  if (eventType === 'HOLIDAY') {
+    return EventAvailable;
+  }
+
+  return CalendarMonth;
+}
+
+function getCalendarEventTime(start?: unknown): string | null {
+  if (!start || typeof start !== 'object' || !('hour' in start) || !('minute' in start)) {
+    return null;
+  }
+
+  const calendarDateTime = start as { hour: number; minute: number };
+  return `${String(calendarDateTime.hour).padStart(2, '0')}:${String(calendarDateTime.minute).padStart(2, '0')}`;
+}
+
+function CalendarMonthGridEvent({ calendarEvent }: CalendarMonthGridEventProps): JSX.Element {
+  const Icon = getCalendarEventIcon(calendarEvent);
+  const colorName = calendarEvent.calendarId || buildCalendarColorName(DEFAULT_CALENDAR_COLOR);
+  const startTime = getCalendarEventTime(calendarEvent.start);
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        width: '100%',
+        height: '100%',
+        minHeight: 28,
+        minWidth: 0,
+        px: 0.75,
+        py: 0.5,
+        borderRadius: 'var(--sx-rounding-extra-small)',
+        color: `var(--sx-color-on-${colorName}-container)`,
+        backgroundColor: `var(--sx-color-${colorName}-container)`,
+        borderInlineStart: `4px solid var(--sx-color-${colorName})`,
+        overflow: 'hidden'
+      }}>
+      <Icon sx={{ fontSize: 14, flexShrink: 0 }} />
+      {startTime ? (
+        <Typography
+          component="span"
+          sx={{
+            flexShrink: 0,
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1.2
+          }}>
+          {startTime}
+        </Typography>
+      ) : null}
+      <Typography
+        component="span"
+        sx={{
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          fontSize: 12,
+          fontWeight: 700,
+          lineHeight: 1.2
+        }}>
+        {calendarEvent.title || '-'}
+      </Typography>
+    </Box>
+  );
+}
+
 const applyCalendarColors = (
   definitions: Record<
     string,
@@ -261,10 +361,20 @@ export default function HomeWidgets(): JSX.Element {
             end,
             description: event.description ?? undefined,
             location: event.location ?? undefined,
-            calendarId
+            calendarId,
+            eventType: event.eventType,
+            status: event.status,
+            sourceModule: event.sourceModule ?? undefined
           };
         }),
     [calendarEventsData]
+  );
+
+  const calendarCustomComponents = useMemo(
+    () => ({
+      monthGridEvent: CalendarMonthGridEvent
+    }),
+    []
   );
 
   useEffect(() => {
@@ -390,14 +500,39 @@ export default function HomeWidgets(): JSX.Element {
               minHeight: 0
             },
             '& .sx__month-grid-day': {
+              position: 'relative',
               minHeight: 0,
               overflow: 'hidden'
             },
+            '& .sx__month-grid-day:has(.sx__month-grid-day__header-date.sx__is-today)': {
+              backgroundColor: 'rgba(25, 118, 210, 0.08)'
+            },
+            '& .sx__month-grid-day:has(.sx__month-grid-day__header-date.sx__is-today)::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              border: '1px solid rgba(25, 118, 210, 0.28)',
+              pointerEvents: 'none',
+              boxSizing: 'border-box',
+              zIndex: 0
+            },
+            '& .sx__month-grid-day:has(.sx__month-grid-day__header-date.sx__is-today) > *': {
+              position: 'relative',
+              zIndex: 1
+            },
             '& .sx__month-grid-day__events': {
               overflow: 'hidden'
+            },
+            '& .sx__month-grid-event': {
+              minHeight: 28
             }
           }}>
-          {calendarApp ? <ScheduleXCalendar calendarApp={calendarApp} /> : null}
+          {calendarApp ? (
+            <ScheduleXCalendar
+              calendarApp={calendarApp}
+              customComponents={calendarCustomComponents}
+            />
+          ) : null}
         </Box>
       </Grid>
     </Grid>

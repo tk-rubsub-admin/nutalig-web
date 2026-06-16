@@ -1,36 +1,14 @@
-import {
-  Add,
-  ArrowBackIos,
-  ContentCopy,
-  DeleteOutline,
-  ExpandLess,
-  ExpandMore,
-  InfoOutlined,
-  Save
-} from '@mui/icons-material';
+import { ArrowBackIos, Save } from '@mui/icons-material';
 import {
   Box,
   Button,
   Chip,
-  Collapse,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Grid,
-  IconButton,
   MenuItem,
   Stack,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Tabs,
   TextField,
-  Tooltip,
   Typography
 } from '@mui/material';
 import { useFormik } from 'formik';
@@ -50,8 +28,6 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
-import { ROLES } from 'auth/roles';
-import { useAuth } from 'auth/AuthContext';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
@@ -73,6 +49,7 @@ import {
   updateRFQ,
   updateRFQSupplierQuote
 } from 'services/RFQ/rfq-api';
+import { searchSupplier } from 'services/Supplier/supplier-api';
 import {
   RFQAdditionalCost,
   CreateRFQAdditionalCostRequest,
@@ -95,7 +72,11 @@ import {
   SupplierCapabilityMaterial,
   SupplierContact
 } from 'services/Supplier/supplier-type';
-import { copyText } from 'utils/copyContent';
+import { FinalPriceQuoteDialog } from './FinalPriceQuoteDialog';
+import { SupplierQuoteSection } from './SupplierQuoteSection';
+import { SupplierQuoteDialog } from './SupplierQuoteDialog';
+import { GeneratedInquiryMessageDialog } from './GeneratedInquiryMessageDialog';
+import { AddSupplierDialog } from './AddSupplierDialog';
 
 interface RFQDetailParam {
   id: string;
@@ -114,6 +95,7 @@ interface RFQEditableFormValues {
 interface DraftDetailTierError {
   quantity?: string;
   productPrice?: string;
+  shippingCost?: string;
   landFreightCost?: string;
   seaFreightCost?: string;
 }
@@ -159,23 +141,37 @@ interface FinalPriceDraftErrors {
   details?: Record<number, DraftDetailTierError>;
 }
 
-interface DraftSupplierQuoteDetail extends RFQDetailOption {
-  rfqDetailId?: number | null;
+interface DraftSupplierQuoteTier {
+  id: number;
+  quantity: number;
+  productPrice: number;
+  shippingCost: number;
+  currency?: string | null;
+  sortOrder: number;
+  createdDate: string;
+  updatedDate: string;
 }
 
-interface SupplierQuoteComparisonRow {
-  key: string;
-  quantity: number;
-  values: Record<
-    string,
-    {
-      productPrice: number;
-      landFreightCost: number;
-      seaFreightCost: number;
-      landTotalPrice: number;
-      seaTotalPrice: number;
-    }
-  >;
+interface DraftSupplierQuoteDetail {
+  id: number;
+  rfqDetailId?: number | null;
+  optionName: string;
+  spec: string;
+  sortOrder: number;
+  remark: string | null;
+  packageDimension?: string;
+  packageWeight?: string;
+  packageCapacity?: string;
+  packageBoxWidth?: string;
+  packageBoxLength?: string;
+  packageBoxHeight?: string;
+  packagePiecesPerBox?: string;
+  packageWeightPerBoxKg?: string;
+  tiers: DraftSupplierQuoteTier[];
+  createdDate: string;
+  updatedDate: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 function TabPanel({
@@ -224,6 +220,18 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   }
 
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
+}
+
+function getShippingMethodLabel(shippingMethod?: string | null): string {
+  if (shippingMethod === 'LAND') {
+    return 'ทางรถ';
+  }
+
+  if (shippingMethod === 'SEA') {
+    return 'ทางเรือ';
+  }
+
+  return 'ทางรถ, ทางเรือ';
 }
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
@@ -415,7 +423,6 @@ function getRFQPictureResources(rfq?: RFQRecord): RFQFileResource[] {
 }
 
 function getRFQAttachmentResources(rfq?: RFQRecord): RFQFileResource[] {
-  console.log('xxx:', rfq);
   if (Array.isArray(rfq?.pictures) && rfq.pictures.length > 0) {
     return rfq.pictures.filter((file) => !isImageFile(file));
   }
@@ -533,7 +540,7 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
 const quantityFormatter = new Intl.NumberFormat('th-TH');
 const priceFormatter = new Intl.NumberFormat('th-TH', {
   minimumFractionDigits: 2,
-  maximumFractionDigits: 2
+  maximumFractionDigits: 4
 });
 
 const actionButtonSx = {
@@ -586,9 +593,14 @@ function formatQuantity(value?: number | null): string {
   return `${quantityFormatter.format(value)} ชิ้น`;
 }
 
-function formatPrice(value?: number | null): string {
+function formatPrice(value?: number | null, currency?: string | null): string {
   if (value === null || value === undefined) {
     return '-';
+  }
+
+  const normalizedCurrency = currency?.trim().toUpperCase();
+  if (normalizedCurrency === 'CNY') {
+    return `¥${priceFormatter.format(value)}`;
   }
 
   return `${priceFormatter.format(value)} บาท`;
@@ -651,63 +663,6 @@ function getSupplierDisplayName(supplier?: Supplier | null): string {
   );
 }
 
-function buildSupplierQuoteComparisonRows(
-  quotes: RFQSupplierQuote[]
-): SupplierQuoteComparisonRow[] {
-  const rows: Record<string, SupplierQuoteComparisonRow> = {};
-
-  quotes.forEach((quote) => {
-    const supplierId = quote.supplier?.supplierId || quote.supplier?.id;
-    if (!supplierId) {
-      return;
-    }
-
-    quote.details.forEach((detail) => {
-      detail.tiers.forEach((tier) => {
-        const rowKey = String(tier.quantity);
-
-        if (!rows[rowKey]) {
-          rows[rowKey] = {
-            key: rowKey,
-            quantity: tier.quantity,
-            values: {}
-          };
-        }
-
-        const currentValue = rows[rowKey].values[supplierId];
-        const nextValue = {
-          productPrice: tier.productPrice,
-          landFreightCost: tier.landFreightCost,
-          seaFreightCost: tier.seaFreightCost,
-          landTotalPrice: tier.landTotalPrice,
-          seaTotalPrice: tier.seaTotalPrice
-        };
-
-        if (!currentValue || nextValue.seaTotalPrice < currentValue.seaTotalPrice) {
-          rows[rowKey].values[supplierId] = nextValue;
-        }
-      });
-    });
-  });
-
-  return Object.values(rows).sort((left, right) => left.quantity - right.quantity);
-}
-
-function getLowestSupplierQuotePrice(
-  row: SupplierQuoteComparisonRow,
-  quotes: RFQSupplierQuote[],
-  priceKey: keyof SupplierQuoteComparisonRow['values'][string]
-): number | null {
-  const prices = quotes
-    .map((quote) => {
-      const supplierId = quote.supplier?.supplierId || quote.supplier?.id;
-      return supplierId ? row.values[supplierId]?.[priceKey] : undefined;
-    })
-    .filter((price): price is number => typeof price === 'number' && price > 0);
-
-  return prices.length ? Math.min(...prices) : null;
-}
-
 function formatSupplierQuoteAdditionalCost(additionalCost: RFQSupplierQuoteAdditionalCost): string {
   return [additionalCost.description, additionalCost.value, additionalCost.unit]
     .filter(Boolean)
@@ -723,6 +678,86 @@ function createDraftAdditionalCost(): DraftAdditionalCost {
   };
 }
 
+function extractPackageNumbers(value?: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .replace(/,/g, '')
+    .match(/\d+(?:\.\d+)?/g) || [];
+}
+
+function mapPackageDimension(value?: string | null): Pick<
+  DraftSupplierQuoteDetail,
+  'packageBoxWidth' | 'packageBoxLength' | 'packageBoxHeight'
+> {
+  const [width = '', length = '', height = ''] = extractPackageNumbers(value);
+  return {
+    packageBoxWidth: width,
+    packageBoxLength: length,
+    packageBoxHeight: height
+  };
+}
+
+function mapPackageQuantity(value?: string | null): string {
+  return extractPackageNumbers(value)[0] || '';
+}
+
+function buildPackageDimension(detail: DraftSupplierQuoteDetail): string | null {
+  const parts = [detail.packageBoxWidth, detail.packageBoxLength, detail.packageBoxHeight]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return parts.length ? parts.join(' x ') : null;
+}
+
+function buildPackageWeight(detail: DraftSupplierQuoteDetail): string | null {
+  const piecesPerBox = detail.packagePiecesPerBox?.trim();
+  return piecesPerBox || null;
+}
+
+function buildPackageCapacity(detail: DraftSupplierQuoteDetail): string | null {
+  const weightPerBoxKg = detail.packageWeightPerBoxKg?.trim();
+  return weightPerBoxKg || null;
+}
+
+function createDraftQuoteDetail(sortOrder: number): DraftSupplierQuoteDetail {
+  const now = Date.now();
+  return {
+    id: -(now + sortOrder),
+    rfqDetailId: null,
+    optionName: `Option ${sortOrder}`,
+    spec: '',
+    sortOrder,
+    remark: '',
+    packageDimension: '',
+    packageWeight: '',
+    packageCapacity: '',
+    packageBoxWidth: '',
+    packageBoxLength: '',
+    packageBoxHeight: '',
+    packagePiecesPerBox: '',
+    packageWeightPerBoxKg: '',
+    tiers: [
+      {
+        id: -(Date.now() + sortOrder),
+        quantity: 0,
+        productPrice: 0,
+        shippingCost: 0,
+        currency: 'CNY',
+        sortOrder: 1,
+        createdDate: '',
+        updatedDate: ''
+      }
+    ],
+    createdDate: '',
+    updatedDate: '',
+    createdBy: '',
+    updatedBy: ''
+  };
+}
+
 function createDraftDetailOption(sortOrder: number): RFQDetailOption {
   return {
     id: -Date.now(),
@@ -730,6 +765,11 @@ function createDraftDetailOption(sortOrder: number): RFQDetailOption {
     spec: '',
     sortOrder,
     remark: '',
+    packageBoxWidth: '',
+    packageBoxLength: '',
+    packageBoxHeight: '',
+    packagePiecesPerBox: '',
+    packageWeightPerBoxKg: '',
     tiers: [],
     createdDate: '',
     updatedDate: '',
@@ -779,22 +819,11 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
   };
 }
 
-function createSupplierQuoteDetailFromRFQDetail(detail: RFQDetailOption): DraftSupplierQuoteDetail {
-  return {
-    ...detail,
-    id: -Date.now() - detail.id,
-    rfqDetailId: detail.id > 0 ? detail.id : null,
-    tiers: detail.tiers.map((tier, index) => ({
-      ...tier,
-      id: -(Date.now() + detail.id + index + 1),
-      sortOrder: index + 1
-    }))
-  };
-}
-
 function createSupplierQuoteDetailFromQuote(
   detail: RFQSupplierQuoteDetail
 ): DraftSupplierQuoteDetail {
+  const mappedDimension = mapPackageDimension(detail.packageDimension);
+
   return {
     id: detail.id || -Date.now(),
     rfqDetailId: detail.rfqDetailId || null,
@@ -802,14 +831,20 @@ function createSupplierQuoteDetailFromQuote(
     spec: detail.spec || '',
     sortOrder: detail.sortOrder,
     remark: detail.remark || '',
+    packageDimension: detail.packageDimension || '',
+    packageWeight: detail.packageWeight || '',
+    packageCapacity: detail.packageCapacity || '',
+    packageBoxWidth: mappedDimension.packageBoxWidth,
+    packageBoxLength: mappedDimension.packageBoxLength,
+    packageBoxHeight: mappedDimension.packageBoxHeight,
+    packagePiecesPerBox: mapPackageQuantity(detail.packageWeight),
+    packageWeightPerBoxKg: mapPackageQuantity(detail.packageCapacity),
     tiers: detail.tiers.map((tier, index) => ({
       id: tier.id || -(Date.now() + index + 1),
-      quantity: tier.quantity,
-      productPrice: tier.productPrice,
-      landFreightCost: tier.landFreightCost,
-      seaFreightCost: tier.seaFreightCost,
-      landTotalPrice: tier.landTotalPrice,
-      seaTotalPrice: tier.seaTotalPrice,
+      quantity: tier.quantity ?? 0,
+      productPrice: tier.productPrice ?? 0,
+      shippingCost: tier.shippingCost ?? 0,
+      currency: tier.currency || 'CNY',
       sortOrder: tier.sortOrder,
       createdDate: tier.createdDate || '',
       updatedDate: tier.updatedDate || ''
@@ -849,13 +884,15 @@ function buildSupplierQuotePayload(
       spec: detail.spec.trim(),
       sortOrder: index + 1,
       remark: detail.remark?.trim() || null,
+      packageDimension:
+        detail.packageDimension?.trim() || buildPackageDimension(detail),
+      packageWeight: detail.packageWeight?.trim() || buildPackageWeight(detail),
+      packageCapacity: detail.packageCapacity?.trim() || buildPackageCapacity(detail),
       tiers: detail.tiers.map((tier, tierIndex) => ({
         quantity: tier.quantity,
         productPrice: tier.productPrice,
-        landFreightCost: tier.landFreightCost,
-        seaFreightCost: tier.seaFreightCost,
-        landTotalPrice: tier.productPrice + tier.landFreightCost,
-        seaTotalPrice: tier.productPrice + tier.seaFreightCost,
+        shippingCost: tier.shippingCost,
+        currency: tier.currency || 'CNY',
         sortOrder: tierIndex + 1
       }))
     })),
@@ -918,12 +955,56 @@ function validateDraftDetail(detail: RFQDetailOption): DraftDetailValidationErro
   return nextErrors;
 }
 
+function validateSupplierQuoteDraftDetail(
+  detail: DraftSupplierQuoteDetail
+): DraftDetailValidationError {
+  const nextErrors: DraftDetailValidationError = {};
+
+  if (!detail.optionName.trim()) {
+    nextErrors.optionName = 'กรุณาระบุชื่อตัวเลือก';
+  }
+
+  if (!detail.spec.trim()) {
+    nextErrors.spec = 'กรุณาระบุสเปค';
+  }
+
+  if (!detail.tiers.length) {
+    nextErrors.tiers = 'กรุณาเพิ่ม tier อย่างน้อย 1 tier';
+  }
+
+  const nextTierErrors: Record<number, DraftDetailTierError> = {};
+
+  for (const [index, tier] of detail.tiers.entries()) {
+    const tierError: DraftDetailTierError = {};
+
+    if (!isPositiveNumber(tier.quantity)) {
+      tierError.quantity = `Tier ${index + 1}: กรุณาระบุ MOQ มากกว่า 0`;
+    }
+
+    if (!isPositiveNumber(tier.productPrice)) {
+      tierError.productPrice = `Tier ${index + 1}: กรุณาระบุราคาสินค้ามากกว่า 0`;
+    }
+
+    if (!isNonNegativeNumber(tier.shippingCost)) {
+      tierError.shippingCost = `Tier ${index + 1}: ค่าขนส่งต้องเป็น 0 หรือมากกว่า`;
+    }
+
+    if (Object.keys(tierError).length) {
+      nextTierErrors[tier.id] = tierError;
+    }
+  }
+
+  if (Object.keys(nextTierErrors).length) {
+    nextErrors.tierErrors = nextTierErrors;
+  }
+
+  return nextErrors;
+}
+
 export default function RFQDetail(): ReactElement {
   const params = useParams<RFQDetailParam>();
   const { t } = useTranslation();
-  const { hasRole } = useAuth();
   const history = useHistory();
-  const canFinalPrice = hasRole(ROLES.SUPER_ADMIN);
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [visibleDetailSaveConfirmationDialog, setVisibleDetailSaveConfirmationDialog] =
@@ -953,6 +1034,20 @@ export default function RFQDetail(): ReactElement {
     useState(false);
   const [quoteDialogSupplier, setQuoteDialogSupplier] = useState<Supplier | null>(null);
   const [quoteDialogQuote, setQuoteDialogQuote] = useState<RFQSupplierQuote | null>(null);
+  const [visibleSupplierQuoteDialog, setVisibleSupplierQuoteDialog] = useState(false);
+  const [inlineEditingSupplierQuoteId, setInlineEditingSupplierQuoteId] = useState<string | null>(
+    null
+  );
+  const [visibleSupplierQuoteSaveConfirmationDialog, setVisibleSupplierQuoteSaveConfirmationDialog] =
+    useState(false);
+  const [quoteSupplierSearchInput, setQuoteSupplierSearchInput] = useState('');
+  const [quoteSupplierSearchKeyword, setQuoteSupplierSearchKeyword] = useState('');
+  const [visibleAddSupplierDialog, setVisibleAddSupplierDialog] = useState(false);
+  const [supplierSearchInput, setSupplierSearchInput] = useState('');
+  const [supplierSearchKeyword, setSupplierSearchKeyword] = useState('');
+  const [manuallyAddedSuggestSuppliers, setManuallyAddedSuggestSuppliers] = useState<Supplier[]>(
+    []
+  );
   const [quoteDraftDetails, setQuoteDraftDetails] = useState<DraftSupplierQuoteDetail[]>([]);
   const [quoteDraftAdditionalCosts, setQuoteDraftAdditionalCosts] = useState<DraftAdditionalCost[]>(
     []
@@ -960,7 +1055,6 @@ export default function RFQDetail(): ReactElement {
   const [quoteDraftErrors, setQuoteDraftErrors] = useState<
     Record<number, DraftDetailValidationError>
   >({});
-  const [supplierQuoteInfo, setSupplierQuoteInfo] = useState<RFQSupplierQuote | null>(null);
   const [finalPriceQuote, setFinalPriceQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleFinalPriceConfirmationDialog, setVisibleFinalPriceConfirmationDialog] =
     useState(false);
@@ -973,7 +1067,6 @@ export default function RFQDetail(): ReactElement {
   const [isSupplierQuoteSubmitting, setIsSupplierQuoteSubmitting] = useState(false);
   const [isFinalPriceSubmitting, setIsFinalPriceSubmitting] = useState(false);
   const isReadOnly = true;
-  const canManageInquiryPricing = true;
 
   const {
     data: rfq,
@@ -992,6 +1085,39 @@ export default function RFQDetail(): ReactElement {
       enabled: !!params.id
     }
   );
+  const { data: supplierSearchResult = [], isFetching: isSupplierSearchFetching } = useQuery(
+    ['supplier-search', visibleAddSupplierDialog, supplierSearchKeyword],
+    () =>
+      searchSupplier(
+        {
+          statusEqual: 'ACTIVE',
+          nameContain: supplierSearchKeyword || undefined
+        },
+        1,
+        20
+      ).then((response) => response.data.suppliers),
+    {
+      refetchOnWindowFocus: false,
+      enabled: visibleAddSupplierDialog
+    }
+  );
+  const { data: quoteSupplierSearchResult = [], isFetching: isQuoteSupplierSearchFetching } =
+    useQuery(
+      ['supplier-search-quote', visibleSupplierQuoteDialog, quoteSupplierSearchKeyword],
+      () =>
+        searchSupplier(
+          {
+            statusEqual: 'ACTIVE',
+            nameContain: quoteSupplierSearchKeyword || undefined
+          },
+          1,
+          20
+        ).then((response) => response.data.suppliers),
+      {
+        refetchOnWindowFocus: false,
+        enabled: visibleSupplierQuoteDialog
+      }
+    );
 
   const {
     data: supplierQuotes = [],
@@ -1002,14 +1128,18 @@ export default function RFQDetail(): ReactElement {
     enabled: !!params.id
   });
 
-  const { data: activityHistory = [], isFetching: isActivityHistoryFetching } = useQuery(
-    ['rfq-activity-history', params.id],
-    () => getActivityHistory('RFQ', params.id),
-    {
-      refetchOnWindowFocus: false,
-      enabled: !!params.id
-    }
-  );
+  const {
+    data: activityHistory = [],
+    isFetching: isActivityHistoryFetching,
+    refetch: refetchActivityHistory
+  } = useQuery(['rfq-activity-history', params.id], () => getActivityHistory('RFQ', params.id), {
+    refetchOnWindowFocus: false,
+    enabled: !!params.id
+  });
+
+  const refetchPriceInquiryData = async () => {
+    await Promise.all([refetchRFQ(), refetchSupplierQuotes(), refetchActivityHistory()]);
+  };
 
   const { data: orderTypeList = [] } = useQuery(
     'rfq-detail-order-type-list',
@@ -1050,7 +1180,7 @@ export default function RFQDetail(): ReactElement {
           error: t('toast.failed')
         });
 
-        await refetchRFQ();
+        await refetchPriceInquiryData();
       } finally {
         actions.setSubmitting(false);
       }
@@ -1163,15 +1293,14 @@ export default function RFQDetail(): ReactElement {
                 return accumulator;
               }
 
-              const matchedMaterials =
-                capability.materials?.filter((material) =>
+              const hasMatchedMaterial =
+                capability.materials?.some((material) =>
                   isCapabilityMaterialMatched(material, rfqMaterial)
-                ) || [];
+                ) || false;
 
-              if (matchedMaterials.length) {
+              if (hasMatchedMaterial) {
                 accumulator.push({
-                  ...capability,
-                  materials: matchedMaterials
+                  ...capability
                 });
               }
 
@@ -1180,6 +1309,27 @@ export default function RFQDetail(): ReactElement {
         }))
         .filter((supplier) => supplier.capabilities?.length),
     [rfqMaterial, rfqProductFamilyCode, suggestSuppliers]
+  );
+  const suggestSuppliersDisplay = useMemo(() => {
+    const supplierMap = new Map<string, Supplier>();
+
+    [...suggestSuppliersByRFQ, ...manuallyAddedSuggestSuppliers].forEach((supplier) => {
+      const supplierId = supplier.supplierId || supplier.id;
+      if (supplierId && !supplierMap.has(supplierId)) {
+        supplierMap.set(supplierId, supplier);
+      }
+    });
+
+    return Array.from(supplierMap.values());
+  }, [manuallyAddedSuggestSuppliers, suggestSuppliersByRFQ]);
+  const suggestedSupplierIds = useMemo(
+    () =>
+      new Set(
+        suggestSuppliersDisplay
+          .map((supplier) => supplier.supplierId || supplier.id)
+          .filter(Boolean)
+      ),
+    [suggestSuppliersDisplay]
   );
   const supplierQuoteBySupplierId = useMemo(() => {
     return supplierQuotes.reduce<Record<string, RFQSupplierQuote>>((accumulator, quote) => {
@@ -1194,9 +1344,13 @@ export default function RFQDetail(): ReactElement {
     () => supplierQuotes.filter((quote) => quote.details?.length),
     [supplierQuotes]
   );
-  const supplierQuoteComparisonRows = useMemo(
-    () => buildSupplierQuoteComparisonRows(respondedSupplierQuotes),
-    [respondedSupplierQuotes]
+  const primarySuggestedSupplierQuote = useMemo(
+    () =>
+      respondedSupplierQuotes.find((quote) => {
+        const supplierId = quote.supplier?.supplierId || quote.supplier?.id || '';
+        return suggestedSupplierIds.has(supplierId);
+      }) || null,
+    [respondedSupplierQuotes, suggestedSupplierIds]
   );
   const isInquiryMessageEdited = useMemo(() => {
     if (!generatedInquiryMessage) {
@@ -1243,28 +1397,52 @@ export default function RFQDetail(): ReactElement {
           chineseMessage: response.chineseMessage || ''
         });
       }
+      await refetchPriceInquiryData();
     } finally {
       setIsUpdateInquirySubmitting(false);
     }
   };
 
-  const handleOpenSupplierQuoteDialog = (supplier: Supplier) => {
-    const supplierId = supplier.supplierId || supplier.id;
-    const existingQuote = supplierQuoteBySupplierId[supplierId] || null;
-
+  const initializeSupplierQuoteDialog = (
+    supplier: Supplier,
+    existingQuote?: RFQSupplierQuote | null
+  ) => {
     setQuoteDialogSupplier(supplier);
-    setQuoteDialogQuote(existingQuote);
+    setQuoteDialogQuote(existingQuote || null);
     setQuoteDraftDetails(
       existingQuote?.details?.length
         ? existingQuote.details.map(createSupplierQuoteDetailFromQuote)
-        : detailOptions.map(createSupplierQuoteDetailFromRFQDetail)
+        : [createDraftQuoteDetail(1)]
     );
     setQuoteDraftAdditionalCosts(
       existingQuote?.additionalCosts?.length
         ? existingQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
-        : []
+        : [createDraftAdditionalCost()]
     );
     setQuoteDraftErrors({});
+  };
+
+  const handleOpenSupplierQuoteDialog = () => {
+    setVisibleSupplierQuoteDialog(true);
+    setQuoteDialogSupplier(null);
+    setQuoteDialogQuote(null);
+    setQuoteDraftDetails([]);
+    setQuoteDraftAdditionalCosts([]);
+    setQuoteDraftErrors({});
+    setQuoteSupplierSearchInput('');
+    setQuoteSupplierSearchKeyword('');
+  };
+
+  const handleOpenSupplierQuoteEditDialog = (quote: RFQSupplierQuote) => {
+    if (!quote.supplier) {
+      return;
+    }
+
+    initializeSupplierQuoteDialog(quote.supplier, quote);
+    setVisibleSupplierQuoteDialog(false);
+    setInlineEditingSupplierQuoteId(quote.id);
+    setQuoteSupplierSearchInput('');
+    setQuoteSupplierSearchKeyword('');
   };
 
   const handleCloseSupplierQuoteDialog = () => {
@@ -1273,6 +1451,33 @@ export default function RFQDetail(): ReactElement {
     setQuoteDraftDetails([]);
     setQuoteDraftAdditionalCosts([]);
     setQuoteDraftErrors({});
+    setVisibleSupplierQuoteDialog(false);
+    setInlineEditingSupplierQuoteId(null);
+    setVisibleSupplierQuoteSaveConfirmationDialog(false);
+    setQuoteSupplierSearchInput('');
+    setQuoteSupplierSearchKeyword('');
+  };
+
+  const handleCancelInlineSupplierQuoteEdit = () => {
+    setInlineEditingSupplierQuoteId(null);
+    setQuoteDialogSupplier(null);
+    setQuoteDialogQuote(null);
+    setQuoteDraftDetails([]);
+    setQuoteDraftAdditionalCosts([]);
+    setQuoteDraftErrors({});
+    setVisibleSupplierQuoteSaveConfirmationDialog(false);
+  };
+
+  const handleOpenAddSupplierDialog = () => {
+    setSupplierSearchInput('');
+    setSupplierSearchKeyword('');
+    setVisibleAddSupplierDialog(true);
+  };
+
+  const handleCloseAddSupplierDialog = () => {
+    setVisibleAddSupplierDialog(false);
+    setSupplierSearchInput('');
+    setSupplierSearchKeyword('');
   };
 
   const handleOpenFinalPriceDialog = (quote: RFQSupplierQuote) => {
@@ -1439,8 +1644,7 @@ export default function RFQDetail(): ReactElement {
       const addedAdditionalCostPayload: CreateRFQAdditionalCostRequest[] =
         finalPriceDraft.additionalCosts
           .filter(
-            (additionalCost) =>
-              additionalCost.description.trim() && additionalCost.value.trim()
+            (additionalCost) => additionalCost.description.trim() && additionalCost.value.trim()
           )
           .map((additionalCost, index) => ({
             costTypeCode: '',
@@ -1468,9 +1672,8 @@ export default function RFQDetail(): ReactElement {
           error: t('toast.failed')
         }
       );
-      await refetchRFQ();
+      await refetchPriceInquiryData();
       handleCloseFinalPriceDialog();
-      setSupplierQuoteInfo(null);
     } finally {
       setIsFinalPriceSubmitting(false);
     }
@@ -1486,11 +1689,51 @@ export default function RFQDetail(): ReactElement {
 
   const handleQuoteDetailChange = (
     detailId: number,
-    field: 'optionName' | 'spec' | 'remark',
+    field:
+      | 'optionName'
+      | 'spec'
+      | 'remark'
+      | 'packageDimension'
+      | 'packageWeight'
+      | 'packageCapacity'
+      | 'packageBoxWidth'
+      | 'packageBoxLength'
+      | 'packageBoxHeight'
+      | 'packagePiecesPerBox'
+      | 'packageWeightPerBoxKg',
     value: string
   ) => {
     setQuoteDraftDetails((prev) =>
-      prev.map((detail) => (detail.id === detailId ? { ...detail, [field]: value } : detail))
+      prev.map((detail) => {
+        if (detail.id !== detailId) {
+          return detail;
+        }
+
+        const updatedDetail = { ...detail, [field]: value };
+
+        if (field === 'packageDimension') {
+          return {
+            ...updatedDetail,
+            ...mapPackageDimension(value)
+          };
+        }
+
+        if (field === 'packageWeight') {
+          return {
+            ...updatedDetail,
+            packagePiecesPerBox: mapPackageQuantity(value)
+          };
+        }
+
+        if (field === 'packageCapacity') {
+          return {
+            ...updatedDetail,
+            packageWeightPerBoxKg: mapPackageQuantity(value)
+          };
+        }
+
+        return updatedDetail;
+      })
     );
     setQuoteDraftErrors((prev) => ({
       ...prev,
@@ -1524,7 +1767,7 @@ export default function RFQDetail(): ReactElement {
   const handleQuoteTierChange = (
     detailId: number,
     tierId: number,
-    field: 'quantity' | 'productPrice' | 'landFreightCost' | 'seaFreightCost',
+    field: 'quantity' | 'productPrice' | 'shippingCost',
     value: string
   ) => {
     const nextValue = Number(value);
@@ -1548,9 +1791,7 @@ export default function RFQDetail(): ReactElement {
             };
 
             return {
-              ...updatedTier,
-              landTotalPrice: updatedTier.productPrice + updatedTier.landFreightCost,
-              seaTotalPrice: updatedTier.productPrice + updatedTier.seaFreightCost
+              ...updatedTier
             };
           })
         };
@@ -1600,7 +1841,7 @@ export default function RFQDetail(): ReactElement {
     );
   };
 
-  const handleSaveSupplierQuote = async () => {
+  const handleRequestSaveSupplierQuote = () => {
     if (!params.id || !quoteDialogSupplier) {
       return;
     }
@@ -1612,7 +1853,7 @@ export default function RFQDetail(): ReactElement {
 
     const nextErrors = quoteDraftDetails.reduce<Record<number, DraftDetailValidationError>>(
       (accumulator, detail) => {
-        const validationError = validateDraftDetail(detail);
+        const validationError = validateSupplierQuoteDraftDetail(detail);
         if (Object.keys(validationError).length) {
           accumulator[detail.id] = validationError;
         }
@@ -1622,6 +1863,15 @@ export default function RFQDetail(): ReactElement {
     );
     setQuoteDraftErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
+      toast.error('กรุณาตรวจสอบข้อมูลราคาที่ supplier ตอบกลับ');
+      return;
+    }
+
+    setVisibleSupplierQuoteSaveConfirmationDialog(true);
+  };
+
+  const handleConfirmSaveSupplierQuote = async () => {
+    if (!params.id || !quoteDialogSupplier) {
       return;
     }
 
@@ -1634,6 +1884,7 @@ export default function RFQDetail(): ReactElement {
 
     try {
       setIsSupplierQuoteSubmitting(true);
+      setVisibleSupplierQuoteSaveConfirmationDialog(false);
       await toast.promise(
         quoteDialogQuote?.id
           ? updateRFQSupplierQuote(params.id, quoteDialogQuote.id, payload)
@@ -1644,7 +1895,7 @@ export default function RFQDetail(): ReactElement {
           error: t('toast.failed')
         }
       );
-      await refetchSupplierQuotes();
+      await refetchPriceInquiryData();
       handleCloseSupplierQuoteDialog();
     } finally {
       setIsSupplierQuoteSubmitting(false);
@@ -1667,6 +1918,14 @@ export default function RFQDetail(): ReactElement {
     setDraftAdditionalCosts((prev) =>
       prev.map((item) => (item.id === additionalCostId ? { ...item, [field]: value } : item))
     );
+  };
+
+  const handleSelectQuoteSupplier = (supplier: Supplier) => {
+    const supplierId = supplier.supplierId || supplier.id;
+    const existingQuote = supplierQuoteBySupplierId[supplierId] || null;
+    setQuoteSupplierSearchInput('');
+    setQuoteSupplierSearchKeyword('');
+    initializeSupplierQuoteDialog(supplier, existingQuote);
   };
 
   const handleDeleteDraftAdditionalCost = (additionalCostId: number) => {
@@ -1701,7 +1960,7 @@ export default function RFQDetail(): ReactElement {
         error: t('toast.failed')
       });
       setDraftAdditionalCosts([]);
-      await refetchRFQ();
+      await refetchPriceInquiryData();
     } finally {
       setIsPictureSubmitting(false);
     }
@@ -1735,7 +1994,7 @@ export default function RFQDetail(): ReactElement {
         success: t('toast.success'),
         error: t('toast.failed')
       });
-      await refetchRFQ();
+      await refetchPriceInquiryData();
     } finally {
       setIsPictureSubmitting(false);
     }
@@ -1986,7 +2245,7 @@ export default function RFQDetail(): ReactElement {
       setDraftDetailErrors({});
       setDraftDetailOptions([]);
       setCollapsedDetailOptionIds([]);
-      await refetchRFQ();
+      await refetchPriceInquiryData();
     } finally {
       setIsPictureSubmitting(false);
     }
@@ -1996,887 +2255,6 @@ export default function RFQDetail(): ReactElement {
     setVisibleDetailSaveConfirmationDialog(false);
     await handleSaveAllDraftDetails();
   };
-
-  const renderPriceOptionsSection = (): ReactElement => (
-    <CollapsibleWrapper
-      title="ตัวเลือกราคา"
-      defaultExpanded
-      action={
-        canManageInquiryPricing ? (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              className="btn-emerald-green"
-              sx={actionButtonSx}
-              onClick={handleAddDetailOption}
-              disabled={formik.isSubmitting || isPictureSubmitting}>
-              เพิ่มตัวเลือกราคา
-            </Button>
-            {hasDraftDetailOptions ? (
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<Save />}
-                className="btn-emerald-green"
-                sx={actionButtonSx}
-                onClick={() => setVisibleDetailSaveConfirmationDialog(true)}
-                disabled={formik.isSubmitting || isPictureSubmitting}>
-                บันทึกตัวเลือกราคา
-              </Button>
-            ) : null}
-          </Stack>
-        ) : null
-      }>
-      <Stack spacing={2}>
-        {detailOptions.length ? (
-          detailOptions.map((detail, index) => {
-            const sortedTiers = [...(detail.tiers || [])].sort(
-              (left, right) => left.sortOrder - right.sortOrder
-            );
-            const isDraftDetail = detail.id < 0;
-            const detailError = draftDetailErrors[detail.id] || {};
-            const isCollapsed = collapsedDetailOptionIds.includes(detail.id);
-
-            return (
-              <Box
-                key={detail.id}
-                sx={{
-                  border: '1px solid #dce4ee',
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  background:
-                    'linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(255,255,255,1) 22%)'
-                }}>
-                <Box
-                  sx={{
-                    px: { xs: 2, md: 3 },
-                    py: 2,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: { xs: 'flex-start', md: 'center' },
-                    gap: 1.5,
-                    flexDirection: { xs: 'column', md: 'row' }
-                  }}>
-                  <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
-                      <Chip
-                        label={`ตัวเลือก ${detail.sortOrder || index + 1}`}
-                        size="small"
-                        sx={{
-                          backgroundColor: '#eef6ff',
-                          color: '#185ea8',
-                          fontWeight: 700
-                        }}
-                      />
-                      {isDraftDetail ? (
-                        <Grid item xs={12} md={12}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="ชื่อตัวเลือก"
-                            value={detail.optionName}
-                            InputLabelProps={{ shrink: true }}
-                            error={Boolean(detailError.optionName)}
-                            helperText={detailError.optionName}
-                            onChange={(event) =>
-                              handleDraftDetailChange(detail.id, 'optionName', event.target.value)
-                            }
-                          />
-                        </Grid>
-                      ) : (
-                        <Typography>{detail.optionName || `Option ${index + 1}`}</Typography>
-                      )}
-                    </Stack>
-                    {isDraftDetail ? (
-                      <Grid container spacing={1.5} sx={{ mt: 0.5, maxWidth: 860 }}>
-                        <Grid item xs={12} md={12}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="สเปค"
-                            value={detail.spec}
-                            InputLabelProps={{ shrink: true }}
-                            error={Boolean(detailError.spec)}
-                            helperText={detailError.spec}
-                            onChange={(event) =>
-                              handleDraftDetailChange(detail.id, 'spec', event.target.value)
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={12}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="หมายเหตุ"
-                            value={detail.remark || ''}
-                            InputLabelProps={{ shrink: true }}
-                            onChange={(event) =>
-                              handleDraftDetailChange(detail.id, 'remark', event.target.value)
-                            }
-                          />
-                        </Grid>
-                      </Grid>
-                    ) : (
-                      <>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mt: 1, whiteSpace: 'pre-line' }}>
-                          {detail.spec || '-'}
-                        </Typography>
-                        {detail.remark ? (
-                          <Box
-                            sx={{
-                              mt: 1.5,
-                              px: 1.5,
-                              py: 1,
-                              borderRadius: 2,
-                              backgroundColor: '#fff8e1'
-                            }}>
-                            <Typography variant="caption" color="text.secondary">
-                              หมายเหตุ
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              {detail.remark}
-                            </Typography>
-                          </Box>
-                        ) : null}
-                      </>
-                    )}
-                  </Box>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ alignSelf: { xs: 'flex-end', md: 'flex-start' } }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleToggleDetailOption(detail.id)}
-                      sx={{
-                        color: '#475569',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #dbe3ec',
-                        '&:hover': {
-                          backgroundColor: '#eef2f7'
-                        }
-                      }}>
-                      {isCollapsed ? (
-                        <ExpandMore fontSize="small" />
-                      ) : (
-                        <ExpandLess fontSize="small" />
-                      )}
-                    </IconButton>
-                    {canManageInquiryPricing ? (
-                      <IconButton
-                        size="small"
-                        onClick={() => setSelectedDetailToDelete(detail)}
-                        disabled={formik.isSubmitting || isPictureSubmitting}
-                        sx={{
-                          color: '#c62828',
-                          backgroundColor: '#fff5f5',
-                          border: '1px solid #ffd7d7',
-                          '&:hover': {
-                            backgroundColor: '#ffe5e5'
-                          }
-                        }}>
-                        <DeleteOutline fontSize="small" />
-                      </IconButton>
-                    ) : null}
-                  </Stack>
-                </Box>
-
-                <Collapse in={!isCollapsed} timeout="auto" unmountOnExit>
-                  <Divider />
-
-                  <Box sx={{ display: { xs: 'none', md: 'block' }, overflowX: 'auto' }}>
-                    {isDraftDetail ? (
-                      <Box sx={{ p: 2 }}>
-                        <Stack
-                          direction={{ xs: 'column', sm: 'row' }}
-                          justifyContent="space-between"
-                          alignItems={{ xs: 'stretch', sm: 'center' }}
-                          spacing={1.5}
-                          sx={{ mb: 2 }}>
-                          <Typography variant="subtitle1" fontWeight={700}></Typography>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Add />}
-                            sx={outlinedActionButtonSx}
-                            onClick={() => handleAddTier(detail.id)}>
-                            เพิ่ม Tier
-                          </Button>
-                        </Stack>
-                        {detailError.tiers ? (
-                          <Typography variant="body2" color="error" sx={{ mb: 1.5 }}>
-                            {detailError.tiers}
-                          </Typography>
-                        ) : null}
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow
-                              sx={{
-                                '& th': {
-                                  fontWeight: 700,
-                                  backgroundColor: '#f8fafc',
-                                  whiteSpace: 'nowrap'
-                                }
-                              }}>
-                              <TableCell>MOQ</TableCell>
-                              <TableCell>ราคาสินค้า</TableCell>
-                              <TableCell>ค่าขนส่งทางบก</TableCell>
-                              <TableCell>ค่าขนส่งทางเรือ</TableCell>
-                              <TableCell align="right">รวมทางบก</TableCell>
-                              <TableCell align="right">รวมทางเรือ</TableCell>
-                              <TableCell align="center">จัดการ</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {sortedTiers.length ? (
-                              sortedTiers.map((tier) => (
-                                <TableRow key={tier.id}>
-                                  <TableCell sx={{ minWidth: 140 }}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      value={tier.quantity}
-                                      error={Boolean(detailError.tierErrors?.[tier.id]?.quantity)}
-                                      helperText={detailError.tierErrors?.[tier.id]?.quantity}
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'quantity',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell sx={{ minWidth: 140 }}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      value={tier.productPrice}
-                                      error={Boolean(
-                                        detailError.tierErrors?.[tier.id]?.productPrice
-                                      )}
-                                      helperText={detailError.tierErrors?.[tier.id]?.productPrice}
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'productPrice',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell sx={{ minWidth: 150 }}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      value={tier.landFreightCost}
-                                      error={Boolean(
-                                        detailError.tierErrors?.[tier.id]?.landFreightCost
-                                      )}
-                                      helperText={
-                                        detailError.tierErrors?.[tier.id]?.landFreightCost
-                                      }
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'landFreightCost',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell sx={{ minWidth: 150 }}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      value={tier.seaFreightCost}
-                                      error={Boolean(
-                                        detailError.tierErrors?.[tier.id]?.seaFreightCost
-                                      )}
-                                      helperText={detailError.tierErrors?.[tier.id]?.seaFreightCost}
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'seaFreightCost',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell
-                                    align="right"
-                                    sx={{ fontWeight: 700, color: '#1565c0' }}>
-                                    {formatPrice(tier.landTotalPrice)}
-                                  </TableCell>
-                                  <TableCell
-                                    align="right"
-                                    sx={{ fontWeight: 700, color: '#00897b' }}>
-                                    {formatPrice(tier.seaTotalPrice)}
-                                  </TableCell>
-                                  <TableCell align="center">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleDeleteTier(detail.id, tier.id)}
-                                      sx={{
-                                        color: '#c62828',
-                                        backgroundColor: '#fff5f5',
-                                        border: '1px solid #ffd7d7',
-                                        '&:hover': {
-                                          backgroundColor: '#ffe5e5'
-                                        }
-                                      }}>
-                                      <DeleteOutline fontSize="small" />
-                                    </IconButton>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
-                                  ยังไม่มี tier กรุณากด "เพิ่ม Tier"
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </Box>
-                    ) : sortedTiers.length ? (
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow
-                            sx={{
-                              '& th': {
-                                fontWeight: 700,
-                                backgroundColor: '#f8fafc',
-                                whiteSpace: 'nowrap'
-                              }
-                            }}>
-                            <TableCell>MOQ</TableCell>
-                            <TableCell>ราคาสินค้า</TableCell>
-                            <TableCell>ค่าขนส่งทางบก</TableCell>
-                            <TableCell>ค่าขนส่งทางเรือ</TableCell>
-                            <TableCell align="right">รวมทางบก</TableCell>
-                            <TableCell align="right">รวมทางเรือ</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {sortedTiers.map((tier) => (
-                            <TableRow key={tier.id}>
-                              <TableCell sx={{ fontWeight: 600 }}>
-                                {formatQuantity(tier.quantity)}
-                              </TableCell>
-                              <TableCell>{formatPrice(tier.productPrice)}</TableCell>
-                              <TableCell>{formatPrice(tier.landFreightCost)}</TableCell>
-                              <TableCell>{formatPrice(tier.seaFreightCost)}</TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 700, color: '#1565c0' }}>
-                                {formatPrice(tier.landTotalPrice)}
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 700, color: '#00897b' }}>
-                                {formatPrice(tier.seaTotalPrice)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
-                        ยังไม่มีช่วงราคาในตัวเลือกนี้
-                      </Box>
-                    )}
-                  </Box>
-
-                  <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
-                    <Stack spacing={1.5}>
-                      {isDraftDetail ? (
-                        <>
-                          <Grid container spacing={1.5}>
-                            <Grid item xs={12}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="ชื่อตัวเลือก"
-                                value={detail.optionName}
-                                InputLabelProps={{ shrink: true }}
-                                error={Boolean(detailError.optionName)}
-                                helperText={detailError.optionName}
-                                onChange={(event) =>
-                                  handleDraftDetailChange(
-                                    detail.id,
-                                    'optionName',
-                                    event.target.value
-                                  )
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs={12}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="สเปค"
-                                value={detail.spec}
-                                InputLabelProps={{ shrink: true }}
-                                error={Boolean(detailError.spec)}
-                                helperText={detailError.spec}
-                                onChange={(event) =>
-                                  handleDraftDetailChange(detail.id, 'spec', event.target.value)
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs={12}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="หมายเหตุ"
-                                value={detail.remark || ''}
-                                InputLabelProps={{ shrink: true }}
-                                onChange={(event) =>
-                                  handleDraftDetailChange(detail.id, 'remark', event.target.value)
-                                }
-                              />
-                            </Grid>
-                          </Grid>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Add />}
-                            sx={outlinedActionButtonSx}
-                            onClick={() => handleAddTier(detail.id)}>
-                            เพิ่ม Tier
-                          </Button>
-                          {detailError.tiers ? (
-                            <Typography variant="body2" color="error">
-                              {detailError.tiers}
-                            </Typography>
-                          ) : null}
-                          {sortedTiers.length ? (
-                            sortedTiers.map((tier) => (
-                              <Box
-                                key={tier.id}
-                                sx={{
-                                  p: 1.5,
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: 2,
-                                  backgroundColor: '#ffffff'
-                                }}>
-                                <Grid container spacing={1}>
-                                  <Grid item xs={12}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      label="MOQ"
-                                      value={tier.quantity}
-                                      error={Boolean(detailError.tierErrors?.[tier.id]?.quantity)}
-                                      helperText={detailError.tierErrors?.[tier.id]?.quantity}
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'quantity',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </Grid>
-                                  <Grid item xs={12}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      label="ราคาสินค้า"
-                                      value={tier.productPrice}
-                                      error={Boolean(
-                                        detailError.tierErrors?.[tier.id]?.productPrice
-                                      )}
-                                      helperText={detailError.tierErrors?.[tier.id]?.productPrice}
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'productPrice',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </Grid>
-                                  <Grid item xs={12}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      label="ค่าขนส่งทางบก"
-                                      value={tier.landFreightCost}
-                                      error={Boolean(
-                                        detailError.tierErrors?.[tier.id]?.landFreightCost
-                                      )}
-                                      helperText={
-                                        detailError.tierErrors?.[tier.id]?.landFreightCost
-                                      }
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'landFreightCost',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </Grid>
-                                  <Grid item xs={12}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      type="number"
-                                      label="ค่าขนส่งทางเรือ"
-                                      value={tier.seaFreightCost}
-                                      error={Boolean(
-                                        detailError.tierErrors?.[tier.id]?.seaFreightCost
-                                      )}
-                                      helperText={detailError.tierErrors?.[tier.id]?.seaFreightCost}
-                                      onChange={(event) =>
-                                        handleDraftTierChange(
-                                          detail.id,
-                                          tier.id,
-                                          'seaFreightCost',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      รวมทางบก
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight={700} color="#1565c0">
-                                      {formatPrice(tier.landTotalPrice)}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      รวมทางเรือ
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight={700} color="#00897b">
-                                      {formatPrice(tier.seaTotalPrice)}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={12}>
-                                    <Button
-                                      fullWidth
-                                      variant="outlined"
-                                      color="error"
-                                      startIcon={<DeleteOutline />}
-                                      sx={outlinedActionButtonSx}
-                                      onClick={() => handleDeleteTier(detail.id, tier.id)}>
-                                      ลบแถว
-                                    </Button>
-                                  </Grid>
-                                </Grid>
-                              </Box>
-                            ))
-                          ) : (
-                            <Box
-                              sx={{
-                                p: 1.5,
-                                border: '1px dashed #d1d5db',
-                                borderRadius: 2,
-                                backgroundColor: '#ffffff',
-                                color: 'text.secondary'
-                              }}>
-                              ยังไม่มี tier กรุณากด "เพิ่ม Tier"
-                            </Box>
-                          )}
-                        </>
-                      ) : sortedTiers.length ? (
-                        sortedTiers.map((tier) => (
-                          <Box
-                            key={tier.id}
-                            sx={{
-                              p: 1.5,
-                              border: '1px solid #e5e7eb',
-                              borderRadius: 2,
-                              backgroundColor: '#ffffff'
-                            }}>
-                            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-                              {formatQuantity(tier.quantity)}
-                            </Typography>
-                            <Grid container spacing={1}>
-                              <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">
-                                  ราคาสินค้า
-                                </Typography>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {formatPrice(tier.productPrice)}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">
-                                  ค่าขนส่งทางบก
-                                </Typography>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {formatPrice(tier.landFreightCost)}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">
-                                  รวมทางบก
-                                </Typography>
-                                <Typography variant="body2" fontWeight={700} color="#1565c0">
-                                  {formatPrice(tier.landTotalPrice)}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={6}>
-                                <Typography variant="caption" color="text.secondary">
-                                  ค่าขนส่งทางเรือ
-                                </Typography>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {formatPrice(tier.seaFreightCost)}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12}>
-                                <Typography variant="caption" color="text.secondary">
-                                  รวมทางเรือ
-                                </Typography>
-                                <Typography variant="body2" fontWeight={700} color="#00897b">
-                                  {formatPrice(tier.seaTotalPrice)}
-                                </Typography>
-                              </Grid>
-                            </Grid>
-                          </Box>
-                        ))
-                      ) : (
-                        <Box
-                          sx={{
-                            p: 1.5,
-                            border: '1px dashed #d1d5db',
-                            borderRadius: 2,
-                            backgroundColor: '#ffffff',
-                            color: 'text.secondary'
-                          }}>
-                          ยังไม่มีช่วงราคาในตัวเลือกนี้
-                        </Box>
-                      )}
-                    </Stack>
-                  </Box>
-                </Collapse>
-              </Box>
-            );
-          })
-        ) : (
-          <Box
-            sx={{
-              border: '1px dashed #cbd5e1',
-              borderRadius: 3,
-              py: 4,
-              px: 2,
-              textAlign: 'center',
-              backgroundColor: '#f8fafc'
-            }}>
-            <Typography variant="body1" fontWeight={600}>
-              ยังไม่มีข้อมูลตัวเลือกราคา
-            </Typography>
-          </Box>
-        )}
-      </Stack>
-    </CollapsibleWrapper>
-  );
-
-  const renderAdditionalCostsSection = (): ReactElement => (
-    <CollapsibleWrapper
-      title="รายละเอียดเพิ่มเติม"
-      defaultExpanded
-      action={
-        canManageInquiryPricing ? (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              className="btn-emerald-green"
-              sx={actionButtonSx}
-              onClick={handleAddAdditionalCost}
-              disabled={formik.isSubmitting || isPictureSubmitting}>
-              เพิ่มรายละเอียด
-            </Button>
-            {draftAdditionalCosts.length ? (
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<Save />}
-                className="btn-emerald-green"
-                sx={actionButtonSx}
-                onClick={handleSaveAdditionalCosts}
-                disabled={formik.isSubmitting || isPictureSubmitting}>
-                บันทึก
-              </Button>
-            ) : null}
-          </Stack>
-        ) : null
-      }>
-      {additionalCosts.length || draftAdditionalCosts.length ? (
-        <Box
-          sx={{
-            border: '1px solid #dce4ee',
-            borderRadius: 3,
-            overflow: 'hidden',
-            backgroundColor: '#fff'
-          }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow
-                sx={{
-                  '& th': {
-                    fontWeight: 700,
-                    backgroundColor: '#f8fafc',
-                    whiteSpace: 'nowrap'
-                  }
-                }}>
-                <TableCell align="center" width="40%">
-                  Name
-                </TableCell>
-                <TableCell>Description</TableCell>
-                {canManageInquiryPricing ? (
-                  <TableCell align="center" width="88">
-                    จัดการ
-                  </TableCell>
-                ) : null}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {additionalCosts.map((additionalCost) => (
-                <TableRow
-                  key={additionalCost.id}
-                  sx={{
-                    '&:last-child td': { borderBottom: 0 }
-                  }}>
-                  <TableCell sx={{ fontWeight: 600 }}>
-                    {additionalCost.description || '-'}
-                  </TableCell>
-                  <TableCell>
-                    {formatAdditionalCostValue(additionalCost.value, additionalCost.unit)}
-                  </TableCell>
-                  {canManageInquiryPricing ? (
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => setSelectedAdditionalCostToDelete(additionalCost)}
-                        disabled={formik.isSubmitting || isPictureSubmitting}
-                        sx={{
-                          color: '#c62828',
-                          backgroundColor: '#fff5f5',
-                          border: '1px solid #ffd7d7',
-                          '&:hover': {
-                            backgroundColor: '#ffe5e5'
-                          }
-                        }}>
-                        <DeleteOutline fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  ) : null}
-                </TableRow>
-              ))}
-              {draftAdditionalCosts.map((additionalCost) => (
-                <TableRow
-                  key={additionalCost.id}
-                  sx={{
-                    '&:last-child td': { borderBottom: 0 }
-                  }}>
-                  <TableCell sx={{ fontWeight: 600 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Name"
-                      value={additionalCost.description}
-                      onChange={(event) =>
-                        handleDraftAdditionalCostChange(
-                          additionalCost.id,
-                          'description',
-                          event.target.value
-                        )
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        placeholder="Value"
-                        value={additionalCost.value}
-                        onChange={(event) =>
-                          handleDraftAdditionalCostChange(
-                            additionalCost.id,
-                            'value',
-                            event.target.value
-                          )
-                        }
-                      />
-                      <TextField
-                        fullWidth
-                        size="small"
-                        placeholder="Unit"
-                        value={additionalCost.unit}
-                        onChange={(event) =>
-                          handleDraftAdditionalCostChange(
-                            additionalCost.id,
-                            'unit',
-                            event.target.value
-                          )
-                        }
-                      />
-                    </Stack>
-                  </TableCell>
-                  {canManageInquiryPricing ? (
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteDraftAdditionalCost(additionalCost.id)}
-                        sx={{
-                          color: '#c62828',
-                          backgroundColor: '#fff5f5',
-                          border: '1px solid #ffd7d7',
-                          '&:hover': {
-                            backgroundColor: '#ffe5e5'
-                          }
-                        }}>
-                        <DeleteOutline fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  ) : null}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            border: '1px dashed #cbd5e1',
-            borderRadius: 3,
-            py: 4,
-            px: 2,
-            textAlign: 'center',
-            backgroundColor: '#f8fafc'
-          }}>
-          <Typography variant="body1" fontWeight={600}>
-            ยังไม่มีรายละเอียดเพิ่มเติม
-          </Typography>
-        </Box>
-      )}
-    </CollapsibleWrapper>
-  );
 
   return (
     <Page>
@@ -2893,7 +2271,7 @@ export default function RFQDetail(): ReactElement {
           isSupplierQuoteSubmitting
         }
       />
-      <PageTitle title={rfq?.id || 'Price Inquiry Detail'}>
+      <PageTitle title={'สอบถามราคาเลขที่ ' + rfq?.id || 'Price Inquiry Detail'}>
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
           {rfq?.status ? (
             <Chip
@@ -2933,7 +2311,46 @@ export default function RFQDetail(): ReactElement {
       </PageTitle>
       <Wrapper>
         <Stack spacing={2}>
-          <Stack direction="row" justifyContent="flex-end">
+          <Stack direction="row" justifyContent="flex-end" spacing={1}>
+            {suggestedSupplierIds.size == 0 ? (
+              <Button
+                variant="contained"
+                sx={blueActionButtonSx}
+                disabled={isSupplierQuoteSubmitting}
+                onClick={() => handleOpenSupplierQuoteDialog()}>
+                บันทึกราคา
+              </Button>
+            ) : null}
+
+            <Button
+              variant="contained"
+              sx={blueActionButtonSx}
+              disabled={isGenerateInquirySubmitting}
+              onClick={async () => {
+                if (!params.id) {
+                  return;
+                }
+
+                try {
+                  setIsGenerateInquirySubmitting(true);
+                  const response = await toast.promise(generateRFQInquiry(params.id), {
+                    loading: t('toast.loading'),
+                    success: t('toast.success'),
+                    error: t('toast.failed')
+                  });
+
+                  setGeneratedInquiryMessage(response || null);
+                  setEditableInquiryMessage({
+                    thaiMessage: response?.thaiMessage || '',
+                    chineseMessage: response?.chineseMessage || ''
+                  });
+                  await refetchPriceInquiryData();
+                } finally {
+                  setIsGenerateInquirySubmitting(false);
+                }
+              }}>
+              {t('priceInquiryManagement.generateInquiry.button')}
+            </Button>
             <Button
               variant="contained"
               className="btn-cool-grey"
@@ -2970,8 +2387,9 @@ export default function RFQDetail(): ReactElement {
           <TabPanel value="detail" currentTab={tab}>
             <>
               <CollapsibleWrapper
+                key={supplierQuotes.length ? 'rfq-detail-collapsed' : 'rfq-detail-expanded'}
                 title="รายละเอียดการสอบถามราคา"
-                defaultExpanded
+                defaultExpanded={!supplierQuotes.length}
                 action={
                   !isReadOnly ? (
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
@@ -3073,6 +2491,16 @@ export default function RFQDetail(): ReactElement {
                         </MenuItem>
                       ))}
                     </TextField>
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="การขนส่ง"
+                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>
@@ -3345,510 +2773,25 @@ export default function RFQDetail(): ReactElement {
                   </GridTextField>
                 </Grid>
               </CollapsibleWrapper>
-
-              <CollapsibleWrapper
-                title={t('priceInquiryManagement.suggestSupplier.title')}
-                defaultExpanded>
-                {isSuggestSuppliersFetching ? (
-                  <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {t('priceInquiryManagement.suggestSupplier.loading')}
-                    </Typography>
-                  </Stack>
-                ) : suggestSuppliersByRFQ.length ? (
-                  <Stack spacing={2}>
-                    {suggestSuppliersByRFQ.map((supplier) => {
-                      const defaultContact = getDefaultContact(supplier);
-                      const supplierQuote =
-                        supplierQuoteBySupplierId[supplier.supplierId || supplier.id];
-
-                      return (
-                        <Box
-                          key={supplier.id}
-                          sx={{
-                            border: '1px solid #dce4ee',
-                            borderRadius: 3,
-                            p: 2,
-                            backgroundColor: '#fff'
-                          }}>
-                          <Stack spacing={1.5}>
-                            <Stack
-                              direction={{ xs: 'column', sm: 'row' }}
-                              spacing={1}
-                              justifyContent="space-between"
-                              alignItems={{ xs: 'flex-start', sm: 'center' }}>
-                              <div>
-                                <Typography variant="subtitle1" fontWeight={700}>
-                                  {supplier.supplierName || '-'}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {supplier.id} | {supplier.supplierCode || '-'}
-                                </Typography>
-                                {supplierQuote ? (
-                                  <Chip
-                                    size="small"
-                                    label={`ตอบราคาแล้ว (${supplierQuote.details.length} รายการ)`}
-                                    sx={{
-                                      mt: 0.75,
-                                      backgroundColor: '#e8f5e9',
-                                      color: '#2e7d32',
-                                      border: '1px solid #2e7d3233',
-                                      fontWeight: 700
-                                    }}
-                                  />
-                                ) : null}
-                              </div>
-                              <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
-                                <Button
-                                  variant="contained"
-                                  sx={blueActionButtonSx}
-                                  disabled={isGenerateInquirySubmitting}
-                                  onClick={async () => {
-                                    if (!params.id) {
-                                      return;
-                                    }
-
-                                    try {
-                                      setIsGenerateInquirySubmitting(true);
-                                      const response = await toast.promise(
-                                        generateRFQInquiry(params.id, {
-                                          supplierId: supplier.supplierId || supplier.id
-                                        }),
-                                        {
-                                          loading: t('toast.loading'),
-                                          success: t('toast.success'),
-                                          error: t('toast.failed')
-                                        }
-                                      );
-
-                                      setGeneratedInquiryMessage(response || null);
-                                      setEditableInquiryMessage({
-                                        thaiMessage: response?.thaiMessage || '',
-                                        chineseMessage: response?.chineseMessage || ''
-                                      });
-                                    } finally {
-                                      setIsGenerateInquirySubmitting(false);
-                                    }
-                                  }}>
-                                  {t('priceInquiryManagement.generateInquiry.button')}
-                                </Button>
-                                <Button
-                                  variant={supplierQuote ? 'outlined' : 'contained'}
-                                  sx={
-                                    supplierQuote ? outlinedBlueActionButtonSx : blueActionButtonSx
-                                  }
-                                  disabled={isSupplierQuoteSubmitting}
-                                  onClick={() => handleOpenSupplierQuoteDialog(supplier)}>
-                                  {supplierQuote ? 'แก้ไขราคา' : 'บันทึกราคา'}
-                                </Button>
-                              </Stack>
-                            </Stack>
-
-                            <Grid container spacing={1.5}>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                  Email
-                                </Typography>
-                                <Typography variant="body2">
-                                  {supplier.supplierEmail || '-'}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                  Contact
-                                </Typography>
-                                <Typography variant="body2">
-                                  {defaultContact
-                                    ? `${defaultContact.contactName || '-'} | ${defaultContact.contactNumber || '-'
-                                    }`
-                                    : '-'}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                  WeChat
-                                </Typography>
-                                <Typography variant="body2">
-                                  {defaultContact?.wechat || '-'}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12}>
-                                <Typography variant="body2" color="text.secondary">
-                                  Address
-                                </Typography>
-                                <Typography variant="body2">
-                                  {supplier.fullAddress || '-'}
-                                </Typography>
-                              </Grid>
-                            </Grid>
-
-                            <Divider />
-
-                            <Stack spacing={1}>
-                              <Typography variant="body2" fontWeight={700}>
-                                {t('priceInquiryManagement.suggestSupplier.capabilities')}
-                              </Typography>
-                              {supplier.capabilities?.length ? (
-                                <Stack spacing={1.25}>
-                                  {supplier.capabilities.map((capability) => (
-                                    <Box key={capability.productFamilyCode}>
-                                      <Typography variant="body2" sx={{ mb: 0.75 }}>
-                                        {getCapabilityFamilyLabel(capability)}
-                                      </Typography>
-                                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                                        {capability.coversAllMaterials ? (
-                                          <Chip
-                                            label={t(
-                                              'priceInquiryManagement.suggestSupplier.allMaterials'
-                                            )}
-                                            size="small"
-                                            variant="outlined"
-                                          />
-                                        ) : capability.materials?.length ? (
-                                          capability.materials.map((material) => (
-                                            <Chip
-                                              key={`${capability.productFamilyCode}-${material.productMaterialCode}`}
-                                              label={getCapabilityMaterialLabel(material)}
-                                              size="small"
-                                              variant="outlined"
-                                            />
-                                          ))
-                                        ) : (
-                                          <Typography variant="body2" color="text.secondary">
-                                            -
-                                          </Typography>
-                                        )}
-                                      </Stack>
-                                    </Box>
-                                  ))}
-                                </Stack>
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {t('priceInquiryManagement.suggestSupplier.noCapabilities')}
-                                </Typography>
-                              )}
-                            </Stack>
-                          </Stack>
-                        </Box>
-                      );
-                    })}
-                  </Stack>
-                ) : (
-                  <Box
-                    sx={{
-                      border: '1px dashed #cbd5e1',
-                      borderRadius: 3,
-                      py: 3,
-                      px: 2,
-                      textAlign: 'center',
-                      backgroundColor: '#f8fafc'
-                    }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {t('priceInquiryManagement.suggestSupplier.noData')}
-                    </Typography>
-                  </Box>
-                )}
-              </CollapsibleWrapper>
-
-              <CollapsibleWrapper title="เปรียบเทียบราคาคู่ค้า" defaultExpanded action={null}>
-                {respondedSupplierQuotes.length && supplierQuoteComparisonRows.length ? (
-                  <Box>
-                    {rfq?.finalSupplierQuoteId ? (
-                      <Box
-                        sx={{
-                          border: '1px solid #bbf7d0',
-                          borderRadius: 2,
-                          p: 2,
-                          mb: 2,
-                          backgroundColor: '#f0fdf4'
-                        }}>
-                        <Stack spacing={1}>
-                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                            <Chip
-                              size="small"
-                              label="Final แล้ว"
-                              sx={{
-                                backgroundColor: '#dcfce7',
-                                color: '#166534',
-                                fontWeight: 700
-                              }}
-                            />
-                            <Typography variant="body2" fontWeight={700}>
-                              {getSupplierDisplayName(rfq.finalSupplier)}
-                            </Typography>
-                          </Stack>
-                          <Grid container spacing={1.5}>
-                            <Grid item xs={12} md={4}>
-                              <Typography variant="caption" color="text.secondary">
-                                ค่าขนส่งทางรถ
-                              </Typography>
-                              <Typography variant="body2" fontWeight={700}>
-                                {formatPrice(rfq.finalLandFreightCost)}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                              <Typography variant="caption" color="text.secondary">
-                                ค่าขนส่งทางเรือ
-                              </Typography>
-                              <Typography variant="body2" fontWeight={700}>
-                                {formatPrice(rfq.finalSeaFreightCost)}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                              <Typography variant="caption" color="text.secondary">
-                                Remark / คำแนะนำ
-                              </Typography>
-                              <Typography variant="body2">
-                                {rfq.finalRemark || '-'}
-                              </Typography>
-                            </Grid>
-                          </Grid>
-                        </Stack>
-                      </Box>
-                    ) : null}
-                    <Box
-                      sx={{
-                        border: '1px solid #dce4ee',
-                        borderRadius: 3,
-                        overflow: 'auto',
-                        backgroundColor: '#fff'
-                      }}>
-                      <Table size="small" sx={{ minWidth: 760 }}>
-                        <TableHead>
-                          <TableRow
-                            sx={{
-                              '& th': {
-                                fontWeight: 700,
-                                backgroundColor: '#f8fafc',
-                                whiteSpace: 'nowrap'
-                              }
-                            }}>
-                            <TableCell
-                              sx={{
-                                position: 'sticky',
-                                left: 0,
-                                zIndex: 2,
-                                backgroundColor: '#f8fafc',
-                                minWidth: 160
-                              }}>
-                              MOQ
-                            </TableCell>
-                            {respondedSupplierQuotes.map((quote) => (
-                              <TableCell key={quote.id} align="center" sx={{ minWidth: 190 }}>
-                                <Stack spacing={0.25} alignItems="center">
-                                  <Stack
-                                    direction="row"
-                                    spacing={0.5}
-                                    alignItems="center"
-                                    justifyContent="center">
-                                    <Typography variant="body2" fontWeight={700}>
-                                      {getSupplierDisplayName(quote.supplier)}
-                                    </Typography>
-                                    <Tooltip title="ข้อมูล supplier">
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => setSupplierQuoteInfo(quote)}
-                                        sx={{ p: 0.25, color: 'text.secondary' }}>
-                                        <InfoOutlined sx={{ fontSize: 16 }} />
-                                      </IconButton>
-                                    </Tooltip>
-                                  </Stack>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {quote.supplier?.supplierCode || quote.supplier?.id || '-'}
-                                  </Typography>
-                                </Stack>
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {supplierQuoteComparisonRows.map((row) => {
-                            const lowestSeaTotalPrice = getLowestSupplierQuotePrice(
-                              row,
-                              respondedSupplierQuotes,
-                              'seaTotalPrice'
-                            );
-
-                            return (
-                              <TableRow
-                                key={row.key}
-                                sx={{
-                                  '&:nth-of-type(odd) td': {
-                                    backgroundColor: '#fcfdff'
-                                  }
-                                }}>
-                                <TableCell
-                                  sx={{
-                                    position: 'sticky',
-                                    left: 0,
-                                    zIndex: 1,
-                                    backgroundColor: '#fff',
-                                    minWidth: 160,
-                                    verticalAlign: 'top'
-                                  }}>
-                                  <Chip
-                                    size="small"
-                                    label={formatQuantity(row.quantity)}
-                                    sx={{
-                                      backgroundColor: '#eef2ff',
-                                      color: '#1d4ed8',
-                                      fontWeight: 700
-                                    }}
-                                  />
-                                </TableCell>
-                                {respondedSupplierQuotes.map((quote) => {
-                                  const supplierId =
-                                    quote.supplier?.supplierId || quote.supplier?.id;
-                                  const value = supplierId ? row.values[supplierId] : undefined;
-                                  const isBestSeaPrice =
-                                    Boolean(value) &&
-                                    lowestSeaTotalPrice !== null &&
-                                    value?.seaTotalPrice === lowestSeaTotalPrice;
-
-                                  return (
-                                    <TableCell
-                                      key={`${row.key}-${quote.id}-comparison-value`}
-                                      align="right"
-                                      sx={{
-                                        minWidth: 190,
-                                        verticalAlign: 'top',
-                                        backgroundColor: isBestSeaPrice
-                                          ? '#f0fdf4 !important'
-                                          : undefined,
-                                        borderLeft: isBestSeaPrice
-                                          ? '2px solid #22c55e'
-                                          : '1px solid #eef2f7'
-                                      }}>
-                                      {value ? (
-                                        <Stack spacing={0.75}>
-                                          <Box
-                                            sx={{
-                                              display: 'flex',
-                                              justifyContent: 'flex-end',
-                                              minHeight: 22
-                                            }}>
-                                            {isBestSeaPrice ? (
-                                              <Chip
-                                                size="small"
-                                                label="ถูกสุด"
-                                                sx={{
-                                                  height: 22,
-                                                  backgroundColor: '#dcfce7',
-                                                  color: '#166534',
-                                                  fontWeight: 700
-                                                }}
-                                              />
-                                            ) : null}
-                                          </Box>
-                                          <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            justifyContent="space-between">
-                                            <Typography variant="caption" color="text.secondary">
-                                              ราคาสินค้า
-                                            </Typography>
-                                            <Typography variant="body2" fontWeight={600}>
-                                              {formatPrice(value.productPrice)}
-                                            </Typography>
-                                          </Stack>
-                                          {value.landFreightCost > 0 ? (
-                                            <Stack
-                                              direction="row"
-                                              spacing={1}
-                                              justifyContent="space-between">
-                                              <Typography variant="caption" color="text.secondary">
-                                                ราคาสินค้ารวมขนส่งทางรถ
-                                              </Typography>
-                                              <Typography variant="body2" fontWeight={600}>
-                                                {formatPrice(value.landTotalPrice)}
-                                              </Typography>
-                                            </Stack>
-                                          ) : null}
-                                          {value.seaFreightCost > 0 ? (
-                                            <Stack
-                                              direction="row"
-                                              spacing={1}
-                                              justifyContent="space-between">
-                                              <Typography variant="caption" color="text.secondary">
-                                                ราคาสินค้ารวมขนส่งทางเรือ
-                                              </Typography>
-                                              <Typography
-                                                variant="body2"
-                                                fontWeight={800}
-                                                color={isBestSeaPrice ? '#166534' : 'text.primary'}>
-                                                {formatPrice(value.seaTotalPrice)}
-                                              </Typography>
-                                            </Stack>
-                                          ) : null}
-                                        </Stack>
-                                      ) : (
-                                        <Typography
-                                          variant="body2"
-                                          color="text.secondary"
-                                          align="center">
-                                          ยังไม่ตอบราคา
-                                        </Typography>
-                                      )}
-                                    </TableCell>
-                                  );
-                                })}
-                              </TableRow>
-                            );
-                          })}
-                          {canFinalPrice ?
-                            <>
-                              <TableRow>
-                                <TableCell
-                                  sx={{
-                                    position: 'sticky',
-                                    left: 0,
-                                    zIndex: 1,
-                                    backgroundColor: '#f8fafc',
-                                    minWidth: 160,
-                                    fontWeight: 700
-                                  }}
-                                />
-                                {respondedSupplierQuotes.map((quote) => (
-                                  <TableCell
-                                    key={`${quote.id}-select-action`}
-                                    align="center"
-                                    sx={{
-                                      minWidth: 190,
-                                      backgroundColor: '#f8fafc',
-                                      borderLeft: '1px solid #eef2f7'
-                                    }}>
-                                    <Button
-                                      variant="contained"
-                                      size="small"
-                                      fullWidth
-                                      sx={blueActionButtonSx}
-                                      onClick={() => handleOpenFinalPriceDialog(quote)}>
-                                      เลือก
-                                    </Button>
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            </>
-                            : null}
-                        </TableBody>
-                      </Table>
-                    </Box>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{
-                      border: '1px dashed #cbd5e1',
-                      borderRadius: 3,
-                      py: 4,
-                      px: 2,
-                      textAlign: 'center',
-                      backgroundColor: '#f8fafc'
-                    }}>
-                    <Typography variant="body1" fontWeight={600}>
-                      ยังไม่มีข้อมูลราคาที่ supplier ตอบกลับสำหรับเปรียบเทียบ
-                    </Typography>
-                  </Box>
-                )}
+              <CollapsibleWrapper title="Supplier Quote" defaultExpanded action={null}>
+                <SupplierQuoteSection
+                  quotes={supplierQuotes}
+                  editingQuoteId={inlineEditingSupplierQuoteId}
+                  quoteDraftDetails={quoteDraftDetails}
+                  quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
+                  quoteDraftErrors={quoteDraftErrors}
+                  isSubmitting={isSupplierQuoteSubmitting}
+                  onEditQuote={handleOpenSupplierQuoteEditDialog}
+                  onCancelEditQuote={handleCancelInlineSupplierQuoteEdit}
+                  onSaveEditQuote={handleRequestSaveSupplierQuote}
+                  onDetailChange={handleQuoteDetailChange}
+                  onTierChange={handleQuoteTierChange}
+                  onAdditionalCostChange={handleQuoteAdditionalCostChange}
+                  formatQuantity={formatQuantity}
+                  formatPrice={formatPrice}
+                  formatSupplierQuoteAdditionalCost={formatSupplierQuoteAdditionalCost}
+                  getSupplierDisplayName={getSupplierDisplayName}
+                />
               </CollapsibleWrapper>
             </>
           </TabPanel>
@@ -3916,390 +2859,25 @@ export default function RFQDetail(): ReactElement {
         onConfirm={handleConfirmUpdateInquiry}
         onCancel={() => setVisibleInquiryUpdateConfirmationDialog(false)}
       />
-      <Dialog
-        open={Boolean(supplierQuoteInfo)}
-        onClose={() => setSupplierQuoteInfo(null)}
-        maxWidth="md"
-        fullWidth>
-        <DialogTitle>รายละเอียด Supplier Quote</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700}>
-                {getSupplierDisplayName(supplierQuoteInfo?.supplier)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {supplierQuoteInfo?.supplier?.supplierCode ||
-                  supplierQuoteInfo?.supplier?.id ||
-                  '-'}
-              </Typography>
-            </Box>
-
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                รายละเอียดราคา
-              </Typography>
-              {supplierQuoteInfo?.details?.length ? (
-                supplierQuoteInfo.details.map((detail, detailIndex) => (
-                  <Box
-                    key={detail.id || `${detail.optionName}-${detailIndex}`}
-                    sx={{
-                      border: '1px solid #dce4ee',
-                      borderRadius: 2,
-                      p: 2,
-                      backgroundColor: '#fff'
-                    }}>
-                    <Stack spacing={1.5}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={700}>
-                          {detail.optionName || `Option ${detailIndex + 1}`}
-                        </Typography>
-                        {detail.spec ? (
-                          <Typography variant="body2" color="text.secondary">
-                            {detail.spec}
-                          </Typography>
-                        ) : null}
-                        {detail.remark ? (
-                          <Typography variant="caption" color="text.secondary">
-                            Remark: {detail.remark}
-                          </Typography>
-                        ) : null}
-                      </Box>
-
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>MOQ</TableCell>
-                            <TableCell align="right">ราคาสินค้า</TableCell>
-                            <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
-                            <TableCell align="right">รวมทางรถ</TableCell>
-                            <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
-                            <TableCell align="right">รวมทางเรือ</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.tiers.map((tier, tierIndex) => (
-                            <TableRow key={tier.id || `${detail.id || detailIndex}-${tierIndex}`}>
-                              <TableCell>{formatQuantity(tier.quantity)}</TableCell>
-                              <TableCell align="right">{formatPrice(tier.productPrice)}</TableCell>
-                              <TableCell align="right">
-                                {formatPrice(tier.landFreightCost)}
-                              </TableCell>
-                              <TableCell align="right">
-                                {formatPrice(tier.landTotalPrice)}
-                              </TableCell>
-                              <TableCell align="right">
-                                {formatPrice(tier.seaFreightCost)}
-                              </TableCell>
-                              <TableCell align="right">{formatPrice(tier.seaTotalPrice)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </Stack>
-                  </Box>
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  ยังไม่มีรายละเอียดราคา
-                </Typography>
-              )}
-            </Stack>
-
-            <Stack spacing={1}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Additional Cost
-              </Typography>
-              {supplierQuoteInfo?.additionalCosts?.length ? (
-                <Stack spacing={0.75}>
-                  {supplierQuoteInfo.additionalCosts.map((additionalCost, index) => (
-                    <Typography
-                      key={additionalCost.id || `${additionalCost.description}-${index}`}
-                      variant="body2">
-                      {formatSupplierQuoteAdditionalCost(additionalCost) || '-'}
-                    </Typography>
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  ไม่มี Additional Cost
-                </Typography>
-              )}
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          {canFinalPrice ? (
-            <Button
-              variant="contained"
-              onClick={() => {
-                supplierQuoteInfo ? handleOpenFinalPriceDialog(supplierQuoteInfo) : undefined;
-              }}>
-              เลือก
-            </Button>
-          ) : null}
-          <Button variant="contained" onClick={() => setSupplierQuoteInfo(null)}>
-            {t('button.close')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog
+      <FinalPriceQuoteDialog
         open={Boolean(finalPriceQuote)}
-        onClose={isFinalPriceSubmitting ? undefined : handleCloseFinalPriceDialog}
-        maxWidth="lg"
-        fullWidth>
-        <DialogTitle>Final ราคา RFQ</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700}>
-                {getSupplierDisplayName(finalPriceQuote?.supplier)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {finalPriceQuote?.supplier?.supplierCode || finalPriceQuote?.supplier?.id || '-'}
-              </Typography>
-            </Box>
-
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                รายการ Final ราคา
-              </Typography>
-              {finalPriceDraft.details.length ? (
-                finalPriceDraft.details.map((detail, detailIndex) => (
-                  <Box
-                    key={detail.id}
-                    sx={{
-                      border: '1px solid #dce4ee',
-                      borderRadius: 2,
-                      p: 2,
-                      backgroundColor: '#fff'
-                    }}>
-                    <Stack spacing={1.5}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={700}>
-                          {detail.optionName || `Option ${detailIndex + 1}`}
-                        </Typography>
-                        {detail.spec ? (
-                          <Typography variant="body2" color="text.secondary">
-                            {detail.spec}
-                          </Typography>
-                        ) : null}
-                      </Box>
-
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>MOQ</TableCell>
-                            <TableCell align="right">ราคาสินค้า</TableCell>
-                            <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
-                            <TableCell align="right">รวมทางรถ</TableCell>
-                            <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
-                            <TableCell align="right">รวมทางเรือ</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.tiers.map((tier) => {
-                            const landFreightCost = parsePriceInput(tier.landFreightCost) || 0;
-                            const seaFreightCost = parsePriceInput(tier.seaFreightCost) || 0;
-                            const tierError = finalPriceErrors.details?.[tier.id] || {};
-
-                            return (
-                              <TableRow key={tier.id}>
-                                <TableCell>{formatQuantity(tier.quantity)}</TableCell>
-                                <TableCell align="right">{formatPrice(tier.productPrice)}</TableCell>
-                                <TableCell align="right" sx={{ minWidth: 160 }}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.landFreightCost}
-                                    onChange={(event) =>
-                                      handleFinalPriceTierChange(
-                                        detail.id,
-                                        tier.id,
-                                        'landFreightCost',
-                                        event.target.value
-                                      )
-                                    }
-                                    error={Boolean(tierError.landFreightCost)}
-                                    helperText={tierError.landFreightCost}
-                                    inputProps={{ min: 0, step: '0.01' }}
-                                    fullWidth
-                                  />
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatPrice(tier.productPrice + landFreightCost)}
-                                </TableCell>
-                                <TableCell align="right" sx={{ minWidth: 160 }}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.seaFreightCost}
-                                    onChange={(event) =>
-                                      handleFinalPriceTierChange(
-                                        detail.id,
-                                        tier.id,
-                                        'seaFreightCost',
-                                        event.target.value
-                                      )
-                                    }
-                                    error={Boolean(tierError.seaFreightCost)}
-                                    helperText={tierError.seaFreightCost}
-                                    inputProps={{ min: 0, step: '0.01' }}
-                                    fullWidth
-                                  />
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatPrice(tier.productPrice + seaFreightCost)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </Stack>
-                  </Box>
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  ยังไม่มีรายละเอียดราคาจาก supplier quote
-                </Typography>
-              )}
-
-              <Stack spacing={1}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Additional Cost จาก Supplier Quote
-                </Typography>
-                {finalPriceQuote?.additionalCosts?.length ? (
-                  <Box
-                    sx={{
-                      border: '1px solid #dce4ee',
-                      borderRadius: 2,
-                      p: 2,
-                      backgroundColor: '#fff'
-                    }}>
-                    <Stack spacing={0.75}>
-                      {finalPriceQuote.additionalCosts.map((additionalCost, index) => (
-                        <Typography
-                          key={additionalCost.id || `${additionalCost.description}-${index}`}
-                          variant="body2">
-                          {formatSupplierQuoteAdditionalCost(additionalCost) || '-'}
-                        </Typography>
-                      ))}
-                    </Stack>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    ไม่มี Additional Cost
-                  </Typography>
-                )}
-              </Stack>
-
-              <Stack spacing={2}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    Additional Cost เพิ่มเติม
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<Add />}
-                    sx={outlinedActionButtonSx}
-                    onClick={handleAddFinalPriceAdditionalCost}>
-                    เพิ่มค่าใช้จ่าย
-                  </Button>
-                </Stack>
-                {finalPriceDraft.additionalCosts.length ? (
-                  finalPriceDraft.additionalCosts.map((additionalCost) => (
-                    <Grid container spacing={1} key={additionalCost.id} alignItems="center">
-                      <Grid item xs={12} md={5}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Name"
-                          value={additionalCost.description}
-                          onChange={(event) =>
-                            handleFinalPriceAdditionalCostChange(
-                              additionalCost.id,
-                              'description',
-                              event.target.value
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={3}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Value"
-                          value={additionalCost.value}
-                          onChange={(event) =>
-                            handleFinalPriceAdditionalCostChange(
-                              additionalCost.id,
-                              'value',
-                              event.target.value
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={3}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Unit"
-                          value={additionalCost.unit}
-                          onChange={(event) =>
-                            handleFinalPriceAdditionalCostChange(
-                              additionalCost.id,
-                              'unit',
-                              event.target.value
-                            )
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={1}>
-                        <Tooltip title="ลบค่าใช้จ่าย">
-                          <IconButton
-                            color="error"
-                            onClick={() =>
-                              handleDeleteFinalPriceAdditionalCost(additionalCost.id)
-                            }>
-                            <DeleteOutline />
-                          </IconButton>
-                        </Tooltip>
-                      </Grid>
-                    </Grid>
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    ยังไม่มี Additional Cost เพิ่มเติม
-                  </Typography>
-                )}
-              </Stack>
-
-              <TextField
-                label="Remark / คำแนะนำสำหรับ RFQ นี้"
-                value={finalPriceDraft.remark}
-                onChange={(event) => handleFinalPriceRemarkChange(event.target.value)}
-                multiline
-                minRows={4}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button disabled={isFinalPriceSubmitting} onClick={handleCloseFinalPriceDialog}>
-            {t('button.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            disabled={isFinalPriceSubmitting}
-            onClick={handleRequestSaveFinalPrice}>
-            บันทึก Final ราคา
-          </Button>
-        </DialogActions>
-      </Dialog>
+        finalPriceQuote={finalPriceQuote}
+        finalPriceDraft={finalPriceDraft}
+        finalPriceErrors={finalPriceErrors}
+        isSubmitting={isFinalPriceSubmitting}
+        onClose={handleCloseFinalPriceDialog}
+        onRemarkChange={handleFinalPriceRemarkChange}
+        onTierChange={handleFinalPriceTierChange}
+        onAddAdditionalCost={handleAddFinalPriceAdditionalCost}
+        onAdditionalCostChange={handleFinalPriceAdditionalCostChange}
+        onDeleteAdditionalCost={handleDeleteFinalPriceAdditionalCost}
+        onRequestSave={handleRequestSaveFinalPrice}
+        formatQuantity={formatQuantity}
+        formatPrice={formatPrice}
+        formatSupplierQuoteAdditionalCost={formatSupplierQuoteAdditionalCost}
+        getSupplierDisplayName={getSupplierDisplayName}
+        t={t}
+      />
       <ConfirmDialog
         open={visibleFinalPriceConfirmationDialog}
         title="ยืนยัน Final ราคา"
@@ -4313,377 +2891,116 @@ export default function RFQDetail(): ReactElement {
         onConfirm={handleConfirmSaveFinalPrice}
         onCancel={() => setVisibleFinalPriceConfirmationDialog(false)}
       />
-      <Dialog
-        open={Boolean(quoteDialogSupplier)}
+      <AddSupplierDialog
+        open={visibleAddSupplierDialog}
+        supplierSearchInput={supplierSearchInput}
+        onSupplierSearchInputChange={setSupplierSearchInput}
+        onSearchEnter={() => setSupplierSearchKeyword(supplierSearchInput.trim())}
+        onSearch={() => setSupplierSearchKeyword(supplierSearchInput.trim())}
+        isSupplierSearchFetching={isSupplierSearchFetching}
+        supplierSearchResult={supplierSearchResult}
+        suggestedSupplierIds={suggestedSupplierIds}
+        onSelectSupplier={(supplier) => {
+          const supplierId = supplier.supplierId || supplier.id;
+          const isAlreadySuggested = supplierId ? suggestedSupplierIds.has(supplierId) : false;
+          if (!isAlreadySuggested) {
+            setManuallyAddedSuggestSuppliers((previous) => {
+              const nextSupplierId = supplier.supplierId || supplier.id;
+              if (
+                previous.some((existing) => (existing.supplierId || existing.id) === nextSupplierId)
+              ) {
+                return previous;
+              }
+
+              return [supplier, ...previous];
+            });
+          }
+          handleCloseAddSupplierDialog();
+        }}
+        onClose={handleCloseAddSupplierDialog}
+      />
+      <SupplierQuoteDialog
+        open={visibleSupplierQuoteDialog}
+        supplier={quoteDialogSupplier}
+        quote={quoteDialogQuote}
+        quoteSupplierSearchInput={quoteSupplierSearchInput}
+        onQuoteSupplierSearchInputChange={setQuoteSupplierSearchInput}
+        onQuoteSupplierSearchEnter={() =>
+          setQuoteSupplierSearchKeyword(quoteSupplierSearchInput.trim())
+        }
+        onQuoteSupplierSearch={() => setQuoteSupplierSearchKeyword(quoteSupplierSearchInput.trim())}
+        isQuoteSupplierSearchFetching={isQuoteSupplierSearchFetching}
+        quoteSupplierSearchResult={quoteSupplierSearchResult}
+        supplierQuoteBySupplierId={supplierQuoteBySupplierId}
+        onSelectSupplier={handleSelectQuoteSupplier}
+        onChangeSupplier={() => {
+          setQuoteDialogSupplier(null);
+          setQuoteDialogQuote(null);
+          setQuoteDraftDetails([]);
+          setQuoteDraftAdditionalCosts([]);
+          setQuoteDraftErrors({});
+        }}
+        quoteDraftDetails={quoteDraftDetails}
+        quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
+        quoteDraftErrors={quoteDraftErrors}
+        onAddDetail={handleAddQuoteDetail}
+        onDetailChange={handleQuoteDetailChange}
+        onAddTier={handleAddQuoteTier}
+        onTierChange={handleQuoteTierChange}
+        onDeleteTier={handleDeleteQuoteTier}
+        onAddAdditionalCost={handleAddQuoteAdditionalCost}
+        onAdditionalCostChange={handleQuoteAdditionalCostChange}
+        onDeleteAdditionalCost={handleDeleteAdditionalCost}
+        onSave={handleRequestSaveSupplierQuote}
         onClose={handleCloseSupplierQuoteDialog}
-        maxWidth="lg"
-        fullWidth>
-        <DialogTitle>
-          {quoteDialogQuote ? 'แก้ไขราคาที่ supplier ตอบกลับ' : 'บันทึกราคาที่ supplier ตอบกลับ'}
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700}>
-                {quoteDialogSupplier?.supplierName || '-'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {quoteDialogSupplier?.supplierId || quoteDialogSupplier?.id || '-'} |{' '}
-                {quoteDialogSupplier?.supplierCode || '-'}
-              </Typography>
-            </Box>
-
-            <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle1" fontWeight={700}>
-                  รายการราคาที่ตอบกลับ
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Add />}
-                  sx={outlinedActionButtonSx}
-                  onClick={handleAddQuoteDetail}>
-                  เพิ่มรายการ
-                </Button>
-              </Stack>
-              {quoteDraftDetails.map((detail, index) => {
-                const detailError = quoteDraftErrors[detail.id] || {};
-                return (
-                  <Box
-                    key={detail.id}
-                    sx={{
-                      border: '1px solid #dce4ee',
-                      borderRadius: 3,
-                      p: 2,
-                      backgroundColor: '#fff'
-                    }}>
-                    <Stack spacing={2}>
-                      <Grid container spacing={1.5}>
-                        <Grid item xs={12} md={4}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Option"
-                            value={detail.optionName}
-                            error={Boolean(detailError.optionName)}
-                            helperText={detailError.optionName}
-                            onChange={(event) =>
-                              handleQuoteDetailChange(detail.id, 'optionName', event.target.value)
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={8}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Spec"
-                            value={detail.spec}
-                            error={Boolean(detailError.spec)}
-                            helperText={detailError.spec}
-                            onChange={(event) =>
-                              handleQuoteDetailChange(detail.id, 'spec', event.target.value)
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Remark"
-                            value={detail.remark || ''}
-                            onChange={(event) =>
-                              handleQuoteDetailChange(detail.id, 'remark', event.target.value)
-                            }
-                          />
-                        </Grid>
-                      </Grid>
-
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="body2" fontWeight={700}>
-                          Tier {index + 1}
-                        </Typography>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<Add />}
-                          onClick={() => handleAddQuoteTier(detail.id)}>
-                          เพิ่ม Tier
-                        </Button>
-                      </Stack>
-                      {detailError.tiers ? (
-                        <Typography variant="caption" color="error">
-                          {detailError.tiers}
-                        </Typography>
-                      ) : null}
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>MOQ</TableCell>
-                            <TableCell>Product Price</TableCell>
-                            <TableCell>Land Freight</TableCell>
-                            <TableCell>Land Total</TableCell>
-                            <TableCell>Sea Freight</TableCell>
-                            <TableCell>Sea Total</TableCell>
-                            <TableCell align="center">จัดการ</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.tiers.map((tier) => {
-                            const tierError = detailError.tierErrors?.[tier.id] || {};
-                            return (
-                              <TableRow key={tier.id}>
-                                <TableCell>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    type="number"
-                                    value={tier.quantity}
-                                    error={Boolean(tierError.quantity)}
-                                    helperText={tierError.quantity}
-                                    onChange={(event) =>
-                                      handleQuoteTierChange(
-                                        detail.id,
-                                        tier.id,
-                                        'quantity',
-                                        event.target.value
-                                      )
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    type="number"
-                                    value={tier.productPrice}
-                                    error={Boolean(tierError.productPrice)}
-                                    helperText={tierError.productPrice}
-                                    onChange={(event) =>
-                                      handleQuoteTierChange(
-                                        detail.id,
-                                        tier.id,
-                                        'productPrice',
-                                        event.target.value
-                                      )
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    type="number"
-                                    value={tier.landFreightCost}
-                                    error={Boolean(tierError.landFreightCost)}
-                                    helperText={tierError.landFreightCost}
-                                    onChange={(event) =>
-                                      handleQuoteTierChange(
-                                        detail.id,
-                                        tier.id,
-                                        'landFreightCost',
-                                        event.target.value
-                                      )
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell>{formatPrice(tier.landTotalPrice)}</TableCell>
-                                <TableCell>
-                                  <TextField
-                                    fullWidth
-                                    size="small"
-                                    type="number"
-                                    value={tier.seaFreightCost}
-                                    error={Boolean(tierError.seaFreightCost)}
-                                    helperText={tierError.seaFreightCost}
-                                    onChange={(event) =>
-                                      handleQuoteTierChange(
-                                        detail.id,
-                                        tier.id,
-                                        'seaFreightCost',
-                                        event.target.value
-                                      )
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell>{formatPrice(tier.seaTotalPrice)}</TableCell>
-                                <TableCell align="center">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleDeleteQuoteTier(detail.id, tier.id)}
-                                    sx={{ color: '#c62828' }}>
-                                    <DeleteOutline fontSize="small" />
-                                  </IconButton>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </Stack>
-                  </Box>
-                );
-              })}
-            </Stack>
-
-            <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Additional Cost
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Add />}
-                  sx={outlinedActionButtonSx}
-                  onClick={handleAddQuoteAdditionalCost}>
-                  เพิ่มค่าใช้จ่าย
-                </Button>
-              </Stack>
-              {quoteDraftAdditionalCosts.map((additionalCost) => (
-                <Grid container spacing={1} key={additionalCost.id}>
-                  <Grid item xs={12} md={5}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Name"
-                      value={additionalCost.description}
-                      onChange={(event) =>
-                        handleQuoteAdditionalCostChange(
-                          additionalCost.id,
-                          'description',
-                          event.target.value
-                        )
-                      }
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Value"
-                      value={additionalCost.value}
-                      onChange={(event) =>
-                        handleQuoteAdditionalCostChange(
-                          additionalCost.id,
-                          'value',
-                          event.target.value
-                        )
-                      }
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Unit"
-                      value={additionalCost.unit}
-                      onChange={(event) =>
-                        handleQuoteAdditionalCostChange(
-                          additionalCost.id,
-                          'unit',
-                          event.target.value
-                        )
-                      }
-                    />
-                  </Grid>
-                </Grid>
-              ))}
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="contained" color="secondary" onClick={handleSaveSupplierQuote}>
-            {t('button.save')}
-          </Button>
-          <Button variant="contained" onClick={handleCloseSupplierQuoteDialog}>
-            {t('button.close')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog
+        isSubmitting={isSupplierQuoteSubmitting}
+        t={t}
+      />
+      <ConfirmDialog
+        open={visibleSupplierQuoteSaveConfirmationDialog}
+        title={
+          quoteDialogQuote?.id
+            ? 'ยืนยันแก้ไขราคาที่ supplier ตอบกลับ'
+            : 'ยืนยันบันทึกราคาที่ supplier ตอบกลับ'
+        }
+        message={
+          quoteDialogQuote?.id
+            ? `คุณยืนยันแก้ไขราคาที่ supplier ตอบกลับของ ${getSupplierDisplayName(
+              quoteDialogSupplier
+            )} ใช่หรือไม่`
+            : `คุณยืนยันบันทึกราคาที่ supplier ตอบกลับของ ${getSupplierDisplayName(
+              quoteDialogSupplier
+            )} ใช่หรือไม่`
+        }
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmSaveSupplierQuote}
+        onCancel={() => setVisibleSupplierQuoteSaveConfirmationDialog(false)}
+      />
+      <GeneratedInquiryMessageDialog
         open={Boolean(generatedInquiryMessage)}
+        generatedInquiryMessage={generatedInquiryMessage}
+        thaiMessage={editableInquiryMessage.thaiMessage}
+        chineseMessage={editableInquiryMessage.chineseMessage}
+        isEdited={isInquiryMessageEdited}
+        onThaiMessageChange={(value) =>
+          setEditableInquiryMessage((previous) => ({
+            ...previous,
+            thaiMessage: value
+          }))
+        }
+        onChineseMessageChange={(value) =>
+          setEditableInquiryMessage((previous) => ({
+            ...previous,
+            chineseMessage: value
+          }))
+        }
+        onRequestUpdate={() => setVisibleInquiryUpdateConfirmationDialog(true)}
         onClose={handleCloseInquiryDialog}
-        maxWidth="md"
-        fullWidth>
-        <DialogTitle>{t('priceInquiryManagement.generateInquiry.title')}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={3}>
-            <Box>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 1 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {t('priceInquiryManagement.generateInquiry.thaiMessage')}
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ContentCopy />}
-                  onClick={() => copyText(editableInquiryMessage.thaiMessage || '')}>
-                  {t('button.copy')}
-                </Button>
-              </Stack>
-              <TextField
-                fullWidth
-                multiline
-                minRows={8}
-                value={editableInquiryMessage.thaiMessage}
-                onChange={(event) =>
-                  setEditableInquiryMessage((previous) => ({
-                    ...previous,
-                    thaiMessage: event.target.value
-                  }))
-                }
-              />
-            </Box>
-            <Box>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 1 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {t('priceInquiryManagement.generateInquiry.chineseMessage')}
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ContentCopy />}
-                  onClick={() => copyText(editableInquiryMessage.chineseMessage || '')}>
-                  {t('button.copy')}
-                </Button>
-              </Stack>
-              <TextField
-                fullWidth
-                multiline
-                minRows={8}
-                value={editableInquiryMessage.chineseMessage}
-                onChange={(event) =>
-                  setEditableInquiryMessage((previous) => ({
-                    ...previous,
-                    chineseMessage: event.target.value
-                  }))
-                }
-              />
-            </Box>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            variant="contained"
-            color="secondary"
-            disabled={!isInquiryMessageEdited}
-            onClick={() => setVisibleInquiryUpdateConfirmationDialog(true)}>
-            {t('button.update')}
-          </Button>
-          <Button variant="contained" onClick={handleCloseInquiryDialog}>
-            {t('button.close')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        t={t}
+      />
     </Page>
   );
 }

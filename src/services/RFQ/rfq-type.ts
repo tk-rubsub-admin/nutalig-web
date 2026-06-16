@@ -156,6 +156,11 @@ export interface RFQDetailOption {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  packageBoxWidth?: string;
+  packageBoxLength?: string;
+  packageBoxHeight?: string;
+  packagePiecesPerBox?: string;
+  packageWeightPerBoxKg?: string;
   supplier?: Supplier | null;
   tiers: RFQDetailTier[];
   createdDate: string;
@@ -179,6 +184,7 @@ export interface RFQRecord {
   id: string;
   quotationNo?: string | null;
   saleOrderId?: string | null;
+  shippingMethod?: 'ALL' | 'LAND' | 'SEA' | null;
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
   confirmedShippingMethod?: string | null;
@@ -237,6 +243,7 @@ export interface CreateRFQRequest {
   salesId: string;
   procurementId?: string;
   orderTypeCode: string;
+  shippingMethod: 'ALL' | 'LAND' | 'SEA';
   productFamily: string;
   productUsage: string;
   systemMechanic: string;
@@ -341,10 +348,8 @@ export interface RFQSupplierQuoteTier {
   id?: number;
   quantity: number;
   productPrice: number;
-  landFreightCost: number;
-  seaFreightCost: number;
-  landTotalPrice: number;
-  seaTotalPrice: number;
+  shippingCost: number | null;
+  currency: string | null;
   sortOrder: number;
   createdDate?: string | null;
   updatedDate?: string | null;
@@ -357,6 +362,9 @@ export interface RFQSupplierQuoteDetail {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
   tiers: RFQSupplierQuoteTier[];
   createdDate?: string | null;
   updatedDate?: string | null;
@@ -370,6 +378,33 @@ export interface RFQSupplierQuoteAdditionalCost {
   sortOrder: number;
   createdDate?: string | null;
   updatedDate?: string | null;
+}
+
+export interface UpsertRFQSupplierQuoteTierRequest {
+  quantity: number;
+  productPrice: number;
+  shippingCost?: number | null;
+  sortOrder: number;
+  currency: string;
+}
+
+export interface UpsertRFQSupplierQuoteDetailRequest {
+  rfqDetailId?: number | null;
+  optionName: string;
+  spec: string;
+  sortOrder: number;
+  remark: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  tiers: UpsertRFQSupplierQuoteTierRequest[];
+}
+
+export interface UpsertRFQSupplierQuoteAdditionalCostRequest {
+  description: string;
+  unit: string | null;
+  value: string | null;
+  sortOrder: number;
 }
 
 export interface RFQSupplierQuote {
@@ -392,8 +427,8 @@ export interface UpsertRFQSupplierQuoteRequest {
   inquiryId?: string | null;
   status?: string;
   remark?: string | null;
-  details: RFQSupplierQuoteDetail[];
-  additionalCosts: RFQSupplierQuoteAdditionalCost[];
+  details: UpsertRFQSupplierQuoteDetailRequest[];
+  additionalCosts: UpsertRFQSupplierQuoteAdditionalCostRequest[];
 }
 
 export interface RFQSupplierQuoteListResponse {

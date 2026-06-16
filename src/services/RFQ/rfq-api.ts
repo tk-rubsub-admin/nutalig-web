@@ -69,9 +69,9 @@ export const getRFQSuggestSuppliers = async (id: string): Promise<Supplier[]> =>
   }
 };
 
-export const generateRFQInquiry = async (id: string, payload: GenerateRFQInquiryRequest) => {
+export const generateRFQInquiry = async (id: string) => {
   const response: GenerateRFQInquiryResponse = await api
-    .post(`/v1/rfqs/${id}/inquiries/generate`, payload)
+    .post(`/v1/rfqs/${id}/inquiries/generate`)
     .then((res) => res.data);
 
   return response.data;
@@ -144,6 +144,7 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
   }
 
   formData.append('orderTypeCode', payload.orderTypeCode);
+  formData.append('shippingMethod', payload.shippingMethod);
   formData.append('productFamily', payload.productFamily);
   formData.append('productUsage', payload.productUsage);
   formData.append('systemMechanic', payload.systemMechanic);

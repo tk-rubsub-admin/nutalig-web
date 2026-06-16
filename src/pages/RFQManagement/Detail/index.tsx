@@ -194,6 +194,18 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
 }
 
+function getShippingMethodLabel(shippingMethod?: string | null): string {
+  if (shippingMethod === 'LAND') {
+    return 'ทางรถ';
+  }
+
+  if (shippingMethod === 'SEA') {
+    return 'ทางเรือ';
+  }
+
+  return 'ทางรถ, ทางเรือ';
+}
+
 function getNamedCodeValueCode<T extends { code?: string }>(value?: T | string | null): string {
   if (!value) {
     return '';
@@ -1644,6 +1656,16 @@ export default function RFQDetail(): ReactElement {
                         </MenuItem>
                       ))}
                     </TextField>
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="การขนส่ง"
+                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>

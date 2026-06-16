@@ -696,12 +696,10 @@
       "createSuccess": "สร้างคำขอราคาสำเร็จ",
       "createFailed": "สร้างคำขอราคาไม่สำเร็จ "
     },
-    "status": {
-      "NEW": "ใหม่"
-    },
     "rfqsStatus": {
       "NEW": "คำขอใหม่",
       "IN_PROGRESS": "กำลังดำเนินการ",
+      "SUPPLIER_QUOTED": "ซัพพลายเออร์ให้ราคาแล้ว",
       "QUOTED": "ได้ราคาแล้ว",
       "CANCELED": "ยกเลิก",
       "COMPLETED": "เสร็จสิ้น"

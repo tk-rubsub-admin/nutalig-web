@@ -63,17 +63,6 @@ export default function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
           </DialogContentText>
         )}
         <DialogActions>
-          {isShowCancelButton ? (
-            <Button
-              onClick={onCancel}
-              className="btn-crimson-red"
-              variant="contained"
-              aria-label="cancel">
-              {cancelText || 'Cancel'}
-            </Button>
-          ) : (
-            ''
-          )}
           {isShowConfirmButton ? (
             <Button
               onClick={onConfirm}
@@ -81,6 +70,17 @@ export default function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
               variant="contained"
               aria-label="confirm">
               {confirmText || 'Confirm'}
+            </Button>
+          ) : (
+            ''
+          )}
+          {isShowCancelButton ? (
+            <Button
+              onClick={onCancel}
+              className="btn-crimson-red"
+              variant="contained"
+              aria-label="cancel">
+              {cancelText || 'Cancel'}
             </Button>
           ) : (
             ''

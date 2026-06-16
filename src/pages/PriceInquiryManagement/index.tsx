@@ -283,7 +283,7 @@ export default function PriceInquiryManagement(): ReactElement {
       getRFQList(page, pageSize, {
         sortBy: 'slaDate',
         sortDirection: 'ASC',
-        statuses: ['NEW', 'IN_PROGRESS']
+        statuses: ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED']
       }),
     {
       refetchOnWindowFocus: false,

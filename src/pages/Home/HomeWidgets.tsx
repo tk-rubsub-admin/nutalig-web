@@ -17,8 +17,9 @@ import {
   Stack,
   Typography
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from 'react-query';
+import { KeyboardEvent, MouseEvent, useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useHistory } from 'react-router-dom';
 import { ScheduleXCalendar, useCalendarApp } from '@schedule-x/react';
 import { createEventsServicePlugin } from '@schedule-x/events-service';
 import { viewMonthGrid } from '@schedule-x/calendar';
@@ -28,6 +29,9 @@ import 'temporal-polyfill/global';
 import '@schedule-x/theme-default';
 import { getCalendarEvents } from 'services/Calendar/calendar-api';
 import { CalendarEventDto } from 'services/Calendar/calendar-type';
+import { getUserTodos, markUserTodoAsDone } from 'services/UserTodo/user-todo-api';
+import { UserTodo, UserTodoPriority } from 'services/UserTodo/user-todo-type';
+import { buildUserTodoTargetPath } from 'utils/userTodoTarget';
 
 const Temporal = (
   globalThis as typeof globalThis & {
@@ -36,104 +40,24 @@ const Temporal = (
 ).Temporal;
 const DASHBOARD_TIME_ZONE = 'Asia/Bangkok';
 const DEFAULT_CALENDAR_COLOR = '#64748b';
-const TODO_ITEMS = [
-  {
-    id: 1,
-    title: 'ติดตามใบเสนอราคาที่รออนุมัติ',
-    note: 'RFQ-2026-0042',
-    status: 'High',
-    colorCode: '#fee2e2',
-    due: 'วันนี้ 15:30'
-  },
-  {
-    id: 2,
-    title: 'ตรวจสอบ Sales Order ที่สร้างจาก RFQ',
-    note: 'SO-2026-0187',
-    status: 'In progress',
-    colorCode: '#fef3c7',
-    due: 'พรุ่งนี้ 10:00'
-  },
-  {
-    id: 3,
-    title: 'ยืนยันนัดหมายกับ supplier',
-    note: 'Supplier follow-up',
-    status: 'Low',
-    colorCode: '#dcfce7',
-    due: 'ศุกร์นี้'
-  },
-  {
-    id: 4,
-    title: 'ปิดงานค้างในแดชบอร์ด',
-    note: 'Dashboard cleanup',
-    status: 'Open',
-    colorCode: '#e2e8f0',
-    due: 'ยังไม่กำหนด'
-  },
-  {
-    id: 5,
-    title: 'ส่งอีเมลแจ้งลูกค้าเรื่องเอกสารค้าง',
-    note: 'Customer follow-up',
-    status: 'Medium',
-    colorCode: '#dbeafe',
-    due: 'วันนี้ 16:00'
-  },
-  {
-    id: 6,
-    title: 'อัปเดตสถานะ shipment',
-    note: 'Shipment tracking',
-    status: 'High',
-    colorCode: '#ffe4e6',
-    due: 'วันนี้ 17:30'
-  },
-  {
-    id: 7,
-    title: 'ตรวจสอบยอดคงเหลือสต็อก',
-    note: 'Inventory review',
-    status: 'Low',
-    colorCode: '#ecfccb',
-    due: 'พรุ่งนี้ 09:00'
-  },
-  {
-    id: 8,
-    title: 'อนุมัติใบสั่งซื้อจากทีมขาย',
-    note: 'Purchase approval',
-    status: 'In progress',
-    colorCode: '#fce7f3',
-    due: 'พรุ่งนี้ 11:15'
-  },
-  {
-    id: 9,
-    title: 'เตรียมเอกสารสำหรับประชุม supplier',
-    note: 'Meeting prep',
-    status: 'Open',
-    colorCode: '#e0f2fe',
-    due: 'อังคารหน้า'
-  },
-  {
-    id: 10,
-    title: 'รีวิวข้อมูล dashboard ประจำสัปดาห์',
-    note: 'Weekly review',
-    status: 'Medium',
-    colorCode: '#ede9fe',
-    due: 'พุธหน้า'
-  },
-  {
-    id: 11,
-    title: 'ติดตามการตอบกลับจากฝ่ายบัญชี',
-    note: 'Finance follow-up',
-    status: 'High',
-    colorCode: '#fef9c3',
-    due: 'วันนี้ 14:00'
-  },
-  {
-    id: 12,
-    title: 'ปิดงานเอกสารที่ตรวจสอบแล้ว',
-    note: 'Completed paperwork',
-    status: 'Low',
-    colorCode: '#dcfce7',
-    due: 'ศุกร์หน้า'
-  }
-] as const;
+
+const getTodoColor = (priority?: UserTodoPriority | null): string => {
+  if (priority === 'URGENT') return '#ffe4e6';
+  if (priority === 'HIGH') return '#fee2e2';
+  if (priority === 'LOW') return '#dcfce7';
+  return '#dbeafe';
+};
+
+const getTodoNote = (todo: UserTodo): string => {
+  if (todo.description) return todo.description;
+  if (todo.targetId) return todo.targetId;
+  return todo.todoType;
+};
+
+const getTodoDueText = (todo: UserTodo): string | null => {
+  if (!todo.dueDate) return null;
+  return `กำหนด ${dayjs(todo.dueDate).format('DD/MM/YYYY HH:mm')}`;
+};
 
 const normalizeCalendarColor = (value?: string | null) => {
   const color = (value || DEFAULT_CALENDAR_COLOR).trim();
@@ -283,6 +207,8 @@ const applyCalendarColors = (
 };
 
 export default function HomeWidgets(): JSX.Element {
+  const history = useHistory();
+  const queryClient = useQueryClient();
   const { data: calendarEventsData } = useQuery<CalendarEventDto[]>(
     ['calendar-events'],
     () => getCalendarEvents(),
@@ -290,7 +216,47 @@ export default function HomeWidgets(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
-  const [completedTodoIds, setCompletedTodoIds] = useState<number[]>([3]);
+  const { data: todoItems = [], isLoading: isTodoLoading } = useQuery<UserTodo[]>(
+    ['me-to-dos'],
+    () => getUserTodos(),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const displayTodoItems = useMemo(
+    () =>
+      [...todoItems].sort((a, b) => {
+        if (a.status === 'DONE' && b.status !== 'DONE') return 1;
+        if (a.status !== 'DONE' && b.status === 'DONE') return -1;
+        return 0;
+      }),
+    [todoItems]
+  );
+  const markTodoDoneMutation = useMutation((todoId: number) => markUserTodoAsDone(todoId), {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['me-to-dos']);
+      await queryClient.refetchQueries(['me-to-dos'], { active: true });
+    }
+  });
+
+  const handleOpenTodo = (todo: UserTodo) => {
+    const targetPath = buildUserTodoTargetPath(todo);
+    if (targetPath) {
+      history.push(targetPath);
+    }
+  };
+
+  const handleTodoKeyDown = (event: KeyboardEvent<HTMLDivElement>, todo: UserTodo) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleOpenTodo(todo);
+    }
+  };
+
+  const handleMarkTodoDone = (event: MouseEvent<HTMLButtonElement>, todoId: number) => {
+    event.stopPropagation();
+    markTodoDoneMutation.mutate(todoId);
+  };
 
   const calendarDefinitions = useMemo(() => {
     const definitions: Record<
@@ -410,33 +376,59 @@ export default function HomeWidgets(): JSX.Element {
               p: 1.5
             }}>
             <Stack spacing={1}>
-              {TODO_ITEMS.map((item) => {
-                const backgroundColor = normalizeCalendarColor(item.colorCode);
+              {isTodoLoading ? (
+                <Typography variant="body2" color="text.secondary">
+                  กำลังโหลดรายการที่ต้องทำ...
+                </Typography>
+              ) : null}
+              {!isTodoLoading && displayTodoItems.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  ไม่มีรายการที่ต้องทำ
+                </Typography>
+              ) : null}
+              {displayTodoItems.map((item) => {
+                const backgroundColor = normalizeCalendarColor(getTodoColor(item.priority));
                 const textColor = readableColor(backgroundColor, '#111827', '#ffffff');
-                const isCompleted = completedTodoIds.includes(item.id);
+                const targetPath = buildUserTodoTargetPath(item);
+                const isMarkingDone = markTodoDoneMutation.isLoading;
+                const dueText = getTodoDueText(item);
+                const isCompleted = item.status === 'DONE';
 
                 return (
                   <Box
                     key={item.id}
+                    role={targetPath ? 'button' : undefined}
+                    tabIndex={targetPath ? 0 : undefined}
+                    onClick={targetPath ? () => handleOpenTodo(item) : undefined}
+                    onKeyDown={targetPath ? (event) => handleTodoKeyDown(event, item) : undefined}
                     sx={{
+                      display: 'block',
+                      width: '100%',
                       border: '1px solid',
                       borderColor: 'transparent',
                       borderRadius: 1,
                       px: 1.25,
                       py: 1,
                       bgcolor: backgroundColor,
-                      color: textColor
+                      color: textColor,
+                      textAlign: 'left',
+                      font: 'inherit',
+                      cursor: targetPath ? 'pointer' : 'default',
+                      '&:hover': targetPath
+                        ? {
+                          filter: 'brightness(0.98)'
+                        }
+                        : undefined
                     }}>
                     <Stack direction="row" alignItems="flex-start" spacing={1}>
                       <Checkbox
                         size="small"
                         checked={isCompleted}
-                        onChange={() => {
-                          setCompletedTodoIds((prev) =>
-                            prev.includes(item.id)
-                              ? prev.filter((id) => id !== item.id)
-                              : [...prev, item.id]
-                          );
+                        disabled={isMarkingDone || isCompleted}
+                        onClick={(event) => {
+                          if (!isCompleted) {
+                            handleMarkTodoDone(event, item.id);
+                          }
                         }}
                         icon={<RadioButtonUnchecked fontSize="small" />}
                         checkedIcon={<CheckCircle fontSize="small" />}
@@ -455,17 +447,32 @@ export default function HomeWidgets(): JSX.Element {
                           noWrap
                           sx={{
                             textDecoration: isCompleted ? 'line-through' : 'none',
-                            opacity: isCompleted ? 0.75 : 1
+                            opacity: isMarkingDone ? 0.75 : 1
                           }}>
                           {item.title}
                         </Typography>
                         <Typography
                           variant="caption"
                           color="inherit"
-                          sx={{ opacity: 0.8 }}
+                          sx={{
+                            opacity: 0.8,
+                            textDecoration: isCompleted ? 'line-through' : 'none'
+                          }}
                           display="block">
-                          {item.note}
+                          {getTodoNote(item)}
                         </Typography>
+                        {dueText ? (
+                          <Typography
+                            variant="caption"
+                            color="inherit"
+                            sx={{
+                              opacity: 0.72,
+                              textDecoration: isCompleted ? 'line-through' : 'none'
+                            }}
+                            display="block">
+                            {dueText}
+                          </Typography>
+                        ) : null}
                       </Box>
                     </Stack>
                   </Box>

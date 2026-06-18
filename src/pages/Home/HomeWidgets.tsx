@@ -7,7 +7,9 @@ import {
   LocalShipping,
   EventAvailable,
   RadioButtonUnchecked,
-  Groups
+  Groups,
+  MeetingRoom,
+  FlightLand
 } from '@mui/icons-material';
 import {
   Box,
@@ -102,7 +104,7 @@ function getCalendarEventIcon(calendarEvent: CalendarMonthGridEventProps['calend
   const eventType = calendarEvent.eventType?.trim().toUpperCase();
 
   if (eventType === 'AIR_SHIPPING') {
-    return FlightTakeoff;
+    return FlightLand;
   }
 
   if (eventType === 'SEA_SHIPPING' || eventType === 'LAND_SHIPPING') {
@@ -110,10 +112,10 @@ function getCalendarEventIcon(calendarEvent: CalendarMonthGridEventProps['calend
   }
 
   if (eventType === 'INTERNAL') {
-    return Groups;
+    return MeetingRoom;
   }
 
-  if (eventType === 'HOLIDAY') {
+  if (eventType === 'HOLIDAY' || eventType === 'CHINA_HOLIDAY') {
     return EventAvailable;
   }
 
@@ -290,9 +292,6 @@ export default function HomeWidgets(): JSX.Element {
   const toCalendarDateTime = (value: string) =>
     Temporal.Instant.from(dayjs(value).toISOString()).toZonedDateTimeISO(DASHBOARD_TIME_ZONE);
 
-  const toCalendarDate = (value: string) =>
-    Temporal.PlainDate.from(dayjs(value).format('YYYY-MM-DD'));
-
   const eventsServicePlugin = useMemo(() => createEventsServicePlugin(), []);
 
   const calendarApp = useCalendarApp(
@@ -309,30 +308,60 @@ export default function HomeWidgets(): JSX.Element {
     [eventsServicePlugin]
   );
 
+  const expandAllDayCalendarEvent = (event: CalendarEventDto) => {
+    if (!event.allDay) {
+      return [
+        {
+          id: String(event.id),
+          title: event.title,
+          start: toCalendarDateTime(event.start),
+          end: toCalendarDateTime(event.end),
+          description: event.description ?? undefined,
+          location: event.location ?? undefined,
+          calendarId: buildCalendarColorName(normalizeCalendarColor(event.colorCode)),
+          eventType: event.eventType,
+          status: event.status,
+          sourceModule: event.sourceModule ?? undefined,
+          sourceId: event.sourceId ?? undefined
+        }
+      ];
+    }
+
+    const startDate = dayjs(event.start).startOf('day');
+    const inclusiveEndDate = dayjs(event.end).subtract(1, 'day').startOf('day');
+    const lastDate = inclusiveEndDate.isBefore(startDate, 'day') ? startDate : inclusiveEndDate;
+    const colorCode = normalizeCalendarColor(event.colorCode);
+    const calendarId = buildCalendarColorName(colorCode);
+    const items = [];
+    let currentDate = startDate;
+
+    while (currentDate.isSame(lastDate, 'day') || currentDate.isBefore(lastDate, 'day')) {
+      const plainDate = Temporal.PlainDate.from(currentDate.format('YYYY-MM-DD'));
+      const fragmentKey = currentDate.format('YYYY-MM-DD');
+      items.push({
+        id: `${event.id}-${fragmentKey}`,
+        title: event.title,
+        start: plainDate,
+        end: plainDate,
+        description: event.description ?? undefined,
+        location: event.location ?? undefined,
+        calendarId,
+        eventType: event.eventType,
+        status: event.status,
+        sourceModule: event.sourceModule ?? undefined,
+        sourceId: event.sourceId ?? undefined
+      });
+      currentDate = currentDate.add(1, 'day');
+    }
+
+    return items;
+  };
+
   const scheduleXEvents = useMemo(
     () =>
       (calendarEventsData || [])
         .filter((event) => event.active !== false)
-        .map((event) => {
-          const isAllDay = Boolean(event.allDay);
-          const colorCode = normalizeCalendarColor(event.colorCode);
-          const calendarId = buildCalendarColorName(colorCode);
-          const start = isAllDay ? toCalendarDate(event.start) : toCalendarDateTime(event.start);
-          const end = isAllDay ? toCalendarDate(event.end) : toCalendarDateTime(event.end);
-
-          return {
-            id: String(event.id),
-            title: event.title,
-            start,
-            end,
-            description: event.description ?? undefined,
-            location: event.location ?? undefined,
-            calendarId,
-            eventType: event.eventType,
-            status: event.status,
-            sourceModule: event.sourceModule ?? undefined
-          };
-        }),
+        .flatMap((event) => expandAllDayCalendarEvent(event)),
     [calendarEventsData]
   );
 

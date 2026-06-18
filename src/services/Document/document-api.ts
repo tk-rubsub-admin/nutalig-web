@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { api } from 'api/api';
 import { CreateQuotationRequest, GetQuotationResponse, SearchQuotationRequest, SearchQuotationResponse, UpdateQuotationRequest } from './document-type';
+import { UploadFileResponse } from 'services/general-type';
 
 export const createQuotation = async (data: CreateQuotationRequest) => {
     const response: string = await api
@@ -49,3 +50,20 @@ export const viewQuotation = async (id: string, original: boolean, copy: boolean
         .then(response => response)
     return response
 }
+
+export const generateQuotationPdfUrl = async (
+    id: string,
+    original: boolean = true,
+    copy: boolean = false
+): Promise<UploadFileResponse> => {
+    const response = await api
+        .post(`/v1/quotations/${id}/pdf-url`, null, {
+            params: {
+                isOriginal: original,
+                isCopy: copy
+            }
+        })
+        .then((response) => response.data);
+
+    return response.data;
+};

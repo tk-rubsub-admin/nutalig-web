@@ -16,6 +16,7 @@ import {
   Chip,
   Checkbox,
   Grid,
+  Tooltip,
   Stack,
   Typography
 } from '@mui/material';
@@ -135,52 +136,55 @@ function CalendarMonthGridEvent({ calendarEvent }: CalendarMonthGridEventProps):
   const Icon = getCalendarEventIcon(calendarEvent);
   const colorName = calendarEvent.calendarId || buildCalendarColorName(DEFAULT_CALENDAR_COLOR);
   const startTime = getCalendarEventTime(calendarEvent.start);
+  const fullTitle = calendarEvent.title || '-';
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.5,
-        width: '100%',
-        height: '100%',
-        minHeight: 28,
-        minWidth: 0,
-        px: 0.75,
-        py: 0.5,
-        borderRadius: 'var(--sx-rounding-extra-small)',
-        color: `var(--sx-color-on-${colorName}-container)`,
-        backgroundColor: `var(--sx-color-${colorName}-container)`,
-        borderInlineStart: `4px solid var(--sx-color-${colorName})`,
-        overflow: 'hidden'
-      }}>
-      <Icon sx={{ fontSize: 14, flexShrink: 0 }} />
-      {startTime ? (
+    <Tooltip title={fullTitle} arrow placement="top" enterDelay={300}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          width: '100%',
+          height: '100%',
+          minHeight: 28,
+          minWidth: 0,
+          px: 0.75,
+          py: 0.5,
+          borderRadius: 'var(--sx-rounding-extra-small)',
+          color: `var(--sx-color-on-${colorName}-container)`,
+          backgroundColor: `var(--sx-color-${colorName}-container)`,
+          borderInlineStart: `4px solid var(--sx-color-${colorName})`,
+          overflow: 'hidden'
+        }}>
+        <Icon sx={{ fontSize: 14, flexShrink: 0 }} />
+        {startTime ? (
+          <Typography
+            component="span"
+            sx={{
+              flexShrink: 0,
+              fontSize: 12,
+              fontWeight: 700,
+              lineHeight: 1.2
+            }}>
+            {startTime}
+          </Typography>
+        ) : null}
         <Typography
           component="span"
           sx={{
-            flexShrink: 0,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
             fontSize: 12,
             fontWeight: 700,
             lineHeight: 1.2
           }}>
-          {startTime}
+          {fullTitle}
         </Typography>
-      ) : null}
-      <Typography
-        component="span"
-        sx={{
-          minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          fontSize: 12,
-          fontWeight: 700,
-          lineHeight: 1.2
-        }}>
-        {calendarEvent.title || '-'}
-      </Typography>
-    </Box>
+      </Box>
+    </Tooltip>
   );
 }
 

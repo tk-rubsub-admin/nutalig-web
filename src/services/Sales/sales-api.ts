@@ -78,16 +78,24 @@ const toSalesRecord = (employee: EmployeeRecordResponse): SalesRecord => {
     bankAccountNo: employee.bankAccountNo ?? null,
     bankName: employee.bankName ?? null,
     bankAccountName: employee.bankAccountName ?? null,
-    team: employee.team || toSystemConfig(employee.department, 'STAFF_DEPARTMENT') || toSystemConfig(employee.workSpace, 'WORKSPACE')
+    team:
+      employee.team ||
+      toSystemConfig(employee.department, 'STAFF_DEPARTMENT') ||
+      toSystemConfig(employee.workSpace, 'WORKSPACE')
   };
 };
 
-export const getSales = async (page = 1, size = 20): Promise<SalesRecord[]> => {
+export const getEmployeesByPosition = async (
+  positionEqual: string,
+  page = 1,
+  size = 20,
+  includeSuperAdminPump = false
+): Promise<SalesRecord[]> => {
   const response: GetEmployeesResponse = await api
     .post(
       '/v1/employees/search',
       {
-        positionEqual: 'INTERNAL_SALES',
+        positionEqual,
         statusEqual: 'ACTIVE'
       },
       {
@@ -100,12 +108,17 @@ export const getSales = async (page = 1, size = 20): Promise<SalesRecord[]> => {
     .then((response) => response.data);
 
   const salesRecords = getEmployeeRecords(response).map(toSalesRecord);
-  const superAdminPumpRecord = toSalesRecord(superAdminPump);
 
-  return [superAdminPumpRecord, ...salesRecords].filter(
+  const records = includeSuperAdminPump ? [toSalesRecord(superAdminPump), ...salesRecords] : salesRecords;
+
+  return records.filter(
     (record, index, records) =>
       records.findIndex((candidate) => candidate.salesId === record.salesId) === index
   );
+};
+
+export const getSales = async (page = 1, size = 20): Promise<SalesRecord[]> => {
+  return getEmployeesByPosition('INTERNAL_SALES', page, size, true);
 };
 
 export const getProcurementEmployees = async (employeeId: string): Promise<SalesRecord[]> => {

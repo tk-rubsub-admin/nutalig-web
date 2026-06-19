@@ -23,6 +23,13 @@ export const getRFQList = async (
   page = 1,
   size = 10,
   options?: {
+    id?: string;
+    customerId?: string;
+    salesId?: string;
+    orderTypeCode?: string;
+    productFamily?: string;
+    status?: string | null;
+    keyword?: string;
     sortBy?: string;
     sortDirection?: string;
     statuses?: string[];
@@ -31,6 +38,7 @@ export const getRFQList = async (
   const params = new URLSearchParams();
   params.append('page', String(page));
   params.append('size', String(size));
+  const payload: Record<string, unknown> = {};
 
   if (options?.sortBy) {
     params.append('sortBy', options.sortBy);
@@ -40,12 +48,40 @@ export const getRFQList = async (
     params.append('sortDirection', options.sortDirection);
   }
 
-  options?.statuses?.forEach((status) => {
-    params.append('statuses', status);
-  });
+  if (options?.id) {
+    payload.id = options.id;
+  }
+
+  if (options?.customerId) {
+    payload.customerId = options.customerId;
+  }
+
+  if (options?.salesId) {
+    payload.salesId = options.salesId;
+  }
+
+  if (options?.orderTypeCode) {
+    payload.orderTypeCode = options.orderTypeCode;
+  }
+
+  if (options?.productFamily) {
+    payload.productFamily = options.productFamily;
+  }
+
+  if (options?.status) {
+    payload.status = options.status;
+  }
+
+  if (options?.keyword) {
+    payload.keyword = options.keyword;
+  }
+
+  if (options?.statuses?.length) {
+    payload.statuses = options.statuses;
+  }
 
   const response: SearchRFQResponse = await api
-    .get('/v1/rfqs', { params })
+    .post('/v1/rfqs/search', payload, { params })
     .then((response) => response.data);
 
   return response.data;

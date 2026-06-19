@@ -702,7 +702,8 @@
       "SUPPLIER_QUOTED": "ซัพพลายเออร์ให้ราคาแล้ว",
       "QUOTED": "ได้ราคาแล้ว",
       "CANCELED": "ยกเลิก",
-      "COMPLETED": "เสร็จสิ้น"
+      "COMPLETED": "เสร็จสิ้น",
+      "CLOSED": "ปิดแล้ว"
     }
   },
   "priceInquiryManagement": {
@@ -823,5 +824,18 @@
       "system": "ระบบ",
       "supplier": "ซัพพลายเออร์"
     }
+  },
+  "warning": {
+    "noResult": "ไม่พบข้อมูล กรุณาลองอีกครั้ง",
+    "noResultList": "ขออภัย ไม่พบรายการในการค้นหา",
+    "noData": "ไม่มีข้อมูล",
+    "required": "กรุณากรอกข้อมูล",
+    "moreThanZero": "กรุณากรอกค่ามากกว่า 0",
+    "inputNumber": "กรุณากรอกตัวเลข"
+  },
+  "pagination": {
+    "totalRecords": "จำนวนรายการทั้งหมด",
+    "rowsPerPage": "จำนวนแถวต่อหน้า",
+    "of": "จาก"
   }
 }

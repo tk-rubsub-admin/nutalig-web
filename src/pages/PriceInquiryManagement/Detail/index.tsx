@@ -2312,15 +2312,15 @@ export default function RFQDetail(): ReactElement {
       <Wrapper>
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="flex-end" spacing={1}>
-            {suggestedSupplierIds.size == 0 ? (
-              <Button
-                variant="contained"
-                sx={blueActionButtonSx}
-                disabled={isSupplierQuoteSubmitting}
-                onClick={() => handleOpenSupplierQuoteDialog()}>
-                บันทึกราคา
-              </Button>
-            ) : null}
+            {/* {suggestedSupplierIds.size == 0 ? ( */}
+            <Button
+              variant="contained"
+              sx={blueActionButtonSx}
+              disabled={isSupplierQuoteSubmitting}
+              onClick={() => handleOpenSupplierQuoteDialog()}>
+              บันทึกราคา
+            </Button>
+            {/* ) : null} */}
 
             <Button
               variant="contained"

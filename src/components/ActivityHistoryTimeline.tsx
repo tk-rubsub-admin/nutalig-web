@@ -7,7 +7,7 @@ import TimelineContent from '@mui/lab/TimelineContent';
 import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineItem from '@mui/lab/TimelineItem';
 import TimelineSeparator from '@mui/lab/TimelineSeparator';
-import { Box, Collapse, Grid, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Collapse, IconButton, Stack, Typography } from '@mui/material';
 import { useAuth } from 'auth/AuthContext';
 import dayjs from 'dayjs';
 import { ReactElement, useState } from 'react';
@@ -89,6 +89,15 @@ function renderCompareSections(
   }
 
   const fields = Array.from(new Set([...Object.keys(parsed.before), ...Object.keys(parsed.after)]));
+  const changedFields = fields.filter((field) => {
+    const beforeValue = parsed.before?.[field];
+    const afterValue = parsed.after?.[field];
+    return formatFieldValue(beforeValue) !== formatFieldValue(afterValue);
+  });
+
+  if (!changedFields.length) {
+    return null;
+  }
 
   return (
     <Box
@@ -117,63 +126,63 @@ function renderCompareSections(
       </Box>
 
       <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <Grid container>
-          <Grid item xs={12} md={6} sx={{ borderRight: { md: '1px solid #e6ebf1' } }}>
-            <Box
-              sx={{
-                px: 2,
-                py: 1.25,
-                backgroundColor: '#fff7ed',
-                borderBottom: '1px solid #e6ebf1'
-              }}>
-              <Typography variant="subtitle2" fontWeight={700}>
-                Before
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Box
-              sx={{
-                px: 2,
-                py: 1.25,
-                backgroundColor: '#ecfeff',
-                borderBottom: '1px solid #e6ebf1'
-              }}>
-              <Typography variant="subtitle2" fontWeight={700}>
-                After
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr 1fr' },
+            borderBottom: '1px solid #d9e2ec'
+          }}>
+          <Box sx={{ px: 2, py: 1.25, backgroundColor: '#f8fafc', borderRight: { md: '1px solid #d9e2ec' } }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              Field
+            </Typography>
+          </Box>
+          <Box sx={{ px: 2, py: 1.25, backgroundColor: '#f8fafc', borderRight: { md: '1px solid #d9e2ec' } }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              Before
+            </Typography>
+          </Box>
+          <Box sx={{ px: 2, py: 1.25, backgroundColor: '#f8fafc' }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              After
+            </Typography>
+          </Box>
+        </Box>
 
-        {fields.map((field, index) => {
+        {changedFields.map((field, index) => {
           const beforeValue = parsed.before?.[field];
           const afterValue = parsed.after?.[field];
-          const isChanged = formatFieldValue(beforeValue) !== formatFieldValue(afterValue);
+          const beforeText = formatFieldValue(beforeValue);
+          const afterText = formatFieldValue(afterValue);
 
           return (
-            <Grid
-              container
+            <Box
               key={field}
               sx={{
-                borderBottom: index < fields.length - 1 ? '1px solid #eef2f7' : 'none',
-                backgroundColor: isChanged ? '#f8fafc' : '#fff'
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr 1fr' },
+                border: '1px solid #d9e2ec',
+                borderTop: index === 0 ? '1px solid #d9e2ec' : 'none',
+                backgroundColor: '#fff'
               }}>
-              <Grid
-                item
-                xs={12}
-                md={6}
+              <Box
                 sx={{
                   px: 2,
                   py: 1.5,
-                  borderRight: { md: '1px solid #eef2f7' }
+                  borderRight: { md: '1px solid #d9e2ec' },
+                  borderBottom: { xs: '1px solid #d9e2ec', md: 'none' }
                 }}>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 0.5 }}>
+                <Typography variant="body2" fontWeight={700}>
                   {formatFieldLabel(field)}
                 </Typography>
+              </Box>
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  borderRight: { md: '1px solid #d9e2ec' },
+                  borderBottom: { xs: '1px solid #d9e2ec', md: 'none' }
+                }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -182,18 +191,13 @@ function renderCompareSections(
                     fontFamily:
                       isPlainObject(beforeValue) || Array.isArray(beforeValue)
                         ? 'monospace'
-                        : 'inherit'
+                        : 'inherit',
+                    fontWeight: 700
                   }}>
-                  {formatFieldValue(beforeValue)}
+                  {beforeText}
                 </Typography>
-              </Grid>
-              <Grid item xs={12} md={6} sx={{ px: 2, py: 1.5 }}>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 0.5 }}>
-                  {formatFieldLabel(field)}
-                </Typography>
+              </Box>
+              <Box sx={{ px: 2, py: 1.5 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -202,12 +206,13 @@ function renderCompareSections(
                     fontFamily:
                       isPlainObject(afterValue) || Array.isArray(afterValue)
                         ? 'monospace'
-                        : 'inherit'
+                        : 'inherit',
+                    fontWeight: 700
                   }}>
-                  {formatFieldValue(afterValue)}
+                  {afterText}
                 </Typography>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           );
         })}
       </Collapse>

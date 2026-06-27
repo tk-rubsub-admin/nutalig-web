@@ -91,11 +91,53 @@ export interface SalesOrderV1 {
     freight: number;
     vat: number;
     grandTotal: number;
+    amount: number;
+    commission: number;
     shippingType: string | null;
     vatRate: number;
     remark: string | null;
     revNo: number;
-    items: any[];
+    items: SalesOrderDetailV1[];
+}
+
+export interface SalesOrderDetailV1 {
+    id: number;
+    lineNo: number;
+    supplier: Supplier | null;
+    name: string;
+    type: string | null;
+    capacity: string | null;
+    size: string | null;
+    spec: string | null;
+    unitPrice: number;
+    quantity: number;
+    amount: number;
+    imageUrl: string | null;
+}
+
+export interface UpdateSalesOrderDetailRequestV1 {
+    id?: number;
+    supplierId: string;
+    name: string;
+    type?: string | null;
+    capacity?: string | null;
+    size?: string | null;
+    spec?: string | null;
+    unitPrice: number;
+    quantity: number;
+    imageUrl?: string | null;
+}
+
+export interface UpdateSalesOrderRequestV1 {
+    docDate?: string | null;
+    expireDate?: string | null;
+    coSaleId?: string | null;
+    discount?: number;
+    freight?: number;
+    isVat?: boolean;
+    shippingType?: string | null;
+    remark?: string | null;
+    items?: UpdateSalesOrderDetailRequestV1[];
 }
 
 export interface SearchSalesOrderResponseV1 {

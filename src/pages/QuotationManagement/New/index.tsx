@@ -26,13 +26,14 @@ import { uploadFile } from "services/general-api";
 import toast from "react-hot-toast";
 import { createQuotation } from "services/Document/document-api";
 import LoadingDialog from "components/LoadingDialog";
-import { formatCurrency, formatNumber } from "utils/utils";
+import { formatCurrency, formatNumber, formatNumberWithoutDigit } from "utils/utils";
 import { getRFQ } from "services/RFQ/rfq-api";
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from "services/RFQ/rfq-type";
 import { SystemConfig } from "services/Config/config-type";
 
 const createEmptyRow = (): CreateQuotationItem => ({
     id: Date.now() + Math.floor(Math.random() * 1000),
+    tierId: '',
     name: '',
     type: '',
     capacity: '',
@@ -56,6 +57,15 @@ const fieldSx = {
         fontSize: 16,
         py: 1.8
     }
+};
+
+const parseNumericInput = (value: string): number => {
+    const normalizedValue = value.replace(/,/g, '').trim();
+    if (!normalizedValue) {
+        return 0;
+    }
+
+    return Number(normalizedValue) || 0;
 };
 
 interface QuotationFromRFQParams {
@@ -96,11 +106,9 @@ const getMaterialLabel = (material: RFQRecord['material']): string => {
     return material.nameTh || material.nameEn || material.code || '';
 };
 
-const getTierUnitPrice = (tier?: RFQDetailTier): number => {
-    if (!tier) return 0;
+const toTierPriceNumber = (value?: number | null): number => Number(value || 0);
 
-    return Number(tier.seaTotalPrice || tier.landTotalPrice || tier.productPrice || 0);
-};
+const hasTierPrice = (value?: number | null): boolean => toTierPriceNumber(value) > 0;
 
 const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
     const imagePreview = (rfq.pictures || [])?.[0]?.pictureUrl || '';
@@ -123,25 +131,46 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
     return rfq.details.flatMap((detail: RFQDetailOption) => {
         const tiers = detail.tiers?.length ? detail.tiers : [undefined];
 
-        return tiers.map((tier, tierIndex) => {
+        return tiers.flatMap((tier, tierIndex) => {
             const quantity = Number(tier?.quantity || 1);
-            const unitPrice = getTierUnitPrice(tier);
-            const tierLabel = detail.tiers?.length && detail.tiers.length > 1
-                ? ` - Tier ${tierIndex + 1}`
-                : '';
+            const baseName = `${detail.optionName || productFamily}`;
+            const spec = [detail.spec, material, rfq.description].filter(Boolean).join('\n');
+            const hasLandTotalPrice = hasTierPrice(tier?.landTotalPrice);
+            const hasSeaTotalPrice = hasTierPrice(tier?.seaTotalPrice);
 
-            return {
+            const buildQuotationItem = (
+                unitPrice: number,
+                shippingMethodLabel?: string
+            ): CreateQuotationItem => ({
                 ...createEmptyRow(),
-                name: `${detail.optionName || productFamily}${tierLabel}`,
+                tierId: tier?.id ? String(tier.id) : '',
+                name: shippingMethodLabel ? `${baseName} (${shippingMethodLabel})` : baseName,
                 type,
                 capacity,
-                spec: [detail.spec, material, rfq.description].filter(Boolean).join('\n'),
+                spec,
                 quantity,
                 unitPrice,
                 unitPriceInput: String(unitPrice),
                 amount: quantity * unitPrice,
                 imagePreview
-            };
+            });
+
+            if (hasLandTotalPrice && hasSeaTotalPrice) {
+                return [
+                    buildQuotationItem(toTierPriceNumber(tier?.landTotalPrice), 'ทางรถ'),
+                    buildQuotationItem(toTierPriceNumber(tier?.seaTotalPrice), 'ทางเรือ')
+                ];
+            }
+
+            if (hasLandTotalPrice) {
+                return [buildQuotationItem(toTierPriceNumber(tier?.landTotalPrice), 'ทางรถ')];
+            }
+
+            if (hasSeaTotalPrice) {
+                return [buildQuotationItem(toTierPriceNumber(tier?.seaTotalPrice), 'ทางเรือ')];
+            }
+
+            return [buildQuotationItem(toTierPriceNumber(tier?.productPrice))];
         });
     });
 };
@@ -203,7 +232,6 @@ export default function NewQuotation() {
     const [msg, setMsg] = useState<string>('')
     const [action, setAction] = useState<string>('')
     const [customer, setCustomer] = useState<Customer | null>(null);
-    const [rows, setRows] = useState<CreateQuotationItem[]>([createEmptyRow()])
     const today = dayjs();
     const { data: rfq, isFetching: isRFQFetching } = useQuery(
         ['quotation-from-rfq', rfqId],
@@ -232,6 +260,7 @@ export default function NewQuotation() {
             discount: 0,
             freight: 0,
             isVat: false,
+            isShowSummary: false,
             items: [
                 {
                     name: '',
@@ -256,7 +285,7 @@ export default function NewQuotation() {
                 .promise(createQuotation(values), {
                     loading: t('toast.loading'),
                     success: () => {
-                        history.push(ROUTE_PATHS.ROOT);
+                        history.push('/quotation-management')
                         return t('toast.success');
                     },
                     error: () => {
@@ -569,6 +598,17 @@ export default function NewQuotation() {
                             value={formik.values.coSaleId}
                             InputLabelProps={{ shrink: true }}
                         />
+                    </GridTextField>
+
+                    <GridTextField item xs={12} sm={6}>
+                        <RadioGroup
+                            row
+                            value={String(formik.values.isShowSummary)}
+                            onChange={(e) => formik.setFieldValue('isShowSummary', e.target.value === 'true')}
+                        >
+                            <FormControlLabel value="true" control={<Radio />} label="แสดงยอดรวม" />
+                            <FormControlLabel value="false" control={<Radio />} label="ไม่แสดงยอดรวม" />
+                        </RadioGroup>
                     </GridTextField>
                 </Grid>
             </CollapsibleWrapper>
@@ -903,16 +943,14 @@ export default function NewQuotation() {
 
                                     {/* Quantity */}
                                     <TableCell align="center">
-                                        <TextField
+                                        {/* <TextField
                                             fullWidth
-                                            type="number"
-                                            value={row.quantity}
+                                            value={formatNumber(Number(row.quantity || 0))}
                                             onChange={(e) =>
-                                                updateItem(index, 'quantity', Number(e.target.value || 0))
+                                                updateItem(index, 'quantity', parseNumericInput(e.target.value))
                                             }
                                             inputProps={{
-                                                min: 0,
-                                                step: '0.01',
+                                                inputMode: 'decimal',
                                                 style: { textAlign: 'center' }
                                             }}
                                             variant="outlined"
@@ -929,7 +967,25 @@ export default function NewQuotation() {
                                                     fontWeight: 500
                                                 }
                                             }}
-                                        />
+                                        /> */}
+                                        <Box
+                                            sx={{
+                                                minHeight: 54,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'flex-end',
+                                                px: 1.5
+                                            }}
+                                        >
+                                            <Typography
+                                                sx={{
+                                                    fontSize: 20,
+                                                    color: '#2F3447'
+                                                }}
+                                            >
+                                                {formatNumberWithoutDigit(row.quantity)}
+                                            </Typography>
+                                        </Box>
                                     </TableCell>
 
                                     {/* Unit Price */}
@@ -1046,7 +1102,7 @@ export default function NewQuotation() {
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={5}>
+                    {formik.values.isShowSummary ? (<Grid item xs={12} md={5}>
                         <Paper
                             elevation={0}
                             sx={{
@@ -1105,7 +1161,7 @@ export default function NewQuotation() {
                                 </Stack>
 
                                 {/* Freight */}
-                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                                {/* <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
                                     <Typography fontWeight={500} sx={{ minWidth: 120 }}>
                                         {t('documentManagement.quotation.summarySection.freight')}
                                     </Typography>
@@ -1128,7 +1184,7 @@ export default function NewQuotation() {
                                             }
                                         }}
                                     />
-                                </Stack>
+                                </Stack> */}
 
                                 <Divider />
 
@@ -1147,7 +1203,8 @@ export default function NewQuotation() {
                                 </Stack>
                             </Stack>
                         </Paper>
-                    </Grid>
+                    </Grid>) : null}
+
 
                 </Grid>
             </CollapsibleWrapper>

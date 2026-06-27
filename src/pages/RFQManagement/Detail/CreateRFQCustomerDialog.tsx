@@ -9,7 +9,6 @@ import {
   Grid,
   IconButton,
   MenuItem,
-  Stack,
   TextField,
   Typography
 } from '@mui/material';
@@ -50,6 +49,16 @@ export default function CreateRFQCustomerDialog({
     () => getSystemConfig(GROUP_CODE.CUSTOMER_TYPE),
     { enabled: open, refetchOnWindowFocus: false }
   );
+  const { data: customerSegmentList, isFetching: isCustomerSegmentFetching } = useQuery(
+    'rfq-customer-segment',
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_SEGMENT),
+    { enabled: open, refetchOnWindowFocus: false }
+  );
+  const { data: customerTierList } = useQuery(
+    'rfq-customer-Tier',
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_TIER),
+    { enabled: open, refetchOnWindowFocus: false }
+  );
   const { data: creditTermList, isFetching: isCreditTermFetching } = useQuery(
     'rfq-customer-credit-term',
     () => getSystemConfig(GROUP_CODE.CUSTOMER_CREDIT_TERM),
@@ -83,6 +92,8 @@ export default function CreateRFQCustomerDialog({
       companyBranchCode: '',
       companyBranchName: '',
       creditTerm: 'NON',
+      tier: 'TIER_4',
+      segment: '',
       salesAccount: rfq?.sales?.salesId || rfq?.sales?.employeeId || '',
       coSalesAccount: '',
       address: {
@@ -169,7 +180,9 @@ export default function CreateRFQCustomerDialog({
           postcode: values.address.postcode,
           country: values.address.country
         },
-        contacts: values.contacts
+        contacts: values.contacts,
+        customerSegment: values.segment,
+        customerTier: values.tier
       };
 
       try {
@@ -310,6 +323,44 @@ export default function CreateRFQCustomerDialog({
                 {creditTermList?.map((option) => (
                   <MenuItem key={option.code} value={option.code}>
                     {option.nameTh}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label={t('customerManagement.column.segment')}
+                disabled={isCustomerSegmentFetching}
+                value={formik.values.segment || ''}
+                onChange={(event) => formik.setFieldValue('segment', event.target.value)}
+                error={Boolean(formik.touched.segment && formik.errors.segment)}
+                helperText={formik.touched.segment && formik.errors.segment}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerSegmentList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label={t('customerManagement.column.tier')}
+                disabled
+                value={formik.values.tier || ''}
+                onChange={(event) => formik.setFieldValue('tier', event.target.value)}
+                error={Boolean(formik.touched.tier && formik.errors.tier)}
+                helperText={formik.touched.tier && formik.errors.tier}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerTierList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameEn}
                   </MenuItem>
                 ))}
               </TextField>
@@ -478,6 +529,8 @@ export default function CreateRFQCustomerDialog({
               />
             </GridTextField>
 
+            <GridTextField item xs={12} sm={6} />
+
             <FieldArray name="contacts">
               {({ push, remove }) => (
                 <>
@@ -541,18 +594,18 @@ export default function CreateRFQCustomerDialog({
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button variant="contained" className="btn-cool-grey" onClick={onClose}>
-              ปิด
-            </Button>
-            <Button
-              variant="contained"
-              className="btn-emerald-green"
-              startIcon={<Save />}
-              onClick={() => formik.handleSubmit()}>
-              {t('button.create')}
-            </Button>
-          </Stack>
+
+          <Button variant="contained" className="btn-cool-grey" onClick={onClose}>
+            ปิด
+          </Button>
+
+          <Button
+            variant="contained"
+            className="btn-emerald-green"
+            startIcon={<Save />}
+            onClick={() => formik.handleSubmit()}>
+            {t('button.create')}
+          </Button>
         </DialogActions>
       </FormikProvider>
     </Dialog>

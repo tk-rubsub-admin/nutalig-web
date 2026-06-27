@@ -17,6 +17,8 @@ export interface CreateCustomerRequest {
   branchNumber: string;
   branchName: string;
   creditTerm: string;
+  customerSegment: string;
+  customerTier: string;
   salesAccount: string;
   coSalesAccount: string;
   address: CreateCustomerAddressRequest;
@@ -91,6 +93,8 @@ export interface SearchCustomerRequest {
   idEqual: string;
   nameContain: string;
   typeEqual: string;
+  tierEqual: string;
+  segmentEqual: string;
   rankEqual: string;
   areaEqual: string;
 }
@@ -102,9 +106,46 @@ export interface SearchCustomerResponse {
   };
 }
 
+export interface UploadCustomerError {
+  rowNumber: number;
+  customerName: string;
+  message: string;
+}
+
+export interface UploadCustomerResponse {
+  totalRows: number;
+  createdCount: number;
+  skippedCount: number;
+  failedCount: number;
+  errors: UploadCustomerError[];
+}
+
+export interface CustomerDashboardBreakdown {
+  code: string;
+  nameTh: string | null;
+  nameEn: string | null;
+  count: number;
+}
+
+export interface CustomerDashboard {
+  generatedAt: string;
+  totalCustomers: number;
+  totalContacts: number;
+  totalAddresses: number;
+  companyCustomers: number;
+  individualCustomers: number;
+  defaultAddressCustomers: number;
+  typeBreakdown: CustomerDashboardBreakdown[];
+  tierBreakdown: CustomerDashboardBreakdown[];
+  segmentBreakdown: CustomerDashboardBreakdown[];
+  recentCustomers: Customer[];
+}
+
 export interface UpdateCustomerRequest {
   customerName: string | null;
   customerType: string | null;
+  customerTier: string | null;
+  customerSegment: string | null;
   email: string | null;
   taxId: string | null;
   companyName: string | null;
@@ -121,6 +162,8 @@ export interface Customer {
   status: string;
   customerType: SystemConfig;
   customerCreditTerm: SystemConfig;
+  customerTier: SystemConfig | null;
+  customerSegment: SystemConfig | null;
   companyName: string;
   branchNumber: string;
   branchName: string;

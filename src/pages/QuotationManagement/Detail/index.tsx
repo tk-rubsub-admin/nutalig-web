@@ -1,10 +1,14 @@
 /* eslint-disable prettier/prettier */
-import { ArrowBackIos, Description, Save } from '@mui/icons-material';
+import { ArrowBackIos, ArrowDropDown, Description, Menu as MenuIcon, Save } from '@mui/icons-material';
 import {
     Box,
     Button,
     Chip,
     Grid,
+    ListItemIcon,
+    ListItemText,
+    Menu,
+    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -28,12 +32,12 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
-import { ReactElement, SyntheticEvent, useEffect, useState } from 'react';
+import { MouseEvent as ReactMouseEvent, ReactElement, SyntheticEvent, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { IoPencil } from 'react-icons/io5';
 import { useQuery } from 'react-query';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getQuotation, updateQuotation, viewQuotation } from 'services/Document/document-api';
@@ -72,6 +76,7 @@ function TabPanel({
 }
 
 export default function QuotationDetail(): JSX.Element {
+    const { id: quotationNo = '' } = useParams<{ id: string }>();
     const useStyles = makeStyles({
         tableHeader: {
             border: '2px solid #e0e0e0',
@@ -120,16 +125,15 @@ export default function QuotationDetail(): JSX.Element {
     const classes = useStyles();
     const { t } = useTranslation();
     const history = useHistory();
-    const location = useLocation();
     const theme = useTheme();
     const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
-    const quotationNo = new URLSearchParams(location.search).get('id') || '';
     const [tab, setTab] = useState<'detail' | 'history'>('detail');
     const [isEditing, setIsEditing] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [confirmUpdateOpen, setConfirmUpdateOpen] = useState(false);
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
+    const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
 
     const { data: quotationResponse, isFetching, refetch: refetchQuotation } = useQuery(
         ['quotation-detail', quotationNo],
@@ -151,6 +155,7 @@ export default function QuotationDetail(): JSX.Element {
 
     const quotation = quotationResponse?.data;
     const displayItems = isEditing ? draftItems : quotation?.items || [];
+    const isActionMenuOpen = Boolean(actionMenuAnchorEl);
 
     useEffect(() => {
         if (!quotation) {
@@ -177,6 +182,14 @@ export default function QuotationDetail(): JSX.Element {
         setDraftItems(quotation?.items || []);
         setIsEditing(false);
         setConfirmUpdateOpen(false);
+    };
+
+    const handleOpenActionMenu = (event: ReactMouseEvent<HTMLElement>) => {
+        setActionMenuAnchorEl(event.currentTarget);
+    };
+
+    const handleCloseActionMenu = () => {
+        setActionMenuAnchorEl(null);
     };
 
     const updateDraftItem = (index: number, field: keyof QuotationItem, value: string) => {
@@ -208,6 +221,8 @@ export default function QuotationDetail(): JSX.Element {
     };
 
     const viewQuotationFunction = () => {
+        handleCloseActionMenu();
+
         if (!quotation?.quotationNo) {
             return;
         }
@@ -231,6 +246,11 @@ export default function QuotationDetail(): JSX.Element {
             },
             error: () => t('toast.failed')
         });
+    };
+
+    const handleSelectEditQuotation = () => {
+        handleCloseActionMenu();
+        handleEditQuotation();
     };
 
     const handleSaveQuotation = async () => {
@@ -269,7 +289,7 @@ export default function QuotationDetail(): JSX.Element {
     return (
         <Page>
             <LoadingDialog open={isFetching || isActivityHistoryFetching || isUpdating} />
-            <PageTitle title={quotation?.quotationNo || t('documentManagement.quotation.title')}>
+            <PageTitle title={'ใบเสนอราคาเลขที่ ' + quotation?.quotationNo || t('documentManagement.quotation.title')}>
                 {quotation?.status ? <Chip label={quotation.status} size="small" /> : null}
             </PageTitle>
             <Wrapper>
@@ -278,46 +298,77 @@ export default function QuotationDetail(): JSX.Element {
                     spacing={1}
                     useFlexGap
                     sx={{ justifyContent: { sm: 'flex-end' }, alignItems: { xs: 'stretch', sm: 'center' }, mb: 2 }}>
-                    <Button
-                        fullWidth={isDownSm}
-                        variant="contained"
-                        startIcon={<Description />}
-                        onClick={viewQuotationFunction}
-                        disabled={!quotation || quotation.status === 'CANCELLED'}>
-                        {t('documentManagement.quotation.viewQuotation')}
-                    </Button>
-                    <Can permission={PERMISSIONS.QUOTATION_EDIT}>
-                        {isEditing ? (
-                            <>
-                                <Button
-                                    fullWidth={isDownSm}
-                                    variant="contained"
-                                    className="btn-emerald-green"
-                                    startIcon={<Save />}
-                                    onClick={() => setConfirmUpdateOpen(true)}
-                                    disabled={isUpdating}>
-                                    {t('button.save')}
-                                </Button>
-                                <Button
-                                    fullWidth={isDownSm}
-                                    variant="contained"
-                                    className="btn-cool-grey"
-                                    onClick={handleCancelEditQuotation}
-                                    disabled={isUpdating}>
-                                    {t('button.cancel')}
-                                </Button>
-                            </>
-                        ) : (
+                    {isEditing ? (
+                        <>
                             <Button
                                 fullWidth={isDownSm}
                                 variant="contained"
-                                startIcon={<IoPencil />}
-                                onClick={handleEditQuotation}
-                                disabled={!quotation || quotation.status === 'CANCELLED'}>
-                                {t('documentManagement.quotation.editQuotation')}
+                                className="btn-emerald-green"
+                                startIcon={<Save />}
+                                onClick={() => setConfirmUpdateOpen(true)}
+                                disabled={isUpdating}>
+                                {t('button.save')}
                             </Button>
-                        )}
-                    </Can>
+                            <Button
+                                fullWidth={isDownSm}
+                                variant="contained"
+                                className="btn-cool-grey"
+                                onClick={handleCancelEditQuotation}
+                                disabled={isUpdating}>
+                                {t('button.cancel')}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                fullWidth={isDownSm}
+                                variant="contained"
+                                className="btn-indigo-blue"
+                                startIcon={<MenuIcon />}
+                                endIcon={<ArrowDropDown />}
+                                onClick={handleOpenActionMenu}
+                                disabled={!quotation}
+                                aria-controls={isActionMenuOpen ? 'quotation-action-menu' : undefined}
+                                aria-haspopup="true"
+                                aria-expanded={isActionMenuOpen ? 'true' : undefined}>
+                                ตัวเลือก
+                            </Button>
+                            <Menu
+                                id="quotation-action-menu"
+                                anchorEl={actionMenuAnchorEl}
+                                open={isActionMenuOpen}
+                                onClose={handleCloseActionMenu}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                                PaperProps={{
+                                    sx: {
+                                        minWidth: actionMenuAnchorEl?.offsetWidth || undefined
+                                    }
+                                }}
+                                keepMounted>
+                                <MenuItem
+                                    onClick={viewQuotationFunction}
+                                    disabled={!quotation || quotation.status === 'CANCELLED'}
+                                    sx={{ width: '100%' }}>
+                                    <ListItemIcon>
+                                        <Description fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary={t('documentManagement.quotation.viewQuotation')} />
+                                </MenuItem>
+                                <Can permission={PERMISSIONS.QUOTATION_EDIT}>
+                                    <MenuItem
+                                        onClick={handleSelectEditQuotation}
+                                        disabled={!quotation || quotation.status === 'CANCELLED'}
+                                        sx={{ width: '100%' }}>
+                                        <ListItemIcon>
+                                            <IoPencil />
+                                        </ListItemIcon>
+                                        <ListItemText primary={t('documentManagement.quotation.editQuotation')} />
+                                    </MenuItem>
+                                </Can>
+                            </Menu>
+                        </>
+                    )}
                     <Button
                         fullWidth={isDownSm}
                         variant="contained"
@@ -348,7 +399,7 @@ export default function QuotationDetail(): JSX.Element {
                             }
                         }}>
                         <Tab value="detail" label={t('documentManagement.quotation.detail')} />
-                        <Tab value="history" label="History" />
+                        <Tab value="history" label="ประวัติ" />
                     </Tabs>
                 </Box>
 
@@ -502,17 +553,19 @@ export default function QuotationDetail(): JSX.Element {
                             </TableContainer>
                         </GridSearchSection>
 
-                        <Grid container spacing={2} justifyContent="flex-end">
-                            <Grid item xs={12} md={4}>
-                                <Stack spacing={1.25} className={classes.section}>
-                                    <Summary label={t('documentManagement.quotation.summarySection.subtotal')} value={quotation?.subTotal} />
-                                    <Summary label={t('documentManagement.quotation.summarySection.discount')} value={quotation?.discount} />
-                                    <Summary label={t('documentManagement.quotation.summarySection.freight')} value={quotation?.freight} />
-                                    <Summary label={t('documentManagement.quotation.summarySection.vat')} value={quotation?.vat} />
-                                    <Summary label={t('documentManagement.quotation.summarySection.grandTotal')} value={quotation?.grandTotal} strong />
-                                </Stack>
-                            </Grid>
-                        </Grid>
+                        {quotation?.isShowSummary ? (
+                            <GridSearchSection container spacing={2} justifyContent="flex-end">
+                                <Grid item xs={12} md={4}>
+                                    <Stack spacing={1.25} className={classes.section}>
+                                        <Summary label={t('documentManagement.quotation.summarySection.subtotal')} value={quotation?.subTotal} />
+                                        <Summary label={t('documentManagement.quotation.summarySection.discount')} value={quotation?.discount} />
+                                        <Summary label={t('documentManagement.quotation.summarySection.vat')} value={quotation?.vat} />
+                                        <Summary label={t('documentManagement.quotation.summarySection.grandTotal')} value={quotation?.grandTotal} strong />
+                                    </Stack>
+                                </Grid>
+                            </GridSearchSection>
+                        ) : null}
+
                     </>
                 </TabPanel>
 

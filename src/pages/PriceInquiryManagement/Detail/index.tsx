@@ -1,4 +1,4 @@
-import { ArrowBackIos, Save } from '@mui/icons-material';
+import { ArrowBackIos, InfoOutlined, Save } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -45,6 +45,7 @@ import {
   getRFQ,
   getRFQSuggestSuppliers,
   getRFQSupplierQuotes,
+  requestRFQInformation,
   updateRFQInquiry,
   updateRFQ,
   updateRFQSupplierQuote
@@ -73,10 +74,13 @@ import {
   SupplierContact
 } from 'services/Supplier/supplier-type';
 import { FinalPriceQuoteDialog } from './FinalPriceQuoteDialog';
+import { RequestInformationDialog } from './RequestInformationDialog';
 import { SupplierQuoteSection } from './SupplierQuoteSection';
 import { SupplierQuoteDialog } from './SupplierQuoteDialog';
 import { GeneratedInquiryMessageDialog } from './GeneratedInquiryMessageDialog';
 import { AddSupplierDialog } from './AddSupplierDialog';
+import { PERMISSIONS } from 'auth/permissions';
+import Can from 'auth/Can';
 
 interface RFQDetailParam {
   id: string;
@@ -98,12 +102,14 @@ interface DraftDetailTierError {
   shippingCost?: string;
   landFreightCost?: string;
   seaFreightCost?: string;
+  exchangeRate?: string;
 }
 
 interface DraftDetailValidationError {
   optionName?: string;
   spec?: string;
   tiers?: string;
+  package?: string;
   tierErrors?: Record<number, DraftDetailTierError>;
 }
 
@@ -120,6 +126,7 @@ interface FinalPriceDraftTier {
   productPrice: number;
   landFreightCost: string;
   seaFreightCost: string;
+  exchangeRate: string;
   sortOrder: number;
 }
 
@@ -128,13 +135,25 @@ interface FinalPriceDraftDetail {
   optionName: string;
   spec: string;
   sortOrder: number;
+  remark?: string | null;
+  packages: FinalPriceDraftPackage[];
   tiers: FinalPriceDraftTier[];
+}
+
+interface FinalPriceDraftPackage {
+  id: number;
+  packageName?: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  sortOrder: number;
 }
 
 interface FinalPriceDraft {
   details: FinalPriceDraftDetail[];
   additionalCosts: DraftAdditionalCost[];
-  remark: string;
+
+  recommend: string;
 }
 
 interface FinalPriceDraftErrors {
@@ -159,19 +178,28 @@ interface DraftSupplierQuoteDetail {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  packageName?: string;
   packageDimension?: string;
   packageWeight?: string;
   packageCapacity?: string;
-  packageBoxWidth?: string;
-  packageBoxLength?: string;
-  packageBoxHeight?: string;
-  packagePiecesPerBox?: string;
-  packageWeightPerBoxKg?: string;
+  packages: DraftSupplierQuotePackage[];
   tiers: DraftSupplierQuoteTier[];
   createdDate: string;
   updatedDate: string;
   createdBy: string;
   updatedBy: string;
+}
+
+interface DraftSupplierQuotePackage {
+  id: number;
+  packageName?: string;
+  packageDimension?: string;
+  packageWidth?: string;
+  packageLength?: string;
+  packageHeight?: string;
+  packageWeight?: string;
+  packageCapacity?: string;
+  sortOrder: number;
 }
 
 function TabPanel({
@@ -546,7 +574,7 @@ const priceFormatter = new Intl.NumberFormat('th-TH', {
 const actionButtonSx = {
   minHeight: 40,
   px: 2.25,
-  borderRadius: 999,
+  borderRadius: 6,
   textTransform: 'none',
   fontWeight: 700,
   boxShadow: 'none',
@@ -623,17 +651,38 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
       optionName: detail.optionName || `Option ${detailIndex + 1}`,
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
+      remark: detail.remark || null,
+      packages: (detail.packages || []).length
+        ? (detail.packages || []).map((packageItem, packageIndex) => ({
+          id: packageItem.id || -(Date.now() + detailIndex * 1000 + packageIndex + 1),
+          packageName: packageItem.packageName || '',
+          packageDimension: packageItem.packageDimension || '',
+          packageWeight: packageItem.packageWeight || '',
+          packageCapacity: packageItem.packageCapacity || '',
+          sortOrder: packageItem.sortOrder || packageIndex + 1
+        }))
+        : [
+          {
+            id: -(Date.now() + detailIndex * 1000 + 1),
+            packageName: detail.packageName || '',
+            packageDimension: detail.packageDimension || '',
+            packageWeight: detail.packageWeight || '',
+            packageCapacity: detail.packageCapacity || '',
+            sortOrder: 1
+          }
+        ],
       tiers: detail.tiers.map((tier, tierIndex) => ({
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
         productPrice: tier.productPrice,
         landFreightCost: '',
         seaFreightCost: '',
+        exchangeRate: '1',
         sortOrder: tier.sortOrder || tierIndex + 1
       }))
     })),
     additionalCosts: [],
-    remark: ''
+    recommend: ''
   };
 }
 
@@ -678,48 +727,64 @@ function createDraftAdditionalCost(): DraftAdditionalCost {
   };
 }
 
-function extractPackageNumbers(value?: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .replace(/,/g, '')
-    .match(/\d+(?:\.\d+)?/g) || [];
-}
-
-function mapPackageDimension(value?: string | null): Pick<
-  DraftSupplierQuoteDetail,
-  'packageBoxWidth' | 'packageBoxLength' | 'packageBoxHeight'
-> {
-  const [width = '', length = '', height = ''] = extractPackageNumbers(value);
+function createDraftPackage(sortOrder: number): DraftSupplierQuotePackage {
   return {
-    packageBoxWidth: width,
-    packageBoxLength: length,
-    packageBoxHeight: height
+    id: -(Date.now() + sortOrder),
+    packageName: '',
+    packageDimension: '',
+    packageWidth: '',
+    packageLength: '',
+    packageHeight: '',
+    packageWeight: '',
+    packageCapacity: '',
+    sortOrder
   };
 }
 
-function mapPackageQuantity(value?: string | null): string {
-  return extractPackageNumbers(value)[0] || '';
+function parsePackageDimension(
+  value?: string | null
+): { packageWidth: string; packageLength: string; packageHeight: string } {
+  const normalizedValue = (value || '').trim();
+  if (!normalizedValue) {
+    return {
+      packageWidth: '',
+      packageLength: '',
+      packageHeight: ''
+    };
+  }
+
+  const parts = normalizedValue
+    .split(/[x×]/i)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return {
+    packageWidth: parts[0] || '',
+    packageLength: parts[1] || '',
+    packageHeight: parts[2] || ''
+  };
 }
 
-function buildPackageDimension(detail: DraftSupplierQuoteDetail): string | null {
-  const parts = [detail.packageBoxWidth, detail.packageBoxLength, detail.packageBoxHeight]
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
+function combinePackageDimension(
+  width?: string | null,
+  length?: string | null,
+  height?: string | null
+): string | null {
+  const parts = [width, length, height].map((item) => (item || '').trim());
+  if (!parts.some(Boolean)) {
+    return null;
+  }
 
-  return parts.length ? parts.join(' x ') : null;
+  return parts.map((item) => item || '-').join(' x ');
 }
 
-function buildPackageWeight(detail: DraftSupplierQuoteDetail): string | null {
-  const piecesPerBox = detail.packagePiecesPerBox?.trim();
-  return piecesPerBox || null;
-}
-
-function buildPackageCapacity(detail: DraftSupplierQuoteDetail): string | null {
-  const weightPerBoxKg = detail.packageWeightPerBoxKg?.trim();
-  return weightPerBoxKg || null;
+function getFirstPackageValue(
+  packages: DraftSupplierQuotePackage[],
+  field: 'packageName' | 'packageDimension' | 'packageWeight' | 'packageCapacity'
+): string | null {
+  const firstPackage = [...packages].sort((left, right) => left.sortOrder - right.sortOrder)[0];
+  const value = firstPackage?.[field]?.trim();
+  return value || null;
 }
 
 function createDraftQuoteDetail(sortOrder: number): DraftSupplierQuoteDetail {
@@ -734,11 +799,7 @@ function createDraftQuoteDetail(sortOrder: number): DraftSupplierQuoteDetail {
     packageDimension: '',
     packageWeight: '',
     packageCapacity: '',
-    packageBoxWidth: '',
-    packageBoxLength: '',
-    packageBoxHeight: '',
-    packagePiecesPerBox: '',
-    packageWeightPerBoxKg: '',
+    packages: [createDraftPackage(1)],
     tiers: [
       {
         id: -(Date.now() + sortOrder),
@@ -765,11 +826,6 @@ function createDraftDetailOption(sortOrder: number): RFQDetailOption {
     spec: '',
     sortOrder,
     remark: '',
-    packageBoxWidth: '',
-    packageBoxLength: '',
-    packageBoxHeight: '',
-    packagePiecesPerBox: '',
-    packageWeightPerBoxKg: '',
     tiers: [],
     createdDate: '',
     updatedDate: '',
@@ -801,6 +857,18 @@ function isNonNegativeNumber(value: number): boolean {
   return Number.isFinite(value) && value >= 0;
 }
 
+function isPackageDimensionComplete(packageItem: {
+  packageWidth?: string;
+  packageLength?: string;
+  packageHeight?: string;
+}): boolean {
+  return Boolean(
+    (packageItem.packageWidth || '').trim() &&
+    (packageItem.packageLength || '').trim() &&
+    (packageItem.packageHeight || '').trim()
+  );
+}
+
 function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailRequest {
   return {
     optionName: detail.optionName.trim(),
@@ -822,7 +890,31 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
 function createSupplierQuoteDetailFromQuote(
   detail: RFQSupplierQuoteDetail
 ): DraftSupplierQuoteDetail {
-  const mappedDimension = mapPackageDimension(detail.packageDimension);
+  const mappedPackages =
+    detail.packages?.length
+      ? detail.packages
+        .slice()
+        .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0))
+        .map((item, index) => ({
+          id: item.id || -(Date.now() + index + 1),
+          packageName: item.packageName || '',
+          packageDimension: item.packageDimension || '',
+          ...parsePackageDimension(item.packageDimension),
+          packageWeight: item.packageWeight || '',
+          packageCapacity: item.packageCapacity || '',
+          sortOrder: item.sortOrder || index + 1
+        }))
+      : [
+        {
+          id: -(Date.now() + 1),
+          packageName: detail.packageName || '',
+          packageDimension: detail.packageDimension || '',
+          ...parsePackageDimension(detail.packageDimension),
+          packageWeight: detail.packageWeight || '',
+          packageCapacity: detail.packageCapacity || '',
+          sortOrder: 1
+        }
+      ];
 
   return {
     id: detail.id || -Date.now(),
@@ -831,14 +923,17 @@ function createSupplierQuoteDetailFromQuote(
     spec: detail.spec || '',
     sortOrder: detail.sortOrder,
     remark: detail.remark || '',
-    packageDimension: detail.packageDimension || '',
-    packageWeight: detail.packageWeight || '',
-    packageCapacity: detail.packageCapacity || '',
-    packageBoxWidth: mappedDimension.packageBoxWidth,
-    packageBoxLength: mappedDimension.packageBoxLength,
-    packageBoxHeight: mappedDimension.packageBoxHeight,
-    packagePiecesPerBox: mapPackageQuantity(detail.packageWeight),
-    packageWeightPerBoxKg: mapPackageQuantity(detail.packageCapacity),
+    packageName: getFirstPackageValue(mappedPackages, 'packageName') || detail.packageName || '',
+    packageDimension:
+      combinePackageDimension(
+        mappedPackages[0]?.packageWidth,
+        mappedPackages[0]?.packageLength,
+        mappedPackages[0]?.packageHeight
+      ) || getFirstPackageValue(mappedPackages, 'packageDimension') || detail.packageDimension || '',
+    packageWeight: getFirstPackageValue(mappedPackages, 'packageWeight') || detail.packageWeight || '',
+    packageCapacity:
+      getFirstPackageValue(mappedPackages, 'packageCapacity') || detail.packageCapacity || '',
+    packages: mappedPackages,
     tiers: detail.tiers.map((tier, index) => ({
       id: tier.id || -(Date.now() + index + 1),
       quantity: tier.quantity ?? 0,
@@ -884,10 +979,27 @@ function buildSupplierQuotePayload(
       spec: detail.spec.trim(),
       sortOrder: index + 1,
       remark: detail.remark?.trim() || null,
+      packageName: getFirstPackageValue(detail.packages, 'packageName') || detail.packageName?.trim() || null,
       packageDimension:
-        detail.packageDimension?.trim() || buildPackageDimension(detail),
-      packageWeight: detail.packageWeight?.trim() || buildPackageWeight(detail),
-      packageCapacity: detail.packageCapacity?.trim() || buildPackageCapacity(detail),
+        combinePackageDimension(
+          detail.packages[0]?.packageWidth,
+          detail.packages[0]?.packageLength,
+          detail.packages[0]?.packageHeight
+        ) || getFirstPackageValue(detail.packages, 'packageDimension') || null,
+      packageWeight: getFirstPackageValue(detail.packages, 'packageWeight') || null,
+      packageCapacity: getFirstPackageValue(detail.packages, 'packageCapacity') || null,
+      packages: detail.packages.map((packageItem, packageIndex) => ({
+        packageName: packageItem.packageName?.trim() || null,
+        packageDimension:
+          combinePackageDimension(
+            packageItem.packageWidth,
+            packageItem.packageLength,
+            packageItem.packageHeight
+          ) || packageItem.packageDimension?.trim() || null,
+        packageWeight: packageItem.packageWeight?.trim() || null,
+        packageCapacity: packageItem.packageCapacity?.trim() || null,
+        sortOrder: packageIndex + 1
+      })),
       tiers: detail.tiers.map((tier, tierIndex) => ({
         quantity: tier.quantity,
         productPrice: tier.productPrice,
@@ -920,6 +1032,14 @@ function validateDraftDetail(detail: RFQDetailOption): DraftDetailValidationErro
 
   if (!detail.tiers.length) {
     nextErrors.tiers = 'กรุณาเพิ่ม tier อย่างน้อย 1 tier';
+  }
+
+  if (!(detail.packages || []).length) {
+    nextErrors.package = 'กรุณาเพิ่ม Package อย่างน้อย 1 รายการ';
+  }
+
+  if ((detail.packages || []).length && !(detail.packages || []).every(isPackageDimensionComplete)) {
+    nextErrors.package = 'กรุณากรอก กว้าง, ยาว, สูง ให้ครบทุก Package';
   }
 
   const nextTierErrors: Record<number, DraftDetailTierError> = {};
@@ -970,6 +1090,10 @@ function validateSupplierQuoteDraftDetail(
 
   if (!detail.tiers.length) {
     nextErrors.tiers = 'กรุณาเพิ่ม tier อย่างน้อย 1 tier';
+  }
+
+  if ((detail.packages || []).length && !(detail.packages || []).every(isPackageDimensionComplete)) {
+    nextErrors.package = 'กรุณากรอก กว้าง, ยาว, สูง ให้ครบทุก Package';
   }
 
   const nextTierErrors: Record<number, DraftDetailTierError> = {};
@@ -1024,6 +1148,9 @@ export default function RFQDetail(): ReactElement {
   const [generatedInquiryMessage, setGeneratedInquiryMessage] = useState<RFQInquiryMessage | null>(
     null
   );
+  const [requestInformationText, setRequestInformationText] = useState('');
+  const [visibleRequestInformationDialog, setVisibleRequestInformationDialog] = useState(false);
+  const [isRequestInformationSubmitting, setIsRequestInformationSubmitting] = useState(false);
   const [editableInquiryMessage, setEditableInquiryMessage] = useState({
     thaiMessage: '',
     chineseMessage: ''
@@ -1061,7 +1188,7 @@ export default function RFQDetail(): ReactElement {
   const [finalPriceDraft, setFinalPriceDraft] = useState<FinalPriceDraft>({
     details: [],
     additionalCosts: [],
-    remark: ''
+    recommend: ''
   });
   const [finalPriceErrors, setFinalPriceErrors] = useState<FinalPriceDraftErrors>({});
   const [isSupplierQuoteSubmitting, setIsSupplierQuoteSubmitting] = useState(false);
@@ -1372,6 +1499,41 @@ export default function RFQDetail(): ReactElement {
     setVisibleInquiryUpdateConfirmationDialog(false);
   };
 
+  const handleOpenRequestInformationDialog = () => {
+    setRequestInformationText('');
+    setVisibleRequestInformationDialog(true);
+  };
+
+  const handleCloseRequestInformationDialog = () => {
+    setRequestInformationText('');
+    setVisibleRequestInformationDialog(false);
+  };
+
+  const handleConfirmRequestInformation = async () => {
+    if (!params.id || !requestInformationText.trim()) {
+      return;
+    }
+
+    setIsRequestInformationSubmitting(true);
+    try {
+      await toast.promise(
+        requestRFQInformation({
+          rfqId: params.id,
+          requestInformation: requestInformationText.trim()
+        }),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
+      await refetchPriceInquiryData();
+      handleCloseRequestInformationDialog();
+    } finally {
+      setIsRequestInformationSubmitting(false);
+    }
+  };
+
   const handleConfirmUpdateInquiry = async () => {
     if (!params.id || !generatedInquiryMessage?.id) {
       return;
@@ -1486,49 +1648,78 @@ export default function RFQDetail(): ReactElement {
     setFinalPriceErrors({});
   };
 
+  const handleOpenFinalPriceDialogFromButton = () => {
+    const quote = primarySuggestedSupplierQuote || respondedSupplierQuotes[0] || supplierQuotes[0];
+
+    if (!quote) {
+      toast.error('ไม่พบข้อมูล Supplier Quote สำหรับสร้าง Final ราคา');
+      return;
+    }
+
+    handleOpenFinalPriceDialog(quote);
+  };
+
   const handleCloseFinalPriceDialog = () => {
     setFinalPriceQuote(null);
     setVisibleFinalPriceConfirmationDialog(false);
     setFinalPriceDraft({
       details: [],
       additionalCosts: [],
-      remark: ''
+      recommend: ''
     });
     setFinalPriceErrors({});
   };
 
   const handleFinalPriceRemarkChange = (value: string) => {
-    setFinalPriceDraft((prev) => ({ ...prev, remark: value }));
+    setFinalPriceDraft((prev) => ({ ...prev, recommend: value }));
   };
 
   const handleFinalPriceTierChange = (
     detailId: number,
     tierId: number,
-    field: 'landFreightCost' | 'seaFreightCost',
+    field: 'landFreightCost' | 'seaFreightCost' | 'exchangeRate',
     value: string
   ) => {
     setFinalPriceDraft((prev) => ({
       ...prev,
-      details: prev.details.map((detail) =>
-        detail.id === detailId
-          ? {
+      details:
+        field === 'exchangeRate'
+          ? prev.details.map((detail) => ({
             ...detail,
-            tiers: detail.tiers.map((tier) =>
-              tier.id === tierId ? { ...tier, [field]: value } : tier
-            )
-          }
-          : detail
-      )
+            tiers: detail.tiers.map((tier) => ({ ...tier, exchangeRate: value }))
+          }))
+          : prev.details.map((detail) =>
+            detail.id === detailId
+              ? {
+                ...detail,
+                tiers: detail.tiers.map((tier) =>
+                  tier.id === tierId ? { ...tier, [field]: value } : tier
+                )
+              }
+              : detail
+          )
     }));
     setFinalPriceErrors((prev) => ({
       ...prev,
-      details: {
-        ...prev.details,
-        [tierId]: {
-          ...prev.details?.[tierId],
-          [field]: undefined
-        }
-      }
+      details:
+        field === 'exchangeRate'
+          ? Object.entries(prev.details || {}).reduce<Record<number, DraftDetailTierError>>(
+            (accumulator, [id, tierError]) => {
+              accumulator[Number(id)] = {
+                ...tierError,
+                exchangeRate: undefined
+              };
+              return accumulator;
+            },
+            {}
+          )
+          : {
+            ...prev.details,
+            [tierId]: {
+              ...prev.details?.[tierId],
+              [field]: undefined
+            }
+          }
     }));
   };
 
@@ -1574,6 +1765,7 @@ export default function RFQDetail(): ReactElement {
       detail.tiers.forEach((tier) => {
         const landFreightCost = parsePriceInput(tier.landFreightCost);
         const seaFreightCost = parsePriceInput(tier.seaFreightCost);
+        const exchangeRate = parsePriceInput(tier.exchangeRate);
         const nextTierError: DraftDetailTierError = {};
 
         if (landFreightCost === null || landFreightCost < 0) {
@@ -1581,6 +1773,9 @@ export default function RFQDetail(): ReactElement {
         }
         if (seaFreightCost === null || seaFreightCost < 0) {
           nextTierError.seaFreightCost = 'กรุณาระบุค่าขนส่งทางเรือ';
+        }
+        if (exchangeRate === null || exchangeRate <= 0) {
+          nextTierError.exchangeRate = 'กรุณาระบุอัตราแลกเปลี่ยนมากกว่า 0';
         }
 
         if (Object.keys(nextTierError).length) {
@@ -1606,24 +1801,38 @@ export default function RFQDetail(): ReactElement {
       setIsFinalPriceSubmitting(true);
       setVisibleFinalPriceConfirmationDialog(false);
       const supplierId = finalPriceQuote.supplier?.supplierId || finalPriceQuote.supplier?.id;
+      console.log('FinalPriceDraft: ', finalPriceDraft);
       const detailPayload: CreateRFQDetailRequest[] = finalPriceDraft.details.map(
         (detail, detailIndex) => ({
           optionName: detail.optionName,
           spec: detail.spec,
           sortOrder: detailIndex + 1,
-          remark: finalPriceDraft.remark.trim() || null,
+          remark: detail.remark?.trim() || null,
+          recommend: finalPriceDraft.recommend.trim() || null,
           supplierId,
           tiers: detail.tiers.map((tier, tierIndex) => {
             const landFreightCost = parsePriceInput(tier.landFreightCost) || 0;
             const seaFreightCost = parsePriceInput(tier.seaFreightCost) || 0;
+            const exchangeRate = parsePriceInput(tier.exchangeRate) || 1;
+            const sourceTier = finalPriceQuote.details
+              .find((quoteDetail) => quoteDetail.id === detail.id)
+              ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
+            const shippingCost = sourceTier?.shippingCost || 0;
+            const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
+            const convertedProductPrice = tier.productPrice * exchangeRate;
+            const baseAmount = tier.productPrice + shippingPerUnit;
+            const landTotalPrice = baseAmount * exchangeRate + landFreightCost;
+            const seaTotalPrice = baseAmount * exchangeRate + seaFreightCost;
 
             return {
               quantity: tier.quantity,
-              productPrice: tier.productPrice,
+              productPrice: convertedProductPrice,
+              currency: 'THB',
+              exchangeRate,
               landFreightCost,
               seaFreightCost,
-              landTotalPrice: tier.productPrice + landFreightCost,
-              seaTotalPrice: tier.productPrice + seaFreightCost,
+              landTotalPrice,
+              seaTotalPrice,
               sortOrder: tierIndex + 1
             };
           })
@@ -1687,20 +1896,27 @@ export default function RFQDetail(): ReactElement {
     setQuoteDraftDetails((prev) => [...prev, nextDetail]);
   };
 
+  const handleDeleteQuoteDetail = (detailId: number) => {
+    setQuoteDraftDetails((prev) => {
+      const nextDetails = prev
+        .filter((detail) => detail.id !== detailId)
+        .map((detail, index) => ({
+          ...detail,
+          sortOrder: index + 1
+        }));
+
+      return nextDetails.length ? nextDetails : [createDraftQuoteDetail(1)];
+    });
+    setQuoteDraftErrors((prev) => {
+      const nextErrors = { ...prev };
+      delete nextErrors[detailId];
+      return nextErrors;
+    });
+  };
+
   const handleQuoteDetailChange = (
     detailId: number,
-    field:
-      | 'optionName'
-      | 'spec'
-      | 'remark'
-      | 'packageDimension'
-      | 'packageWeight'
-      | 'packageCapacity'
-      | 'packageBoxWidth'
-      | 'packageBoxLength'
-      | 'packageBoxHeight'
-      | 'packagePiecesPerBox'
-      | 'packageWeightPerBoxKg',
+    field: 'optionName' | 'spec' | 'remark',
     value: string
   ) => {
     setQuoteDraftDetails((prev) =>
@@ -1709,30 +1925,10 @@ export default function RFQDetail(): ReactElement {
           return detail;
         }
 
-        const updatedDetail = { ...detail, [field]: value };
-
-        if (field === 'packageDimension') {
-          return {
-            ...updatedDetail,
-            ...mapPackageDimension(value)
-          };
-        }
-
-        if (field === 'packageWeight') {
-          return {
-            ...updatedDetail,
-            packagePiecesPerBox: mapPackageQuantity(value)
-          };
-        }
-
-        if (field === 'packageCapacity') {
-          return {
-            ...updatedDetail,
-            packageWeightPerBoxKg: mapPackageQuantity(value)
-          };
-        }
-
-        return updatedDetail;
+        return {
+          ...detail,
+          [field]: value
+        };
       })
     );
     setQuoteDraftErrors((prev) => ({
@@ -1742,6 +1938,105 @@ export default function RFQDetail(): ReactElement {
         [field]: undefined
       }
     }));
+  };
+
+  const handleAddQuotePackage = (detailId: number) => {
+    setQuoteDraftDetails((prev) =>
+      prev.map((detail) =>
+        detail.id === detailId
+          ? {
+            ...detail,
+            packages: [
+              ...(detail.packages || []),
+              createDraftPackage((detail.packages || []).length + 1)
+            ]
+          }
+          : detail
+      )
+    );
+    setQuoteDraftErrors((prev) => ({
+      ...prev,
+      [detailId]: {
+        ...prev[detailId],
+        package: undefined
+      }
+    }));
+  };
+
+  const handleQuotePackageChange = (
+    detailId: number,
+    packageId: number,
+    field:
+      | 'packageName'
+      | 'packageWidth'
+      | 'packageLength'
+      | 'packageHeight'
+      | 'packageWeight'
+      | 'packageCapacity',
+    value: string
+  ) => {
+    setQuoteDraftDetails((prev) =>
+      prev.map((detail) => {
+        if (detail.id !== detailId) {
+          return detail;
+        }
+
+        const packages = (detail.packages || []).map((item) =>
+          item.id === packageId ? { ...item, [field]: value } : item
+        );
+
+        return {
+          ...detail,
+          packageName: getFirstPackageValue(packages, 'packageName') || '',
+          packageDimension:
+            combinePackageDimension(
+              packages[0]?.packageWidth,
+              packages[0]?.packageLength,
+              packages[0]?.packageHeight
+            ) || '',
+          packages,
+          packageWeight: getFirstPackageValue(packages, 'packageWeight') || '',
+          packageCapacity: getFirstPackageValue(packages, 'packageCapacity') || ''
+        };
+      })
+    );
+    setQuoteDraftErrors((prev) => ({
+      ...prev,
+      [detailId]: {
+        ...prev[detailId],
+        package: undefined
+      }
+    }));
+  };
+
+  const handleDeleteQuotePackage = (detailId: number, packageId: number) => {
+    setQuoteDraftDetails((prev) =>
+      prev.map((detail) => {
+        if (detail.id !== detailId) {
+          return detail;
+        }
+
+        const packages = (detail.packages || [])
+          .filter((item) => item.id !== packageId)
+          .map((item, index) => ({ ...item, sortOrder: index + 1 }));
+
+        const nextPackages = packages.length ? packages : [createDraftPackage(1)];
+
+        return {
+          ...detail,
+          packages: nextPackages,
+          packageName: getFirstPackageValue(nextPackages, 'packageName') || '',
+          packageDimension:
+            combinePackageDimension(
+              nextPackages[0]?.packageWidth,
+              nextPackages[0]?.packageLength,
+              nextPackages[0]?.packageHeight
+            ) || '',
+          packageWeight: getFirstPackageValue(nextPackages, 'packageWeight') || '',
+          packageCapacity: getFirstPackageValue(nextPackages, 'packageCapacity') || ''
+        };
+      })
+    );
   };
 
   const handleAddQuoteTier = (detailId: number) => {
@@ -2274,21 +2569,23 @@ export default function RFQDetail(): ReactElement {
       <PageTitle title={'สอบถามราคาเลขที่ ' + rfq?.id || 'Price Inquiry Detail'}>
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
           {rfq?.status ? (
-            <Chip
-              label={t(`rfqManagement.rfqsStatus.${rfq.status}`, rfq.status)}
-              size="small"
-              sx={{
-                height: 28,
-                backgroundColor: '#e8f5e9',
-                color: '#2e7d32',
-                border: '1px solid #2e7d3233',
-                fontWeight: 700,
-                alignSelf: 'center',
-                '& .MuiChip-label': {
-                  px: 1.25
-                }
-              }}
-            />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip
+                label={t(`rfqManagement.rfqsStatus.${rfq.status}`, rfq.status)}
+                size="small"
+                sx={{
+                  height: 28,
+                  backgroundColor: '#e8f5e9',
+                  color: '#2e7d32',
+                  border: '1px solid #2e7d3233',
+                  fontWeight: 700,
+                  alignSelf: 'center',
+                  '& .MuiChip-label': {
+                    px: 1.25
+                  }
+                }}
+              />
+            </Stack>
           ) : null}
           {rfq?.slaDate && ['NEW', 'IN_PROGRESS'].includes(rfq.status || '') ? (
             <Chip
@@ -2312,19 +2609,35 @@ export default function RFQDetail(): ReactElement {
       <Wrapper>
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="flex-end" spacing={1}>
-            {/* {suggestedSupplierIds.size == 0 ? ( */}
+            {rfq?.status === 'SUPPLIER_QUOTED' ? (
+              <Can permission={PERMISSIONS.RFQ_CONFIRM}>
+                <Button
+                  variant="contained"
+                  className="btn-indigo-blue"
+                  onClick={handleOpenFinalPriceDialogFromButton}>
+                  Final ราคา
+                </Button>
+              </Can>
+            ) : (
+              <Button
+                variant="contained"
+                className="btn-baby-blue"
+                disabled={isRequestInformationSubmitting}
+                onClick={handleOpenRequestInformationDialog}>
+                ขอข้อมูลเพิ่มเติม
+              </Button>
+            )}
             <Button
               variant="contained"
-              sx={blueActionButtonSx}
+              className="btn-emerald-green"
               disabled={isSupplierQuoteSubmitting}
               onClick={() => handleOpenSupplierQuoteDialog()}>
-              บันทึกราคา
+              {rfq?.status === 'SUPPLIER_QUOTED' ? 'แก้ไขราคา' : 'บันทึกราคา'}
             </Button>
-            {/* ) : null} */}
 
             <Button
               variant="contained"
-              sx={blueActionButtonSx}
+              className="btn-pastel-green"
               disabled={isGenerateInquirySubmitting}
               onClick={async () => {
                 if (!params.id) {
@@ -2355,7 +2668,6 @@ export default function RFQDetail(): ReactElement {
               variant="contained"
               className="btn-cool-grey"
               startIcon={<ArrowBackIos />}
-              sx={actionButtonSx}
               onClick={() => history.push('/price-inquiry-management')}>
               {t('button.back')}
             </Button>
@@ -2785,6 +3097,9 @@ export default function RFQDetail(): ReactElement {
                   onCancelEditQuote={handleCancelInlineSupplierQuoteEdit}
                   onSaveEditQuote={handleRequestSaveSupplierQuote}
                   onDetailChange={handleQuoteDetailChange}
+                  onAddPackage={handleAddQuotePackage}
+                  onPackageChange={handleQuotePackageChange}
+                  onDeletePackage={handleDeleteQuotePackage}
                   onTierChange={handleQuoteTierChange}
                   onAdditionalCostChange={handleQuoteAdditionalCostChange}
                   formatQuantity={formatQuantity}
@@ -2891,6 +3206,14 @@ export default function RFQDetail(): ReactElement {
         onConfirm={handleConfirmSaveFinalPrice}
         onCancel={() => setVisibleFinalPriceConfirmationDialog(false)}
       />
+      <RequestInformationDialog
+        open={visibleRequestInformationDialog}
+        requestInformation={requestInformationText}
+        onRequestInformationChange={setRequestInformationText}
+        onClose={handleCloseRequestInformationDialog}
+        onConfirm={handleConfirmRequestInformation}
+        isSubmitting={isRequestInformationSubmitting}
+      />
       <AddSupplierDialog
         open={visibleAddSupplierDialog}
         supplierSearchInput={supplierSearchInput}
@@ -2944,7 +3267,11 @@ export default function RFQDetail(): ReactElement {
         quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
         quoteDraftErrors={quoteDraftErrors}
         onAddDetail={handleAddQuoteDetail}
+        onDeleteDetail={handleDeleteQuoteDetail}
         onDetailChange={handleQuoteDetailChange}
+        onAddPackage={handleAddQuotePackage}
+        onPackageChange={handleQuotePackageChange}
+        onDeletePackage={handleDeleteQuotePackage}
         onAddTier={handleAddQuoteTier}
         onTierChange={handleQuoteTierChange}
         onDeleteTier={handleDeleteQuoteTier}

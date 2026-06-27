@@ -12,6 +12,7 @@ import {
     SearchSaleOrderRequest,
     SearchSalesOrderRequestV1,
     SearchSalesOrderResponseV1,
+    UpdateSalesOrderRequestV1,
     UpdatePOLineRequest,
     UpdateSaleOrderBilling,
     UpdateSaleOrderLineSupplierRequest,
@@ -88,6 +89,13 @@ export const getSalesOrderV1 = async (id: string) => {
                 id
             }
         })
+        .then((response) => response.data);
+    return response.data;
+};
+
+export const updateSalesOrderV1 = async (id: string, data: UpdateSalesOrderRequestV1) => {
+    const response = await api
+        .patch(`/v1/sales-orders/${id}`, data)
         .then((response) => response.data);
     return response.data;
 };

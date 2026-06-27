@@ -12,6 +12,7 @@ import {
   RFQSupplierQuoteResponse,
   SearchRFQResponse,
   LinkRFQSalesOrderRequest,
+  RequestRFQInformationRequest,
   UpdateRFQInquiryRequest,
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
@@ -108,6 +109,28 @@ export const getRFQSuggestSuppliers = async (id: string): Promise<Supplier[]> =>
 export const generateRFQInquiry = async (id: string) => {
   const response: GenerateRFQInquiryResponse = await api
     .post(`/v1/rfqs/${id}/inquiries/generate`)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
+export const requestRFQInformation = async (payload: RequestRFQInformationRequest) => {
+  const response: UpdateRFQResponse = await api
+    .patch('/v1/rfq/request-information', payload)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
+export const rejectRFQ = async (id: string) => {
+  const response = await api.patch(`/v1/rfq/${id}/reject`).then((res) => res.data);
+
+  return response.data;
+};
+
+export const closeRFQ = async (rfqId: string, remark: string) => {
+  const response = await api
+    .patch('/v1/rfqs/close', { rfqId, remark })
     .then((res) => res.data);
 
   return response.data;
@@ -210,6 +233,17 @@ export const updateRFQ = async (
   const response: UpdateRFQResponse = await api
     .patch(`/v1/rfqs/${id}`, payload)
     .then((response) => response.data);
+
+  return response;
+};
+
+export const updateRFQCustomer = async (
+  id: string,
+  customerId: string
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .post(`/v1/rfqs/${id}/customers`, { customerId })
+    .then((res) => res.data);
 
   return response;
 };

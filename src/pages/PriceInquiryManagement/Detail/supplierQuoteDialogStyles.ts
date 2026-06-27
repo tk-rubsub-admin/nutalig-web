@@ -1,7 +1,7 @@
 export const actionButtonSx = {
   minHeight: 40,
   px: 2.25,
-  borderRadius: 999,
+  borderRadius: 6,
   textTransform: 'none',
   fontWeight: 700,
   boxShadow: 'none',

@@ -9,7 +9,7 @@ const components = {
         minHeight: 40,
         paddingLeft: 18,
         paddingRight: 18,
-        borderRadius: 999,
+        borderRadius: 6,
         textTransform: 'none',
         fontWeight: 700,
         boxShadow: 'none',

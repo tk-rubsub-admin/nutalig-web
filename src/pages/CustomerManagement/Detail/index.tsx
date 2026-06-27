@@ -11,6 +11,8 @@ import {
   MenuItem,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
   useMediaQuery,
@@ -18,12 +20,13 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import ConfirmDialog from 'components/ConfirmDialog';
+import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import PageTitle from 'components/PageTitle';
 import { GridTextField, Wrapper } from 'components/Styled';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
@@ -37,6 +40,7 @@ import {
   removeCustomerContact,
   updateCustomer
 } from 'services/Customer/customer-api';
+import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import {
   Address,
   Contact,
@@ -58,6 +62,21 @@ export interface CustomerParam {
 }
 
 export default function CustomerDetail(): JSX.Element {
+  const TabPanel = ({
+    children,
+    currentTab,
+    value
+  }: {
+    children: React.ReactNode;
+    currentTab: 'detail' | 'history';
+    value: 'detail' | 'history';
+  }) => {
+    if (currentTab !== value) {
+      return null;
+    }
+    return <>{children}</>;
+  };
+
   const useStyles = makeStyles({
     noResultMessage: {
       textAlign: 'center',
@@ -99,6 +118,7 @@ export default function CustomerDetail(): JSX.Element {
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
@@ -107,6 +127,13 @@ export default function CustomerDetail(): JSX.Element {
     refetch: customerRefetch,
     isFetching
   } = useQuery(['customer', params.id], () => getCustomer(params.id), {
+    refetchOnWindowFocus: false
+  });
+  const {
+    data: activityHistory = [],
+    isFetching: isActivityHistoryFetching,
+    refetch: refetchActivityHistory
+  } = useQuery(['customer-activity-history', params.id], () => getActivityHistory('CUSTOMER', params.id), {
     refetchOnWindowFocus: false
   });
   const { data: customerTypeList, isFetching: isCustomerTypeFetching } = useQuery(
@@ -119,6 +146,16 @@ export default function CustomerDetail(): JSX.Element {
   const { data: creditTermList, isFetching: isCreditTermFetching } = useQuery(
     ['credit-term-list', GROUP_CODE.CUSTOMER_CREDIT_TERM],
     () => getSystemConfig(GROUP_CODE.CUSTOMER_CREDIT_TERM),
+    { refetchOnWindowFocus: false }
+  );
+  const { data: customerTierList, isFetching: isCustomerTierFetching } = useQuery(
+    ['customer-tier', GROUP_CODE.CUSTOMER_TIER],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_TIER),
+    { refetchOnWindowFocus: false }
+  );
+  const { data: customerSegmentList, isFetching: isCustomerSegmentFetching } = useQuery(
+    ['customer-segment', GROUP_CODE.CUSTOMER_SEGMENT],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_SEGMENT),
     { refetchOnWindowFocus: false }
   );
   const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
@@ -141,6 +178,8 @@ export default function CustomerDetail(): JSX.Element {
       customerName: customer?.customerName ?? '',
       email: customer?.email ?? '',
       type: customer?.customerType?.code ?? '',
+      tier: customer?.customerTier?.code ?? '',
+      segment: customer?.customerSegment?.code ?? '',
       taxId: customer?.taxId ?? '',
       companyName: customer?.companyName ?? '',
       companyBranchCode: customer?.branchNumber ?? '',
@@ -160,7 +199,8 @@ export default function CustomerDetail(): JSX.Element {
         .max(255)
         .required(t('customerManagement.message.validateCustomerName')),
       type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
-      taxId: Yup.string().required(t('customerManagement.message.validateTaxId')),
+      tier: Yup.string().max(255).nullable(),
+      segment: Yup.string().max(255).nullable(),
       companyName: Yup.string().when('type', {
         is: 'COMPANY',
         then: Yup.string().required(t('customerManagement.message.validateCompanyName')),
@@ -183,6 +223,8 @@ export default function CustomerDetail(): JSX.Element {
       const payload: UpdateCustomerRequest = {
         customerName: values.customerName || null,
         customerType: values.type || null,
+        customerTier: values.tier || null,
+        customerSegment: values.segment || null,
         email: values.email || null,
         taxId: values.taxId || null,
         companyName: values.companyName || null,
@@ -199,6 +241,7 @@ export default function CustomerDetail(): JSX.Element {
         success: () => {
           setCanEdit(false);
           customerRefetch();
+          refetchActivityHistory();
           return t('toast.success');
         },
         error: t('toast.failed')
@@ -347,6 +390,7 @@ export default function CustomerDetail(): JSX.Element {
       loading: t('toast.loading'),
       success: () => {
         customerRefetch();
+        refetchActivityHistory();
         addressDialogFormik.resetForm();
         setIsAddressDialogOpen(false);
         return t('toast.success');
@@ -380,6 +424,7 @@ export default function CustomerDetail(): JSX.Element {
       loading: t('toast.loading'),
       success: () => {
         customerRefetch();
+        refetchActivityHistory();
         setSelectedAddress(null);
         return t('toast.success');
       },
@@ -408,6 +453,7 @@ export default function CustomerDetail(): JSX.Element {
       loading: t('toast.loading'),
       success: () => {
         customerRefetch();
+        refetchActivityHistory();
         setSelectedContact(null);
         return t('toast.success');
       },
@@ -470,6 +516,7 @@ export default function CustomerDetail(): JSX.Element {
       loading: t('toast.loading'),
       success: () => {
         customerRefetch();
+        refetchActivityHistory();
         contactDialogFormik.resetForm();
         setIsContactDialogOpen(false);
         return t('toast.success');
@@ -551,440 +598,513 @@ export default function CustomerDetail(): JSX.Element {
           )}
         </Stack>
       </Wrapper>
-      <Wrapper>
-        <Grid container spacing={1}>
-          <GridTextField item xs={12} sm={12}>
-            <Typography variant="subtitle1" fontWeight={600}>
-              {t('customerManagement.detail')}
-            </Typography>
-          </GridTextField>
+      <Tabs
+        value={tab}
+        onChange={(_event: SyntheticEvent, value: 'detail' | 'history') => setTab(value)}
+        sx={{ mt: 2, mb: 2 }}>
+        <Tab value="detail" label={t('customerManagement.detail')} />
+        <Tab value="history" label={t('customerManagement.history')} />
+      </Tabs>
 
-          {/* customerName */}
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              name="customerName"
-              type="text"
-              label={t('customerManagement.column.id')}
-              fullWidth
-              variant="outlined"
-              value={customer?.id}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: true }}
-            />
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              name="customerName"
-              type="text"
-              label={t('customerManagement.column.name')}
-              fullWidth
-              variant="outlined"
-              value={formik.values.customerName}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={Boolean(formik.touched.customerName && formik.errors.customerName)}
-              helperText={formik.touched.customerName && formik.errors.customerName}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: !canEdit }}
-            />
-          </GridTextField>
+      <TabPanel currentTab={tab} value="detail">
+        <Wrapper>
+          <Grid container spacing={1}>
+            <GridTextField item xs={12} sm={12}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {t('customerManagement.detail')}
+              </Typography>
+            </GridTextField>
 
-          {/* type */}
-          <GridTextField item xs={6} sm={6}>
-            <TextField
-              name="type"
-              select
-              fullWidth
-              label={t('customerManagement.column.type')}
-              disabled={isCustomerTypeFetching || !canEdit}
-              InputLabelProps={{ shrink: true }}
-              error={Boolean(formik.touched.type && formik.errors.type)}
-              helperText={formik.touched.type && formik.errors.type}
-              value={formik.values.type || ''}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}>
-              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-              {customerTypeList?.map((option) => (
-                <MenuItem key={option.code} value={option.code}>
-                  {option.nameTh}
-                </MenuItem>
-              )) || []}
-            </TextField>
-          </GridTextField>
+            {/* customerName */}
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="customerName"
+                type="text"
+                label={t('customerManagement.column.id')}
+                fullWidth
+                variant="outlined"
+                value={customer?.id}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: true }}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="customerName"
+                type="text"
+                label={t('customerManagement.column.name')}
+                fullWidth
+                variant="outlined"
+                value={formik.values.customerName}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={Boolean(formik.touched.customerName && formik.errors.customerName)}
+                helperText={formik.touched.customerName && formik.errors.customerName}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: !canEdit }}
+              />
+            </GridTextField>
 
-          {/* taxId */}
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              name="taxId"
-              type="text"
-              label={t('customerManagement.column.taxId')}
-              fullWidth
-              variant="outlined"
-              value={formik.values.taxId}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={Boolean(formik.touched.taxId && formik.errors.taxId)}
-              helperText={formik.touched.taxId && formik.errors.taxId}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: !canEdit }}
-            />
-          </GridTextField>
+            {/* type */}
+            <GridTextField item xs={6} sm={6}>
+              <TextField
+                name="type"
+                select
+                fullWidth
+                label={t('customerManagement.column.type')}
+                disabled={isCustomerTypeFetching || !canEdit}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.type && formik.errors.type)}
+                helperText={formik.touched.type && formik.errors.type}
+                value={formik.values.type || ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerTypeList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh}
+                  </MenuItem>
+                )) || []}
+              </TextField>
+            </GridTextField>
 
-          {/* Company block */}
-          {formik.values.type === 'COMPANY' ? (
-            <>
-              <GridTextField item xs={6} md={6}>
-                <TextField
-                  name="companyBranchCode"
-                  type="text"
-                  label={t('customerManagement.column.company.branchCode')}
-                  fullWidth
-                  variant="outlined"
-                  disabled={!canEdit || formik.values.companyBranchCode === '00000'}
-                  value={formik.values.companyBranchCode}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  error={Boolean(
-                    formik.touched.companyBranchCode && formik.errors.companyBranchCode
-                  )}
-                  helperText={formik.touched.companyBranchCode && formik.errors.companyBranchCode}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </GridTextField>
+            {/* taxId */}
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="taxId"
+                type="text"
+                label={t('customerManagement.column.taxId')}
+                fullWidth
+                variant="outlined"
+                value={formik.values.taxId}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={Boolean(formik.touched.taxId && formik.errors.taxId)}
+                helperText={formik.touched.taxId && formik.errors.taxId}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: !canEdit }}
+              />
+            </GridTextField>
 
-              <GridTextField item xs={6} md={6}>
-                <TextField
-                  name="companyBranchName"
-                  type="text"
-                  label={t('customerManagement.column.company.branchName')}
-                  fullWidth
-                  variant="outlined"
-                  disabled={!canEdit || formik.values.companyBranchCode === '00000'}
-                  value={formik.values.companyBranchName}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  error={Boolean(
-                    formik.touched.companyBranchName && formik.errors.companyBranchName
-                  )}
-                  helperText={formik.touched.companyBranchName && formik.errors.companyBranchName}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </GridTextField>
-            </>
-          ) : null}
+            {/* Company block */}
+            {formik.values.type === 'COMPANY' ? (
+              <>
+                <GridTextField item xs={6} md={6}>
+                  <TextField
+                    name="companyBranchCode"
+                    type="text"
+                    label={t('customerManagement.column.company.branchCode')}
+                    fullWidth
+                    variant="outlined"
+                    disabled={!canEdit || formik.values.companyBranchCode === '00000'}
+                    value={formik.values.companyBranchCode}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={Boolean(
+                      formik.touched.companyBranchCode && formik.errors.companyBranchCode
+                    )}
+                    helperText={formik.touched.companyBranchCode && formik.errors.companyBranchCode}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </GridTextField>
 
-          {/* email */}
-          <GridTextField item xs={6} sm={6}>
-            <TextField
-              name="email"
-              type="text"
-              label={t('customerManagement.column.email')}
-              fullWidth
-              variant="outlined"
-              value={formik.values.email}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={Boolean(formik.touched.email && formik.errors.email)}
-              helperText={formik.touched.email && formik.errors.email}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: !canEdit }}
-            />
-          </GridTextField>
+                <GridTextField item xs={6} md={6}>
+                  <TextField
+                    name="companyBranchName"
+                    type="text"
+                    label={t('customerManagement.column.company.branchName')}
+                    fullWidth
+                    variant="outlined"
+                    disabled={!canEdit || formik.values.companyBranchCode === '00000'}
+                    value={formik.values.companyBranchName}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={Boolean(
+                      formik.touched.companyBranchName && formik.errors.companyBranchName
+                    )}
+                    helperText={formik.touched.companyBranchName && formik.errors.companyBranchName}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </GridTextField>
+              </>
+            ) : null}
 
-          {/* creditTerm */}
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              name="creditTerm"
-              select
-              fullWidth
-              label={t('customerManagement.column.creditTerm')}
-              InputLabelProps={{ shrink: true }}
-              error={Boolean(formik.touched.creditTerm && formik.errors.creditTerm)}
-              helperText={formik.touched.creditTerm && formik.errors.creditTerm}
-              value={formik.values.creditTerm ?? ''}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              disabled={isCreditTermFetching || !canEdit}>
-              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-              {creditTermList?.map((option) => (
-                <MenuItem key={option.code} value={option.code}>
-                  {option.nameTh}
-                </MenuItem>
-              )) || []}
-            </TextField>
-          </GridTextField>
+            {/* email */}
+            <GridTextField item xs={6} sm={6}>
+              <TextField
+                name="email"
+                type="text"
+                label={t('customerManagement.column.email')}
+                fullWidth
+                variant="outlined"
+                value={formik.values.email}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={Boolean(formik.touched.email && formik.errors.email)}
+                helperText={formik.touched.email && formik.errors.email}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: !canEdit }}
+              />
+            </GridTextField>
 
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              select
-              fullWidth
-              required
-              label={t('customerManagement.column.salesAccount')}
-              InputLabelProps={{ shrink: true }}
-              error={Boolean(formik.touched.salesAccount && formik.errors.salesAccount)}
-              helperText={formik.touched.salesAccount && formik.errors.salesAccount}
-              value={formik.values.salesAccount || ''}
-              onChange={(event) => {
-                const selectedCode = event.target.value;
-                if (selectedCode === '') {
-                  formik.setFieldValue('salesAccount', selectedCode);
-                } else {
-                  formik.setFieldValue('salesAccount', selectedCode);
-                }
-              }}
-              disabled={isSalesFetching || !canEdit}>
-              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-              {salesOptions.map((option) => (
-                <MenuItem key={option.salesId} value={option.salesId}>
-                  {`${option.salesId} - ${option.nickname || option.name}`}
-                </MenuItem>
-              ))}
-            </TextField>
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              type="text"
-              label={t('customerManagement.column.coSalesAccount')}
-              fullWidth
-              onChange={({ target }) => {
-                formik.setFieldValue('coSalesAccount', target.value);
-              }}
-              onBlur={formik.handleBlur}
-              variant="outlined"
-              value={formik.values.coSalesAccount}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: !canEdit }}
-            />
-          </GridTextField>
-        </Grid>
-      </Wrapper>
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6}>
-          <Wrapper>
-            <Grid container spacing={2}>
-              <Grid
-                item
-                xs={12}
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 1,
-                  minHeight: 40
-                }}>
-                <Typography variant="h6">{t('customerManagement.column.address.title')}</Typography>
-                <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    onClick={openAddressDialog}>
-                    {t('customerManagement.column.address.addNew')}
-                  </Button>
-                </Can>
-              </Grid>
-              {addresses.map((address, index) => (
-                <Grid item xs={12} key={address.id || index}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderBottom: '1px solid #eee',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: '#fafafa'
-                      }
-                    }}>
-                    <Stack direction="row" spacing={1} alignItems="flex-start">
-                      <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-                        {/* Label */}
-                        {address.label && (
-                          <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 500 }}>
-                            {address.label}
-                          </Typography>
-                        )}
+            {/* creditTerm */}
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="creditTerm"
+                select
+                fullWidth
+                label={t('customerManagement.column.creditTerm')}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.creditTerm && formik.errors.creditTerm)}
+                helperText={formik.touched.creditTerm && formik.errors.creditTerm}
+                value={formik.values.creditTerm ?? ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                disabled={isCreditTermFetching || !canEdit}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {creditTermList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh}
+                  </MenuItem>
+                )) || []}
+              </TextField>
+            </GridTextField>
 
-                        {/* Address */}
-                        <Typography variant="body2" sx={{ color: '#555' }}>
-                          {buildFullAddress(address)}
-                        </Typography>
+            {/* tier */}
+            <GridTextField item xs={6} sm={6}>
+              <TextField
+                name="tier"
+                select
+                fullWidth
+                label={t('customerManagement.column.tier')}
+                disabled={isCustomerTierFetching || !canEdit}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.tier && formik.errors.tier)}
+                helperText={formik.touched.tier && formik.errors.tier}
+                value={formik.values.tier || ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerTierList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameEn}
+                  </MenuItem>
+                )) || []}
+              </TextField>
+            </GridTextField>
 
-                        {/* Tags */}
-                        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                          {address.isDefault && (
-                            <Chip
-                              label="ค่าเริ่มต้น"
-                              size="small"
-                              sx={{
-                                bgcolor: '#ff5722',
-                                color: '#000'
-                              }}
-                            />
-                          )}
+            {/* segment */}
+            <GridTextField item xs={6} sm={6}>
+              <TextField
+                name="segment"
+                select
+                fullWidth
+                label={t('customerManagement.column.segment')}
+                disabled={isCustomerSegmentFetching || !canEdit}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.segment && formik.errors.segment)}
+                helperText={formik.touched.segment && formik.errors.segment}
+                value={formik.values.segment || ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerSegmentList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh}
+                  </MenuItem>
+                )) || []}
+              </TextField>
+            </GridTextField>
 
-                          {address.addressType && (
-                            <Chip
-                              label={t(
-                                `customerManagement.column.addressType.${address.addressType?.toLowerCase()}`
-                              )}
-                              size="small"
-                            />
-                          )}
-                        </Stack>
-                      </Stack>
-
-                      <Stack direction="row" justifyContent="flex-end">
-                        <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label={t('button.delete')}
-                            onClick={() => handleDeleteAddressClick(address)}>
-                            <DeleteOutline fontSize="small" />
-                          </IconButton>
-                        </Can>
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-          </Wrapper>
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <Wrapper>
-            <Grid container spacing={2}>
-              <Grid
-                item
-                xs={12}
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 1,
-                  minHeight: 40
-                }}>
-                <Typography variant="h6">{t('customerManagement.column.contacts')}</Typography>
-                <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    onClick={openContactDialog}>
-                    {t('customerManagement.addContact')}
-                  </Button>
-                </Can>
-              </Grid>
-
-              {customer?.contacts?.map((contact: Contact, index) => (
-                <Grid item xs={12} key={contact.id || index}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderBottom: '1px solid #eee',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: '#fafafa'
-                      }
-                    }}>
-                    <Stack direction="row" spacing={1} alignItems="flex-start">
-                      <Stack
-                        direction="row"
-                        spacing={2}
-                        alignItems="center"
-                        sx={{ flex: 1, minWidth: 0 }}>
-                        <Person sx={{ fontSize: 32 }} />
-
-                        <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="body1" fontWeight={600}>
-                            {contact.contactName || '-'}
-                          </Typography>
-
-                          <Typography variant="body2" sx={{ color: '#666' }}>
-                            {contact.contactNumber || '-'}
-                          </Typography>
-                        </Stack>
-                      </Stack>
-
-                      <Stack direction="row" justifyContent="flex-end">
-                        <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label={t('button.delete')}
-                            onClick={() => handleDeleteContactClick(contact)}>
-                            <DeleteOutline fontSize="small" />
-                          </IconButton>
-                        </Can>
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-          </Wrapper>
-        </Grid>
-      </Grid>
-
-      <Wrapper>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1}
-          useFlexGap
-          sx={{
-            mt: 1,
-            justifyContent: { sm: 'flex-end' }, // right-align when in row
-            alignItems: { xs: 'flex-end', sm: 'center' } // right-align when stacked
-          }}>
-          <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            className="btn-cool-grey"
-            onClick={() => {
-              history.push(ROUTE_PATHS.CUSTOMER_MANAGEMENT);
-            }}
-            startIcon={<ArrowBackIos />}>
-            {t('button.back')}
-          </Button>
-          {canEdit ? (
-            <>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-amber-orange"
-                onClick={handleCancelEdit}
-                startIcon={<Cancel />}>
-                {t('button.cancel')}
-              </Button>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-emerald-green"
-                onClick={() => {
-                  setActionType('update');
-                  setTitle(t('customerManagement.updateCustomer'));
-                  setMsg(t('customerManagement.confirmMsgUpdateCustomer'));
-                  setVisibleConfirmationDialog(true);
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                required
+                label={t('customerManagement.column.salesAccount')}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.salesAccount && formik.errors.salesAccount)}
+                helperText={formik.touched.salesAccount && formik.errors.salesAccount}
+                value={formik.values.salesAccount || ''}
+                onChange={(event) => {
+                  const selectedCode = event.target.value;
+                  if (selectedCode === '') {
+                    formik.setFieldValue('salesAccount', selectedCode);
+                  } else {
+                    formik.setFieldValue('salesAccount', selectedCode);
+                  }
                 }}
-                startIcon={<Save />}>
-                {t('button.update')}
-              </Button>
-            </>
-          ) : (
-            <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-emerald-green"
-                onClick={handleStartEdit}
-                startIcon={<Edit />}>
-                {t('button.edit')}
-              </Button>
-            </Can>
-          )}
-        </Stack>
-      </Wrapper>
+                disabled={isSalesFetching || !canEdit}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {salesOptions.map((option) => (
+                  <MenuItem key={option.salesId} value={option.salesId}>
+                    {`${option.salesId} - ${option.nickname || option.name}`}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                type="text"
+                label={t('customerManagement.column.coSalesAccount')}
+                fullWidth
+                onChange={({ target }) => {
+                  formik.setFieldValue('coSalesAccount', target.value);
+                }}
+                onBlur={formik.handleBlur}
+                variant="outlined"
+                value={formik.values.coSalesAccount}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: !canEdit }}
+              />
+            </GridTextField>
+          </Grid>
+        </Wrapper>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <Wrapper>
+              <Grid container spacing={2}>
+                <Grid
+                  item
+                  xs={12}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 1,
+                    minHeight: 40
+                  }}>
+                  <Typography variant="h6">{t('customerManagement.column.address.title')}</Typography>
+                  <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={openAddressDialog}>
+                      {t('customerManagement.column.address.addNew')}
+                    </Button>
+                  </Can>
+                </Grid>
+                {addresses.map((address, index) => (
+                  <Grid item xs={12} key={address.id || index}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderBottom: '1px solid #eee',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: '#fafafa'
+                        }
+                      }}>
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+                          {/* Label */}
+                          {address.label && (
+                            <Typography variant="subtitle2" sx={{ color: '#888', fontWeight: 500 }}>
+                              {address.label}
+                            </Typography>
+                          )}
+
+                          {/* Address */}
+                          <Typography variant="body2" sx={{ color: '#555' }}>
+                            {buildFullAddress(address)}
+                          </Typography>
+
+                          {/* Tags */}
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            {address.isDefault && (
+                              <Chip
+                                label="ค่าเริ่มต้น"
+                                size="small"
+                                sx={{
+                                  bgcolor: '#ff5722',
+                                  color: '#000'
+                                }}
+                              />
+                            )}
+
+                            {address.addressType && (
+                              <Chip
+                                label={t(
+                                  `customerManagement.column.addressType.${address.addressType?.toLowerCase()}`
+                                )}
+                                size="small"
+                              />
+                            )}
+                          </Stack>
+                        </Stack>
+
+                        <Stack direction="row" justifyContent="flex-end">
+                          <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              aria-label={t('button.delete')}
+                              onClick={() => handleDeleteAddressClick(address)}>
+                              <DeleteOutline fontSize="small" />
+                            </IconButton>
+                          </Can>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Wrapper>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <Wrapper>
+              <Grid container spacing={2}>
+                <Grid
+                  item
+                  xs={12}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 1,
+                    minHeight: 40
+                  }}>
+                  <Typography variant="h6">{t('customerManagement.column.contacts')}</Typography>
+                  <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={openContactDialog}>
+                      {t('customerManagement.addContact')}
+                    </Button>
+                  </Can>
+                </Grid>
+
+                {customer?.contacts?.map((contact: Contact, index) => (
+                  <Grid item xs={12} key={contact.id || index}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderBottom: '1px solid #eee',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: '#fafafa'
+                        }
+                      }}>
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <Stack
+                          direction="row"
+                          spacing={2}
+                          alignItems="center"
+                          sx={{ flex: 1, minWidth: 0 }}>
+                          <Person sx={{ fontSize: 32 }} />
+
+                          <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body1" fontWeight={600}>
+                              {contact.contactName || '-'}
+                            </Typography>
+
+                            <Typography variant="body2" sx={{ color: '#666' }}>
+                              {contact.contactNumber || '-'}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+
+                        <Stack direction="row" justifyContent="flex-end">
+                          <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              aria-label={t('button.delete')}
+                              onClick={() => handleDeleteContactClick(contact)}>
+                              <DeleteOutline fontSize="small" />
+                            </IconButton>
+                          </Can>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Wrapper>
+          </Grid>
+        </Grid>
+
+        <Wrapper>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            useFlexGap
+            sx={{
+              mt: 1,
+              justifyContent: { sm: 'flex-end' }, // right-align when in row
+              alignItems: { xs: 'flex-end', sm: 'center' } // right-align when stacked
+            }}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-cool-grey"
+              onClick={() => {
+                history.push(ROUTE_PATHS.CUSTOMER_MANAGEMENT);
+              }}
+              startIcon={<ArrowBackIos />}>
+              {t('button.back')}
+            </Button>
+            {canEdit ? (
+              <>
+                <Button
+                  fullWidth={isDownSm}
+                  variant="contained"
+                  className="btn-amber-orange"
+                  onClick={handleCancelEdit}
+                  startIcon={<Cancel />}>
+                  {t('button.cancel')}
+                </Button>
+                <Button
+                  fullWidth={isDownSm}
+                  variant="contained"
+                  className="btn-emerald-green"
+                  onClick={() => {
+                    setActionType('update');
+                    setTitle(t('customerManagement.updateCustomer'));
+                    setMsg(t('customerManagement.confirmMsgUpdateCustomer'));
+                    setVisibleConfirmationDialog(true);
+                  }}
+                  startIcon={<Save />}>
+                  {t('button.update')}
+                </Button>
+              </>
+            ) : (
+              <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                <Button
+                  fullWidth={isDownSm}
+                  variant="contained"
+                  className="btn-emerald-green"
+                  onClick={handleStartEdit}
+                  startIcon={<Edit />}>
+                  {t('button.edit')}
+                </Button>
+              </Can>
+            )}
+          </Stack>
+        </Wrapper>
+      </TabPanel>
+
+      <TabPanel currentTab={tab} value="history">
+        <Wrapper>
+          <Grid container spacing={1}>
+            <GridTextField item xs={12} sm={12}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {t('customerManagement.history')}
+              </Typography>
+            </GridTextField>
+            <GridTextField item xs={12}>
+              {isActivityHistoryFetching ? null : (
+                <ActivityHistoryTimeline records={activityHistory} />
+              )}
+            </GridTextField>
+          </Grid>
+        </Wrapper>
+      </TabPanel>
       <ConfirmDialog
         open={visibleConfirmationDialog}
         title={title}

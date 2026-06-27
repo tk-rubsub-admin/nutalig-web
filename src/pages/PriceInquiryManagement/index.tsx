@@ -64,6 +64,25 @@ function getCustomerLabel(rfq: RFQRecord): string | null {
   return rfq.customer?.customerName || rfq.customer?.companyName || null;
 }
 
+function getCustomerTierLabel(rfq: RFQRecord): string | null {
+  return rfq.customer?.customerTier?.nameEn || null;
+}
+
+function getCustomerTierColor(code?: string | null): { backgroundColor: string; color: string } {
+  switch (code) {
+    case 'VIP':
+      return { backgroundColor: '#7C3AED', color: '#FFFFFF' };
+    case 'TIER_2':
+      return { backgroundColor: '#2563EB', color: '#FFFFFF' };
+    case 'TIER_3':
+      return { backgroundColor: '#0F766E', color: '#FFFFFF' };
+    case 'TIER_4':
+      return { backgroundColor: '#F59E0B', color: '#FFFFFF' };
+    default:
+      return { backgroundColor: '#CBD5E1', color: '#334155' };
+  }
+}
+
 function getRFQFileUrl(file?: RFQFileResource | null): string {
   return file?.pictureUrl || file?.fileUrl || '';
 }
@@ -319,6 +338,16 @@ export default function PriceInquiryManagement(): ReactElement {
                   fontWeight: 700
                 }}
               />
+              {rfq.customer?.customerTier ? (
+                <Chip
+                  label={getCustomerTierLabel(rfq) || '-'}
+                  size="small"
+                  sx={{
+                    ...getCustomerTierColor(rfq.customer.customerTier.code),
+                    fontWeight: 700
+                  }}
+                />
+              ) : null}
             </Stack>
           </TableCell>
           <TableCell align="center">
@@ -377,6 +406,16 @@ export default function PriceInquiryManagement(): ReactElement {
                     fontWeight: 700
                   }}
                 />
+                {rfq.customer?.customerTier ? (
+                  <Chip
+                    label={getCustomerTierLabel(rfq) || '-'}
+                    size="small"
+                    sx={{
+                      ...getCustomerTierColor(rfq.customer.customerTier.code),
+                      fontWeight: 700
+                    }}
+                  />
+                ) : null}
               </Stack>
               <Typography variant="caption" color="text.secondary">
                 {rfq.requestedDate ? dayjs(rfq.requestedDate).format('DD/MM/YYYY HH:mm') : '-'}

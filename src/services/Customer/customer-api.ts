@@ -9,8 +9,11 @@ import {
   UpdateCustomerRequest,
   Customer,
   CreateCustomerRequestV2,
-  CreateCustomerResponseV2
+  CreateCustomerResponseV2,
+  UploadCustomerResponse,
+  CustomerDashboard
 } from './customer-type';
+import { AxiosProgressEvent } from 'axios';
 
 export const searchCustomer = async (data: SearchCustomerRequest, page: number, size: number) => {
   const response: SearchCustomerResponse = await api
@@ -29,11 +32,22 @@ export const createNewCustomer = async (data: CreateCustomerRequest) => {
     .then((response) => response.data);
   return response;
 };
-export const getAllCustomer = async (data: SearchCustomerRequest) => {
-  const response: Customer[] = await api
+export const getAllCustomer = async (data: SearchCustomerRequest = {} as SearchCustomerRequest) => {
+  const response = await api
     .post(`/v1/customers/all`, data)
     .then((response) => response.data);
-  return response;
+  return response.data;
+};
+
+export const getCustomerDashboard = async (salesId?: string): Promise<CustomerDashboard> => {
+  const response = await api
+    .get(`/v1/customers/dashboard`, {
+      params: {
+        ...(salesId ? { salesId } : {})
+      }
+    })
+    .then((response) => response.data);
+  return response.data;
 };
 
 export const searchCustomerByKeyword = async (keyword: string, page: number, size: number): Promise<Customer[]> => {
@@ -74,6 +88,13 @@ export const updateCustomer = async (id: string, data: UpdateCustomerRequest) =>
   return response;
 };
 
+export const deleteCustomer = async (id: string) => {
+  const response: Customer = await api
+    .delete(`/v1/customers/${id}`)
+    .then((response) => response.data);
+  return response;
+};
+
 export const addCustomerAddress = async (id: string, data: CreateCustomerAddressRequest) => {
   const response: Customer = await api
     .post(`/v1/customers/${id}/addresses`, data)
@@ -100,6 +121,31 @@ export const removeCustomerContact = async (id: string, contactId: string) => {
     .delete(`/v1/customers/${id}/contacts/${contactId}`)
     .then((response) => response.data);
   return response;
+};
+
+export const uploadCustomers = async (
+  file: File,
+  onUploadProgress?: (progress: number) => void
+): Promise<UploadCustomerResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post('/v1/customers/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
+    onUploadProgress: (event: AxiosProgressEvent) => {
+      if (!event.total) {
+        return;
+      }
+
+      const progress = Math.round((event.loaded * 100) / event.total);
+      onUploadProgress?.(Math.min(progress, 99));
+    }
+  });
+
+  onUploadProgress?.(100);
+  return response.data.data;
 };
 
 export const addDropOff = async (id: string, data: any) => {

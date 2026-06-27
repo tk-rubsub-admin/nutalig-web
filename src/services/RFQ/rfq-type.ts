@@ -137,10 +137,18 @@ export interface RFQServiceLevelAgreement {
   updatedBy: string;
 }
 
+export interface RFQStatusTimeline {
+  rfqId: string;
+  status: string;
+  statusDatetime: string;
+}
+
 export interface RFQDetailTier {
   id: number;
   quantity: number;
   productPrice: number;
+  currency?: string | null;
+  exchangeRate?: number | null;
   landFreightCost: number;
   seaFreightCost: number;
   landTotalPrice: number;
@@ -185,6 +193,7 @@ export interface RFQRecord {
   quotationNo?: string | null;
   saleOrderId?: string | null;
   shippingMethod?: 'ALL' | 'LAND' | 'SEA' | null;
+  requestInformation?: string | null;
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
   confirmedShippingMethod?: string | null;
@@ -203,6 +212,7 @@ export interface RFQRecord {
   pictures: RFQPicture[];
   files?: RFQFileResource[];
   attachments?: RFQFileResource[];
+  rfqStatusTimeline?: RFQStatusTimeline[];
   details: RFQDetailOption[];
   additionalCosts: RFQAdditionalCost[];
   productFamily: RFQProductFamily | string | null;
@@ -268,6 +278,12 @@ export interface UpdateRFQRequest {
   material: string;
   capacity: string;
   description: string;
+  requestInformation?: string;
+}
+
+export interface RequestRFQInformationRequest {
+  rfqId: string;
+  requestInformation: string;
 }
 
 export interface LinkRFQSalesOrderRequest {
@@ -281,6 +297,8 @@ export interface LinkRFQSalesOrderRequest {
 export interface CreateRFQDetailTierRequest {
   quantity: number;
   productPrice: number;
+  currency?: string | null;
+  exchangeRate?: number | null;
   landFreightCost: number;
   seaFreightCost: number;
   landTotalPrice: number;
@@ -293,6 +311,7 @@ export interface CreateRFQDetailRequest {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  recommend?: string | null;
   supplierId?: string;
   tiers: CreateRFQDetailTierRequest[];
 }
@@ -362,10 +381,23 @@ export interface RFQSupplierQuoteDetail {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  packageName?: string | null;
   packageDimension?: string | null;
   packageWeight?: string | null;
   packageCapacity?: string | null;
+  packages?: RFQSupplierQuotePackage[];
   tiers: RFQSupplierQuoteTier[];
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface RFQSupplierQuotePackage {
+  id?: number;
+  packageName?: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  sortOrder: number;
   createdDate?: string | null;
   updatedDate?: string | null;
 }
@@ -394,10 +426,20 @@ export interface UpsertRFQSupplierQuoteDetailRequest {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  packageName?: string | null;
   packageDimension?: string | null;
   packageWeight?: string | null;
   packageCapacity?: string | null;
+  packages?: UpsertRFQSupplierQuotePackageRequest[];
   tiers: UpsertRFQSupplierQuoteTierRequest[];
+}
+
+export interface UpsertRFQSupplierQuotePackageRequest {
+  packageName?: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  sortOrder: number;
 }
 
 export interface UpsertRFQSupplierQuoteAdditionalCostRequest {

@@ -161,7 +161,7 @@ export default function QuotationManagement(): JSX.Element {
     };
 
     const openQuotationDetail = (quotationNo: string) => {
-        history.push(`${ROUTE_PATHS.QUOTATION_DETAIL}?id=${encodeURIComponent(quotationNo)}`);
+        history.push(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo));
     };
 
     const quotationRows = useMemo(() => {

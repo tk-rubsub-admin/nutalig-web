@@ -29,6 +29,7 @@ export const ROUTE_PATHS = Object.freeze({
   STAFF_NEW: '/staff-create',
   STAFF_DETAIL: '/staff/:id',
   CUSTOMER_MANAGEMENT: '/customer-management',
+  CUSTOMER_DASHBOARD: '/customer-dashboard',
   PRODUCT_FAMILY_MANAGEMENT: '/product-family-management',
   SYSTEM_CONFIG_MANAGEMENT: '/system-config-management',
   RFQ_MANAGEMENT: '/rfq-management',
@@ -48,7 +49,7 @@ export const ROUTE_PATHS = Object.freeze({
   QUOTATION_CREATE: '/quotation-create',
   QUOTATION_CREATE_FROM_RFQ: '/create-quotation-rfq/:rfqId',
   QUOTATION_MANAGEMENT: '/quotation-management',
-  QUOTATION_DETAIL: '/quotation-detail'
+  QUOTATION_DETAIL: '/quotation-detail/:id'
 });
 
 export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
@@ -171,6 +172,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     requiredPermissions: [PERMISSIONS.CUSTOMER_VIEW]
   },
   {
+    path: ROUTE_PATHS.CUSTOMER_DASHBOARD,
+    component: lazy(() => import('./pages/CustomerDashboard' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.CUSTOMER_VIEW]
+  },
+  {
     path: ROUTE_PATHS.PRODUCT_FAMILY_MANAGEMENT,
     component: lazy(() => import('./pages/ProductFamilyManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.PRODUCT_FAMILY_VIEW]
@@ -233,19 +239,19 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ,
     component: lazy(() => import('./pages/SalesOrderRFQ' /* webpackChunkName: "app" */)),
-    requiredPermissions: [PERMISSIONS.SALE_ORDER_CREATE]
+    requiredPermissions: [PERMISSIONS.SALES_ORDER_DRAFT]
   },
   {
     path: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
     component: lazy(() => import('./pages/SalesOrderManagement' /* webpackChunkName: "app" */)),
-    requiredPermissions: [PERMISSIONS.SALE_ORDER_VIEW]
+    requiredPermissions: [PERMISSIONS.SALES_ORDER_VIEW]
   },
   {
     path: ROUTE_PATHS.SALE_ORDER_DETAIL,
     component: lazy(
       () => import('./pages/SalesOrderManagement/Detail' /* webpackChunkName: "app" */)
     ),
-    requiredPermissions: [PERMISSIONS.SALE_ORDER_VIEW]
+    requiredPermissions: [PERMISSIONS.SALES_ORDER_VIEW]
   },
   {
     path: ROUTE_PATHS.QUOTATION_MANAGEMENT,

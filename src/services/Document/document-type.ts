@@ -22,6 +22,7 @@ export interface CreateQuotationRequest {
 
 export interface CreateQuotationItem {
     id: number;
+    tierId?: string;
     name: string;
     type: string;
     capacity: string;
@@ -60,6 +61,7 @@ export interface Quotation {
 
 export interface QuotationItem {
     id: number | string;
+    tierId?: string;
     name: string;
     type: string;
     capacity: string;

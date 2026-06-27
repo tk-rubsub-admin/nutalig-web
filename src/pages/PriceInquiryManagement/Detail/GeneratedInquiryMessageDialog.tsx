@@ -95,11 +95,15 @@ export function GeneratedInquiryMessageDialog(
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" color="secondary" disabled={!isEdited} onClick={onRequestUpdate}>
-          {t('button.update')}
-        </Button>
         <Button variant="contained" onClick={onClose}>
           {t('button.close')}
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          disabled={!isEdited}
+          onClick={onRequestUpdate}>
+          {t('button.update')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -121,6 +121,13 @@ export default function ViewQuotationDialog(props: ViewQuotationDialogProps): JS
                 />
             </DialogContent>
             <DialogActions>
+                <Button
+                    onClick={() => onClose()}
+                    variant="contained"
+                    startIcon={<Close />}
+                    className="btn-cool-grey">
+                    {t('button.close')}
+                </Button>
                 <>
                     <Button
                         style={{ display: quotation === undefined ? 'none' : '' }}
@@ -160,13 +167,6 @@ export default function ViewQuotationDialog(props: ViewQuotationDialogProps): JS
                         </MenuItem>
                     </Menu>
                 </>
-                <Button
-                    onClick={() => onClose()}
-                    variant="contained"
-                    startIcon={<Close />}
-                    className="btn-cool-grey">
-                    {t('button.close')}
-                </Button>
             </DialogActions>
         </Dialog>
     )

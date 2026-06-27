@@ -31,7 +31,10 @@
       "adminUsers": "Admin Users"
     },
     "carrierManagement": "Carrier Management",
-    "customerManagement": "Customer Management",
+    "customerManagement": {
+      "title": "Customer Management",
+      "dashboard": "Dashboard"
+    },
     "systemConfigManagement": {
       "title": "System Configuration"
     },
@@ -427,6 +430,7 @@
     "customerId": "รหัสลูกค้า",
     "customer": "ลูกค้า",
     "detail": "รายละเอียด",
+    "history": "History",
     "dropoff": "รายละเอียดในการจัดส่ง",
     "action": {
       "create": "สร้างลูกค้าใหม่"
@@ -439,6 +443,9 @@
       "gender": "เพศลูกค้า",
       "dateOfBirth": "วัน/เดือน/ปี เกิด",
       "type": "ประเภทลูกค้า",
+      "tier": "Customer Tier",
+      "segment": "Customer Segment",
+      "action": "Action",
       "taxId": "เลขบัตรประชาชน/เลขประจำตัวผู้เสียภาษี",
       "address": {
         "title": "ที่อยู่",
@@ -494,6 +501,41 @@
     "confirmMsgAddCustomerContact": "Are you sure you want to add this contact?",
     "confirmMsgDeleteCustomerAddress": "Are you sure you want to delete address {{label}}?",
     "confirmMsgDeleteCustomerContact": "Are you sure you want to delete contact {{name}}?"
+  },
+  "customerDashboard": {
+    "title": "Customer Dashboard",
+    "subtitle": "Summary of active customers in the system",
+    "activeOnlyNote": "This page counts active customers only.",
+    "metrics": {
+      "totalCustomers": "Total customers",
+      "totalCustomersSub": "Active customers in the system",
+      "totalContacts": "Total contacts",
+      "totalContactsSub": "All customer contacts",
+      "totalAddresses": "Total addresses",
+      "totalAddressesSub": "All customer addresses",
+      "companyCustomers": "Company customers",
+      "companyCustomersSub": "Customer Type = COMPANY",
+      "individualCustomers": "Individual customers",
+      "individualCustomersSub": "Customer Type = INDIVIDUAL",
+      "defaultAddressCustomers": "Customers with default address",
+      "defaultAddressCustomersSub": "Has at least one default address",
+      "lastUpdated": "Last updated",
+      "lastUpdatedSub": "Based on the newest customer data"
+    },
+    "charts": {
+      "typeTitle": "Customer type mix",
+      "typeSubtitle": "Grouped by customer type",
+      "tierTitle": "Customer tier mix",
+      "tierSubtitle": "Grouped by customer tier",
+      "segmentTitle": "Customer segment mix",
+      "segmentSubtitle": "Grouped by customer segment"
+    },
+    "recent": {
+      "title": "Recent customers",
+      "subtitle": "Latest created or updated customers",
+      "contactCount": "Contacts",
+      "addressCount": "Addresses"
+    }
   },
   "dashboard": {
     "title": "Operations Dashboard",
@@ -688,6 +730,7 @@
     "rfqsStatus": {
       "NEW": "New Request",
       "IN_PROGRESS": "In Progress",
+      "SUPPLIER_QUOTED": "Supplier Quoted",
       "QUOTED": "Quoted",
       "CANCELED": "Canceled",
       "COMPLETED": "Completed"
@@ -718,11 +761,13 @@
     }
   },
   "inputUpload": {
-    "title": "Upload Company Logo",
+    "title": "Upload File",
     "subTitle": "Browse to choose a file.",
     "submitButton": "UPLOAD",
-    "helperText": "*The file type must be .png, .jpg, .jpeg / Maximum upload size 5MB",
-    "invalidType": "Unable to upload. Photo not match with our criteria. Please retry."
+    "helperText": "*File type must be .xlsx only",
+    "invalidType": "Unable to upload. File does not match our criteria. Please retry.",
+    "chooseFileButton": "Choose file",
+    "helperTextV2": "Select an .xlsx file to upload data"
   },
   "tablePagination": {
     "rowPerPage": "Rows per page",

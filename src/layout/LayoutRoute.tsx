@@ -1,6 +1,6 @@
 import React, { ComponentType, useState } from 'react';
 import { Route, Redirect, RouteComponentProps } from 'react-router-dom';
-import { Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import styled from 'styled-components';
 import { useAuth } from 'auth/AuthContext';
 import { Role, hasAllowedRoles } from 'auth/roles';
@@ -15,6 +15,7 @@ export const Page = styled.div`
 
 const Main = styled.main<{ $isPublic?: boolean; open?: boolean }>`
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   padding: 20px;
   height: ${({ $isPublic }) => ($isPublic ? '100vh' : '100%')};
@@ -23,6 +24,23 @@ const Main = styled.main<{ $isPublic?: boolean; open?: boolean }>`
     margin-left: 0;
   }
 `;
+
+const MainContent = styled.div`
+  flex: 1 1 auto;
+  min-height: 0;
+`;
+
+const PageFooter = styled.footer`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  padding: 12px 16px 4px;
+  text-align: center;
+`;
+
+const GLOBAL_FOOTER_TEXT =
+  'NUTALIG | Strategic Packaging Partner - ช่วยลูกค้าเลือกแพ็กเกจที่เหมาะกับต้นทุน แบรนด์ และการใช้งานจริง';
 
 export interface LayoutRouteProps {
   component: ComponentType;
@@ -57,8 +75,15 @@ function PublicRoute({
       path={path}
       render={(props) => (
         <Main $isPublic>
-          {/* @ts-expect-error */}
-          <Component {...props} />
+          <MainContent>
+            {/* @ts-expect-error */}
+            <Component {...props} />
+          </MainContent>
+          <PageFooter>
+            <Typography variant="body2" color="text.secondary">
+              {GLOBAL_FOOTER_TEXT}
+            </Typography>
+          </PageFooter>
         </Main>
       )}
     />
@@ -112,8 +137,15 @@ function PrivateRoute({
         <Navbar onSidebarToggle={handleSidebarOpen} />
         <Sidebar isOpen={isSidebarOpen} onSidebarToggle={handleSidebarOpen} />
         <Main open={isSidebarOpen}>
-          {/* @ts-expect-error */}
-          <Component {...props} />
+          <MainContent>
+            {/* @ts-expect-error */}
+            <Component {...props} />
+          </MainContent>
+          <PageFooter>
+            <Typography variant="body2" color="text.secondary">
+              {GLOBAL_FOOTER_TEXT}
+            </Typography>
+          </PageFooter>
         </Main>
       </>
     );

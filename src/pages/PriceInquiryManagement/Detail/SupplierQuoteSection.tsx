@@ -1,9 +1,10 @@
-import { Edit } from '@mui/icons-material';
+import { Add, DeleteOutline, Edit } from '@mui/icons-material';
 import {
   Box,
   Button,
   Chip,
   Grid,
+  IconButton,
   InputAdornment,
   Stack,
   Table,
@@ -41,17 +42,23 @@ interface SupplierQuoteSectionProps {
     field:
       | 'optionName'
       | 'spec'
-      | 'remark'
-      | 'packageDimension'
-      | 'packageWeight'
-      | 'packageCapacity'
-      | 'packageBoxWidth'
-      | 'packageBoxLength'
-      | 'packageBoxHeight'
-      | 'packagePiecesPerBox'
-      | 'packageWeightPerBoxKg',
+      | 'remark',
     value: string
   ) => void;
+  onAddPackage: (detailId: number) => void;
+  onPackageChange: (
+    detailId: number,
+    packageId: number,
+    field:
+      | 'packageName'
+      | 'packageWidth'
+      | 'packageLength'
+      | 'packageHeight'
+      | 'packageWeight'
+      | 'packageCapacity',
+    value: string
+  ) => void;
+  onDeletePackage: (detailId: number, packageId: number) => void;
   onTierChange: (
     detailId: number,
     tierId: number,
@@ -81,6 +88,9 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     onCancelEditQuote,
     onSaveEditQuote,
     onDetailChange,
+    onAddPackage,
+    onPackageChange,
+    onDeletePackage,
     onTierChange,
     onAdditionalCostChange,
     formatQuantity,
@@ -177,86 +187,6 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                     </Stack>
                   </Stack>
 
-                  {isEditing ? (
-                    <Grid container spacing={1.5}>
-                      {quoteDraftDetails.map((detail) => (
-                        <Grid item xs={12} key={`package-${detail.id}`}>
-                          <Grid container spacing={1.5}>
-                            <Grid item xs={12} md={4}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="Package Dimension"
-                                value={detail.packageDimension || ''}
-                                InputLabelProps={{ shrink: true }}
-                                onChange={(event) =>
-                                  onDetailChange(detail.id, 'packageDimension', event.target.value)
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="Package Weight"
-                                value={detail.packageWeight || ''}
-                                InputLabelProps={{ shrink: true }}
-                                onChange={(event) =>
-                                  onDetailChange(detail.id, 'packageWeight', event.target.value)
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="Package Capacity"
-                                value={detail.packageCapacity || ''}
-                                InputLabelProps={{ shrink: true }}
-                                onChange={(event) =>
-                                  onDetailChange(detail.id, 'packageCapacity', event.target.value)
-                                }
-                              />
-                            </Grid>
-                          </Grid>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  ) : (
-                    <Grid container spacing={1.5}>
-                      {quote.details?.[0]?.packageDimension ||
-                        quote.details?.[0]?.packageWeight ||
-                        quote.details?.[0]?.packageCapacity ? (
-                        <>
-                          <Grid item xs={12} md={4}>
-                            <Typography variant="caption" color="text.secondary">
-                              ขนาดบรรจุ
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              {quote.details[0].packageDimension || '-'}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12} md={4}>
-                            <Typography variant="caption" color="text.secondary">
-                              น้ำหนักบรรจุ
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              {quote.details[0].packageWeight || '-'}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={12} md={4}>
-                            <Typography variant="caption" color="text.secondary">
-                              ความจุ
-                            </Typography>
-                            <Typography variant="body2" fontWeight={600}>
-                              {quote.details[0].packageCapacity || '-'}
-                            </Typography>
-                          </Grid>
-                        </>
-                      ) : null}
-                    </Grid>
-                  )}
-
                   {(isEditing ? quoteDraftDetails : quote.details)?.length ? (
                     (isEditing ? quoteDraftDetails : quote.details).map((detail, detailIndex) => {
                       const detailError = isEditing ? quoteDraftErrors[detail.id] || {} : {};
@@ -331,6 +261,218 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                 </>
                               )}
                             </Box>
+
+                            <Stack spacing={1.5}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  Package
+                                </Typography>
+                                {isEditing ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    startIcon={<Add />}
+                                    sx={outlinedActionButtonSx}
+                                    onClick={() => onAddPackage(detail.id)}>
+                                    เพิ่ม Package
+                                  </Button>
+                                ) : null}
+                              </Stack>
+                              {isEditing && detailError.package ? (
+                                <Typography variant="caption" color="error">
+                                  {detailError.package}
+                                </Typography>
+                              ) : null}
+                              {isEditing ? (
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>ชื่อ Package</TableCell>
+                                      <TableCell>กว้าง</TableCell>
+                                      <TableCell>ยาว</TableCell>
+                                      <TableCell>สูง</TableCell>
+                                      <TableCell>1 กล่องบรรจุจำนวนกี่ชิ้น</TableCell>
+                                      <TableCell>1 กล่อง ขนาดกี่ kg</TableCell>
+                                      <TableCell align="center">จัดการ</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {detail.packages.length ? (
+                                      detail.packages.map((packageItem) => (
+                                        <TableRow key={packageItem.id}>
+                                          <TableCell>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              value={packageItem.packageName || ''}
+                                              onChange={(event) =>
+                                                onPackageChange(
+                                                  detail.id,
+                                                  packageItem.id,
+                                                  'packageName',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              value={packageItem.packageWidth || ''}
+                                              onChange={(event) =>
+                                                onPackageChange(
+                                                  detail.id,
+                                                  packageItem.id,
+                                                  'packageWidth',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              value={packageItem.packageLength || ''}
+                                              onChange={(event) =>
+                                                onPackageChange(
+                                                  detail.id,
+                                                  packageItem.id,
+                                                  'packageLength',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              value={packageItem.packageHeight || ''}
+                                              onChange={(event) =>
+                                                onPackageChange(
+                                                  detail.id,
+                                                  packageItem.id,
+                                                  'packageHeight',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              value={packageItem.packageWeight || ''}
+                                              onChange={(event) =>
+                                                onPackageChange(
+                                                  detail.id,
+                                                  packageItem.id,
+                                                  'packageWeight',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              value={packageItem.packageCapacity || ''}
+                                              onChange={(event) =>
+                                                onPackageChange(
+                                                  detail.id,
+                                                  packageItem.id,
+                                                  'packageCapacity',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            <IconButton
+                                              size="small"
+                                              onClick={() =>
+                                                onDeletePackage(detail.id, packageItem.id)
+                                              }
+                                              sx={{ color: '#c62828' }}>
+                                              <DeleteOutline fontSize="small" />
+                                            </IconButton>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    ) : (
+                                      <TableRow>
+                                        <TableCell colSpan={7} align="center">
+                                          <Typography variant="body2" color="text.secondary">
+                                            ยังไม่มี Package
+                                          </Typography>
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              ) : (
+                                <Stack spacing={1}>
+                                  {(detail.packages?.length
+                                    ? detail.packages
+                                    : detail.packageDimension ||
+                                      detail.packageWeight ||
+                                      detail.packageCapacity
+                                      ? [
+                                        {
+                                          id: 0,
+                                          packageName: detail.packageName,
+                                          packageDimension: detail.packageDimension,
+                                          packageWeight: detail.packageWeight,
+                                          packageCapacity: detail.packageCapacity,
+                                          sortOrder: 1
+                                        }
+                                      ]
+                                      : []
+                                ).map((packageItem, index) => (
+                                    <Grid
+                                      container
+                                      spacing={1.5}
+                                      key={`package-view-${detail.id}-${index}`}>
+                                      <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" color="text.secondary">
+                                          ชื่อ Package
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {packageItem.packageName || '-'}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" color="text.secondary">
+                                          ขนาดบรรจุ #{index + 1}
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {packageItem.packageDimension || '-'}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" color="text.secondary">
+                                          น้ำหนักบรรจุ
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {packageItem.packageWeight || '-'}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" color="text.secondary">
+                                          ความจุ
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {packageItem.packageCapacity || '-'}
+                                        </Typography>
+                                      </Grid>
+                                    </Grid>
+                                  ))}
+                                </Stack>
+                              )}
+                            </Stack>
 
                             <Table size="small">
                               <TableHead>

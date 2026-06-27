@@ -30,14 +30,11 @@ export interface SupplierQuoteDialogDetail {
   spec: string;
   sortOrder: number;
   remark: string;
+  packageName?: string;
   packageDimension?: string;
   packageWeight?: string;
   packageCapacity?: string;
-  packageBoxWidth?: string;
-  packageBoxLength?: string;
-  packageBoxHeight?: string;
-  packagePiecesPerBox?: string;
-  packageWeightPerBoxKg?: string;
+  packages: SupplierQuoteDialogPackage[];
   tiers: Array<{
     id: number;
     quantity: number;
@@ -52,6 +49,18 @@ export interface SupplierQuoteDialogDetail {
   updatedDate: string;
   createdBy: string;
   updatedBy: string;
+}
+
+export interface SupplierQuoteDialogPackage {
+  id: number;
+  packageName?: string;
+  packageDimension?: string;
+  packageWidth?: string;
+  packageLength?: string;
+  packageHeight?: string;
+  packageWeight?: string;
+  packageCapacity?: string;
+  sortOrder: number;
 }
 
 export interface SupplierQuoteDialogProps {
@@ -76,22 +85,26 @@ export interface SupplierQuoteDialogProps {
   }>;
   quoteDraftErrors: Record<number, any>;
   onAddDetail: () => void;
+  onDeleteDetail: (detailId: number) => void;
   onDetailChange: (
     detailId: number,
-    field:
-      | 'optionName'
-      | 'spec'
-      | 'remark'
-      | 'packageDimension'
-      | 'packageWeight'
-      | 'packageCapacity'
-      | 'packageBoxWidth'
-      | 'packageBoxLength'
-      | 'packageBoxHeight'
-      | 'packagePiecesPerBox'
-      | 'packageWeightPerBoxKg',
+    field: 'optionName' | 'spec' | 'remark',
     value: string
   ) => void;
+  onAddPackage: (detailId: number) => void;
+  onPackageChange: (
+    detailId: number,
+    packageId: number,
+    field:
+      | 'packageName'
+      | 'packageWidth'
+      | 'packageLength'
+      | 'packageHeight'
+      | 'packageWeight'
+      | 'packageCapacity',
+    value: string
+  ) => void;
+  onDeletePackage: (detailId: number, packageId: number) => void;
   onAddTier: (detailId: number) => void;
   onTierChange: (
     detailId: number,
@@ -131,7 +144,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     quoteDraftAdditionalCosts,
     quoteDraftErrors,
     onAddDetail,
+    onDeleteDetail,
     onDetailChange,
+    onAddPackage,
+    onPackageChange,
+    onDeletePackage,
     onAddTier,
     onTierChange,
     onDeleteTier,
@@ -143,6 +160,8 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     isSubmitting,
     t
   } = props;
+
+  const getDetailPackages = (detail: SupplierQuoteDialogDetail) => detail.packages || [];
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -267,6 +286,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                     </Box>
                     <Button
                       variant="contained"
+                      className="btn-pastel-green"
                       size="small"
                       sx={outlinedActionButtonSx}
                       onClick={onChangeSupplier}>
@@ -299,6 +319,19 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         backgroundColor: '#fff'
                       }}>
                       <Stack spacing={2}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="subtitle1" fontWeight={700}>
+                            Option {detail.sortOrder}
+                          </Typography>
+                          {quoteDraftDetails.length > 1 ? (
+                            <IconButton
+                              size="small"
+                              onClick={() => onDeleteDetail(detail.id)}
+                              sx={{ color: '#c62828' }}>
+                              <DeleteOutline fontSize="small" />
+                            </IconButton>
+                          ) : null}
+                        </Stack>
                         <Grid container spacing={1.5}>
                           <Grid item xs={12} md={4}>
                             <TextField
@@ -453,7 +486,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                               })
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={4} align="center">
+                                <TableCell colSpan={6} align="center">
                                   <Typography variant="body2" color="text.secondary">
                                     ยังไม่มีข้อมูล Tier
                                   </Typography>
@@ -462,103 +495,156 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                             )}
                           </TableBody>
                         </Table>
-                        <Stack spacing={2}>
-                          <Typography>Package</Typography>
-                          <Grid container spacing={1.5}>
-                            <Grid item xs={4} md={1}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="กว้าง"
-                                type="number"
-                                required
-                                InputLabelProps={{ shrink: true }}
-                                value={detail.packageBoxWidth || ''}
-                                onChange={(event) =>
-                                  onDetailChange(detail.id, 'packageBoxWidth', event.target.value)
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs="auto" sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ px: 0.5, fontWeight: 700 }}>
-                                x
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={4} md={1}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="ยาว"
-                                type="number"
-                                required
-                                InputLabelProps={{ shrink: true }}
-                                value={detail.packageBoxLength || ''}
-                                onChange={(event) =>
-                                  onDetailChange(detail.id, 'packageBoxLength', event.target.value)
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs="auto" sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ px: 0.5, fontWeight: 700 }}>
-                                x
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={4} md={1}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="สูง"
-                                type="number"
-                                required
-                                InputLabelProps={{ shrink: true }}
-                                value={detail.packageBoxHeight || ''}
-                                onChange={(event) =>
-                                  onDetailChange(detail.id, 'packageBoxHeight', event.target.value)
-                                }
-                              />
-                            </Grid>
-                            <Grid item md={2} />
-                            <Grid item xs={6} md={3}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="1 กล่องบรรจุจำนวนกี่ชิ้น"
-                                type="number"
-                                InputLabelProps={{ shrink: true }}
-                                value={detail.packagePiecesPerBox || ''}
-                                onChange={(event) =>
-                                  onDetailChange(
-                                    detail.id,
-                                    'packagePiecesPerBox',
-                                    event.target.value
-                                  )
-                                }
-                              />
-                            </Grid>
-                            <Grid item xs={6} md={3}>
-                              <TextField
-                                fullWidth
-                                size="small"
-                                label="1 กล่อง ขนาดกี่ kg"
-                                type="number"
-                                InputLabelProps={{ shrink: true }}
-                                value={detail.packageWeightPerBoxKg || ''}
-                                onChange={(event) =>
-                                  onDetailChange(
-                                    detail.id,
-                                    'packageWeightPerBoxKg',
-                                    event.target.value
-                                  )
-                                }
-                              />
-                            </Grid>
-                          </Grid>
+                        <Stack spacing={1.5}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Typography>Packing List</Typography>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<Add />}
+                              sx={outlinedActionButtonSx}
+                              onClick={() => onAddPackage(detail.id)}>
+                              เพิ่ม Packing List
+                            </Button>
+                          </Stack>
+                          {detailError.package ? (
+                            <Typography variant="caption" color="error">
+                              {detailError.package}
+                            </Typography>
+                          ) : null}
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>ชื่อ Package</TableCell>
+                                <TableCell>กว้าง</TableCell>
+                                <TableCell>ยาว</TableCell>
+                                <TableCell>สูง</TableCell>
+                                <TableCell>1 กล่อง ขนาดกี่ kg</TableCell>
+                                <TableCell>1 กล่องบรรจุจำนวนกี่ชิ้น</TableCell>
+                                <TableCell align="center">จัดการ</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {getDetailPackages(detail).length ? (
+                                getDetailPackages(detail).map((packageItem) => (
+                                  <TableRow key={packageItem.id}>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        value={packageItem.packageName || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          onPackageChange(
+                                            detail.id,
+                                            packageItem.id,
+                                            'packageName',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        value={packageItem.packageWidth || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          onPackageChange(
+                                            detail.id,
+                                            packageItem.id,
+                                            'packageWidth',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        value={packageItem.packageLength || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          onPackageChange(
+                                            detail.id,
+                                            packageItem.id,
+                                            'packageLength',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        value={packageItem.packageHeight || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          onPackageChange(
+                                            detail.id,
+                                            packageItem.id,
+                                            'packageHeight',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        value={packageItem.packageWeight || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          onPackageChange(
+                                            detail.id,
+                                            packageItem.id,
+                                            'packageWeight',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        value={packageItem.packageCapacity || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          onPackageChange(
+                                            detail.id,
+                                            packageItem.id,
+                                            'packageCapacity',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell align="center">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => onDeletePackage(detail.id, packageItem.id)}
+                                        sx={{ color: '#c62828' }}>
+                                        <DeleteOutline fontSize="small" />
+                                      </IconButton>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={7} align="center">
+                                    <Typography variant="body2" color="text.secondary">
+                                      ยังไม่มี Package
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
                         </Stack>
                       </Stack>
                     </Box>
@@ -627,15 +713,15 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
         </Stack>
       </DialogContent>
       <DialogActions>
+        <Button className="btn-crimson-red" variant="contained" onClick={onClose}>
+          {t('button.close')}
+        </Button>
         <Button
           variant="contained"
-          color="secondary"
+          className="btn-emerald-green"
           disabled={isSubmitting || !supplier}
           onClick={onSave}>
           {t('button.save')}
-        </Button>
-        <Button variant="contained" onClick={onClose}>
-          {t('button.close')}
         </Button>
       </DialogActions>
     </Dialog>

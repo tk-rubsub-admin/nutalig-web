@@ -1,4 +1,4 @@
-import { ArrowBack, DirectionsBoat, LocalShipping, Save } from '@mui/icons-material';
+import { ArrowBackIos, DirectionsBoat, LocalShipping, Save } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -22,6 +22,8 @@ import {
   InputAdornment
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import Can from 'auth/Can';
+import { PERMISSIONS } from 'auth/permissions';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import ConfirmDialog from 'components/ConfirmDialog';
 import DatePicker from 'components/DatePicker';
@@ -39,6 +41,8 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getCustomer } from 'services/Customer/customer-api';
 import { Address, Contact, Customer, CustomerDropOff } from 'services/Customer/customer-type';
+import { getQuotation } from 'services/Document/document-api';
+import { Quotation } from 'services/Document/document-type';
 import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
 import { createSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
@@ -47,7 +51,7 @@ import {
   CreateSalesOrderStatus
 } from 'services/SaleOrder/sale-order-type';
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
-import { formatCurrency, formatNumber } from 'utils/utils';
+import { formatCurrency, formatNumber, formatNumberWithoutDigit } from 'utils/utils';
 import * as Yup from 'yup';
 
 interface SaleOrderRFQParams {
@@ -58,18 +62,21 @@ interface SaleOrderRFQItem {
   id: number;
   optionId?: number;
   tierId?: number;
+  quotationDetailId?: number | string;
   shippingMethod: 'LAND' | 'SEA';
   name: string;
   spec: string;
   quantity: number;
   unitPrice: number;
   amount: number;
+  totalFreight: number;
   remark: string;
 }
 
 interface SaleOrderRFQFormValues {
   rfqId: string;
   isVat: boolean;
+  discount: number;
   salesId: string;
   docDate: dayjs.Dayjs | string;
   effectiveDate: dayjs.Dayjs | string;
@@ -174,12 +181,32 @@ function getShippingMethodColor(shippingMethod?: string): string {
   return '#64748b';
 }
 
+function inferQuotationItemShippingMethod(name?: string | null): 'LAND' | 'SEA' | null {
+  if (!name) return null;
+  if (name.includes('ทางเรือ')) return 'SEA';
+  if (name.includes('ทางรถ')) return 'LAND';
+  return null;
+}
+
 function getShippingPrice(tier: RFQDetailTier, shippingMethod: 'LAND' | 'SEA'): number {
   return Number(
     shippingMethod === 'SEA'
       ? tier.seaTotalPrice || tier.productPrice || 0
       : tier.landTotalPrice || tier.productPrice || 0
   );
+}
+
+function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: 'LAND' | 'SEA'): number {
+  if (!tier) {
+    return 0;
+  }
+
+  const quantity = Number(tier.quantity || 0);
+  const freightCost = Number(
+    shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
+  );
+
+  return quantity * freightCost;
 }
 
 function getRFQDetailSupplierId(detail?: RFQDetailOption): string {
@@ -214,6 +241,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
         quantity: 1,
         unitPrice: 0,
         amount: 0,
+        totalFreight: 0,
         remark: `RFQ: ${rfq.id}`
       }
     ];
@@ -234,6 +262,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
             quantity: 1,
             unitPrice: 0,
             amount: 0,
+            totalFreight: 0,
             remark: `RFQ: ${rfq.id}`
           }
         ];
@@ -256,6 +285,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           quantity,
           unitPrice,
           amount: quantity * unitPrice,
+          totalFreight: getTotalFreight(tier, shippingMethod),
           remark: [
             `RFQ: ${rfq.id}`,
             `Option: ${detail.optionName || `Option ${optionIndex + 1}`}`,
@@ -265,6 +295,145 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
         };
       });
     });
+  });
+}
+
+function createSaleOrderItemsFromQuotation(
+  rfq: RFQRecord,
+  quotation: Quotation
+): SaleOrderRFQItem[] {
+  const material = getRFQProductLabel(rfq.material);
+  const productFamily = getRFQProductLabel(rfq.productFamily);
+  const rfqRows = (rfq.details || []).flatMap((detail: RFQDetailOption, optionIndex) => {
+    const tiers = detail.tiers?.length ? detail.tiers : [undefined];
+
+    return tiers.flatMap((tier, tierIndex) => {
+      if (!tier) {
+        return [
+          {
+            optionId: detail.id,
+            tierId: undefined,
+            shippingMethod: 'LAND' as const,
+            fallbackId: Number(`${detail.id}${optionIndex}${tierIndex}`)
+          }
+        ];
+      }
+
+      const landTotalPrice = Number(tier.landTotalPrice || 0);
+      const seaTotalPrice = Number(tier.seaTotalPrice || 0);
+
+      if (landTotalPrice > 0 && seaTotalPrice > 0) {
+        return (['LAND', 'SEA'] as const).map((shippingMethod, shippingIndex) => ({
+          optionId: detail.id,
+          tierId: tier.id,
+          shippingMethod,
+          fallbackId: Number(`${detail.id}${tier.id}${shippingIndex}`)
+        }));
+      }
+
+      if (landTotalPrice > 0) {
+        return [
+          {
+            optionId: detail.id,
+            tierId: tier.id,
+            shippingMethod: 'LAND' as const,
+            fallbackId: Number(`${detail.id}${tier.id}0`)
+          }
+        ];
+      }
+
+      if (seaTotalPrice > 0) {
+        return [
+          {
+            optionId: detail.id,
+            tierId: tier.id,
+            shippingMethod: 'SEA' as const,
+            fallbackId: Number(`${detail.id}${tier.id}1`)
+          }
+        ];
+      }
+
+      return [
+        {
+          optionId: detail.id,
+          tierId: tier.id,
+          shippingMethod: 'LAND' as const,
+          fallbackId: Number(`${detail.id}${tier.id}0`)
+        }
+      ];
+    });
+  });
+
+  const availableRfqRows = [...rfqRows];
+
+  return (quotation.items || []).map((item, index) => {
+    const inferredShippingMethod = inferQuotationItemShippingMethod(item.name);
+    const quantity = Number(item.quantity || 1);
+    const unitPrice = Number(item.unitPrice || 0);
+    const exactMatchIndex = availableRfqRows.findIndex((row) => {
+      if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+        return false;
+      }
+
+      const tierQuantity = Number(
+        rfq.details
+          ?.find((detail) => detail.id === row.optionId)
+          ?.tiers?.find((tier) => tier.id === row.tierId)?.quantity || 0
+      );
+
+      if (tierQuantity !== quantity) {
+        return false;
+      }
+
+      const detail = rfq.details?.find((candidate) => candidate.id === row.optionId);
+      const tier = detail?.tiers?.find((candidate) => candidate.id === row.tierId);
+      const expectedPrice = Number(
+        row.shippingMethod === 'SEA' ? tier?.seaTotalPrice || 0 : tier?.landTotalPrice || 0
+      );
+
+      return Math.abs(expectedPrice - unitPrice) < 0.0001;
+    });
+    const quantityMatchIndex =
+      exactMatchIndex >= 0
+        ? exactMatchIndex
+        : availableRfqRows.findIndex((row) => {
+          if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+            return false;
+          }
+
+          const tierQuantity = Number(
+            rfq.details
+              ?.find((detail) => detail.id === row.optionId)
+              ?.tiers?.find((tier) => tier.id === row.tierId)?.quantity || 0
+          );
+
+          return tierQuantity === quantity;
+        });
+    const fallbackIndex =
+      quantityMatchIndex >= 0
+        ? quantityMatchIndex
+        : availableRfqRows.findIndex((row) =>
+          inferredShippingMethod ? row.shippingMethod === inferredShippingMethod : true
+        );
+    const mappedRow = fallbackIndex >= 0 ? availableRfqRows.splice(fallbackIndex, 1)[0] : undefined;
+    const numericItemId = Number(item.id);
+    const mappedDetail = rfq.details?.find((detail) => detail.id === mappedRow?.optionId);
+    const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === mappedRow?.tierId);
+
+    return {
+      id: Number.isFinite(numericItemId) ? numericItemId : mappedRow?.fallbackId || Date.now() + index,
+      optionId: mappedRow?.optionId,
+      tierId: mappedRow?.tierId,
+      quotationDetailId: item.id,
+      shippingMethod: mappedRow?.shippingMethod || 'LAND',
+      name: item.name || productFamily || 'PRE-ORDER',
+      spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
+      quantity,
+      unitPrice: Number(item.unitPrice || 0),
+      amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
+      totalFreight: getTotalFreight(mappedTier, mappedRow?.shippingMethod || 'LAND'),
+      remark: `RFQ: ${rfq.id}`
+    };
   });
 }
 
@@ -327,11 +496,13 @@ export default function SalesOrderRFQ(): JSX.Element {
 
     return {
       detailId: Number(params.get('detailId') || 0),
-      tierId: Number(params.get('tierId') || 0),
+      quotationDetailId: params.get('quotationDetailId') || '',
       shippingMethod: params.get('shippingMethod') === 'SEA' ? 'SEA' : 'LAND'
     };
   }, [location.search]);
-  const hasSelectedRFQParams = Boolean(selectedRFQParams.detailId && selectedRFQParams.tierId);
+  const hasSelectedRFQParams = Boolean(
+    selectedRFQParams.detailId && selectedRFQParams.quotationDetailId
+  );
 
   const { data: rfq, isFetching: isRFQFetching } = useQuery(
     ['sale-order-rfq', rfqId],
@@ -341,12 +512,21 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const { data: quotation, isFetching: isQuotationFetching } = useQuery(
+    ['sale-order-rfq-quotation', rfq?.quotationNo],
+    () => getQuotation(rfq?.quotationNo || ''),
+    {
+      enabled: Boolean(rfq?.quotationNo),
+      refetchOnWindowFocus: false
+    }
+  );
   const imageUrl = getRFQImageUrl(rfq);
 
   const formik = useFormik<SaleOrderRFQFormValues>({
     initialValues: {
       rfqId,
       isVat: false,
+      discount: 0,
       salesId: '',
       docDate: today,
       effectiveDate: today.add(7, 'day'),
@@ -419,7 +599,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       customerContactId: formik.values.customerContactId,
       salesId: formik.values.salesId,
       discount: 0,
-      freight: 0,
+      freight: Number(selectedItem.totalFreight || 0),
       isVat: formik.values.isVat,
       shippingType: selectedItem.shippingMethod,
       remark: formik.values.notes,
@@ -470,12 +650,14 @@ export default function SalesOrderRFQ(): JSX.Element {
     if (!rfq) return;
 
     const applyRFQ = async () => {
-      const allItems = createSaleOrderItemsFromRFQ(rfq);
+      const allItems = quotation
+        ? createSaleOrderItemsFromQuotation(rfq, quotation?.data)
+        : createSaleOrderItemsFromRFQ(rfq);
       const selectedItemFromDialog =
         allItems.find(
           (item) =>
             item.optionId === selectedRFQParams.detailId &&
-            item.tierId === selectedRFQParams.tierId &&
+            String(item.quotationDetailId || '') === String(selectedRFQParams.quotationDetailId) &&
             item.shippingMethod === selectedRFQParams.shippingMethod
         ) || null;
       const items = hasSelectedRFQParams
@@ -487,9 +669,9 @@ export default function SalesOrderRFQ(): JSX.Element {
       let fullCustomer: Customer | null = null;
       let defaultDropOff: CustomerDropOff | null = null;
 
-      if (hasSelectedRFQParams && !selectedItemFromDialog) {
-        toast.error('ไม่พบรายการสินค้าที่เลือกจาก Confirm Price Dialog');
-      }
+      // if (hasSelectedRFQParams && !selectedItemFromDialog) {
+      //   toast.error('ไม่พบรายการสินค้าที่เลือกจากใบเสนอราคา');
+      // }
 
       if (rfq.customer?.id) {
         try {
@@ -538,10 +720,11 @@ export default function SalesOrderRFQ(): JSX.Element {
     applyRFQ();
   }, [
     rfq,
+    quotation,
     hasSelectedRFQParams,
     selectedRFQParams.detailId,
+    selectedRFQParams.quotationDetailId,
     selectedRFQParams.shippingMethod,
-    selectedRFQParams.tierId
   ]);
 
   const selectedItem = useMemo(
@@ -549,40 +732,29 @@ export default function SalesOrderRFQ(): JSX.Element {
     [formik.values.items, formik.values.selectedItemId]
   );
   const summaryShippingOptions = useMemo(() => {
-    const selectedDetail = rfq?.details?.find(
-      (detail) => detail.id === selectedRFQParams.detailId
-    );
-    const selectedTier = selectedDetail?.tiers?.find((tier) => tier.id === selectedRFQParams.tierId);
+    if (!selectedItem) return [];
 
-    if (!selectedTier) return [];
-
-    const quantity = Number(selectedTier.quantity || selectedItem?.quantity || 1);
-
-    return (['LAND', 'SEA'] as const).map((shippingMethod) => {
-      const unitPrice = getShippingPrice(selectedTier, shippingMethod);
-
-      return {
-        shippingMethod,
-        label: getShippingMethodLabel(shippingMethod),
-        icon: getShippingMethodIcon(shippingMethod),
-        color: getShippingMethodColor(shippingMethod),
-        unitPrice,
-        quantity,
-        amount: unitPrice * quantity,
-        isSelected: selectedRFQParams.shippingMethod === shippingMethod
-      };
-    });
+    return [
+      {
+        shippingMethod: selectedItem.shippingMethod,
+        label: getShippingMethodLabel(selectedItem.shippingMethod),
+        icon: getShippingMethodIcon(selectedItem.shippingMethod),
+        color: getShippingMethodColor(selectedItem.shippingMethod),
+        unitPrice: selectedItem.unitPrice,
+        quantity: selectedItem.quantity,
+        amount: selectedItem.amount,
+        isSelected: true
+      }
+    ];
   }, [
-    rfq?.details,
-    selectedItem?.quantity,
-    selectedRFQParams.detailId,
-    selectedRFQParams.shippingMethod,
-    selectedRFQParams.tierId
+    selectedItem
   ]);
   const subtotal = selectedItem?.amount || 0;
+  const discount = Number(formik.values.discount || 0);
+  const taxableAmount = Math.max(subtotal - discount, 0);
   const vatRate = 0.07;
-  const vatAmount = formik.values.isVat ? subtotal * vatRate : 0;
-  const grandTotal = subtotal + vatAmount;
+  const vatAmount = formik.values.isVat ? taxableAmount * vatRate : 0;
+  const grandTotal = taxableAmount + vatAmount;
 
   const isGeneralSectionCompleted = Boolean(
     formik.values.deliveryDate && formik.values.orderMakerId
@@ -605,6 +777,55 @@ export default function SalesOrderRFQ(): JSX.Element {
   return (
     <Page>
       <PageTitle title="สร้าง Sales Order จาก RFQ" />
+      <Wrapper>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          useFlexGap
+          sx={{
+            justifyContent: { sm: 'flex-end' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            mb: 2
+          }}>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            startIcon={<ArrowBackIos />}
+            className="btn-cool-grey"
+            onClick={() => {
+              setConfirmAction('back');
+              setVisibleConfirmationDialog(true);
+            }}>
+            {t('button.back')}
+          </Button>
+          <Button
+            fullWidth={isDownSm}
+            disabled={!isFormCompleted}
+            variant="contained"
+            startIcon={<Save />}
+            className="btn-amber-orange"
+            onClick={() => {
+              setConfirmAction('DRAFT');
+              setVisibleConfirmationDialog(true);
+            }}>
+            บันทึกฉบับร่าง
+          </Button>
+          <Can permission={PERMISSIONS.SALES_ORDER_CREATE}>
+            <Button
+              fullWidth={isDownSm}
+              disabled={!isFormCompleted}
+              variant="contained"
+              startIcon={<Save />}
+              className="btn-emerald-green"
+              onClick={() => {
+                setConfirmAction('CREATED');
+                setVisibleConfirmationDialog(true);
+              }}>
+              สร้าง
+            </Button>
+          </Can>
+        </Stack>
+      </Wrapper>
       <CollapsibleWrapper
         title="ข้อมูลใบยืนยันคำสั่งซื้อ"
         isCompleted={isGeneralSectionCompleted}
@@ -915,15 +1136,9 @@ export default function SalesOrderRFQ(): JSX.Element {
                     </Stack>
                   </TableCell>
                   <TableCell align="center">
-                    <TextField
-                      type="number"
-                      value={row.quantity}
-                      onChange={(event) =>
-                        updateItem(index, 'quantity', Number(event.target.value || 0))
-                      }
-                      inputProps={{ min: 1, style: { textAlign: 'center' } }}
-                      sx={{ maxWidth: 130, mx: 'auto' }}
-                    />
+                    <Typography sx={{ fontSize: 20, color: '#2F3447' }}>
+                      {formatNumberWithoutDigit(row.quantity)}
+                    </Typography>
                   </TableCell>
                   <TableCell align="center">
                     <TextField
@@ -1021,6 +1236,18 @@ export default function SalesOrderRFQ(): JSX.Element {
                   <Typography fontWeight={500}>Subtotal</Typography>
                   <Typography fontWeight={600}>{formatCurrency(subtotal)}</Typography>
                 </Stack>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                  <Typography fontWeight={500}>Discount</Typography>
+                  <TextField
+                    type="number"
+                    value={formik.values.discount}
+                    onChange={(event) =>
+                      formik.setFieldValue('discount', Number(event.target.value || 0))
+                    }
+                    inputProps={{ min: 0, style: { textAlign: 'right' } }}
+                    sx={{ maxWidth: 180 }}
+                  />
+                </Stack>
                 {formik.values.isVat ? (
                   <Stack direction="row" justifyContent="space-between">
                     <Typography fontWeight={500}>VAT (7%)</Typography>
@@ -1042,54 +1269,6 @@ export default function SalesOrderRFQ(): JSX.Element {
         </Grid>
       </CollapsibleWrapper>
 
-      <Wrapper>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1}
-          useFlexGap
-          sx={{
-            mt: 1,
-            justifyContent: { sm: 'flex-end' },
-            alignItems: { xs: 'flex-end', sm: 'center' }
-          }}>
-          <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            startIcon={<ArrowBack />}
-            className="btn-cool-grey"
-            onClick={() => {
-              setConfirmAction('back');
-              setVisibleConfirmationDialog(true);
-            }}>
-            {t('button.back')}
-          </Button>
-          <Button
-            fullWidth={isDownSm}
-            disabled={!isFormCompleted}
-            variant="contained"
-            startIcon={<Save />}
-            className="btn-amber-orange"
-            onClick={() => {
-              setConfirmAction('DRAFT');
-              setVisibleConfirmationDialog(true);
-            }}>
-            บันทึกฉบับร่าง
-          </Button>
-          <Button
-            fullWidth={isDownSm}
-            disabled={!isFormCompleted}
-            variant="contained"
-            startIcon={<Save />}
-            className="btn-emerald-green"
-            onClick={() => {
-              setConfirmAction('CREATED');
-              setVisibleConfirmationDialog(true);
-            }}>
-            สร้าง
-          </Button>
-        </Stack>
-      </Wrapper>
-
       <ConfirmDialog
         open={visibleConfirmationDialog}
         title={
@@ -1103,8 +1282,8 @@ export default function SalesOrderRFQ(): JSX.Element {
           confirmAction === 'DRAFT'
             ? 'คุณต้องการบันทึก Sales Order จาก RFQ นี้เป็นฉบับร่างหรือไม่'
             : confirmAction === 'CREATED'
-            ? 'คุณต้องการสร้าง Sales Order จาก RFQ นี้หรือไม่'
-            : t('general.confirmCloseMsg')
+              ? 'คุณต้องการสร้าง Sales Order จาก RFQ นี้หรือไม่'
+              : t('general.confirmCloseMsg')
         }
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}

@@ -40,7 +40,8 @@
       "adminUsers": "ผู้ใช้งานระบบหลังบ้าน"
     },
     "customerManagement": {
-      "title": "ลูกค้า"
+      "title": "ลูกค้า",
+      "dashboard": "แดชบอร์ด"
     },
     "systemConfigManagement": {
       "title": "ตั้งค่าระบบ"
@@ -291,8 +292,10 @@
   "customerManagement": {
     "title": "การจัดการข้อมูลลูกค้า",
     "customerId": "รหัสลูกค้า",
+    "dashboard": "แดชบอร์ด",
     "customer": "ลูกค้า",
     "detail": "รายละเอียด",
+    "history": "ประวัติ",
     "dropoff": "รายละเอียดในการจัดส่ง",
     "action": {
       "create": "สร้างใหม่",
@@ -313,6 +316,9 @@
       "contactNumber": "เบอร์ติดต่อ",
       "contacts": "รายชื่อติดต่อ",
       "type": "ประเภทลูกค้า",
+      "tier": "ระดับลูกค้า",
+      "segment": "Segment ลูกค้า",
+      "action": "การดำเนินการ",
       "taxId": "เลขบัตรประชาชน/เลขประจำตัวผู้เสียภาษี",
       "address": {
         "title": "ที่อยู่",
@@ -392,6 +398,41 @@
     "confirmMsgNewCustomerDropOff": "คุณแน่ใจหรือว่าต้องการเพิ่มจุดลงของ/จุดส่งของใหม่",
     "deleteCustomerDropOff": "ลบจุดลงของ",
     "confirmMsgDeleteCustomerDropOff": "คุณแน่ใจหรือว่าต้องการลบจุดลงของที่ {{id}} : {{name}}"
+  },
+  "customerDashboard": {
+    "title": "แดชบอร์ดลูกค้า",
+    "subtitle": "สรุปภาพรวมลูกค้า",
+    "activeOnlyNote": "ข้อมูลในหน้านี้นับจากลูกค้าที่ active เท่านั้น",
+    "metrics": {
+      "totalCustomers": "จำนวนลูกค้าทั้งหมด",
+      "totalCustomersSub": "ลูกค้าที่ active ในระบบ",
+      "totalContacts": "จำนวนผู้ติดต่อ",
+      "totalContactsSub": "รวมผู้ติดต่อทุก customer",
+      "totalAddresses": "จำนวนที่อยู่",
+      "totalAddressesSub": "รวมที่อยู่ทุก customer",
+      "companyCustomers": "ลูกค้านิติบุคคล",
+      "companyCustomersSub": "Customer Type = COMPANY",
+      "individualCustomers": "ลูกค้าบุคคล",
+      "individualCustomersSub": "Customer Type = INDIVIDUAL",
+      "defaultAddressCustomers": "ลูกค้าที่มีที่อยู่หลัก",
+      "defaultAddressCustomersSub": "มี address ตั้งค่าเป็น default",
+      "lastUpdated": "อัปเดตล่าสุด",
+      "lastUpdatedSub": "อ้างอิงจากข้อมูลลูกค้าล่าสุด"
+    },
+    "charts": {
+      "typeTitle": "สัดส่วนประเภทลูกค้า",
+      "typeSubtitle": "แบ่งตาม customer type",
+      "tierTitle": "สัดส่วนระดับลูกค้า",
+      "tierSubtitle": "แบ่งตาม customer tier",
+      "segmentTitle": "สัดส่วน segment ลูกค้า",
+      "segmentSubtitle": "แบ่งตาม customer segment"
+    },
+    "recent": {
+      "title": "ลูกค้าล่าสุด",
+      "subtitle": "แสดงรายการลูกค้าที่ถูกสร้างหรืออัปเดตล่าสุด",
+      "contactCount": "จำนวนผู้ติดต่อ",
+      "addressCount": "จำนวนที่อยู่"
+    }
   },
   "supplierManagement": {
     "title": "การจัดการข้อมูลคู่ค้า",
@@ -700,10 +741,12 @@
       "NEW": "คำขอใหม่",
       "IN_PROGRESS": "กำลังดำเนินการ",
       "SUPPLIER_QUOTED": "ซัพพลายเออร์ให้ราคาแล้ว",
+      "REQUESTED_INFO": "สอบถามข้อมูลเพิ่มเติม",
       "QUOTED": "ได้ราคาแล้ว",
       "CANCELED": "ยกเลิก",
       "COMPLETED": "เสร็จสิ้น",
-      "CLOSED": "ปิดแล้ว"
+      "CLOSED": "ปิดแล้ว",
+      "REJECTED": "ปฏิเสธ"
     }
   },
   "priceInquiryManagement": {
@@ -729,6 +772,15 @@
     "action": {
       "create": "สร้างรายการสอบถามราคา"
     }
+  },
+  "inputUpload": {
+    "title": "อัพโหลดไฟล์",
+    "subTitle": "เลือกไฟล์ที่ต้องการอัปโหลด",
+    "submitButton": "อัปโหลด",
+    "helperText": "*ชนิดไฟล์ต้องเป็น .xlsx เท่านั้น",
+    "invalidType": "อัปโหลดไม่สำเร็จ ไฟล์ไม่ตรงตามเงื่อนไข กรุณาลองใหม่อีกครั้ง",
+    "chooseFileButton": "เลือกไฟล์",
+    "helperTextV2": "เลือกไฟล์ .xlsx เพื่ออัปโหลดข้อมูล"
   },
   "documentManagement": {
     "title": "การจัดการเอกสาร",

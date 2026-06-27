@@ -46,9 +46,23 @@ export function useMenuItems() {
     {
       id: 'left_menu__customer_management',
       title: t('sidebar.customerManagement.title'),
-      href: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
+      // href: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
       icon: Person,
-      allowedPermission: [PERMISSIONS.CUSTOMER_VIEW]
+      allowedPermission: [PERMISSIONS.CUSTOMER_VIEW],
+      children: [
+        {
+          id: 'left_menu__dashboard_customer',
+          title: t('sidebar.customerManagement.dashboard'),
+          href: ROUTE_PATHS.CUSTOMER_DASHBOARD,
+          allowedPermission: [PERMISSIONS.CUSTOMER_VIEW]
+        },
+        {
+          id: 'left_menu__customer',
+          title: t('sidebar.customerManagement.title'),
+          href: ROUTE_PATHS.CUSTOMER_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.CUSTOMER_VIEW]
+        },
+      ]
     },
     {
       id: 'left_menu__supplier_management',
@@ -106,7 +120,7 @@ export function useMenuItems() {
           id: 'left_menu__sales_order',
           title: t('sidebar.documentManagement.salesOrder'),
           href: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
-          allowedPermission: [PERMISSIONS.SALE_ORDER_VIEW]
+          allowedPermission: [PERMISSIONS.SALES_ORDER_VIEW]
         }
       ]
     },

@@ -6,6 +6,13 @@ export const formatNumber = (value: number) => {
     });
 };
 
+export const formatNumberWithoutDigit = (value: number) => {
+    return Number(value || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+};
+
 export const formatCurrency = (value: number) =>
     value.toLocaleString(undefined, {
         minimumFractionDigits: 2,

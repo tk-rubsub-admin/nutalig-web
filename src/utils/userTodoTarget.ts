@@ -30,7 +30,7 @@ export function buildUserTodoTargetPath(
     case 'SALE_ORDER':
       return replaceRouteId(ROUTE_PATHS.SALE_ORDER_DETAIL, targetId);
     case 'QUOTATION':
-      return `${ROUTE_PATHS.QUOTATION_DETAIL}?id=${encodeURIComponent(targetId)}`;
+      return `${ROUTE_PATHS.QUOTATION_DETAIL + '/' + targetId}`;
     case 'CUSTOMER':
       return replaceRouteId(ROUTE_PATHS.CUSTOMER_DETAIL, targetId);
     case 'SUPPLIER':

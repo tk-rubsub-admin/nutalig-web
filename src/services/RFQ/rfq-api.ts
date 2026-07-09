@@ -116,14 +116,14 @@ export const generateRFQInquiry = async (id: string) => {
 
 export const requestRFQInformation = async (payload: RequestRFQInformationRequest) => {
   const response: UpdateRFQResponse = await api
-    .patch('/v1/rfq/request-information', payload)
+    .patch('/v1/rfqs/request-information', payload)
     .then((res) => res.data);
 
   return response.data;
 };
 
 export const rejectRFQ = async (id: string) => {
-  const response = await api.patch(`/v1/rfq/${id}/reject`).then((res) => res.data);
+  const response = await api.patch(`/v1/rfqs/${id}/reject`).then((res) => res.data);
 
   return response.data;
 };

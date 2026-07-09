@@ -47,6 +47,36 @@ export interface SupplierCapability {
   materials: SupplierCapabilityMaterial[];
 }
 
+export interface SupplierShippingDestination {
+  id: number;
+  supplierShippingId: number;
+  destinationCode: string | null;
+  destinationName: string;
+  countryCode: string | null;
+  province: string | null;
+  district: string | null;
+  subdistrict: string | null;
+  postalCode: string | null;
+  fullAddress: string | null;
+  additionalCost: number | null;
+  sortOrder: number | null;
+}
+
+export interface SupplierShipping {
+  id: number;
+  shippingMethod: 'LAND' | 'SEA';
+  shippingName: string | null;
+  originCountryCode: string | null;
+  originProvince: string | null;
+  currency: string | null;
+  baseCost: number | null;
+  leadTimeDayMin: number | null;
+  leadTimeDayMax: number | null;
+  remark: string | null;
+  carCode: string | null;
+  destinations: SupplierShippingDestination[];
+}
+
 export interface Supplier {
   id: string;
   supplierId?: string;

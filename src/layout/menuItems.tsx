@@ -13,6 +13,7 @@ import {
   Person,
   Security,
   SettingsSuggest,
+  Assignment,
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { PERMISSIONS } from 'auth/permissions';
@@ -93,6 +94,19 @@ export function useMenuItems() {
       allowedPermission: [PERMISSIONS.PRICE_INQUIRY_VIEW]
     },
     {
+      id: 'left_menu__procurement_management',
+      title: t('sidebar.procurement.title'),
+      icon: Assignment,
+      allowedPermission: [PERMISSIONS.PRICE_INQUIRY_VIEW],
+      children: [{
+        id: 'left_menu__purchase_order',
+        title: t('sidebar.procurement.purchaseOrder'),
+        href: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,
+        allowedPermission: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+      },
+      ]
+    },
+    {
       id: 'left_menu__employee_management',
       title: t('sidebar.employeeManagement.title'),
       href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
@@ -121,7 +135,25 @@ export function useMenuItems() {
           title: t('sidebar.documentManagement.salesOrder'),
           href: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
           allowedPermission: [PERMISSIONS.SALES_ORDER_VIEW]
+        },
+        {
+          id: 'left_menu__invoice',
+          title: t('sidebar.documentManagement.invoice'),
+          href: ROUTE_PATHS.INVOICE_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.INVOICE_VIEW]
+        },
+        {
+          id: 'left_menu__receipt',
+          title: t('sidebar.documentManagement.receipt'),
+          href: ROUTE_PATHS.RECEIPT_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.INVOICE_VIEW]
         }
+        // {
+        //   id: 'left_menu__tax_invoice',
+        //   title: t('sidebar.documentManagement.taxInvoice'),
+        //   href: ROUTE_PATHS.INVOICE_MANAGEMENT,
+        //   allowedPermission: [PERMISSIONS.INVOICE_VIEW]
+        // }
       ]
     },
     {

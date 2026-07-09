@@ -153,6 +153,7 @@ export interface RFQDetailTier {
   seaFreightCost: number;
   landTotalPrice: number;
   seaTotalPrice: number;
+  supplierQuoteTierId?: number | null;
   sortOrder: number;
   createdDate: string;
   updatedDate: string;
@@ -303,6 +304,7 @@ export interface CreateRFQDetailTierRequest {
   seaFreightCost: number;
   landTotalPrice: number;
   seaTotalPrice: number;
+  supplierQuoteTierId?: number | null;
   sortOrder: number;
 }
 

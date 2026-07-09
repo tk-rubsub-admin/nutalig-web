@@ -4,7 +4,8 @@ import {
   GetSupplierResponse,
   SearchSupplierRequest,
   SearchSupplierResponse,
-  Supplier
+  Supplier,
+  SupplierShipping
 } from './supplier-type';
 
 const normalizeSupplierSearchResponse = (
@@ -98,4 +99,9 @@ export const getSupplierById = async (supplierId: string): Promise<Supplier> => 
   );
 
   return normalized.data.suppliers[0];
+};
+
+export const getSupplierShippings = async (): Promise<SupplierShipping[]> => {
+  const response = await api.get('/v1/supplier-shippings').then((res) => res.data);
+  return response?.data || [];
 };

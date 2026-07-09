@@ -62,8 +62,14 @@ interface SaleOrderRFQItem {
   id: number;
   optionId?: number;
   tierId?: number;
+  supplierQuoteTierId?: number;
   quotationDetailId?: number | string;
   shippingMethod: 'LAND' | 'SEA';
+  supplierCurrency?: string | null;
+  supplierUnitPrice?: number | null;
+  exchangeRate?: number | null;
+  supplierShippingCost?: number | null;
+  supplierTotalUnitCost?: number | null;
   name: string;
   spec: string;
   quantity: number;
@@ -277,7 +283,17 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           id: Number(`${detail.id}${tier.id}${shippingIndex}`),
           optionId: detail.id,
           tierId: tier.id,
+          supplierQuoteTierId: tier.supplierQuoteTierId || undefined,
           shippingMethod,
+          supplierCurrency: tier.currency || null,
+          supplierUnitPrice: Number(tier.productPrice || 0),
+          exchangeRate: Number(tier.exchangeRate || 0),
+          supplierShippingCost: Number(
+            shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
+          ),
+          supplierTotalUnitCost:
+            Number(tier.productPrice || 0) +
+            Number(shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0),
           name: `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
             quantity
           )} - ${shippingLabel}`,
@@ -425,7 +441,23 @@ function createSaleOrderItemsFromQuotation(
       optionId: mappedRow?.optionId,
       tierId: mappedRow?.tierId,
       quotationDetailId: item.id,
+      supplierQuoteTierId: mappedTier?.supplierQuoteTierId || undefined,
       shippingMethod: mappedRow?.shippingMethod || 'LAND',
+      supplierCurrency: mappedTier?.currency || null,
+      supplierUnitPrice: Number(mappedTier?.productPrice || 0),
+      exchangeRate: Number(mappedTier?.exchangeRate || 0),
+      supplierShippingCost: Number(
+        (mappedRow?.shippingMethod || 'LAND') === 'SEA'
+          ? mappedTier?.seaFreightCost || 0
+          : mappedTier?.landFreightCost || 0
+      ),
+      supplierTotalUnitCost:
+        Number(mappedTier?.productPrice || 0) +
+        Number(
+          (mappedRow?.shippingMethod || 'LAND') === 'SEA'
+            ? mappedTier?.seaFreightCost || 0
+            : mappedTier?.landFreightCost || 0
+        ),
       name: item.name || productFamily || 'PRE-ORDER',
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
@@ -611,7 +643,19 @@ export default function SalesOrderRFQ(): JSX.Element {
           spec: selectedItem.spec,
           unitPrice: selectedItem.unitPrice,
           quantity: selectedItem.quantity,
-          imageUrl
+          imageUrl,
+          rfqDetailId: selectedItem.optionId,
+          rfqTierId: selectedItem.tierId,
+          quotationDetailId: selectedItem.quotationDetailId
+            ? Number(selectedItem.quotationDetailId)
+            : null,
+          shippingMethod: selectedItem.shippingMethod,
+          supplierCurrency: selectedItem.supplierCurrency || null,
+          supplierUnitPrice: selectedItem.supplierUnitPrice ?? null,
+          exchangeRate: selectedItem.exchangeRate ?? null,
+          supplierShippingCost: selectedItem.supplierShippingCost ?? null,
+          supplierTotalUnitCost: selectedItem.supplierTotalUnitCost ?? null,
+          supplierQuoteTierId: selectedItem.supplierQuoteTierId
         }
       ]
     };

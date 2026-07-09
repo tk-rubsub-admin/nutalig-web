@@ -30,6 +30,8 @@
       "quotation": "ใบเสนอราคา",
       "salesOrder": "ใบยืนยันสั่งซื้อ",
       "invoice": "ใบแจ้งหนี้",
+      "receipt": "ใบเสร็จรับเงิน",
+      "taxInvoice": "ใบกำกับภาษี",
       "billing": "ใบวางบิล"
     },
     "userManagement": {
@@ -92,7 +94,7 @@
     },
     "procurement": {
       "title": "จัดซื้อ",
-      "purchaseOrder": "คำสั่งซื้อสินค้า",
+      "purchaseOrder": "ใบสั่งซื้อ",
       "advancePurchaseOrder": "สั่งซื้อล่วงหน้า",
       "buying": "สั่งสินค้า",
       "receiveProduct": "รับสินค้า"
@@ -133,6 +135,22 @@
     "next": "ถัดไป",
     "view": "ดู",
     "finish": "เสร็จสิ้น"
+  },
+  "statuses": {
+    "active": "กำลังใช้งาน",
+    "inactive": "ไม่ได้ใช้งาน",
+    "ACTIVE": "กำลังใช้งาน",
+    "INACTIVE": "ระงับการใช้งานชั่วคราว",
+    "PENDING_ACTIVATE": "รอเปิดใช้งาน",
+    "NEW": "คำขอใหม่",
+    "IN_PROGRESS": "กำลังดำเนินการ",
+    "SUPPLIER_QUOTED": "ซัพพลายเออร์ให้ราคาแล้ว",
+    "REQUESTED_INFO": "สอบถามข้อมูลเพิ่มเติม",
+    "QUOTED": "ได้ราคาแล้ว",
+    "CANCELED": "ยกเลิก",
+    "COMPLETED": "เสร็จสิ้น",
+    "CLOSED": "ปิดแล้ว",
+    "REJECTED": "ปฏิเสธ"
   },
   "general": {
     "id": "รหัส",
@@ -780,7 +798,7 @@
     "helperText": "*ชนิดไฟล์ต้องเป็น .xlsx เท่านั้น",
     "invalidType": "อัปโหลดไม่สำเร็จ ไฟล์ไม่ตรงตามเงื่อนไข กรุณาลองใหม่อีกครั้ง",
     "chooseFileButton": "เลือกไฟล์",
-    "helperTextV2": "เลือกไฟล์ .xlsx เพื่ออัปโหลดข้อมูล"
+    "helperTextV2": "เลือกไฟล์เพื่ออัปโหลดข้อมูล"
   },
   "documentManagement": {
     "title": "การจัดการเอกสาร",
@@ -846,6 +864,95 @@
         "grandTotal": "จำนวนเงินทั้งสิ้น",
         "vatRate": "อัตราภาษี",
         "total": "ยอดเงิน"
+      }
+    },
+    "invoice": {
+      "title": "ใบแจ้งหนี้",
+      "newInvoice": "สร้างใบแจ้งหนี้",
+      "createInvoiceButton": "สร้างใบแจ้งหนี้",
+      "createInvoiceMenu": "สร้างใบแจ้งหนี้",
+      "createPOMenu": "สร้างใบสั่งซื้อ",
+      "confirmCreateTitle": "ยืนยันสร้างใบแจ้งหนี้",
+      "confirmCreateMessage": "คุณต้องการสร้างใบแจ้งหนี้จากใบยืนยันสั่งซื้อนี้ใช่หรือไม่",
+      "generalSection": "ข้อมูลใบแจ้งหนี้",
+      "referenceSalesOrder": "อ้างอิงใบยืนยันสั่งซื้อ",
+      "docDate": "วันที่เอกสาร",
+      "dueDate": "วันที่ครบกำหนด",
+      "currency": "สกุลเงิน",
+      "remark": "หมายเหตุ",
+      "customerSection": {
+        "title": "ข้อมูลลูกค้า",
+        "address": "ที่อยู่",
+        "contactName": "ผู้ติดต่อ",
+        "contactNumber": "เบอร์ติดต่อ"
+      },
+      "salesSection": {
+        "title": "ข้อมูลฝ่ายขาย",
+        "salesAccount": "เซลล์ที่ดูแล",
+        "coSalesAccount": "เซลล์นอก / เซลล์ฟรีแลนซ์",
+        "status": "สถานะใบยืนยันสั่งซื้อ"
+      },
+      "itemSection": {
+        "name": "สินค้า",
+        "spec": "รายละเอียด",
+        "unitPrice": "ราคาต่อหน่วย",
+        "quantity": "จำนวน",
+        "totalAmount": "รวม"
+      },
+      "summarySection": {
+        "title": "สรุปยอด",
+        "subtotal": "ยอดรวมสินค้า",
+        "remainingAmount": "ยอดคงเหลือหลังหักส่วนลด",
+        "depositAmount": "ยอดมัดจำ 50%",
+        "discount": "ส่วนลด",
+        "freight": "ค่าขนส่ง",
+        "vat": "ภาษีมูลค่าเพิ่ม",
+        "grandTotal": "จำนวนเงินทั้งสิ้น"
+      }
+    },
+    "receipt": {
+      "title": "ใบเสร็จรับเงิน",
+      "newReceipt": "สร้างใบเสร็จรับเงิน",
+      "createReceiptButton": "สร้างใบเสร็จรับเงิน",
+      "confirmCreateTitle": "ยืนยันสร้างใบเสร็จรับเงิน",
+      "confirmCreateMessage": "คุณต้องการสร้างใบเสร็จรับเงินจากรายการรับชำระเงินนี้ใช่หรือไม่",
+      "generalSection": "ข้อมูลใบเสร็จรับเงิน",
+      "referenceInvoice": "อ้างอิงใบแจ้งหนี้",
+      "referencePayment": "อ้างอิงรายการรับชำระ",
+      "receiptType": "ประเภทเอกสาร",
+      "docDate": "วันที่เอกสาร",
+      "currency": "สกุลเงิน",
+      "remark": "หมายเหตุ",
+      "customerSection": {
+        "title": "ข้อมูลลูกค้า",
+        "address": "ที่อยู่",
+        "contactName": "ผู้ติดต่อ",
+        "contactNumber": "เบอร์ติดต่อ"
+      },
+      "salesSection": {
+        "salesAccount": "เซลล์ที่ดูแล"
+      },
+      "paymentSection": {
+        "title": "ข้อมูลการรับชำระเงิน",
+        "paymentMethod": "วิธีการชำระเงิน",
+        "paymentDate": "วันที่รับชำระ",
+        "paymentAmount": "จำนวนเงินรับชำระ",
+        "cheque": "ข้อมูลเช็ค"
+      },
+      "itemSection": {
+        "name": "สินค้า",
+        "spec": "รายละเอียด",
+        "unitPrice": "ราคาต่อหน่วย",
+        "quantity": "จำนวน",
+        "totalAmount": "รวม"
+      },
+      "summarySection": {
+        "title": "สรุปยอด",
+        "subtotal": "ยอดก่อนภาษี",
+        "discount": "ส่วนลด",
+        "amount": "จำนวนเงิน",
+        "vat": "ภาษีมูลค่าเพิ่ม",
+        "grandTotal": "จำนวนเงินทั้งสิ้น"
       }
     }
   },

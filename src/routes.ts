@@ -43,6 +43,15 @@ export const ROUTE_PATHS = Object.freeze({
   SALE_ORDER_CREATE: '/sales-order-create',
   SALE_ORDER_CREATE_FROM_RFQ: '/create-sales-order-rfq/:rfqId',
   SALE_ORDER_DETAIL: '/sales-order/:id',
+  INVOICE_MANAGEMENT: '/invoice-management',
+  INVOICE_CREATE_FROM_SALES_ORDER: '/invoice-create/:salesOrderId',
+  INVOICE_DETAIL: '/invoice/:id',
+  PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
+  PURCHASE_ORDER_CREATE_FROM_SALES_ORDER: '/purchase-order-create/:salesOrderId',
+  PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
+  RECEIPT_MANAGEMENT: '/receipt-management',
+  RECEIPT_CREATE_FROM_INVOICE_PAYMENT: '/receipt-create/:invoiceId/:paymentId',
+  RECEIPT_DETAIL: '/receipt/:id',
   USER_MANAGEMENT: '/user-management',
   USER_PERMISSION_MANAGEMENT: '/user-permission-management',
   MANUAL: '/manual',
@@ -252,6 +261,51 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
       () => import('./pages/SalesOrderManagement/Detail' /* webpackChunkName: "app" */)
     ),
     requiredPermissions: [PERMISSIONS.SALES_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.INVOICE_MANAGEMENT,
+    component: lazy(() => import('./pages/InvoiceManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.INVOICE_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.INVOICE_CREATE_FROM_SALES_ORDER,
+    component: lazy(() => import('./pages/InvoiceManagement/New' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.INVOICE_CREATE]
+  },
+  {
+    path: ROUTE_PATHS.INVOICE_DETAIL,
+    component: lazy(() => import('./pages/InvoiceManagement/Detail' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.INVOICE_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,
+    component: lazy(() => import('./pages/PurchaseOrderManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER,
+    component: lazy(() => import('./pages/PurchaseOrderManagement/New' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_CREATE]
+  },
+  {
+    path: ROUTE_PATHS.PURCHASE_ORDER_DETAIL,
+    component: lazy(() => import('./pages/PurchaseOrderManagement/Detail' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.RECEIPT_MANAGEMENT,
+    component: lazy(() => import('./pages/ReceiptManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.INVOICE_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.RECEIPT_CREATE_FROM_INVOICE_PAYMENT,
+    component: lazy(() => import('./pages/ReceiptManagement/New' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.INVOICE_CREATE]
+  },
+  {
+    path: ROUTE_PATHS.RECEIPT_DETAIL,
+    component: lazy(() => import('./pages/ReceiptManagement/Detail' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.INVOICE_VIEW]
   },
   {
     path: ROUTE_PATHS.QUOTATION_MANAGEMENT,

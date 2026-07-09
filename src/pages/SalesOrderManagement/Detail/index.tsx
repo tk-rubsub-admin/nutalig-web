@@ -1,8 +1,12 @@
 import {
   ArrowBackIos,
   ArrowDropDown,
+  AssignmentTurnedIn,
   Description,
+  FilePresent,
   Menu as MenuIcon,
+  NoteAdd,
+  ReceiptLong,
   Save
 } from '@mui/icons-material';
 import {
@@ -27,6 +31,7 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme
@@ -54,6 +59,9 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
+import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
+import { InvoiceRecord } from 'services/Invoice/invoice-type';
+import { viewReceipt } from 'services/Receipt/receipt-api';
 import {
   getSalesOrderV1,
   updateSalesOrderV1,
@@ -66,6 +74,7 @@ import {
 } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
+import { formatDate } from 'utils';
 import { formatNumber } from 'utils/utils';
 
 interface SalesOrderDetailParams {
@@ -126,6 +135,19 @@ function getShippingTypeLabel(shippingType?: string | null): string {
   return shippingType;
 }
 
+function getProcurementStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'NOT_READY':
+      return 'ยังไม่พร้อมสร้าง PO';
+    case 'READY_FOR_PO':
+      return 'พร้อมสร้าง PO';
+    case 'PO_CREATED':
+      return 'สร้าง PO แล้ว';
+    default:
+      return status || '-';
+  }
+}
+
 function toDateInput(value?: string | null): string {
   if (!value) {
     return '';
@@ -179,7 +201,7 @@ export default function SalesOrderDetail(): ReactElement {
   const { t } = useTranslation();
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
-  const [tab, setTab] = useState<'detail' | 'history'>('detail');
+  const [tab, setTab] = useState<'detail' | 'history' | 'paymentHistory'>('detail');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<SalesOrderDraft>(createDraft());
@@ -235,6 +257,19 @@ export default function SalesOrderDetail(): ReactElement {
     refetchOnWindowFocus: false
   });
 
+  const {
+    data: relatedInvoices = [],
+    isFetching: isInvoicePaymentsFetching,
+    refetch: refetchInvoices
+  } = useQuery(
+    ['sales-order-invoices', salesOrder?.salesOrderNo],
+    () => getInvoicesBySalesOrderId(salesOrder!.salesOrderNo),
+    {
+      enabled: Boolean(salesOrder?.salesOrderNo),
+      refetchOnWindowFocus: false
+    }
+  );
+
   useEffect(() => {
     setDraft(createDraft(salesOrder));
     setIsEditing(false);
@@ -267,7 +302,7 @@ export default function SalesOrderDetail(): ReactElement {
     salesOrder?.vatRate
   ]);
 
-  const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history') => {
+  const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history' | 'paymentHistory') => {
     setTab(value);
   };
 
@@ -329,6 +364,31 @@ export default function SalesOrderDetail(): ReactElement {
     handleEdit();
   };
 
+  const handleCreateInvoice = () => {
+    if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    handleCloseActionMenu();
+    history.push(
+      ROUTE_PATHS.INVOICE_CREATE_FROM_SALES_ORDER.replace(':salesOrderId', salesOrder.salesOrderNo)
+    );
+  };
+
+  const handleCreatePurchaseOrder = () => {
+    if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    handleCloseActionMenu();
+    history.push(
+      ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER.replace(
+        ':salesOrderId',
+        salesOrder.salesOrderNo
+      )
+    );
+  };
+
   const handleCancel = () => {
     setDraft(createDraft(salesOrder));
     setIsEditing(false);
@@ -367,6 +427,33 @@ export default function SalesOrderDetail(): ReactElement {
     });
   };
 
+  const handleViewReceipt = async (receiptNo: string) => {
+    await toast.promise(viewReceipt(receiptNo, true, false), {
+      loading: t('toast.loading'),
+      success: (response) => {
+        const data = response.data as DownloadDocumentResponse;
+        const files = data.files || [];
+
+        if (!files.length) {
+          throw new Error('No file');
+        }
+
+        files.forEach((file) => {
+          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = file.fileName || `${receiptNo}.pdf`;
+          anchor.click();
+          URL.revokeObjectURL(url);
+        });
+
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+  };
+
   const handleSave = async () => {
     if (!salesOrder?.salesOrderNo) {
       return;
@@ -393,7 +480,17 @@ export default function SalesOrderDetail(): ReactElement {
         spec: item.spec || null,
         unitPrice: Number(item.unitPrice || 0),
         quantity: Number(item.quantity || 0),
-        imageUrl: item.imageUrl || null
+        imageUrl: item.imageUrl || null,
+        rfqDetailId: item.rfqDetailId ?? null,
+        rfqTierId: item.rfqTierId ?? null,
+        quotationDetailId: item.quotationDetailId ?? null,
+        shippingMethod: item.shippingMethod || null,
+        supplierCurrency: item.supplierCurrency || null,
+        supplierUnitPrice: item.supplierUnitPrice ?? null,
+        exchangeRate: item.exchangeRate ?? null,
+        supplierShippingCost: item.supplierShippingCost ?? null,
+        supplierTotalUnitCost: item.supplierTotalUnitCost ?? null,
+        supplierQuoteTierId: item.supplierQuoteTierId ?? null
       }))
     };
 
@@ -405,7 +502,7 @@ export default function SalesOrderDetail(): ReactElement {
         error: t('toast.failed')
       });
       setIsEditing(false);
-      await Promise.all([refetch(), refetchHistory()]);
+      await Promise.all([refetch(), refetchHistory(), refetchInvoices()]);
     } finally {
       setIsSaving(false);
     }
@@ -413,7 +510,7 @@ export default function SalesOrderDetail(): ReactElement {
 
   return (
     <Page>
-      <LoadingDialog open={isFetching || isActivityHistoryFetching || isSaving} />
+      <LoadingDialog open={isFetching || isActivityHistoryFetching || isInvoicePaymentsFetching || isSaving} />
       <PageTitle
         title={
           salesOrder?.salesOrderNo
@@ -489,6 +586,28 @@ export default function SalesOrderDetail(): ReactElement {
                   </ListItemIcon>
                   <ListItemText primary="ดูใบสั่งซื้อ" />
                 </MenuItem>
+                <Can permission={PERMISSIONS.INVOICE_CREATE}>
+                  <MenuItem
+                    onClick={handleCreateInvoice}
+                    disabled={!salesOrder || Boolean(salesOrder.invoiceNo)}
+                    sx={{ width: '100%' }}>
+                    <ListItemIcon>
+                      <ReceiptLong fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={t('documentManagement.invoice.createInvoiceMenu')} />
+                  </MenuItem>
+                </Can>
+                <Can permission={PERMISSIONS.PURCHASE_ORDER_CREATE}>
+                  <MenuItem
+                    onClick={handleCreatePurchaseOrder}
+                    disabled={!salesOrder || salesOrder.procurementStatus !== 'READY_FOR_PO'}
+                    sx={{ width: '100%' }}>
+                    <ListItemIcon>
+                      <AssignmentTurnedIn fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={t('documentManagement.invoice.createPOMenu')} />
+                  </MenuItem>
+                </Can>
                 <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
                   <MenuItem
                     onClick={handleSelectEdit}
@@ -534,6 +653,7 @@ export default function SalesOrderDetail(): ReactElement {
             }}>
             <Tab value="detail" label="รายละเอียด" />
             <Tab value="history" label="ประวัติ" />
+            <Tab value="paymentHistory" label="ประวัติการชำระเงิน" />
           </Tabs>
         </Box>
 
@@ -567,6 +687,10 @@ export default function SalesOrderDetail(): ReactElement {
                     <Info label="วันที่หมดอายุ" value={salesOrder?.expireDate} />
                   )}
                   <Info label="สถานะ" value={salesOrder?.status} />
+                  <Info
+                    label="สถานะจัดซื้อ"
+                    value={getProcurementStatusLabel(salesOrder?.procurementStatus)}
+                  />
                   <Info label="Revision" value={salesOrder?.revNo ?? '-'} />
                   {isEditing ? (
                     <TextField
@@ -930,6 +1054,139 @@ export default function SalesOrderDetail(): ReactElement {
 
         <TabPanel value="history" currentTab={tab}>
           <ActivityHistoryTimeline records={activityHistory} />
+        </TabPanel>
+
+        <TabPanel value="paymentHistory" currentTab={tab}>
+          <GridSearchSection container sx={{ mt: 0 }}>
+            <Grid item xs={12}>
+              <Stack spacing={1.25} className={classes.section}>
+                <Typography variant="h6">ประวัติการรับชำระเงิน</Typography>
+                {relatedInvoices.some((invoice) => invoice.payments?.length) ? (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell align="center" className={classes.tableHeader}>
+                            เลขที่ใบแจ้งหนี้
+                          </TableCell>
+                          <TableCell align="center" className={classes.tableHeader}>
+                            วิธีชำระเงิน
+                          </TableCell>
+                          <TableCell align="center" className={classes.tableHeader}>
+                            วันเวลาทำรายการ
+                          </TableCell>
+                          <TableCell align="center" className={classes.tableHeader}>
+                            วันที่รับชำระ
+                          </TableCell>
+                          <TableCell align="left" className={classes.tableHeader}>
+                            ข้อมูลเช็ค
+                          </TableCell>
+                          <TableCell align="right" className={classes.tableHeader}>
+                            จำนวนเงิน
+                          </TableCell>
+                          <TableCell align="center" className={classes.tableHeader}>
+                            ดำเนินการ
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {relatedInvoices.flatMap((invoice: InvoiceRecord) =>
+                          (invoice.payments || []).map((payment) => (
+                            <TableRow key={`${invoice.invoiceNo}-${payment.id}`}>
+                              <TableCell align="center">{invoice.invoiceNo}</TableCell>
+                              <TableCell align="center">
+                                {payment.paymentMethod === 'TRANSFER'
+                                  ? 'โอนเงิน'
+                                  : payment.paymentMethod === 'CHEQUE'
+                                    ? 'เช็ค'
+                                    : payment.paymentMethod === 'CASH'
+                                      ? 'เงินสด'
+                                      : '-'}
+                              </TableCell>
+                              <TableCell align="center">
+                                {payment.createdDate
+                                  ? formatDate(payment.createdDate, 'DD/MM/YYYY HH:mm')
+                                  : '-'}
+                              </TableCell>
+                              <TableCell align="center">
+                                {payment.paymentDate
+                                  ? formatDate(payment.paymentDate, 'DD/MM/YYYY')
+                                  : '-'}
+                              </TableCell>
+                              <TableCell align="left">
+                                {payment.paymentMethod === 'CHEQUE'
+                                  ? [
+                                    payment.chequeBank ? `ธนาคาร ${payment.chequeBank}` : null,
+                                    payment.chequeNo ? `เลขที่ ${payment.chequeNo}` : null,
+                                    payment.chequeDate
+                                      ? `วันที่ ${formatDate(payment.chequeDate, 'DD/MM/YYYY')}`
+                                      : null,
+                                    payment.chequeBranch ? `สาขา ${payment.chequeBranch}` : null
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' | ') || '-'
+                                  : '-'}
+                              </TableCell>
+                              <TableCell align="right">
+                                {formatNumber(payment.amount || 0)}
+                              </TableCell>
+                              <TableCell align="center">
+                                {payment.slipFileUrl ? (
+                                  <Tooltip title="ดูสลิป">
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      component="a"
+                                      href={payment.slipFileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer">
+                                      <FilePresent />
+                                    </Button>
+                                  </Tooltip>
+                                ) : (
+                                  '-'
+                                )}
+                                {payment.receiptNo ? (
+                                  <Tooltip title="ดาวน์โหลดใบเสร็จรับเงิน">
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      onClick={() => handleViewReceipt(payment.receiptNo as string)}>
+                                      <Description />
+                                    </Button>
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip title="สร้างใบเสร็จรับเงิน">
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      onClick={() =>
+                                        history.push(
+                                          ROUTE_PATHS.RECEIPT_CREATE_FROM_INVOICE_PAYMENT.replace(
+                                            ':invoiceId',
+                                            invoice.invoiceNo
+                                          ).replace(':paymentId', String(payment.id))
+                                        )
+                                      }>
+                                      <NoteAdd />
+                                    </Button>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    ยังไม่มีประวัติการรับชำระเงิน
+                  </Typography>
+                )}
+              </Stack>
+            </Grid>
+          </GridSearchSection>
         </TabPanel>
       </Wrapper>
     </Page>

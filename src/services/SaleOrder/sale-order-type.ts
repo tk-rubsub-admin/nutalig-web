@@ -46,6 +46,16 @@ export interface CreateSalesOrderDetailRequest {
     unitPrice: number;
     quantity: number;
     imageUrl?: string | null;
+    rfqDetailId?: number | null;
+    rfqTierId?: number | null;
+    quotationDetailId?: number | null;
+    shippingMethod?: 'LAND' | 'SEA' | null;
+    supplierCurrency?: string | null;
+    supplierUnitPrice?: number | null;
+    exchangeRate?: number | null;
+    supplierShippingCost?: number | null;
+    supplierTotalUnitCost?: number | null;
+    supplierQuoteTierId?: number | null;
 }
 
 export interface CreateSalesOrderRequestV1 {
@@ -82,6 +92,7 @@ export interface SalesOrderV1 {
     docDate: string | null;
     expireDate: string | null;
     status: string;
+    procurementStatus: string | null;
     currency: string;
     customer: Customer | null;
     saleAccount: Staff | null;
@@ -113,6 +124,16 @@ export interface SalesOrderDetailV1 {
     quantity: number;
     amount: number;
     imageUrl: string | null;
+    rfqDetailId?: number | null;
+    rfqTierId?: number | null;
+    quotationDetailId?: number | null;
+    shippingMethod?: 'LAND' | 'SEA' | null;
+    supplierCurrency?: string | null;
+    supplierUnitPrice?: number | null;
+    exchangeRate?: number | null;
+    supplierShippingCost?: number | null;
+    supplierTotalUnitCost?: number | null;
+    supplierQuoteTierId?: number | null;
 }
 
 export interface UpdateSalesOrderDetailRequestV1 {
@@ -126,6 +147,16 @@ export interface UpdateSalesOrderDetailRequestV1 {
     unitPrice: number;
     quantity: number;
     imageUrl?: string | null;
+    rfqDetailId?: number | null;
+    rfqTierId?: number | null;
+    quotationDetailId?: number | null;
+    shippingMethod?: 'LAND' | 'SEA' | null;
+    supplierCurrency?: string | null;
+    supplierUnitPrice?: number | null;
+    exchangeRate?: number | null;
+    supplierShippingCost?: number | null;
+    supplierTotalUnitCost?: number | null;
+    supplierQuoteTierId?: number | null;
 }
 
 export interface UpdateSalesOrderRequestV1 {

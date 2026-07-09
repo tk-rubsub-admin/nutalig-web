@@ -945,6 +945,95 @@
         "vatRate": "VAT Rate",
         "total": "Total"
       }
+    },
+    "invoice": {
+      "title": "Invoice",
+      "newInvoice": "Create Invoice",
+      "createInvoiceButton": "Create Invoice",
+      "createInvoiceMenu": "Create Invoice",
+      "createPOMenu": "Create Purchase Order",
+      "confirmCreateTitle": "Confirm Create Invoice",
+      "confirmCreateMessage": "Do you want to create an invoice from this sales order?",
+      "generalSection": "Invoice Information",
+      "referenceSalesOrder": "Reference Sales Order",
+      "docDate": "Document Date",
+      "dueDate": "Due Date",
+      "currency": "Currency",
+      "remark": "Remark",
+      "customerSection": {
+        "title": "Customer Information",
+        "address": "Address",
+        "contactName": "Contact Name",
+        "contactNumber": "Contact Number"
+      },
+      "salesSection": {
+        "title": "Sales Information",
+        "salesAccount": "Sales Account",
+        "coSalesAccount": "External / Freelance Sales",
+        "status": "Sales Order Status"
+      },
+      "itemSection": {
+        "name": "Item",
+        "spec": "Description",
+        "unitPrice": "Unit Price",
+        "quantity": "Quantity",
+        "totalAmount": "Amount"
+      },
+      "summarySection": {
+        "title": "Summary",
+        "subtotal": "Subtotal",
+        "remainingAmount": "Remaining Amount",
+        "depositAmount": "50% Deposit Amount",
+        "discount": "Discount",
+        "freight": "Freight",
+        "vat": "VAT",
+        "grandTotal": "Grand Total"
+      }
+    },
+    "receipt": {
+      "title": "Receipt",
+      "newReceipt": "Create Receipt",
+      "createReceiptButton": "Create Receipt",
+      "confirmCreateTitle": "Confirm Create Receipt",
+      "confirmCreateMessage": "Do you want to create a receipt from this payment entry?",
+      "generalSection": "Receipt Information",
+      "referenceInvoice": "Reference Invoice",
+      "referencePayment": "Reference Payment",
+      "receiptType": "Document Type",
+      "docDate": "Document Date",
+      "currency": "Currency",
+      "remark": "Remark",
+      "customerSection": {
+        "title": "Customer Information",
+        "address": "Address",
+        "contactName": "Contact Name",
+        "contactNumber": "Contact Number"
+      },
+      "salesSection": {
+        "salesAccount": "Sales Account"
+      },
+      "paymentSection": {
+        "title": "Payment Information",
+        "paymentMethod": "Payment Method",
+        "paymentDate": "Payment Date",
+        "paymentAmount": "Payment Amount",
+        "cheque": "Cheque Information"
+      },
+      "itemSection": {
+        "name": "Item",
+        "spec": "Description",
+        "unitPrice": "Unit Price",
+        "quantity": "Quantity",
+        "totalAmount": "Amount"
+      },
+      "summarySection": {
+        "title": "Summary",
+        "subtotal": "Subtotal Before VAT",
+        "discount": "Discount",
+        "amount": "Amount",
+        "vat": "VAT",
+        "grandTotal": "Grand Total"
+      }
     }
   },
   "permissionManagement": {

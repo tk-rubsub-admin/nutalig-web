@@ -1833,6 +1833,7 @@ export default function RFQDetail(): ReactElement {
               seaFreightCost,
               landTotalPrice,
               seaTotalPrice,
+              supplierQuoteTierId: tier.id,
               sortOrder: tierIndex + 1
             };
           })

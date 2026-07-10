@@ -302,7 +302,8 @@ export default function PriceInquiryManagement(): ReactElement {
       getRFQList(page, pageSize, {
         sortBy: 'slaDate',
         sortDirection: 'ASC',
-        statuses: ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED']
+        statuses: ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED'],
+        prioritizeApprovedUrgent: true
       }),
     {
       refetchOnWindowFocus: false,
@@ -344,6 +345,17 @@ export default function PriceInquiryManagement(): ReactElement {
                   size="small"
                   sx={{
                     ...getCustomerTierColor(rfq.customer.customerTier.code),
+                    fontWeight: 700
+                  }}
+                />
+              ) : null}
+              {rfq.urgentRequestStatus === 'APPROVED' ? (
+                <Chip
+                  label="เร่งด่วน"
+                  size="small"
+                  sx={{
+                    backgroundColor: '#fee2e2',
+                    color: '#b91c1c',
                     fontWeight: 700
                   }}
                 />
@@ -412,6 +424,17 @@ export default function PriceInquiryManagement(): ReactElement {
                     size="small"
                     sx={{
                       ...getCustomerTierColor(rfq.customer.customerTier.code),
+                      fontWeight: 700
+                    }}
+                  />
+                ) : null}
+                {rfq.urgentRequestStatus === 'APPROVED' ? (
+                  <Chip
+                    label="เร่งด่วน"
+                    size="small"
+                    sx={{
+                      backgroundColor: '#fee2e2',
+                      color: '#b91c1c',
                       fontWeight: 700
                     }}
                   />

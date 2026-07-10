@@ -1831,6 +1831,44 @@ export default function RFQDetail(): ReactElement {
                   }}
                 />
               ) : null}
+              {rfq.urgentRequest ? (
+                <Chip
+                  label={
+                    rfq.urgentRequestStatus === 'APPROVED'
+                      ? 'เร่งด่วนอนุมัติแล้ว'
+                      : rfq.urgentRequestStatus === 'REJECTED'
+                        ? 'คำขอเร่งด่วนไม่อนุมัติ'
+                        : 'เร่งด่วนรออนุมัติ'
+                  }
+                  size="small"
+                  sx={{
+                    height: 28,
+                    backgroundColor:
+                      rfq.urgentRequestStatus === 'APPROVED'
+                        ? '#fee2e2'
+                        : rfq.urgentRequestStatus === 'REJECTED'
+                          ? '#e2e8f0'
+                          : '#fff7ed',
+                    color:
+                      rfq.urgentRequestStatus === 'APPROVED'
+                        ? '#b91c1c'
+                        : rfq.urgentRequestStatus === 'REJECTED'
+                          ? '#475569'
+                          : '#c2410c',
+                    border:
+                      rfq.urgentRequestStatus === 'APPROVED'
+                        ? '1px solid #ef444433'
+                        : rfq.urgentRequestStatus === 'REJECTED'
+                          ? '1px solid #94a3b833'
+                          : '1px solid #fb923c33',
+                    fontWeight: 700,
+                    alignSelf: 'center',
+                    '& .MuiChip-label': {
+                      px: 1.25
+                    }
+                  }}
+                />
+              ) : null}
             </Stack>
           ) : null}
           {rfq?.slaDate && ['NEW', 'IN_PROGRESS'].includes(rfq.status || '') ? (
@@ -2218,6 +2256,28 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: true }}
                     />
                   </GridTextField>
+                  {rfq?.urgentRequest ? (
+                    <GridTextField item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="เหตุผลคำขอเร่งด่วน"
+                        value={rfq.urgentRequestReason || '-'}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{ readOnly: true }}
+                      />
+                    </GridTextField>
+                  ) : null}
+                  {rfq?.urgentRequestStatus === 'REJECTED' && rfq?.urgentRejectReason ? (
+                    <GridTextField item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="เหตุผลไม่อนุมัติเร่งด่วน"
+                        value={rfq.urgentRejectReason}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{ readOnly: true }}
+                      />
+                    </GridTextField>
+                  ) : null}
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField

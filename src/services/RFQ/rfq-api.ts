@@ -12,6 +12,7 @@ import {
   RFQSupplierQuoteResponse,
   SearchRFQResponse,
   LinkRFQSalesOrderRequest,
+  RejectUrgentRFQRequest,
   RequestRFQInformationRequest,
   UpdateRFQInquiryRequest,
   UpdateRFQRequest,
@@ -34,6 +35,7 @@ export const getRFQList = async (
     sortBy?: string;
     sortDirection?: string;
     statuses?: string[];
+    prioritizeApprovedUrgent?: boolean;
   }
 ) => {
   const params = new URLSearchParams();
@@ -81,6 +83,10 @@ export const getRFQList = async (
     payload.statuses = options.statuses;
   }
 
+  if (options?.prioritizeApprovedUrgent) {
+    payload.prioritizeApprovedUrgent = true;
+  }
+
   const response: SearchRFQResponse = await api
     .post('/v1/rfqs/search', payload, { params })
     .then((response) => response.data);
@@ -124,6 +130,24 @@ export const requestRFQInformation = async (payload: RequestRFQInformationReques
 
 export const rejectRFQ = async (id: string) => {
   const response = await api.patch(`/v1/rfqs/${id}/reject`).then((res) => res.data);
+
+  return response.data;
+};
+
+export const acceptRFQ = async (id: string) => {
+  const response = await api.patch(`/v1/rfqs/${id}/accept`).then((res) => res.data);
+
+  return response.data;
+};
+
+export const approveUrgentRFQ = async (id: string) => {
+  const response = await api.patch(`/v1/rfqs/${id}/urgent/approve`).then((res) => res.data);
+
+  return response.data;
+};
+
+export const rejectUrgentRFQ = async (id: string, payload: RejectUrgentRFQRequest) => {
+  const response = await api.patch(`/v1/rfqs/${id}/urgent/reject`, payload).then((res) => res.data);
 
   return response.data;
 };
@@ -202,6 +226,7 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
     formData.append('procurementId', payload.procurementId);
   }
 
+  formData.append('rfqTypeCode', payload.rfqTypeCode);
   formData.append('orderTypeCode', payload.orderTypeCode);
   formData.append('shippingMethod', payload.shippingMethod);
   formData.append('productFamily', payload.productFamily);
@@ -209,6 +234,18 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
   formData.append('systemMechanic', payload.systemMechanic);
   formData.append('material', payload.material);
   formData.append('capacity', payload.capacity);
+  if (payload.targetPrice !== undefined && payload.targetPrice !== null) {
+    formData.append('targetPrice', String(payload.targetPrice));
+  }
+  payload.requestedMoqs?.forEach((requestedMoq) => {
+    formData.append('requestedMoqs', String(requestedMoq));
+  });
+  if (payload.urgentRequest !== undefined) {
+    formData.append('urgentRequest', String(payload.urgentRequest));
+  }
+  if (payload.urgentRequestReason) {
+    formData.append('urgentRequestReason', payload.urgentRequestReason);
+  }
   formData.append('description', payload.description);
 
   payload.pictures.forEach((picture) => {

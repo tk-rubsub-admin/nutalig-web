@@ -209,6 +209,7 @@ export interface RFQRecord {
   sales: RFQEmployee | null;
   procurement?: RFQEmployee | null;
   customer: RFQCustomer | null;
+  rfqType: SystemConfig | null;
   orderType: SystemConfig | null;
   pictures: RFQPicture[];
   files?: RFQFileResource[];
@@ -223,6 +224,18 @@ export interface RFQRecord {
   productSubType2?: RFQProductSubtype2 | null;
   material: RFQProductMaterial | string | null;
   capacity: string;
+  targetPrice?: number | null;
+  requestedMoqs?: number[] | null;
+  urgentRequest?: boolean | null;
+  urgentRequestReason?: string | null;
+  urgentRequestStatus?: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | null;
+  urgentRequestedBy?: string | null;
+  urgentRequestedDate?: string | null;
+  urgentApprovedBy?: string | null;
+  urgentApprovedDate?: string | null;
+  urgentRejectedBy?: string | null;
+  urgentRejectedDate?: string | null;
+  urgentRejectReason?: string | null;
   description: string;
   createdBy: string;
   updatedBy: string;
@@ -253,6 +266,7 @@ export interface CreateRFQRequest {
   contactPhone: string;
   salesId: string;
   procurementId?: string;
+  rfqTypeCode: string;
   orderTypeCode: string;
   shippingMethod: 'ALL' | 'LAND' | 'SEA';
   productFamily: string;
@@ -260,6 +274,10 @@ export interface CreateRFQRequest {
   systemMechanic: string;
   material: string;
   capacity: string;
+  targetPrice?: number | null;
+  requestedMoqs?: number[];
+  urgentRequest?: boolean;
+  urgentRequestReason?: string;
   description: string;
   pictures: File[];
 }
@@ -272,12 +290,15 @@ export interface CreateRFQResponse {
 }
 
 export interface UpdateRFQRequest {
+  rfqTypeCode?: string;
   orderTypeCode: string;
   productFamily: string;
   productUsage: string;
   systemMechanic: string;
   material: string;
   capacity: string;
+  targetPrice?: number | null;
+  requestedMoqs?: number[];
   description: string;
   requestInformation?: string;
 }
@@ -285,6 +306,10 @@ export interface UpdateRFQRequest {
 export interface RequestRFQInformationRequest {
   rfqId: string;
   requestInformation: string;
+}
+
+export interface RejectUrgentRFQRequest {
+  reason: string;
 }
 
 export interface LinkRFQSalesOrderRequest {

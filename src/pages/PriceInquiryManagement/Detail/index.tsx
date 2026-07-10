@@ -3,6 +3,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   MenuItem,
   Stack,
@@ -12,6 +16,8 @@ import {
   Typography
 } from '@mui/material';
 import { useFormik } from 'formik';
+import { useAuth } from 'auth/AuthContext';
+import { ROLES } from 'auth/roles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import ConfirmDialog from 'components/ConfirmDialog';
@@ -41,10 +47,13 @@ import {
   deleteRFQAdditionalCost,
   deleteRFQDetail,
   deleteRFQPicture,
+  acceptRFQ,
+  approveUrgentRFQ,
   generateRFQInquiry,
   getRFQ,
   getRFQSuggestSuppliers,
   getRFQSupplierQuotes,
+  rejectUrgentRFQ,
   requestRFQInformation,
   updateRFQInquiry,
   updateRFQ,
@@ -1127,10 +1136,17 @@ function validateSupplierQuoteDraftDetail(
 
 export default function RFQDetail(): ReactElement {
   const params = useParams<RFQDetailParam>();
+  const { hasRole } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
+  const [visibleAcceptWorkConfirmationDialog, setVisibleAcceptWorkConfirmationDialog] =
+    useState(false);
+  const [visibleApproveUrgentConfirmationDialog, setVisibleApproveUrgentConfirmationDialog] =
+    useState(false);
+  const [visibleRejectUrgentDialog, setVisibleRejectUrgentDialog] = useState(false);
+  const [urgentRejectReason, setUrgentRejectReason] = useState('');
   const [visibleDetailSaveConfirmationDialog, setVisibleDetailSaveConfirmationDialog] =
     useState(false);
   const [draftDetailOptions, setDraftDetailOptions] = useState<RFQDetailOption[]>([]);
@@ -1507,6 +1523,59 @@ export default function RFQDetail(): ReactElement {
   const handleCloseRequestInformationDialog = () => {
     setRequestInformationText('');
     setVisibleRequestInformationDialog(false);
+  };
+
+  const handleConfirmAcceptWork = async () => {
+    if (!params.id) {
+      return;
+    }
+
+    setVisibleAcceptWorkConfirmationDialog(false);
+
+    await toast.promise(acceptRFQ(params.id), {
+      loading: t('toast.loading'),
+      success: t('toast.success'),
+      error: t('toast.failed')
+    });
+
+    await refetchPriceInquiryData();
+  };
+
+  const handleConfirmApproveUrgent = async () => {
+    if (!params.id) {
+      return;
+    }
+
+    setVisibleApproveUrgentConfirmationDialog(false);
+
+    await toast.promise(approveUrgentRFQ(params.id), {
+      loading: t('toast.loading'),
+      success: t('toast.success'),
+      error: t('toast.failed')
+    });
+
+    await refetchPriceInquiryData();
+  };
+
+  const handleConfirmRejectUrgent = async () => {
+    if (!params.id || !urgentRejectReason.trim()) {
+      return;
+    }
+
+    await toast.promise(
+      rejectUrgentRFQ(params.id, {
+        reason: urgentRejectReason.trim()
+      }),
+      {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      }
+    );
+
+    setVisibleRejectUrgentDialog(false);
+    setUrgentRejectReason('');
+    await refetchPriceInquiryData();
   };
 
   const handleConfirmRequestInformation = async () => {
@@ -2588,6 +2657,44 @@ export default function RFQDetail(): ReactElement {
               />
             </Stack>
           ) : null}
+          {rfq?.urgentRequest ? (
+            <Chip
+              label={
+                rfq.urgentRequestStatus === 'APPROVED'
+                  ? 'เร่งด่วนอนุมัติแล้ว'
+                  : rfq.urgentRequestStatus === 'REJECTED'
+                    ? 'คำขอเร่งด่วนไม่อนุมัติ'
+                    : 'เร่งด่วนรออนุมัติ'
+              }
+              size="small"
+              sx={{
+                height: 28,
+                backgroundColor:
+                  rfq.urgentRequestStatus === 'APPROVED'
+                    ? '#fee2e2'
+                    : rfq.urgentRequestStatus === 'REJECTED'
+                      ? '#e2e8f0'
+                      : '#fff7ed',
+                color:
+                  rfq.urgentRequestStatus === 'APPROVED'
+                    ? '#b91c1c'
+                    : rfq.urgentRequestStatus === 'REJECTED'
+                      ? '#475569'
+                      : '#c2410c',
+                border:
+                  rfq.urgentRequestStatus === 'APPROVED'
+                    ? '1px solid #ef444433'
+                    : rfq.urgentRequestStatus === 'REJECTED'
+                      ? '1px solid #94a3b833'
+                      : '1px solid #fb923c33',
+                fontWeight: 700,
+                alignSelf: 'center',
+                '& .MuiChip-label': {
+                  px: 1.25
+                }
+              }}
+            />
+          ) : null}
           {rfq?.slaDate && ['NEW', 'IN_PROGRESS'].includes(rfq.status || '') ? (
             <Chip
               label={slaPresentation.caption}
@@ -2608,8 +2715,33 @@ export default function RFQDetail(): ReactElement {
         </Stack>
       </PageTitle>
       <Wrapper>
-        <Stack spacing={2}>
+          <Stack spacing={2}>
           <Stack direction="row" justifyContent="flex-end" spacing={1}>
+            {rfq?.status === 'NEW' ? (
+              <Button
+                variant="contained"
+                className="btn-indigo-blue"
+                onClick={() => setVisibleAcceptWorkConfirmationDialog(true)}>
+                รับงาน
+              </Button>
+            ) : null}
+            {hasRole(ROLES.SUPER_ADMIN) &&
+            rfq?.urgentRequestStatus === 'PENDING_APPROVAL' ? (
+              <>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => setVisibleRejectUrgentDialog(true)}>
+                  ไม่อนุมัติเร่งด่วน
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => setVisibleApproveUrgentConfirmationDialog(true)}>
+                  อนุมัติเร่งด่วน
+                </Button>
+              </>
+            ) : null}
             {rfq?.status === 'SUPPLIER_QUOTED' ? (
               <Can permission={PERMISSIONS.RFQ_CONFIRM}>
                 <Button
@@ -2815,6 +2947,28 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: true }}
                     />
                   </GridTextField>
+                  {rfq?.urgentRequest ? (
+                    <GridTextField item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="เหตุผลคำขอเร่งด่วน"
+                        value={rfq.urgentRequestReason || '-'}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{ readOnly: true }}
+                      />
+                    </GridTextField>
+                  ) : null}
+                  {rfq?.urgentRequestStatus === 'REJECTED' && rfq?.urgentRejectReason ? (
+                    <GridTextField item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="เหตุผลไม่อนุมัติเร่งด่วน"
+                        value={rfq.urgentRejectReason}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{ readOnly: true }}
+                      />
+                    </GridTextField>
+                  ) : null}
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField
@@ -3120,6 +3274,28 @@ export default function RFQDetail(): ReactElement {
         </Stack>
       </Wrapper>
       <ConfirmDialog
+        open={visibleAcceptWorkConfirmationDialog}
+        title="ยืนยันรับงาน"
+        message="คุณยืนยันการรับงาน RFQ นี้ใช่หรือไม่"
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmAcceptWork}
+        onCancel={() => setVisibleAcceptWorkConfirmationDialog(false)}
+      />
+      <ConfirmDialog
+        open={visibleApproveUrgentConfirmationDialog}
+        title="ยืนยันอนุมัติคำขอเร่งด่วน"
+        message="คุณยืนยันอนุมัติคำขอราคาแบบเร่งด่วนนี้ใช่หรือไม่"
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmApproveUrgent}
+        onCancel={() => setVisibleApproveUrgentConfirmationDialog(false)}
+      />
+      <ConfirmDialog
         open={visibleConfirmationDialog}
         title={t('rfqManagement.message.confirmUpdateTitle')}
         message={t('rfqManagement.message.confirmUpdateMsg')}
@@ -3130,6 +3306,44 @@ export default function RFQDetail(): ReactElement {
         onConfirm={handleConfirmSave}
         onCancel={() => setVisibleConfirmationDialog(false)}
       />
+      <Dialog
+        open={visibleRejectUrgentDialog}
+        onClose={() => {
+          setVisibleRejectUrgentDialog(false);
+          setUrgentRejectReason('');
+        }}
+        fullWidth
+        maxWidth="sm">
+        <DialogTitle>เหตุผลไม่อนุมัติคำขอเร่งด่วน</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={4}
+            margin="dense"
+            label="เหตุผล"
+            value={urgentRejectReason}
+            onChange={(event) => setUrgentRejectReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => {
+              setVisibleRejectUrgentDialog(false);
+              setUrgentRejectReason('');
+            }}>
+            {t('button.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!urgentRejectReason.trim()}
+            onClick={handleConfirmRejectUrgent}>
+            {t('button.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <ConfirmDialog
         open={visibleDetailSaveConfirmationDialog}
         title="ยืนยันบันทึกตัวเลือกราคา"

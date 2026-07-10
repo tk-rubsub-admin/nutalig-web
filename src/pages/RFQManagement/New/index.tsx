@@ -1,11 +1,24 @@
-import { ArrowBackIos, Cancel, DeleteOutline, Save, UploadFile } from '@mui/icons-material';
+import {
+  AddCircleOutline,
+  ArrowBackIos,
+  Cancel,
+  DeleteOutline,
+  RemoveCircleOutline,
+  Save,
+  UploadFile
+} from '@mui/icons-material';
 import {
   Autocomplete,
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   Grid,
+  IconButton,
   ListSubheader,
   MenuItem,
   Radio,
@@ -25,7 +38,7 @@ import { GridTextField, Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
@@ -100,6 +113,8 @@ export default function NewRFQ(): JSX.Element {
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
+  const [urgentReasonDialogOpen, setUrgentReasonDialogOpen] = useState(false);
+  const [urgentReason, setUrgentReason] = useState('');
   const [pictureFiles, setPictureFiles] = useState<File[]>([]);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [customerKeyword, setCustomerKeyword] = useState('');
@@ -110,7 +125,7 @@ export default function NewRFQ(): JSX.Element {
   const pictureUrls = pictureFiles.map((file) => URL.createObjectURL(file));
   const isSalesRole = hasRole('SALES');
   const defaultSalesId = isSalesRole ? getEmployeeId() : '';
-  console.log('defaultSalesId : ' + defaultSalesId);
+  const submitModeRef = useRef<'NORMAL' | 'URGENT'>('NORMAL');
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedCustomerKeyword(customerKeyword.trim());
@@ -122,6 +137,14 @@ export default function NewRFQ(): JSX.Element {
   const { data: orderTypeList } = useQuery(
     'rfq-order-type-list',
     () => getSystemConfig('ORDER_TYPE'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: rfqTypeList = [] } = useQuery(
+    'rfq-type-list',
+    () => getSystemConfig('RFQ_TYPE'),
     {
       refetchOnWindowFocus: false
     }
@@ -185,6 +208,88 @@ export default function NewRFQ(): JSX.Element {
     []
   );
 
+  const submitCreateRFQ = async (
+    values: {
+      customerMode: string;
+      customerId: string;
+      contactName: string;
+      contactPhone: string;
+      salesId: string;
+      purchaseAccount: string;
+      rfqTypeCode: string;
+      orderTypeCode: string;
+      shippingMethod: 'ALL' | 'LAND' | 'SEA' | string;
+      productFamily: string;
+      productUsage: string;
+      systemMechanic: string;
+      material: string;
+      capacity: string;
+      capacityUnit: string;
+      targetPrice: string;
+      requestedMoqs: string[];
+      description: string;
+    },
+    actions: { setSubmitting: (isSubmitting: boolean) => void }
+  ) => {
+    actions.setSubmitting(true);
+
+    try {
+      let selectedCapacityUnit = values.capacityUnit;
+
+      if (selectedCapacityUnit === CUSTOM_UNIT_OPTION) {
+        selectedCapacityUnit = (await createCustomUnit()) || '';
+      }
+
+      const isUrgentRequest = submitModeRef.current === 'URGENT';
+      const response = await createRFQ({
+        customerId: values.customerMode === 'EXISTING' ? values.customerId : undefined,
+        contactName: values.contactName,
+        contactPhone: values.contactPhone,
+        salesId: values.salesId,
+        procurementId: values.purchaseAccount || undefined,
+        rfqTypeCode: values.rfqTypeCode,
+        orderTypeCode: values.orderTypeCode,
+        shippingMethod: values.shippingMethod as 'ALL' | 'LAND' | 'SEA',
+        productFamily: values.productFamily,
+        productUsage: values.productUsage,
+        systemMechanic: values.systemMechanic,
+        material: values.material,
+        capacity: selectedCapacityUnit
+          ? `${values.capacity.trim()} ${selectedCapacityUnit}`.trim()
+          : values.capacity,
+        targetPrice: values.targetPrice ? Number(values.targetPrice) : undefined,
+        requestedMoqs: values.requestedMoqs
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0)
+          .map((value) => Number(value)),
+        urgentRequest: isUrgentRequest,
+        urgentRequestReason: isUrgentRequest ? urgentReason.trim() : undefined,
+        description: values.description,
+        pictures: pictureFiles
+      });
+
+      toast.success(t('rfqManagement.message.createSuccess'));
+
+      const rfqId = response?.data?.id;
+      if (rfqId) {
+        if (attachmentFiles.length > 0) {
+          await addRFQAttachments(rfqId, attachmentFiles);
+        }
+
+        history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfqId));
+      } else {
+        history.push(ROUTE_PATHS.RFQ_MANAGEMENT);
+      }
+    } catch (error: any) {
+      toast.error(`${t('rfqManagement.message.createFailed')}${error?.message || ''}`);
+    } finally {
+      submitModeRef.current = 'NORMAL';
+      setUrgentReasonDialogOpen(false);
+      setUrgentReason('');
+      actions.setSubmitting(false);
+    }
+  };
+
   const formik = useFormik({
     initialValues: {
       customerMode: 'NEW',
@@ -193,6 +298,7 @@ export default function NewRFQ(): JSX.Element {
       contactPhone: '',
       salesId: defaultSalesId,
       purchaseAccount: '',
+      rfqTypeCode: '',
       orderTypeCode: '',
       shippingMethod: 'ALL',
       productFamily: '',
@@ -201,6 +307,8 @@ export default function NewRFQ(): JSX.Element {
       material: '',
       capacity: '',
       capacityUnit: '',
+      targetPrice: '',
+      requestedMoqs: [''],
       description: ''
     },
     validationSchema: Yup.object().shape({
@@ -217,6 +325,7 @@ export default function NewRFQ(): JSX.Element {
       }),
       salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
       purchaseAccount: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
+      rfqTypeCode: Yup.string().required(t('rfqManagement.validation.rfqTypeCode')),
       orderTypeCode: Yup.string().required(t('rfqManagement.validation.orderTypeCode')),
       shippingMethod: Yup.string().oneOf(['ALL', 'LAND', 'SEA']).required(),
       productFamily: Yup.string().max(255).required(t('rfqManagement.validation.productFamily')),
@@ -224,55 +333,33 @@ export default function NewRFQ(): JSX.Element {
       systemMechanic: Yup.string().max(255),
       material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
+      targetPrice: Yup.string().test(
+        'target-price-format',
+        t('rfqManagement.validation.targetPrice'),
+        (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+      ),
+      requestedMoqs: Yup.array()
+        .of(
+          Yup.string().test(
+            'requested-moq-format',
+            t('rfqManagement.validation.requestedMoqs'),
+            (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+          )
+        )
+        .test(
+          'requested-moq-required',
+          t('rfqManagement.validation.requestedMoqsRequired'),
+          (values) => {
+            if (!Array.isArray(values) || values.length === 0) {
+              return false;
+            }
+
+            return values.every((value) => value && value.trim().length > 0);
+          }
+        ),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
     }),
-    onSubmit: async (values, actions) => {
-      actions.setSubmitting(true);
-
-      try {
-        let selectedCapacityUnit = values.capacityUnit;
-
-        if (selectedCapacityUnit === CUSTOM_UNIT_OPTION) {
-          selectedCapacityUnit = (await createCustomUnit()) || '';
-        }
-
-        const response = await createRFQ({
-          customerId: values.customerMode === 'EXISTING' ? values.customerId : undefined,
-          contactName: values.contactName,
-          contactPhone: values.contactPhone,
-          salesId: values.salesId,
-          procurementId: values.purchaseAccount || undefined,
-          orderTypeCode: values.orderTypeCode,
-          shippingMethod: values.shippingMethod as 'ALL' | 'LAND' | 'SEA',
-          productFamily: values.productFamily,
-          productUsage: values.productUsage,
-          systemMechanic: values.systemMechanic,
-          material: values.material,
-          capacity: selectedCapacityUnit
-            ? `${values.capacity.trim()} ${selectedCapacityUnit}`.trim()
-            : values.capacity,
-          description: values.description,
-          pictures: pictureFiles
-        });
-
-        toast.success(t('rfqManagement.message.createSuccess'));
-
-        const rfqId = response?.data?.id;
-        if (rfqId) {
-          if (attachmentFiles.length > 0) {
-            await addRFQAttachments(rfqId, attachmentFiles);
-          }
-
-          history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfqId));
-        } else {
-          history.push(ROUTE_PATHS.RFQ_MANAGEMENT);
-        }
-      } catch (error: any) {
-        toast.error(`${t('rfqManagement.message.createFailed')}${error?.message || ''}`);
-      } finally {
-        actions.setSubmitting(false);
-      }
-    }
+    onSubmit: submitCreateRFQ
   });
   const { data: procurementOptions = [], isFetching: isProcurementFetching } = useQuery(
     ['rfq-procurement-options', formik.values.salesId],
@@ -373,6 +460,38 @@ export default function NewRFQ(): JSX.Element {
     setVisibleConfirmationDialog(true);
   };
 
+  const handleOpenUrgentReasonDialog = async () => {
+    const touchedFields = {
+      customerMode: true,
+      customerId: true,
+      contactName: true,
+      contactPhone: true,
+      salesId: true,
+      purchaseAccount: true,
+      rfqTypeCode: true,
+      orderTypeCode: true,
+      shippingMethod: true,
+      productFamily: true,
+      productUsage: true,
+      systemMechanic: true,
+      material: true,
+      capacity: true,
+      capacityUnit: true,
+      targetPrice: true,
+      requestedMoqs: formik.values.requestedMoqs.map(() => true),
+      description: true
+    } as const;
+
+    formik.setTouched(touchedFields, true);
+    const validationErrors = await formik.validateForm();
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setUrgentReasonDialogOpen(true);
+  };
+
   const handleConfirm = async () => {
     setVisibleConfirmationDialog(false);
 
@@ -394,6 +513,7 @@ export default function NewRFQ(): JSX.Element {
     }
 
     if (actionType === 'create') {
+      submitModeRef.current = 'NORMAL';
       await formik.submitForm();
     }
   };
@@ -463,7 +583,19 @@ export default function NewRFQ(): JSX.Element {
               )
             }
             startIcon={<Save />}>
-            {t('button.create')}
+            {/* {t('button.create')} */}
+            ขอราคา
+          </Button>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-pastel-yellow"
+            disabled={formik.isSubmitting}
+            onClick={() => {
+              void handleOpenUrgentReasonDialog();
+            }}
+            startIcon={<Save />}>
+            ขอราคาแบบเร่งด่วน 🔥
           </Button>
         </Stack>
       </Wrapper>
@@ -604,6 +736,25 @@ export default function NewRFQ(): JSX.Element {
             <TextField
               select
               fullWidth
+              label={t('rfqManagement.form.rfqTypeCode')}
+              InputLabelProps={{ shrink: true }}
+              name="rfqTypeCode"
+              value={formik.values.rfqTypeCode}
+              onChange={formik.handleChange}
+              onBlur={() => formik.setFieldTouched('rfqTypeCode', true)}
+              error={formik.touched.rfqTypeCode && Boolean(formik.errors.rfqTypeCode)}
+              helperText={formik.touched.rfqTypeCode && formik.errors.rfqTypeCode}>
+              {rfqTypeList.map((item: SystemConfig) => (
+                <MenuItem key={item.code} value={item.code}>
+                  {getSystemConfigDisplayName(item)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
               label={t('rfqManagement.form.salesId')}
               InputLabelProps={{ shrink: true }}
               name="salesId"
@@ -613,7 +764,7 @@ export default function NewRFQ(): JSX.Element {
                 formik.setFieldValue('salesId', selectedSalesId);
                 formik.setFieldValue('purchaseAccount', '');
               }}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('salesId', true)}
               disabled={isSalesRole}
               SelectProps={{ displayEmpty: true }}
               error={formik.touched.salesId && Boolean(formik.errors.salesId)}
@@ -649,7 +800,7 @@ export default function NewRFQ(): JSX.Element {
               name="purchaseAccount"
               value={formik.values.purchaseAccount}
               onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('purchaseAccount', true)}
               disabled={!formik.values.salesId || isProcurementFetching}
               SelectProps={{ displayEmpty: true }}
               error={formik.touched.purchaseAccount && Boolean(formik.errors.purchaseAccount)}
@@ -687,7 +838,7 @@ export default function NewRFQ(): JSX.Element {
               name="orderTypeCode"
               value={formik.values.orderTypeCode}
               onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('orderTypeCode', true)}
               error={formik.touched.orderTypeCode && Boolean(formik.errors.orderTypeCode)}
               helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}>
               {(orderTypeList || []).map((item: SystemConfig) => (
@@ -699,23 +850,6 @@ export default function NewRFQ(): JSX.Element {
           </GridTextField>
 
           <GridTextField item xs={12} sm={6}>
-            <Box>
-              <Typography variant="body2" sx={{ mb: 0.75, color: 'text.secondary' }}>
-                การขนส่ง
-              </Typography>
-              <RadioGroup
-                row
-                name="shippingMethod"
-                value={formik.values.shippingMethod}
-                onChange={formik.handleChange}>
-                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทั้งหมด" />
-                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
-                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
-              </RadioGroup>
-            </Box>
-          </GridTextField>
-
-          <GridTextField item xs={12} sm={6}>
             <TextField
               select
               fullWidth
@@ -724,7 +858,7 @@ export default function NewRFQ(): JSX.Element {
               name="productFamily"
               value={formik.values.productFamily}
               onChange={handleProductFamilyChange}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('productFamily', true)}
               disabled={isProductFamilyFetching}
               error={formik.touched.productFamily && Boolean(formik.errors.productFamily)}
               helperText={formik.touched.productFamily && formik.errors.productFamily}>
@@ -750,12 +884,43 @@ export default function NewRFQ(): JSX.Element {
             <TextField
               select
               fullWidth
+              label={t('rfqManagement.form.material')}
+              InputLabelProps={{ shrink: true }}
+              name="material"
+              value={formik.values.material}
+              onChange={formik.handleChange}
+              onBlur={() => formik.setFieldTouched('material', true)}
+              disabled={!formik.values.productFamily || isProductFamilyFetching}
+              error={formik.touched.material && Boolean(formik.errors.material)}
+              helperText={formik.touched.material && formik.errors.material}>
+              {!formik.values.productFamily ? (
+                <MenuItem disabled value="">
+                  กรุณาเลือก Product Family ก่อน
+                </MenuItem>
+              ) : null}
+              {formik.values.productFamily && materialOptions.length === 0 ? (
+                <MenuItem disabled value="">
+                  ไม่พบข้อมูล Material
+                </MenuItem>
+              ) : null}
+              {materialOptions.map((productMaterial: ProductMaterial) => (
+                <MenuItem key={productMaterial.code} value={productMaterial.code}>
+                  {getProductMaterialDisplayName(productMaterial)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
               label={t('rfqManagement.form.productUsage')}
               InputLabelProps={{ shrink: true }}
               name="productUsage"
               value={formik.values.productUsage}
               onChange={handleProductUsageChange}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('productUsage', true)}
               disabled={!formik.values.productFamily || isProductFamilyFetching}
               error={formik.touched.productUsage && Boolean(formik.errors.productUsage)}
               helperText={formik.touched.productUsage && formik.errors.productUsage}>
@@ -785,7 +950,7 @@ export default function NewRFQ(): JSX.Element {
               name="systemMechanic"
               value={formik.values.systemMechanic}
               onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('systemMechanic', true)}
               disabled={!formik.values.productUsage || isProductFamilyFetching}
               error={formik.touched.systemMechanic && Boolean(formik.errors.systemMechanic)}
               helperText={formik.touched.systemMechanic && formik.errors.systemMechanic}>
@@ -827,7 +992,7 @@ export default function NewRFQ(): JSX.Element {
               name="capacityUnit"
               value={formik.values.capacityUnit}
               onChange={handleCapacityUnitChange}
-              onBlur={formik.handleBlur}
+              onBlur={() => formik.setFieldTouched('capacityUnit', true)}
               disabled={isUnitFetching || isCreatingUnit}>
               {isUnitFetching ? (
                 <MenuItem disabled value="">
@@ -867,35 +1032,151 @@ export default function NewRFQ(): JSX.Element {
             ) : null}
           </GridTextField>
 
-          <GridTextField item xs={12} sm={6}>
+          <GridTextField item xs={6} sm={3}>
             <TextField
-              select
               fullWidth
-              label={t('rfqManagement.form.material')}
+              type="number"
+              label={t('rfqManagement.form.targetPrice')}
               InputLabelProps={{ shrink: true }}
-              name="material"
-              value={formik.values.material}
+              name="targetPrice"
+              value={formik.values.targetPrice}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              disabled={!formik.values.productFamily || isProductFamilyFetching}
-              error={formik.touched.material && Boolean(formik.errors.material)}
-              helperText={formik.touched.material && formik.errors.material}>
-              {!formik.values.productFamily ? (
-                <MenuItem disabled value="">
-                  กรุณาเลือก Product Family ก่อน
-                </MenuItem>
-              ) : null}
-              {formik.values.productFamily && materialOptions.length === 0 ? (
-                <MenuItem disabled value="">
-                  ไม่พบข้อมูล Material
-                </MenuItem>
-              ) : null}
-              {materialOptions.map((productMaterial: ProductMaterial) => (
-                <MenuItem key={productMaterial.code} value={productMaterial.code}>
-                  {getProductMaterialDisplayName(productMaterial)}
-                </MenuItem>
-              ))}
-            </TextField>
+              error={formik.touched.targetPrice && Boolean(formik.errors.targetPrice)}
+              helperText={formik.touched.targetPrice && formik.errors.targetPrice}
+              inputProps={{ min: 0, step: '0.0001' }}
+            />
+          </GridTextField>
+
+          <GridTextField item xs={6} sm={3} style={{ paddingLeft: '25px' }}>
+            <Box>
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                การขนส่ง
+              </Typography>
+              <RadioGroup
+                row
+                name="shippingMethod"
+                value={formik.values.shippingMethod}
+                onChange={formik.handleChange}>
+                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทั้งหมด" />
+                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
+                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
+              </RadioGroup>
+            </Box>
+          </GridTextField>
+
+          <GridTextField item xs={3} sm={3}>
+            <Stack spacing={1.25}>
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                {t('rfqManagement.form.requestedMoqs')}
+              </Typography>
+              {(() => {
+                const requestedMoqGroupError =
+                  typeof formik.errors.requestedMoqs === 'string' ? formik.errors.requestedMoqs : undefined;
+                const shouldShowGroupError =
+                  Boolean(requestedMoqGroupError) &&
+                  (formik.submitCount > 0 || Boolean(formik.touched.requestedMoqs));
+
+                return (
+                  <Box
+                    sx={{
+                      border: '1px solid',
+                      borderColor: shouldShowGroupError ? 'error.main' : 'divider',
+                      borderRadius: 1.5,
+                      px: 1.5,
+                      py: 1.5,
+                      backgroundColor: 'background.paper'
+                    }}>
+                    <Stack spacing={1.25}>
+                      {formik.values.requestedMoqs.map((requestedMoq, index) => {
+                        const requestedMoqErrors = formik.errors.requestedMoqs;
+                        const requestedMoqTouched = formik.touched.requestedMoqs;
+                        const helperText =
+                          Array.isArray(requestedMoqTouched) &&
+                            requestedMoqTouched[index] &&
+                            Array.isArray(requestedMoqErrors) &&
+                            typeof requestedMoqErrors[index] === 'string'
+                            ? requestedMoqErrors[index]
+                            : undefined;
+                        const fieldError =
+                          Boolean(helperText) ||
+                          (shouldShowGroupError && !requestedMoq?.trim());
+
+                        return (
+                          <Stack
+                            key={`requested-moq-${index}`}
+                            direction="row"
+                            spacing={1}
+                            alignItems="flex-start">
+                            <TextField
+                              fullWidth
+                              type="number"
+                              label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                              InputLabelProps={{ shrink: true }}
+                              value={requestedMoq}
+                              onChange={(event) => {
+                                const nextValues = [...formik.values.requestedMoqs];
+                                nextValues[index] = event.target.value;
+                                formik.setFieldValue('requestedMoqs', nextValues);
+                              }}
+                              onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}`, true)}
+                              error={fieldError}
+                              helperText={helperText}
+                              inputProps={{ min: 0, step: '1' }}
+                              sx={{
+                                '& .MuiInputBase-root': {
+                                  backgroundColor: 'common.white'
+                                }
+                              }}
+                            />
+                            <Stack direction="row" spacing={0.5} sx={{ pt: 0.5, flexShrink: 0 }}>
+                              <IconButton
+                                color="primary"
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  borderRadius: 1.5
+                                }}
+                                onClick={() =>
+                                  formik.setFieldValue('requestedMoqs', [...formik.values.requestedMoqs, ''])
+                                }>
+                                <AddCircleOutline />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                disabled={formik.values.requestedMoqs.length === 1}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor:
+                                    formik.values.requestedMoqs.length === 1 ? 'divider' : 'error.main',
+                                  borderRadius: 1.5
+                                }}
+                                onClick={() => {
+                                  const nextValues = formik.values.requestedMoqs.filter(
+                                    (_, itemIndex) => itemIndex !== index
+                                  );
+                                  formik.setFieldValue('requestedMoqs', nextValues.length ? nextValues : ['']);
+                                }}>
+                                <RemoveCircleOutline />
+                              </IconButton>
+                            </Stack>
+                          </Stack>
+                        );
+                      })}
+                    </Stack>
+                    {shouldShowGroupError ? (
+                      <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+                        {requestedMoqGroupError}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                );
+              })()}
+            </Stack>
           </GridTextField>
 
           <GridTextField item xs={12}>
@@ -1074,6 +1355,48 @@ export default function NewRFQ(): JSX.Element {
         onConfirm={handleConfirm}
         onCancel={() => setVisibleConfirmationDialog(false)}
       />
+
+      <Dialog
+        open={urgentReasonDialogOpen}
+        onClose={() => {
+          setUrgentReasonDialogOpen(false);
+          setUrgentReason('');
+        }}
+        fullWidth
+        maxWidth="sm">
+        <DialogTitle>เหตุผลในการขอราคาแบบเร่งด่วน</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={4}
+            margin="dense"
+            label="เหตุผล"
+            value={urgentReason}
+            onChange={(event) => setUrgentReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => {
+              setUrgentReasonDialogOpen(false);
+              setUrgentReason('');
+            }}>
+            {t('button.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!urgentReason.trim()}
+            onClick={async () => {
+              submitModeRef.current = 'URGENT';
+              await formik.submitForm();
+            }}>
+            {t('button.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Page>
   );
 }

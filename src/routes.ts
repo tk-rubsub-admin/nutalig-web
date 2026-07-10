@@ -19,6 +19,7 @@ export const ROUTE_PATHS = Object.freeze({
   RESET_PASSWORD: '/reset-password',
   CHANGE_PASSWORD: '/change-password',
   MAGIC_LINK: '/magic-link',
+  APPROVAL_REJECT: '/approval-reject',
   SUPPLIER_MANAGEMENT: '/supplier-management',
   SUPPLIER_DETAIL: '/supplier/:id',
   SUPPLIER_NEW: '/supplier-create',
@@ -125,6 +126,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.MAGIC_LINK,
     isPublic: true,
     component: lazy(() => import('./pages/MagicLink' /* webpackChunkName: "app" */))
+  },
+  {
+    path: ROUTE_PATHS.APPROVAL_REJECT,
+    isPublic: true,
+    component: lazy(() => import('./pages/ApprovalReject' /* webpackChunkName: "app" */))
   },
   {
     path: ROUTE_PATHS.SUPPLIER_MANAGEMENT,

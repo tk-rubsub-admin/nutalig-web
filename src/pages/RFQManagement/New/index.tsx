@@ -372,10 +372,17 @@ export default function NewRFQ(): JSX.Element {
 
   const selectedProductFamily = useMemo(
     () =>
-      productFamilyList.find(
+      productFamilyList
+        .filter((productFamily: ProductFamily) => productFamily.isActive !== false)
+        .find(
         (productFamily: ProductFamily) => productFamily.code === formik.values.productFamily
       ),
     [formik.values.productFamily, productFamilyList]
+  );
+
+  const activeProductFamilyList = useMemo(
+    () => productFamilyList.filter((productFamily: ProductFamily) => productFamily.isActive !== false),
+    [productFamilyList]
   );
 
   const productUsageOptions = selectedProductFamily?.subtype1List || [];
@@ -452,6 +459,25 @@ export default function NewRFQ(): JSX.Element {
       formik.setFieldValue('purchaseAccount', defaultProcurement.salesId);
     }
   }, [formik, procurementOptions]);
+
+  useEffect(() => {
+    if (!formik.values.productFamily) {
+      return;
+    }
+
+    const matchedProductFamily = activeProductFamilyList.find(
+      (productFamily: ProductFamily) => productFamily.code === formik.values.productFamily
+    );
+
+    if (matchedProductFamily) {
+      return;
+    }
+
+    formik.setFieldValue('productFamily', '');
+    formik.setFieldValue('productUsage', '');
+    formik.setFieldValue('systemMechanic', '');
+    formik.setFieldValue('material', '');
+  }, [activeProductFamilyList, formik, formik.values.productFamily]);
 
   const handleOpenConfirm = (type: string, title: string, message: string) => {
     setActionType(type);
@@ -867,12 +893,12 @@ export default function NewRFQ(): JSX.Element {
                   กำลังโหลดข้อมูล
                 </MenuItem>
               ) : null}
-              {!isProductFamilyFetching && productFamilyList.length === 0 ? (
+              {!isProductFamilyFetching && activeProductFamilyList.length === 0 ? (
                 <MenuItem disabled value="">
                   ไม่พบข้อมูล Product Family
                 </MenuItem>
               ) : null}
-              {productFamilyList.map((productFamily: ProductFamily) => (
+              {activeProductFamilyList.map((productFamily: ProductFamily) => (
                 <MenuItem key={productFamily.code} value={productFamily.code}>
                   {getProductFamilyDisplayName(productFamily)}
                 </MenuItem>

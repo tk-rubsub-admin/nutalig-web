@@ -73,6 +73,7 @@ export interface ProductFamily {
   code: string;
   nameTh: string;
   nameEn: string;
+  isActive?: boolean;
   materialList?: ProductMaterial[];
   productMaterialList?: ProductMaterial[];
   subtype1List: ProductSubtype1[];

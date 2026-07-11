@@ -1,6 +1,7 @@
 import {
   ArrowBackIos,
   ArrowDropDown,
+  Cancel,
   CancelPresentation,
   DeleteOutline,
   Description,
@@ -329,6 +330,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   };
 
   const handleCancelEdit = () => {
+    handleCloseActionMenu();
     setDraft(createDraft(purchaseOrder));
     setIsEditing(false);
   };
@@ -468,41 +470,19 @@ export default function PurchaseOrderDetail(): ReactElement {
           spacing={1}
           useFlexGap
           sx={{ justifyContent: { sm: 'flex-end' }, alignItems: { xs: 'stretch', sm: 'center' }, mb: 2 }}>
-          {isEditing ? (
-            <>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-emerald-green"
-                startIcon={<Save />}
-                onClick={handleSave}
-                disabled={isSubmitting}>
-                {t('button.save')}
-              </Button>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-cool-grey"
-                onClick={handleCancelEdit}
-                disabled={isSubmitting}>
-                {t('button.cancel')}
-              </Button>
-            </>
-          ) : (
-            <Button
-              fullWidth={isDownSm}
-              variant="contained"
-              className="btn-indigo-blue"
-              startIcon={<MenuIcon />}
-              endIcon={<ArrowDropDown />}
-              onClick={handleOpenActionMenu}
-              disabled={!purchaseOrder}
-              aria-controls={isActionMenuOpen ? 'purchase-order-action-menu' : undefined}
-              aria-haspopup="true"
-              aria-expanded={isActionMenuOpen ? 'true' : undefined}>
-              ตัวเลือก
-            </Button>
-          )}
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-indigo-blue"
+            startIcon={<MenuIcon />}
+            endIcon={<ArrowDropDown />}
+            onClick={handleOpenActionMenu}
+            disabled={!purchaseOrder}
+            aria-controls={isActionMenuOpen ? 'purchase-order-action-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={isActionMenuOpen ? 'true' : undefined}>
+            ตัวเลือก
+          </Button>
           <Button
             fullWidth={isDownSm}
             variant="contained"
@@ -526,42 +506,70 @@ export default function PurchaseOrderDetail(): ReactElement {
             }
           }}
           keepMounted>
-          <MenuItem onClick={handleViewPurchaseOrder} sx={{ width: '100%' }}>
-            <ListItemIcon>
-              <Description fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="ดูใบสั่งซื้อ" />
-          </MenuItem>
-          <MenuItem onClick={handleSelectEdit} disabled={!canManagePurchaseOrder} sx={{ width: '100%' }}>
-            <ListItemIcon>
-              <Edit fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="แก้ไขใบสั่งซื้อ" />
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              handleCloseActionMenu();
-              setIsCancelDialogOpen(true);
-            }}
-            disabled={!canManagePurchaseOrder}
-            sx={{ width: '100%' }}>
-            <ListItemIcon>
-              <CancelPresentation fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="ยกเลิกใบสั่งซื้อ" />
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              handleCloseActionMenu();
-              setIsCloseDialogOpen(true);
-            }}
-            disabled={!canManagePurchaseOrder}
-            sx={{ width: '100%' }}>
-            <ListItemIcon>
-              <TaskAlt fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="ปิดใบสั่งซื้อ" />
-          </MenuItem>
+          {isEditing ? (
+            <>
+              <MenuItem
+                onClick={() => {
+                  handleCloseActionMenu();
+                  void handleSave();
+                }}
+                disabled={isSubmitting}
+                sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <Save fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={t('button.save')} />
+              </MenuItem>
+              <MenuItem onClick={handleCancelEdit} disabled={isSubmitting} sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <Cancel fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={t('button.cancel')} />
+              </MenuItem>
+            </>
+          ) : (
+            <>
+              <MenuItem onClick={handleViewPurchaseOrder} sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <Description fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="ดูใบสั่งซื้อ" />
+              </MenuItem>
+              <MenuItem
+                onClick={handleSelectEdit}
+                disabled={!canManagePurchaseOrder}
+                sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <Edit fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="แก้ไขใบสั่งซื้อ" />
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  handleCloseActionMenu();
+                  setIsCancelDialogOpen(true);
+                }}
+                disabled={!canManagePurchaseOrder}
+                sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <CancelPresentation fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="ยกเลิกใบสั่งซื้อ" />
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  handleCloseActionMenu();
+                  setIsCloseDialogOpen(true);
+                }}
+                disabled={!canManagePurchaseOrder}
+                sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <TaskAlt fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="ปิดใบสั่งซื้อ" />
+              </MenuItem>
+            </>
+          )}
         </Menu>
 
         <ConfirmDialog

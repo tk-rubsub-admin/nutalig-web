@@ -2,6 +2,7 @@ import {
   ArrowBackIos,
   ArrowDropDown,
   AssignmentTurnedIn,
+  Cancel,
   Description,
   FilePresent,
   Menu as MenuIcon,
@@ -390,6 +391,7 @@ export default function SalesOrderDetail(): ReactElement {
   };
 
   const handleCancel = () => {
+    handleCloseActionMenu();
     setDraft(createDraft(salesOrder));
     setIsEditing(false);
   };
@@ -529,54 +531,55 @@ export default function SalesOrderDetail(): ReactElement {
             alignItems: { xs: 'stretch', sm: 'center' },
             mb: 2
           }}>
-          {isEditing ? (
-            <>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-emerald-green"
-                startIcon={<Save />}
-                onClick={handleSave}
-                disabled={isSaving}>
-                {t('button.save')}
-              </Button>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-cool-grey"
-                onClick={handleCancel}
-                disabled={isSaving}>
-                {t('button.cancel')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                fullWidth={isDownSm}
-                variant="contained"
-                className="btn-indigo-blue"
-                startIcon={<MenuIcon />}
-                endIcon={<ArrowDropDown />}
-                onClick={handleOpenActionMenu}
-                disabled={!salesOrder}
-                aria-controls={isActionMenuOpen ? 'sales-order-action-menu' : undefined}
-                aria-haspopup="true"
-                aria-expanded={isActionMenuOpen ? 'true' : undefined}>
-                ตัวเลือก
-              </Button>
-              <Menu
-                id="sales-order-action-menu"
-                anchorEl={actionMenuAnchorEl}
-                open={isActionMenuOpen}
-                onClose={handleCloseActionMenu}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                PaperProps={{
-                  sx: {
-                    minWidth: actionMenuAnchorEl?.offsetWidth || undefined
-                  }
-                }}
-                keepMounted>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-indigo-blue"
+            startIcon={<MenuIcon />}
+            endIcon={<ArrowDropDown />}
+            onClick={handleOpenActionMenu}
+            disabled={!salesOrder}
+            aria-controls={isActionMenuOpen ? 'sales-order-action-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={isActionMenuOpen ? 'true' : undefined}>
+            ตัวเลือก
+          </Button>
+          <Menu
+            id="sales-order-action-menu"
+            anchorEl={actionMenuAnchorEl}
+            open={isActionMenuOpen}
+            onClose={handleCloseActionMenu}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+            PaperProps={{
+              sx: {
+                minWidth: actionMenuAnchorEl?.offsetWidth || undefined
+              }
+            }}
+            keepMounted>
+            {isEditing ? (
+              <>
+                <MenuItem
+                  onClick={() => {
+                    handleCloseActionMenu();
+                    void handleSave();
+                  }}
+                  disabled={isSaving}
+                  sx={{ width: '100%' }}>
+                  <ListItemIcon>
+                    <Save fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={t('button.save')} />
+                </MenuItem>
+                <MenuItem onClick={handleCancel} disabled={isSaving} sx={{ width: '100%' }}>
+                  <ListItemIcon>
+                    <Cancel fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={t('button.cancel')} />
+                </MenuItem>
+              </>
+            ) : (
+              <>
                 <MenuItem
                   onClick={handleDownloadSalesOrder}
                   disabled={!salesOrder}
@@ -619,9 +622,9 @@ export default function SalesOrderDetail(): ReactElement {
                     <ListItemText primary="แก้ไขใบสั่งซื้อ" />
                   </MenuItem>
                 </Can>
-              </Menu>
-            </>
-          )}
+              </>
+            )}
+          </Menu>
           <Button
             fullWidth={isDownSm}
             variant="contained"

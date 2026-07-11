@@ -811,6 +811,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleCreateCustomerDialog, setVisibleCreateCustomerDialog] = useState(false);
   const [visibleConfirmRfqDialog, setVisibleConfirmRfqDialog] = useState(false);
   const [visibleRequestedInformationDialog, setVisibleRequestedInformationDialog] = useState(false);
+  const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
   const [visibleRejectRfqDialog, setVisibleRejectRfqDialog] = useState(false);
   const [visibleCloseRfqConfirmDialog, setVisibleCloseRfqConfirmDialog] = useState(false);
   const [visibleCloseRfqDialog, setVisibleCloseRfqDialog] = useState(false);
@@ -1006,6 +1007,10 @@ export default function RFQDetail(): ReactElement {
     return orderTypeList.find((item: SystemConfig) => item.code === formik.values.orderTypeCode)
       ?.nameTh;
   }, [formik.values.orderTypeCode, orderTypeList]);
+
+  const requestedMoqDisplayValues = useMemo(() => {
+    return (rfq?.requestedMoqs || []).map((item) => `${item}`);
+  }, [rfq?.requestedMoqs]);
 
   const selectedProductFamily = useMemo(
     () =>
@@ -1841,6 +1846,8 @@ export default function RFQDetail(): ReactElement {
                         : 'เร่งด่วนรออนุมัติ'
                   }
                   size="small"
+                  clickable
+                  onClick={() => setVisibleUrgentDetailDialog(true)}
                   sx={{
                     height: 28,
                     backgroundColor:
@@ -2204,18 +2211,8 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="เซลล์ผู้ดูแล"
-                      value={getEmployeeLabel(rfq?.sales)}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
-                  </GridTextField>
-
-                  <GridTextField item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="จัดซื้อที่ดูแล"
-                      value={getEmployeeLabel(rfq?.procurement)}
+                      label={t('rfqManagement.form.rfqTypeCode')}
+                      value={getNamedCodeValueLabel(rfq?.rfqType)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
@@ -2250,34 +2247,22 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="การขนส่ง"
-                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      label="เซลล์ผู้ดูแล"
+                      value={getEmployeeLabel(rfq?.sales)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
                   </GridTextField>
-                  {rfq?.urgentRequest ? (
-                    <GridTextField item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="เหตุผลคำขอเร่งด่วน"
-                        value={rfq.urgentRequestReason || '-'}
-                        InputLabelProps={{ shrink: true }}
-                        InputProps={{ readOnly: true }}
-                      />
-                    </GridTextField>
-                  ) : null}
-                  {rfq?.urgentRequestStatus === 'REJECTED' && rfq?.urgentRejectReason ? (
-                    <GridTextField item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="เหตุผลไม่อนุมัติเร่งด่วน"
-                        value={rfq.urgentRejectReason}
-                        InputLabelProps={{ shrink: true }}
-                        InputProps={{ readOnly: true }}
-                      />
-                    </GridTextField>
-                  ) : null}
+
+                  <GridTextField item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="จัดซื้อที่ดูแล"
+                      value={getEmployeeLabel(rfq?.procurement)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
+                  </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField
@@ -2414,6 +2399,63 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: !isSalesPermission }}
                     />
                   </GridTextField>
+                  <GridTextField item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label={t('rfqManagement.form.targetPrice')}
+                      value={rfq?.targetPrice != null ? rfq.targetPrice.toLocaleString() : ''}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
+                  </GridTextField>
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label="การขนส่ง"
+                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <Stack spacing={1.25}>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                        {t('rfqManagement.form.requestedMoqs')}
+                      </Typography>
+                      <Box
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1.5,
+                          px: 1.5,
+                          py: 1.5,
+                          backgroundColor: 'background.paper'
+                        }}>
+                        <Stack spacing={1.25}>
+                          {(requestedMoqDisplayValues.length ? requestedMoqDisplayValues : ['-']).map(
+                            (requestedMoq, index) => (
+                              <TextField
+                                key={`requested-moq-display-${index}`}
+                                fullWidth
+                                label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                                value={requestedMoq}
+                                InputLabelProps={{ shrink: true }}
+                                InputProps={{ readOnly: true }}
+                                sx={{
+                                  '& .MuiInputBase-root': {
+                                    backgroundColor: 'common.white'
+                                  }
+                                }}
+                              />
+                            )
+                          )}
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Grid>
+                  <Grid item sm={9} />
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
@@ -3636,6 +3678,50 @@ export default function RFQDetail(): ReactElement {
             variant="contained"
             disabled={!selectedConfirmRfqTierKey}>
             {t('button.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={visibleUrgentDetailDialog}
+        onClose={() => setVisibleUrgentDetailDialog(false)}
+        maxWidth="sm"
+        fullWidth>
+        <DialogTitle>รายละเอียดคำขอเร่งด่วน</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                สถานะ
+              </Typography>
+              <Typography variant="body1" fontWeight={700}>
+                {rfq?.urgentRequestStatus === 'APPROVED'
+                  ? 'เร่งด่วนอนุมัติแล้ว'
+                  : rfq?.urgentRequestStatus === 'REJECTED'
+                    ? 'คำขอเร่งด่วนไม่อนุมัติ'
+                    : 'เร่งด่วนรออนุมัติ'}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                เหตุผลที่ขอ
+              </Typography>
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {rfq?.urgentRequestReason || '-'}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                เหตุผลที่ถูกปฏิเสธ
+              </Typography>
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {rfq?.urgentRejectReason || '-'}
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVisibleUrgentDetailDialog(false)} variant="contained">
+            ปิด
           </Button>
         </DialogActions>
       </Dialog>

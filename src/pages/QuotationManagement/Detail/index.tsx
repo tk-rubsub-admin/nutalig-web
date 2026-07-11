@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { ArrowBackIos, ArrowDropDown, Description, Menu as MenuIcon, Save } from '@mui/icons-material';
+import { ArrowBackIos, ArrowDropDown, Cancel, Description, Menu as MenuIcon, Save } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -178,6 +178,7 @@ export default function QuotationDetail(): JSX.Element {
     };
 
     const handleCancelEditQuotation = () => {
+        handleCloseActionMenu();
         setDraftRemark(quotation?.remark || '');
         setDraftItems(quotation?.items || []);
         setIsEditing(false);
@@ -298,54 +299,58 @@ export default function QuotationDetail(): JSX.Element {
                     spacing={1}
                     useFlexGap
                     sx={{ justifyContent: { sm: 'flex-end' }, alignItems: { xs: 'stretch', sm: 'center' }, mb: 2 }}>
-                    {isEditing ? (
-                        <>
-                            <Button
-                                fullWidth={isDownSm}
-                                variant="contained"
-                                className="btn-emerald-green"
-                                startIcon={<Save />}
-                                onClick={() => setConfirmUpdateOpen(true)}
-                                disabled={isUpdating}>
-                                {t('button.save')}
-                            </Button>
-                            <Button
-                                fullWidth={isDownSm}
-                                variant="contained"
-                                className="btn-cool-grey"
-                                onClick={handleCancelEditQuotation}
-                                disabled={isUpdating}>
-                                {t('button.cancel')}
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <Button
-                                fullWidth={isDownSm}
-                                variant="contained"
-                                className="btn-indigo-blue"
-                                startIcon={<MenuIcon />}
-                                endIcon={<ArrowDropDown />}
-                                onClick={handleOpenActionMenu}
-                                disabled={!quotation}
-                                aria-controls={isActionMenuOpen ? 'quotation-action-menu' : undefined}
-                                aria-haspopup="true"
-                                aria-expanded={isActionMenuOpen ? 'true' : undefined}>
-                                ตัวเลือก
-                            </Button>
-                            <Menu
-                                id="quotation-action-menu"
-                                anchorEl={actionMenuAnchorEl}
-                                open={isActionMenuOpen}
-                                onClose={handleCloseActionMenu}
-                                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                                PaperProps={{
-                                    sx: {
-                                        minWidth: actionMenuAnchorEl?.offsetWidth || undefined
-                                    }
-                                }}
-                                keepMounted>
+                    <Button
+                        fullWidth={isDownSm}
+                        variant="contained"
+                        className="btn-indigo-blue"
+                        startIcon={<MenuIcon />}
+                        endIcon={<ArrowDropDown />}
+                        onClick={handleOpenActionMenu}
+                        disabled={!quotation}
+                        aria-controls={isActionMenuOpen ? 'quotation-action-menu' : undefined}
+                        aria-haspopup="true"
+                        aria-expanded={isActionMenuOpen ? 'true' : undefined}>
+                        ตัวเลือก
+                    </Button>
+                    <Menu
+                        id="quotation-action-menu"
+                        anchorEl={actionMenuAnchorEl}
+                        open={isActionMenuOpen}
+                        onClose={handleCloseActionMenu}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                        PaperProps={{
+                            sx: {
+                                minWidth: actionMenuAnchorEl?.offsetWidth || undefined
+                            }
+                        }}
+                        keepMounted>
+                        {isEditing ? (
+                            <>
+                                <MenuItem
+                                    onClick={() => {
+                                        handleCloseActionMenu();
+                                        setConfirmUpdateOpen(true);
+                                    }}
+                                    disabled={isUpdating}
+                                    sx={{ width: '100%' }}>
+                                    <ListItemIcon>
+                                        <Save fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary={t('button.save')} />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={handleCancelEditQuotation}
+                                    disabled={isUpdating}
+                                    sx={{ width: '100%' }}>
+                                    <ListItemIcon>
+                                        <Cancel fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary={t('button.cancel')} />
+                                </MenuItem>
+                            </>
+                        ) : (
+                            <>
                                 <MenuItem
                                     onClick={viewQuotationFunction}
                                     disabled={!quotation || quotation.status === 'CANCELLED'}
@@ -366,9 +371,9 @@ export default function QuotationDetail(): JSX.Element {
                                         <ListItemText primary={t('documentManagement.quotation.editQuotation')} />
                                     </MenuItem>
                                 </Can>
-                            </Menu>
-                        </>
-                    )}
+                            </>
+                        )}
+                    </Menu>
                     <Button
                         fullWidth={isDownSm}
                         variant="contained"

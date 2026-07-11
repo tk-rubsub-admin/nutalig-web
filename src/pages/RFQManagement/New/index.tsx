@@ -755,6 +755,25 @@ export default function NewRFQ(): JSX.Element {
             <TextField
               select
               fullWidth
+              label={t('rfqManagement.form.orderTypeCode')}
+              InputLabelProps={{ shrink: true }}
+              name="orderTypeCode"
+              value={formik.values.orderTypeCode}
+              onChange={formik.handleChange}
+              onBlur={() => formik.setFieldTouched('orderTypeCode', true)}
+              error={formik.touched.orderTypeCode && Boolean(formik.errors.orderTypeCode)}
+              helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}>
+              {(orderTypeList || []).map((item: SystemConfig) => (
+                <MenuItem key={item.code} value={item.code}>
+                  {item.nameTh || item.code}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
               label={t('rfqManagement.form.salesId')}
               InputLabelProps={{ shrink: true }}
               name="salesId"
@@ -825,25 +844,6 @@ export default function NewRFQ(): JSX.Element {
               {procurementOptions.map((procurement) => (
                 <MenuItem key={procurement.salesId} value={procurement.salesId}>
                   {`${procurement.salesId} - ${procurement.nickname || procurement.name}`}
-                </MenuItem>
-              ))}
-            </TextField>
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              select
-              fullWidth
-              label={t('rfqManagement.form.orderTypeCode')}
-              InputLabelProps={{ shrink: true }}
-              name="orderTypeCode"
-              value={formik.values.orderTypeCode}
-              onChange={formik.handleChange}
-              onBlur={() => formik.setFieldTouched('orderTypeCode', true)}
-              error={formik.touched.orderTypeCode && Boolean(formik.errors.orderTypeCode)}
-              helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}>
-              {(orderTypeList || []).map((item: SystemConfig) => (
-                <MenuItem key={item.code} value={item.code}>
-                  {item.nameTh || item.code}
                 </MenuItem>
               ))}
             </TextField>

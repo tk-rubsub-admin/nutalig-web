@@ -1,4 +1,13 @@
-import { ArrowBackIos, InfoOutlined, Save } from '@mui/icons-material';
+import {
+  ArrowBackIos,
+  ArrowDropDown,
+  AssignmentTurnedIn,
+  ContentCopy,
+  DoneAll,
+  InfoOutlined,
+  Menu as MenuIcon,
+  Save
+} from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -8,6 +17,9 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
   Stack,
   Tab,
@@ -28,7 +40,14 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
-import { ChangeEvent, ReactElement, SyntheticEvent, useMemo, useState } from 'react';
+import {
+  ChangeEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactElement,
+  SyntheticEvent,
+  useMemo,
+  useState
+} from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
@@ -1143,10 +1162,8 @@ export default function RFQDetail(): ReactElement {
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [visibleAcceptWorkConfirmationDialog, setVisibleAcceptWorkConfirmationDialog] =
     useState(false);
-  const [visibleApproveUrgentConfirmationDialog, setVisibleApproveUrgentConfirmationDialog] =
-    useState(false);
-  const [visibleRejectUrgentDialog, setVisibleRejectUrgentDialog] = useState(false);
   const [urgentRejectReason, setUrgentRejectReason] = useState('');
+  const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
   const [visibleDetailSaveConfirmationDialog, setVisibleDetailSaveConfirmationDialog] =
     useState(false);
   const [draftDetailOptions, setDraftDetailOptions] = useState<RFQDetailOption[]>([]);
@@ -1178,6 +1195,7 @@ export default function RFQDetail(): ReactElement {
   const [quoteDialogSupplier, setQuoteDialogSupplier] = useState<Supplier | null>(null);
   const [quoteDialogQuote, setQuoteDialogQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleSupplierQuoteDialog, setVisibleSupplierQuoteDialog] = useState(false);
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [inlineEditingSupplierQuoteId, setInlineEditingSupplierQuoteId] = useState<string | null>(
     null
   );
@@ -1210,6 +1228,7 @@ export default function RFQDetail(): ReactElement {
   const [isSupplierQuoteSubmitting, setIsSupplierQuoteSubmitting] = useState(false);
   const [isFinalPriceSubmitting, setIsFinalPriceSubmitting] = useState(false);
   const isReadOnly = true;
+  const isActionMenuOpen = Boolean(actionMenuAnchorEl);
 
   const {
     data: rfq,
@@ -1520,6 +1539,19 @@ export default function RFQDetail(): ReactElement {
     setVisibleRequestInformationDialog(true);
   };
 
+  const handleOpenUrgentDetailDialog = () => {
+    setUrgentRejectReason(rfq?.urgentRejectReason || '');
+    setVisibleUrgentDetailDialog(true);
+  };
+
+  const handleOpenActionMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    setActionMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseActionMenu = () => {
+    setActionMenuAnchorEl(null);
+  };
+
   const handleCloseRequestInformationDialog = () => {
     setRequestInformationText('');
     setVisibleRequestInformationDialog(false);
@@ -1541,12 +1573,10 @@ export default function RFQDetail(): ReactElement {
     await refetchPriceInquiryData();
   };
 
-  const handleConfirmApproveUrgent = async () => {
+  const handleApproveUrgent = async () => {
     if (!params.id) {
       return;
     }
-
-    setVisibleApproveUrgentConfirmationDialog(false);
 
     await toast.promise(approveUrgentRFQ(params.id), {
       loading: t('toast.loading'),
@@ -1554,11 +1584,13 @@ export default function RFQDetail(): ReactElement {
       error: t('toast.failed')
     });
 
+    setVisibleUrgentDetailDialog(false);
     await refetchPriceInquiryData();
   };
 
-  const handleConfirmRejectUrgent = async () => {
+  const handleRejectUrgent = async () => {
     if (!params.id || !urgentRejectReason.trim()) {
+      toast.error('กรุณากรอกเหตุผลที่ไม่อนุมัติ');
       return;
     }
 
@@ -1573,7 +1605,7 @@ export default function RFQDetail(): ReactElement {
       }
     );
 
-    setVisibleRejectUrgentDialog(false);
+    setVisibleUrgentDetailDialog(false);
     setUrgentRejectReason('');
     await refetchPriceInquiryData();
   };
@@ -1726,6 +1758,62 @@ export default function RFQDetail(): ReactElement {
     }
 
     handleOpenFinalPriceDialog(quote);
+  };
+
+  const handleAcceptWorkFromMenu = () => {
+    handleCloseActionMenu();
+    setVisibleAcceptWorkConfirmationDialog(true);
+  };
+
+  const handleFinalPriceFromMenu = () => {
+    handleCloseActionMenu();
+    handleOpenFinalPriceDialogFromButton();
+  };
+
+  const handleRequestInformationFromMenu = () => {
+    handleCloseActionMenu();
+    handleOpenRequestInformationDialog();
+  };
+
+  const handleSupplierQuoteFromMenu = () => {
+    handleCloseActionMenu();
+    handleOpenSupplierQuoteDialog();
+  };
+
+  const handleGenerateInquiryFromMenu = async () => {
+    handleCloseActionMenu();
+
+    if (!params.id) {
+      return;
+    }
+
+    try {
+      setIsGenerateInquirySubmitting(true);
+      const response = await toast.promise(generateRFQInquiry(params.id), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+
+      setGeneratedInquiryMessage(response || null);
+      setEditableInquiryMessage({
+        thaiMessage: response?.thaiMessage || '',
+        chineseMessage: response?.chineseMessage || ''
+      });
+      await refetchPriceInquiryData();
+    } finally {
+      setIsGenerateInquirySubmitting(false);
+    }
+  };
+
+  const handleClearBasicInfoFromMenu = () => {
+    handleCloseActionMenu();
+    handleCancelEdit();
+  };
+
+  const handleSaveBasicInfoFromMenu = () => {
+    handleCloseActionMenu();
+    setVisibleConfirmationDialog(true);
   };
 
   const handleCloseFinalPriceDialog = () => {
@@ -2659,12 +2747,14 @@ export default function RFQDetail(): ReactElement {
           ) : null}
           {rfq?.urgentRequest ? (
             <Chip
+              clickable
+              onClick={handleOpenUrgentDetailDialog}
               label={
                 rfq.urgentRequestStatus === 'APPROVED'
                   ? 'เร่งด่วนอนุมัติแล้ว'
                   : rfq.urgentRequestStatus === 'REJECTED'
                     ? 'คำขอเร่งด่วนไม่อนุมัติ'
-                    : 'เร่งด่วนรออนุมัติ'
+                    : 'เร่งด่วนรออนุมัติ 🔥🔥🔥'
               }
               size="small"
               sx={{
@@ -2715,88 +2805,105 @@ export default function RFQDetail(): ReactElement {
         </Stack>
       </PageTitle>
       <Wrapper>
-          <Stack spacing={2}>
-          <Stack direction="row" justifyContent="flex-end" spacing={1}>
-            {rfq?.status === 'NEW' ? (
-              <Button
-                variant="contained"
-                className="btn-indigo-blue"
-                onClick={() => setVisibleAcceptWorkConfirmationDialog(true)}>
-                รับงาน
-              </Button>
-            ) : null}
-            {hasRole(ROLES.SUPER_ADMIN) &&
-            rfq?.urgentRequestStatus === 'PENDING_APPROVAL' ? (
-              <>
-                <Button
-                  variant="contained"
-                  color="warning"
-                  onClick={() => setVisibleRejectUrgentDialog(true)}>
-                  ไม่อนุมัติเร่งด่วน
-                </Button>
-                <Button
-                  variant="contained"
-                  color="error"
-                  onClick={() => setVisibleApproveUrgentConfirmationDialog(true)}>
-                  อนุมัติเร่งด่วน
-                </Button>
-              </>
-            ) : null}
-            {rfq?.status === 'SUPPLIER_QUOTED' ? (
-              <Can permission={PERMISSIONS.RFQ_CONFIRM}>
-                <Button
-                  variant="contained"
-                  className="btn-indigo-blue"
-                  onClick={handleOpenFinalPriceDialogFromButton}>
-                  Final ราคา
-                </Button>
-              </Can>
-            ) : (
-              <Button
-                variant="contained"
-                className="btn-baby-blue"
-                disabled={isRequestInformationSubmitting}
-                onClick={handleOpenRequestInformationDialog}>
-                ขอข้อมูลเพิ่มเติม
-              </Button>
-            )}
+        <Stack spacing={2}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="flex-end"
+            spacing={1}
+            useFlexGap>
             <Button
               variant="contained"
-              className="btn-emerald-green"
-              disabled={isSupplierQuoteSubmitting}
-              onClick={() => handleOpenSupplierQuoteDialog()}>
-              {rfq?.status === 'SUPPLIER_QUOTED' ? 'แก้ไขราคา' : 'บันทึกราคา'}
+              className="btn-indigo-blue"
+              startIcon={<MenuIcon />}
+              endIcon={<ArrowDropDown />}
+              onClick={handleOpenActionMenu}
+              disabled={!rfq}
+              aria-controls={isActionMenuOpen ? 'price-inquiry-action-menu' : undefined}
+              aria-haspopup="true"
+              aria-expanded={isActionMenuOpen ? 'true' : undefined}>
+              ตัวเลือก
             </Button>
-
-            <Button
-              variant="contained"
-              className="btn-pastel-green"
-              disabled={isGenerateInquirySubmitting}
-              onClick={async () => {
-                if (!params.id) {
-                  return;
+            <Menu
+              id="price-inquiry-action-menu"
+              anchorEl={actionMenuAnchorEl}
+              open={isActionMenuOpen}
+              onClose={handleCloseActionMenu}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+              PaperProps={{
+                sx: {
+                  minWidth: actionMenuAnchorEl?.offsetWidth || undefined
                 }
-
-                try {
-                  setIsGenerateInquirySubmitting(true);
-                  const response = await toast.promise(generateRFQInquiry(params.id), {
-                    loading: t('toast.loading'),
-                    success: t('toast.success'),
-                    error: t('toast.failed')
-                  });
-
-                  setGeneratedInquiryMessage(response || null);
-                  setEditableInquiryMessage({
-                    thaiMessage: response?.thaiMessage || '',
-                    chineseMessage: response?.chineseMessage || ''
-                  });
-                  await refetchPriceInquiryData();
-                } finally {
-                  setIsGenerateInquirySubmitting(false);
-                }
-              }}>
-              {t('priceInquiryManagement.generateInquiry.button')}
-            </Button>
+              }}
+              keepMounted>
+              {rfq?.status === 'NEW' ? (
+                <MenuItem onClick={handleAcceptWorkFromMenu}>
+                  <ListItemIcon>
+                    <DoneAll fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="รับงาน" />
+                </MenuItem>
+              ) : null}
+              {rfq?.status === 'SUPPLIER_QUOTED' ? (
+                <Can permission={PERMISSIONS.RFQ_CONFIRM}>
+                  <MenuItem onClick={handleFinalPriceFromMenu}>
+                    <ListItemIcon>
+                      <AssignmentTurnedIn fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Final ราคา" />
+                  </MenuItem>
+                </Can>
+              ) : (
+                <MenuItem
+                  disabled={isRequestInformationSubmitting}
+                  onClick={handleRequestInformationFromMenu}>
+                  <ListItemIcon>
+                    <InfoOutlined fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="ขอข้อมูลเพิ่มเติม" />
+                </MenuItem>
+              )}
+              <MenuItem
+                disabled={isSupplierQuoteSubmitting}
+                onClick={handleSupplierQuoteFromMenu}>
+                <ListItemIcon>
+                  <AssignmentTurnedIn fontSize="small" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={rfq?.status === 'SUPPLIER_QUOTED' ? 'แก้ไขราคา' : 'บันทึกราคา'}
+                />
+              </MenuItem>
+              <MenuItem
+                disabled={isGenerateInquirySubmitting}
+                onClick={() => {
+                  void handleGenerateInquiryFromMenu();
+                }}>
+                <ListItemIcon>
+                  <ContentCopy fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={t('priceInquiryManagement.generateInquiry.button')} />
+              </MenuItem>
+              {!isReadOnly ? (
+                <MenuItem
+                  disabled={formik.isSubmitting || isPictureSubmitting}
+                  onClick={handleClearBasicInfoFromMenu}>
+                  <ListItemIcon>
+                    <InfoOutlined fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={t('button.clear')} />
+                </MenuItem>
+              ) : null}
+              {!isReadOnly ? (
+                <MenuItem
+                  disabled={formik.isSubmitting || isPictureSubmitting}
+                  onClick={handleSaveBasicInfoFromMenu}>
+                  <ListItemIcon>
+                    <Save fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={t('button.save')} />
+                </MenuItem>
+              ) : null}
+            </Menu>
             <Button
               variant="contained"
               className="btn-cool-grey"
@@ -2835,29 +2942,7 @@ export default function RFQDetail(): ReactElement {
                 key={supplierQuotes.length ? 'rfq-detail-collapsed' : 'rfq-detail-expanded'}
                 title="รายละเอียดการสอบถามราคา"
                 defaultExpanded={!supplierQuotes.length}
-                action={
-                  !isReadOnly ? (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-                      <Button
-                        variant="contained"
-                        className="btn-cool-grey"
-                        sx={actionButtonSx}
-                        onClick={handleCancelEdit}
-                        disabled={formik.isSubmitting || isPictureSubmitting}>
-                        {t('button.clear')}
-                      </Button>
-                      <Button
-                        variant="contained"
-                        className="btn-emerald-green"
-                        startIcon={<Save />}
-                        sx={actionButtonSx}
-                        onClick={() => setVisibleConfirmationDialog(true)}
-                        disabled={formik.isSubmitting || isPictureSubmitting}>
-                        {t('button.save')}
-                      </Button>
-                    </Stack>
-                  ) : null
-                }>
+                action={null}>
                 <Grid container spacing={1}>
                   <GridTextField item xs={12} sm={6}>
                     <TextField
@@ -2947,28 +3032,6 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: true }}
                     />
                   </GridTextField>
-                  {rfq?.urgentRequest ? (
-                    <GridTextField item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="เหตุผลคำขอเร่งด่วน"
-                        value={rfq.urgentRequestReason || '-'}
-                        InputLabelProps={{ shrink: true }}
-                        InputProps={{ readOnly: true }}
-                      />
-                    </GridTextField>
-                  ) : null}
-                  {rfq?.urgentRequestStatus === 'REJECTED' && rfq?.urgentRejectReason ? (
-                    <GridTextField item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label="เหตุผลไม่อนุมัติเร่งด่วน"
-                        value={rfq.urgentRejectReason}
-                        InputLabelProps={{ shrink: true }}
-                        InputProps={{ readOnly: true }}
-                      />
-                    </GridTextField>
-                  ) : null}
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField
@@ -3285,17 +3348,6 @@ export default function RFQDetail(): ReactElement {
         onCancel={() => setVisibleAcceptWorkConfirmationDialog(false)}
       />
       <ConfirmDialog
-        open={visibleApproveUrgentConfirmationDialog}
-        title="ยืนยันอนุมัติคำขอเร่งด่วน"
-        message="คุณยืนยันอนุมัติคำขอราคาแบบเร่งด่วนนี้ใช่หรือไม่"
-        confirmText={t('button.confirm')}
-        cancelText={t('button.cancel')}
-        isShowCancelButton
-        isShowConfirmButton
-        onConfirm={handleConfirmApproveUrgent}
-        onCancel={() => setVisibleApproveUrgentConfirmationDialog(false)}
-      />
-      <ConfirmDialog
         open={visibleConfirmationDialog}
         title={t('rfqManagement.message.confirmUpdateTitle')}
         message={t('rfqManagement.message.confirmUpdateMsg')}
@@ -3307,41 +3359,73 @@ export default function RFQDetail(): ReactElement {
         onCancel={() => setVisibleConfirmationDialog(false)}
       />
       <Dialog
-        open={visibleRejectUrgentDialog}
+        open={visibleUrgentDetailDialog}
         onClose={() => {
-          setVisibleRejectUrgentDialog(false);
+          setVisibleUrgentDetailDialog(false);
           setUrgentRejectReason('');
         }}
         fullWidth
         maxWidth="sm">
-        <DialogTitle>เหตุผลไม่อนุมัติคำขอเร่งด่วน</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={4}
-            margin="dense"
-            label="เหตุผล"
-            value={urgentRejectReason}
-            onChange={(event) => setUrgentRejectReason(event.target.value)}
-            InputLabelProps={{ shrink: true }}
-          />
+        <DialogTitle>รายละเอียดคำขอเร่งด่วน</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="สถานะคำขอเร่งด่วน"
+              value={
+                rfq?.urgentRequestStatus === 'APPROVED'
+                  ? 'เร่งด่วนอนุมัติแล้ว'
+                  : rfq?.urgentRequestStatus === 'REJECTED'
+                    ? 'คำขอเร่งด่วนไม่อนุมัติ'
+                    : 'เร่งด่วนรออนุมัติ'
+              }
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="เหตุผลที่ขอ"
+              value={rfq?.urgentRequestReason || '-'}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="เหตุผลที่ถูกปฏิเสธ"
+              value={
+                hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL'
+                  ? urgentRejectReason
+                  : rfq?.urgentRejectReason || '-'
+              }
+              onChange={(event) => setUrgentRejectReason(event.target.value)}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                readOnly: !(hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL')
+              }}
+              helperText={
+                hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL'
+                  ? 'จำเป็นต้องกรอกเมื่อกดไม่อนุมัติ'
+                  : undefined
+              }
+            />
+          </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => {
-              setVisibleRejectUrgentDialog(false);
-              setUrgentRejectReason('');
-            }}>
-            {t('button.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            disabled={!urgentRejectReason.trim()}
-            onClick={handleConfirmRejectUrgent}>
-            {t('button.confirm')}
-          </Button>
+        <DialogActions>
+          {hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL' ? (
+            <>
+              <Button className="btn-crimson-red" onClick={() => void handleRejectUrgent()}>
+                ไม่อนุมัติเร่งด่วน
+              </Button>
+              <Button className="btn-indigo-blue" onClick={() => void handleApproveUrgent()}>
+                อนุมัติเร่งด่วน
+              </Button>
+            </>
+          ) : null}
+          <Button onClick={() => setVisibleUrgentDetailDialog(false)}>{t('button.close')}</Button>
         </DialogActions>
       </Dialog>
       <ConfirmDialog

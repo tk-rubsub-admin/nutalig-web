@@ -67,6 +67,7 @@ export default function ApprovalRejectPage() {
       { label: 'เลขที่คำขอ', value: approval?.requestNo || '-' },
       { label: 'เลขที่เอกสารอ้างอิง', value: approval?.referenceId || '-' },
       { label: 'ลูกค้า', value: payload.customerName || '-' },
+      { label: 'ประเภทสินค้า', value: payload.productType || '-' },
       { label: 'ประเภทงาน', value: payload.orderTypeName || '-' },
       { label: 'RFQ Type', value: payload.rfqTypeName || '-' },
       { label: 'ขนาด', value: payload.capacity || '-' },

@@ -18,6 +18,38 @@ export interface SearchSupplierRequest {
   bankEqual?: string;
 }
 
+export interface CreateSupplierContactRequest {
+  contactName: string;
+  contactNumber: string;
+  wechat?: string | null;
+  isDefault?: boolean;
+}
+
+export interface CreateSupplierRequest {
+  supplierName: string;
+  supplierCode?: string | null;
+  supplierEmail?: string | null;
+  fullAddress?: string | null;
+  fullAddressEn?: string | null;
+  countryCode?: string | null;
+  province?: string | null;
+  city?: string | null;
+  district?: string | null;
+  town?: string | null;
+  street?: string | null;
+  detailAddress?: string | null;
+  postalCode?: string | null;
+  additional?: string | null;
+  contacts: CreateSupplierContactRequest[];
+}
+
+export interface CreateSupplierResponse {
+  status?: string;
+  data: {
+    id: string;
+  };
+}
+
 export interface SupplierContact {
   id: string;
   contactName: string;

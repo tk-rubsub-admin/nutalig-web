@@ -55,7 +55,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
-import { SystemConfig } from 'services/Config/config-type';
+import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { getProductFamilies } from 'services/Product/product-api';
 import { ProductFamily, ProductSubtype1, ProductSubtype2 } from 'services/Product/product-type';
 import {
@@ -63,6 +63,7 @@ import {
   addRFQPictures,
   createRFQDetails,
   createRFQSupplierQuote,
+  extractRFQSupplierQuote,
   deleteRFQAdditionalCost,
   deleteRFQDetail,
   deleteRFQPicture,
@@ -83,6 +84,7 @@ import {
   RFQAdditionalCost,
   CreateRFQAdditionalCostRequest,
   CreateRFQDetailRequest,
+  ExtractRFQSupplierQuoteRequest,
   RFQDetailOption,
   RFQDetailTier,
   RFQEmployee,
@@ -107,6 +109,8 @@ import { SupplierQuoteSection } from './SupplierQuoteSection';
 import { SupplierQuoteDialog } from './SupplierQuoteDialog';
 import { GeneratedInquiryMessageDialog } from './GeneratedInquiryMessageDialog';
 import { AddSupplierDialog } from './AddSupplierDialog';
+import { ExtractSupplierQuoteDialog } from './ExtractSupplierQuoteDialog';
+import { NewSupplierDialog } from './NewSupplierDialog';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
 
@@ -152,6 +156,7 @@ interface FinalPriceDraftTier {
   id: number;
   quantity: number;
   productPrice: number;
+  commission: string;
   landFreightCost: string;
   seaFreightCost: string;
   exchangeRate: string;
@@ -193,6 +198,8 @@ interface DraftSupplierQuoteTier {
   quantity: number;
   productPrice: number;
   shippingCost: number;
+  productPriceCurrency?: string | null;
+  shippingCostCurrency?: string | null;
   currency?: string | null;
   sortOrder: number;
   createdDate: string;
@@ -288,6 +295,24 @@ function getShippingMethodLabel(shippingMethod?: string | null): string {
   }
 
   return 'ทางรถ, ทางเรือ';
+}
+
+function getNamedCodeValueLabel<
+  T extends { code?: string; nameTh?: string | null; nameEn?: string | null }
+>(value?: T | string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value.nameTh && value.nameEn) {
+    return `${value.nameTh} (${value.nameEn})`;
+  }
+
+  return value.nameTh || value.nameEn || value.code || '';
 }
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
@@ -658,6 +683,12 @@ function formatPrice(value?: number | null, currency?: string | null): string {
   if (normalizedCurrency === 'CNY') {
     return `¥${priceFormatter.format(value)}`;
   }
+  if (normalizedCurrency === 'USD') {
+    return `$${priceFormatter.format(value)}`;
+  }
+  if (normalizedCurrency === 'THB') {
+    return `${priceFormatter.format(value)} บาท`;
+  }
 
   return `${priceFormatter.format(value)} บาท`;
 }
@@ -680,6 +711,7 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
       remark: detail.remark || null,
+      commission: '',
       packages: (detail.packages || []).length
         ? (detail.packages || []).map((packageItem, packageIndex) => ({
           id: packageItem.id || -(Date.now() + detailIndex * 1000 + packageIndex + 1),
@@ -703,6 +735,7 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
         productPrice: tier.productPrice,
+        commission: tier.commission === null || tier.commission === undefined ? '' : String(tier.commission),
         landFreightCost: '',
         seaFreightCost: '',
         exchangeRate: '1',
@@ -834,6 +867,8 @@ function createDraftQuoteDetail(sortOrder: number): DraftSupplierQuoteDetail {
         quantity: 0,
         productPrice: 0,
         shippingCost: 0,
+        productPriceCurrency: 'CNY',
+        shippingCostCurrency: 'CNY',
         currency: 'CNY',
         sortOrder: 1,
         createdDate: '',
@@ -903,9 +938,11 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
     spec: detail.spec.trim(),
     sortOrder: detail.sortOrder,
     remark: detail.remark?.trim() || null,
+    commission: detail.commission ?? null,
     tiers: detail.tiers.map((tier, index) => ({
       quantity: tier.quantity,
       productPrice: tier.productPrice,
+      commission: tier.commission ?? null,
       landFreightCost: tier.landFreightCost,
       seaFreightCost: tier.seaFreightCost,
       landTotalPrice: tier.productPrice + tier.landFreightCost,
@@ -967,7 +1004,9 @@ function createSupplierQuoteDetailFromQuote(
       quantity: tier.quantity ?? 0,
       productPrice: tier.productPrice ?? 0,
       shippingCost: tier.shippingCost ?? 0,
-      currency: tier.currency || 'CNY',
+      productPriceCurrency: tier.productPriceCurrency || tier.currency || 'CNY',
+      shippingCostCurrency: tier.shippingCostCurrency || tier.currency || 'CNY',
+      currency: tier.productPriceCurrency || tier.currency || 'CNY',
       sortOrder: tier.sortOrder,
       createdDate: tier.createdDate || '',
       updatedDate: tier.updatedDate || ''
@@ -1032,7 +1071,9 @@ function buildSupplierQuotePayload(
         quantity: tier.quantity,
         productPrice: tier.productPrice,
         shippingCost: tier.shippingCost,
-        currency: tier.currency || 'CNY',
+        productPriceCurrency: tier.productPriceCurrency || tier.currency || 'CNY',
+        shippingCostCurrency: tier.shippingCostCurrency || tier.currency || 'CNY',
+        currency: tier.productPriceCurrency || tier.currency || 'CNY',
         sortOrder: tierIndex + 1
       }))
     })),
@@ -1044,6 +1085,85 @@ function buildSupplierQuotePayload(
         unit: additionalCost.unit,
         sortOrder: index + 1
       }))
+  };
+}
+
+function createDraftQuoteDetailFromExtractedPayload(
+  detail: UpsertRFQSupplierQuoteRequest['details'][number],
+  index: number
+): DraftSupplierQuoteDetail {
+  const mappedPackages =
+    detail.packages?.length
+      ? detail.packages
+        .slice()
+        .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0))
+        .map((item, packageIndex) => ({
+          id: -(Date.now() + index + packageIndex + 1),
+          packageName: item.packageName || '',
+          packageDimension: item.packageDimension || '',
+          ...parsePackageDimension(item.packageDimension),
+          packageWeight: item.packageWeight || '',
+          packageCapacity: item.packageCapacity || '',
+          sortOrder: item.sortOrder || packageIndex + 1
+        }))
+      : [
+        {
+          id: -(Date.now() + index + 1),
+          packageName: detail.packageName || '',
+          packageDimension: detail.packageDimension || '',
+          ...parsePackageDimension(detail.packageDimension),
+          packageWeight: detail.packageWeight || '',
+          packageCapacity: detail.packageCapacity || '',
+          sortOrder: 1
+        }
+      ];
+
+  return {
+    id: -(Date.now() + index + 1),
+    rfqDetailId: detail.rfqDetailId || null,
+    optionName: detail.optionName || `Option ${index + 1}`,
+    spec: detail.spec || '',
+    sortOrder: detail.sortOrder || index + 1,
+    remark: detail.remark || '',
+    packageName: getFirstPackageValue(mappedPackages, 'packageName') || detail.packageName || '',
+    packageDimension:
+      combinePackageDimension(
+        mappedPackages[0]?.packageWidth,
+        mappedPackages[0]?.packageLength,
+        mappedPackages[0]?.packageHeight
+      ) || getFirstPackageValue(mappedPackages, 'packageDimension') || detail.packageDimension || '',
+    packageWeight: getFirstPackageValue(mappedPackages, 'packageWeight') || detail.packageWeight || '',
+    packageCapacity:
+      getFirstPackageValue(mappedPackages, 'packageCapacity') || detail.packageCapacity || '',
+    packages: mappedPackages,
+    tiers: (detail.tiers || []).map((tier, tierIndex) => ({
+      id: -(Date.now() + index + tierIndex + 1),
+      quantity: Number(tier.quantity || 0),
+      productPrice: Number(tier.productPrice || 0),
+      shippingCost: Number(tier.shippingCost || 0),
+      productPriceCurrency: tier.productPriceCurrency || tier.currency || 'CNY',
+      shippingCostCurrency: tier.shippingCostCurrency || tier.currency || 'CNY',
+      currency: tier.productPriceCurrency || tier.currency || 'CNY',
+      sortOrder: tier.sortOrder || tierIndex + 1,
+      createdDate: '',
+      updatedDate: ''
+    })),
+    createdDate: '',
+    updatedDate: '',
+    createdBy: '',
+    updatedBy: ''
+  };
+}
+
+function createDraftAdditionalCostFromExtractedPayload(
+  additionalCost: UpsertRFQSupplierQuoteRequest['additionalCosts'][number],
+  index: number
+): DraftAdditionalCost {
+  return {
+    id: -(Date.now() + index + 1),
+    description: additionalCost.description || '',
+    value: additionalCost.value || '',
+    unit: additionalCost.unit || ''
   };
 }
 
@@ -1203,6 +1323,12 @@ export default function RFQDetail(): ReactElement {
     useState(false);
   const [quoteSupplierSearchInput, setQuoteSupplierSearchInput] = useState('');
   const [quoteSupplierSearchKeyword, setQuoteSupplierSearchKeyword] = useState('');
+  const [quoteSupplierSearchPage, setQuoteSupplierSearchPage] = useState(1);
+  const [quoteSupplierSearchPageSize, setQuoteSupplierSearchPageSize] = useState(10);
+  const [visibleExtractSupplierQuoteDialog, setVisibleExtractSupplierQuoteDialog] = useState(false);
+  const [extractSupplierQuoteMessage, setExtractSupplierQuoteMessage] = useState('');
+  const [isExtractSupplierQuoteSubmitting, setIsExtractSupplierQuoteSubmitting] = useState(false);
+  const [visibleNewSupplierDialog, setVisibleNewSupplierDialog] = useState(false);
   const [visibleAddSupplierDialog, setVisibleAddSupplierDialog] = useState(false);
   const [supplierSearchInput, setSupplierSearchInput] = useState('');
   const [supplierSearchKeyword, setSupplierSearchKeyword] = useState('');
@@ -1238,6 +1364,7 @@ export default function RFQDetail(): ReactElement {
     refetchOnWindowFocus: false,
     enabled: !!params.id
   });
+  const isQuoteAndInquiryActionDisabled = ['NEW', 'REQUESTED_INFO'].includes(rfq?.status || '');
 
   const { data: suggestSuppliers = [], isFetching: isSuggestSuppliersFetching } = useQuery(
     ['rfq-suggest-suppliers', params.id],
@@ -1263,23 +1390,35 @@ export default function RFQDetail(): ReactElement {
       enabled: visibleAddSupplierDialog
     }
   );
-  const { data: quoteSupplierSearchResult = [], isFetching: isQuoteSupplierSearchFetching } =
+  const {
+    data: quoteSupplierSearchResponse,
+    isFetching: isQuoteSupplierSearchFetching,
+    refetch: refetchQuoteSupplierSearch
+  } =
     useQuery(
-      ['supplier-search-quote', visibleSupplierQuoteDialog, quoteSupplierSearchKeyword],
+      [
+        'supplier-search-quote',
+        visibleSupplierQuoteDialog,
+        quoteSupplierSearchKeyword,
+        quoteSupplierSearchPage,
+        quoteSupplierSearchPageSize
+      ],
       () =>
         searchSupplier(
           {
             statusEqual: 'ACTIVE',
             nameContain: quoteSupplierSearchKeyword || undefined
           },
-          1,
-          20
-        ).then((response) => response.data.suppliers),
+          quoteSupplierSearchPage,
+          quoteSupplierSearchPageSize
+        ),
       {
         refetchOnWindowFocus: false,
         enabled: visibleSupplierQuoteDialog
       }
     );
+  const quoteSupplierSearchResult = quoteSupplierSearchResponse?.data?.suppliers || [];
+  const quoteSupplierSearchPagination = quoteSupplierSearchResponse?.data?.pagination;
 
   const {
     data: supplierQuotes = [],
@@ -1306,6 +1445,14 @@ export default function RFQDetail(): ReactElement {
   const { data: orderTypeList = [] } = useQuery(
     'rfq-detail-order-type-list',
     () => getSystemConfig('ORDER_TYPE'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: currencyOptions = [] } = useQuery(
+    'rfq-detail-currency-list',
+    () => getSystemConfig(GROUP_CODE.CURRENCY),
     {
       refetchOnWindowFocus: false
     }
@@ -1353,6 +1500,10 @@ export default function RFQDetail(): ReactElement {
     return orderTypeList.find((item: SystemConfig) => item.code === formik.values.orderTypeCode)
       ?.nameTh;
   }, [formik.values.orderTypeCode, orderTypeList]);
+
+  const requestedMoqDisplayValues = useMemo(() => {
+    return (rfq?.requestedMoqs || []).map((item) => `${item}`);
+  }, [rfq?.requestedMoqs]);
 
   const selectedProductFamily = useMemo(
     () =>
@@ -1694,6 +1845,8 @@ export default function RFQDetail(): ReactElement {
     setQuoteDraftErrors({});
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
+    setQuoteSupplierSearchPage(1);
+    setQuoteSupplierSearchPageSize(10);
   };
 
   const handleOpenSupplierQuoteEditDialog = (quote: RFQSupplierQuote) => {
@@ -1719,6 +1872,81 @@ export default function RFQDetail(): ReactElement {
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
+    setQuoteSupplierSearchPage(1);
+    setQuoteSupplierSearchPageSize(10);
+    setVisibleExtractSupplierQuoteDialog(false);
+    setExtractSupplierQuoteMessage('');
+  };
+
+  const handleCreateSupplierFromDialog = (supplier: Supplier) => {
+    setVisibleNewSupplierDialog(false);
+    setQuoteSupplierSearchInput('');
+    setQuoteSupplierSearchKeyword('');
+    setQuoteSupplierSearchPage(1);
+    setQuoteSupplierSearchPageSize(10);
+    handleSelectQuoteSupplier(supplier);
+  };
+
+  const handleOpenExtractSupplierQuoteDialog = () => {
+    if (!quoteDialogSupplier) {
+      toast.error('กรุณาเลือก supplier ก่อน');
+      return;
+    }
+
+    setVisibleExtractSupplierQuoteDialog(true);
+  };
+
+  const handleCloseExtractSupplierQuoteDialog = () => {
+    if (isExtractSupplierQuoteSubmitting) {
+      return;
+    }
+
+    setVisibleExtractSupplierQuoteDialog(false);
+    setExtractSupplierQuoteMessage('');
+  };
+
+  const handleExtractSupplierQuote = async () => {
+    if (!params.id || !quoteDialogSupplier) {
+      return;
+    }
+
+    if (!extractSupplierQuoteMessage.trim()) {
+      toast.error('กรุณาวางข้อความจาก supplier');
+      return;
+    }
+
+    const payload: ExtractRFQSupplierQuoteRequest = {
+      supplierId: quoteDialogSupplier.supplierId || quoteDialogSupplier.id,
+      inquiryId: quoteDialogQuote?.inquiryId || null,
+      defaultCurrency: 'CNY',
+      supplierMessage: extractSupplierQuoteMessage.trim()
+    };
+
+    try {
+      setIsExtractSupplierQuoteSubmitting(true);
+      const extractedQuote = await toast.promise(extractRFQSupplierQuote(params.id, payload), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+
+      const nextDetails = (extractedQuote.details || []).map((detail, index) =>
+        createDraftQuoteDetailFromExtractedPayload(detail, index)
+      );
+      const nextAdditionalCosts = (extractedQuote.additionalCosts || []).map((additionalCost, index) =>
+        createDraftAdditionalCostFromExtractedPayload(additionalCost, index)
+      );
+
+      setQuoteDraftDetails(nextDetails.length ? nextDetails : [createDraftQuoteDetail(1)]);
+      setQuoteDraftAdditionalCosts(
+        nextAdditionalCosts.length ? nextAdditionalCosts : [createDraftAdditionalCost()]
+      );
+      setQuoteDraftErrors({});
+      setVisibleExtractSupplierQuoteDialog(false);
+      setExtractSupplierQuoteMessage('');
+    } finally {
+      setIsExtractSupplierQuoteSubmitting(false);
+    }
   };
 
   const handleCancelInlineSupplierQuoteEdit = () => {
@@ -1829,6 +2057,22 @@ export default function RFQDetail(): ReactElement {
 
   const handleFinalPriceRemarkChange = (value: string) => {
     setFinalPriceDraft((prev) => ({ ...prev, recommend: value }));
+  };
+
+  const handleFinalPriceCommissionChange = (detailId: number, tierId: number, value: string) => {
+    setFinalPriceDraft((prev) => ({
+      ...prev,
+      details: prev.details.map((detail) =>
+        detail.id === detailId
+          ? {
+            ...detail,
+            tiers: detail.tiers.map((tier) =>
+              tier.id === tierId ? { ...tier, commission: value } : tier
+            )
+          }
+          : detail
+      )
+    }));
   };
 
   const handleFinalPriceTierChange = (
@@ -1965,6 +2209,7 @@ export default function RFQDetail(): ReactElement {
           spec: detail.spec,
           sortOrder: detailIndex + 1,
           remark: detail.remark?.trim() || null,
+          commission: null,
           recommend: finalPriceDraft.recommend.trim() || null,
           supplierId,
           tiers: detail.tiers.map((tier, tierIndex) => {
@@ -1984,6 +2229,7 @@ export default function RFQDetail(): ReactElement {
             return {
               quantity: tier.quantity,
               productPrice: convertedProductPrice,
+              commission: parsePriceInput(tier.commission),
               currency: 'THB',
               exchangeRate,
               landFreightCost,
@@ -2220,11 +2466,14 @@ export default function RFQDetail(): ReactElement {
   const handleQuoteTierChange = (
     detailId: number,
     tierId: number,
-    field: 'quantity' | 'productPrice' | 'shippingCost',
+    field:
+      | 'quantity'
+      | 'productPrice'
+      | 'shippingCost'
+      | 'productPriceCurrency'
+      | 'shippingCostCurrency',
     value: string
   ) => {
-    const nextValue = Number(value);
-
     setQuoteDraftDetails((prev) =>
       prev.map((detail) => {
         if (detail.id !== detailId) {
@@ -2240,8 +2489,17 @@ export default function RFQDetail(): ReactElement {
 
             const updatedTier = {
               ...tier,
-              [field]: Number.isNaN(nextValue) ? 0 : nextValue
+              [field]:
+                field === 'productPriceCurrency' || field === 'shippingCostCurrency'
+                  ? value
+                  : Number.isNaN(Number(value))
+                    ? 0
+                    : Number(value)
             };
+
+            if (field === 'productPriceCurrency') {
+              updatedTier.currency = value;
+            }
 
             return {
               ...updatedTier
@@ -2335,6 +2593,7 @@ export default function RFQDetail(): ReactElement {
       quoteDialogQuote
     );
 
+    console.log('payload : ' + JSON.stringify(payload));
     try {
       setIsSupplierQuoteSubmitting(true);
       setVisibleSupplierQuoteSaveConfirmationDialog(false);
@@ -2745,7 +3004,7 @@ export default function RFQDetail(): ReactElement {
               />
             </Stack>
           ) : null}
-          {rfq?.urgentRequest ? (
+          {rfq?.urgentRequest && ['NEW', 'REQUESTED_INFO'].includes(rfq.status) ? (
             <Chip
               clickable
               onClick={handleOpenUrgentDetailDialog}
@@ -2864,7 +3123,7 @@ export default function RFQDetail(): ReactElement {
                 </MenuItem>
               )}
               <MenuItem
-                disabled={isSupplierQuoteSubmitting}
+                disabled={isSupplierQuoteSubmitting || isQuoteAndInquiryActionDisabled}
                 onClick={handleSupplierQuoteFromMenu}>
                 <ListItemIcon>
                   <AssignmentTurnedIn fontSize="small" />
@@ -2874,7 +3133,7 @@ export default function RFQDetail(): ReactElement {
                 />
               </MenuItem>
               <MenuItem
-                disabled={isGenerateInquirySubmitting}
+                disabled={isGenerateInquirySubmitting || isQuoteAndInquiryActionDisabled}
                 onClick={() => {
                   void handleGenerateInquiryFromMenu();
                 }}>
@@ -2980,18 +3239,8 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="เซลล์ผู้ดูแล"
-                      value={getEmployeeLabel(rfq?.sales)}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
-                  </GridTextField>
-
-                  <GridTextField item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="จัดซื้อที่ดูแล"
-                      value={getEmployeeLabel(rfq?.procurement)}
+                      label={t('rfqManagement.form.rfqTypeCode')}
+                      value={getNamedCodeValueLabel(rfq?.rfqType)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
@@ -3026,8 +3275,18 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="การขนส่ง"
-                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      label="เซลล์ผู้ดูแล"
+                      value={getEmployeeLabel(rfq?.sales)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="จัดซื้อที่ดูแล"
+                      value={getEmployeeLabel(rfq?.procurement)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
@@ -3172,6 +3431,65 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: true }}
                     />
                   </GridTextField>
+
+                  <GridTextField item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label={t('rfqManagement.form.targetPrice')}
+                      value={rfq?.targetPrice != null ? rfq.targetPrice.toLocaleString() : ''}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
+                  </GridTextField>
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label="การขนส่ง"
+                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <Stack spacing={1.25}>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                        {t('rfqManagement.form.requestedMoqs')}
+                      </Typography>
+                      <Box
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1.5,
+                          px: 1.5,
+                          py: 1.5,
+                          backgroundColor: 'background.paper'
+                        }}>
+                        <Stack spacing={1.25}>
+                          {(requestedMoqDisplayValues.length ? requestedMoqDisplayValues : ['-']).map(
+                            (requestedMoq, index) => (
+                              <TextField
+                                key={`requested-moq-display-${index}`}
+                                fullWidth
+                                label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                                value={requestedMoq}
+                                InputLabelProps={{ shrink: true }}
+                                InputProps={{ readOnly: true }}
+                                sx={{
+                                  '& .MuiInputBase-root': {
+                                    backgroundColor: 'common.white'
+                                  }
+                                }}
+                              />
+                            )
+                          )}
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Grid>
+                  <Grid item sm={6} />
+
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
@@ -3481,6 +3799,7 @@ export default function RFQDetail(): ReactElement {
         isSubmitting={isFinalPriceSubmitting}
         onClose={handleCloseFinalPriceDialog}
         onRemarkChange={handleFinalPriceRemarkChange}
+        onCommissionChange={handleFinalPriceCommissionChange}
         onTierChange={handleFinalPriceTierChange}
         onAddAdditionalCost={handleAddFinalPriceAdditionalCost}
         onAdditionalCostChange={handleFinalPriceAdditionalCostChange}
@@ -3547,12 +3866,28 @@ export default function RFQDetail(): ReactElement {
         quote={quoteDialogQuote}
         quoteSupplierSearchInput={quoteSupplierSearchInput}
         onQuoteSupplierSearchInputChange={setQuoteSupplierSearchInput}
-        onQuoteSupplierSearchEnter={() =>
-          setQuoteSupplierSearchKeyword(quoteSupplierSearchInput.trim())
-        }
-        onQuoteSupplierSearch={() => setQuoteSupplierSearchKeyword(quoteSupplierSearchInput.trim())}
+        onQuoteSupplierSearchEnter={() => {
+          setQuoteSupplierSearchPage(1);
+          setQuoteSupplierSearchKeyword(quoteSupplierSearchInput.trim());
+        }}
+        onQuoteSupplierSearch={() => {
+          setQuoteSupplierSearchPage(1);
+          setQuoteSupplierSearchKeyword(quoteSupplierSearchInput.trim());
+        }}
         isQuoteSupplierSearchFetching={isQuoteSupplierSearchFetching}
         quoteSupplierSearchResult={quoteSupplierSearchResult}
+        quoteSupplierSearchPagination={quoteSupplierSearchPagination}
+        quoteSupplierSearchPage={quoteSupplierSearchPage}
+        quoteSupplierSearchPageSize={quoteSupplierSearchPageSize}
+        onQuoteSupplierSearchPageChange={setQuoteSupplierSearchPage}
+        onQuoteSupplierSearchPageSizeChange={(pageSize) => {
+          setQuoteSupplierSearchPage(1);
+          setQuoteSupplierSearchPageSize(pageSize);
+        }}
+        onQuoteSupplierSearchRefetch={refetchQuoteSupplierSearch}
+        onOpenNewSupplierDialog={() => setVisibleNewSupplierDialog(true)}
+        onOpenExtractSupplierQuoteDialog={handleOpenExtractSupplierQuoteDialog}
+        currencyOptions={currencyOptions}
         supplierQuoteBySupplierId={supplierQuoteBySupplierId}
         onSelectSupplier={handleSelectQuoteSupplier}
         onChangeSupplier={() => {
@@ -3581,6 +3916,20 @@ export default function RFQDetail(): ReactElement {
         onClose={handleCloseSupplierQuoteDialog}
         isSubmitting={isSupplierQuoteSubmitting}
         t={t}
+      />
+      <NewSupplierDialog
+        open={visibleNewSupplierDialog}
+        onClose={() => setVisibleNewSupplierDialog(false)}
+        onCreated={handleCreateSupplierFromDialog}
+      />
+      <ExtractSupplierQuoteDialog
+        open={visibleExtractSupplierQuoteDialog}
+        supplierName={quoteDialogSupplier?.supplierName}
+        supplierMessage={extractSupplierQuoteMessage}
+        onSupplierMessageChange={setExtractSupplierQuoteMessage}
+        onClose={handleCloseExtractSupplierQuoteDialog}
+        onExtract={handleExtractSupplierQuote}
+        isSubmitting={isExtractSupplierQuoteSubmitting}
       />
       <ConfirmDialog
         open={visibleSupplierQuoteSaveConfirmationDialog}

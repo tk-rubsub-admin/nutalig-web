@@ -509,7 +509,11 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                       Number.isFinite(shippingCost)
                                       ? productPrice * quantity + shippingCost
                                       : null;
-                                  const currency = tier.currency ?? null;
+                                  const productPriceCurrency =
+                                    tier.productPriceCurrency ?? tier.currency ?? null;
+                                  const shippingCostCurrency =
+                                    tier.shippingCostCurrency ?? tier.currency ?? null;
+                                  const totalPriceCurrency = productPriceCurrency;
 
                                   return (
                                     <TableRow
@@ -562,7 +566,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                             }
                                           />
                                         ) : (
-                                          formatPrice(productPrice, currency)
+                                          formatPrice(productPrice, productPriceCurrency)
                                         )}
                                       </TableCell>
                                       <TableCell align="right">
@@ -591,11 +595,11 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                             }
                                           />
                                         ) : (
-                                          formatPrice(shippingCost, currency)
+                                          formatPrice(shippingCost, shippingCostCurrency)
                                         )}
                                       </TableCell>
                                       <TableCell align="right" sx={{ fontWeight: 700 }}>
-                                        {formatPrice(totalPrice, currency)}
+                                        {formatPrice(totalPrice, totalPriceCurrency)}
                                       </TableCell>
                                     </TableRow>
                                   );

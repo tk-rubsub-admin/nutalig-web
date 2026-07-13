@@ -244,6 +244,8 @@
     "title": "Supplier Management",
     "supplier": "Supplier",
     "searchPanel": "Search supplier",
+    "contactCard": "Contact {{index}}",
+    "defaultContact": "Set as default contact",
     "detail": {
       "generalInfo": "General information",
       "contactInfo": "Contact information",
@@ -251,6 +253,7 @@
     },
     "action": {
       "create": "Create supplier",
+      "createShort": "Create New",
       "edit": "Edit supplier",
       "view": "View supplier",
       "action": "Action"
@@ -298,6 +301,20 @@
         "number": "Account number",
         "bankName": "Bank name"
       }
+    },
+    "message": {
+      "confirmCreateTitle": "Confirm create supplier",
+      "confirmCreateMessage": "Do you want to create this supplier?",
+      "createSuccess": "Supplier created successfully",
+      "createFailed": "Failed to create supplier"
+    },
+    "validation": {
+      "supplierName": "Please input supplier name",
+      "email": "Invalid email format",
+      "countryCode": "Please input country",
+      "contactName": "Please input contact name",
+      "contactNumber": "Please input contact number",
+      "contactMin": "Please add at least 1 contact"
     }
   },
   "productFamilyManagement": {

@@ -456,6 +456,8 @@
     "title": "การจัดการข้อมูลคู่ค้า",
     "supplier": "คู่ค้า",
     "searchPanel": "ค้นหาข้อมูลคู่ค้า",
+    "contactCard": "ผู้ติดต่อคนที่ {{index}}",
+    "defaultContact": "ตั้งเป็นผู้ติดต่อหลัก",
     "detail": {
       "generalInfo": "ข้อมูลทั่วไป",
       "contactInfo": "ข้อมูลผู้ติดต่อ",
@@ -463,6 +465,7 @@
     },
     "action": {
       "create": "สร้างคู่ค้าใหม่",
+      "createShort": "สร้างใหม่",
       "edit": "แก้ไขรายละเอียด",
       "view": "ดูรายละเอียด",
       "action": "Action"
@@ -510,6 +513,20 @@
         "number": "เลขบัญชี",
         "bankName": "ธนาคาร"
       }
+    },
+    "message": {
+      "confirmCreateTitle": "ยืนยันการสร้างคู่ค้า",
+      "confirmCreateMessage": "คุณต้องการสร้างคู่ค้าใหม่นี้ใช่หรือไม่",
+      "createSuccess": "สร้างคู่ค้าสำเร็จ",
+      "createFailed": "สร้างคู่ค้าไม่สำเร็จ"
+    },
+    "validation": {
+      "supplierName": "กรุณาระบุชื่อคู่ค้า",
+      "email": "รูปแบบอีเมลไม่ถูกต้อง",
+      "countryCode": "กรุณาระบุประเทศ",
+      "contactName": "กรุณาระบุชื่อผู้ติดต่อ",
+      "contactNumber": "กรุณาระบุเบอร์ติดต่อ",
+      "contactMin": "กรุณาเพิ่มผู้ติดต่ออย่างน้อย 1 รายการ"
     }
   },
   "productFamilyManagement": {

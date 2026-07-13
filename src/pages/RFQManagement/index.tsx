@@ -22,6 +22,7 @@ import {
 import { makeStyles } from '@mui/styles';
 import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
+import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { GridSearchSection, GridTextField, TextLineClamp, Wrapper } from 'components/Styled';
@@ -44,7 +45,7 @@ import { SalesRecord } from 'services/Sales/sales-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
 import { getProductFamilies } from 'services/Product/product-api';
-import { ProductFamily } from 'services/Product/product-type';
+import { ProductFamily, ProductMaterial, ProductSubtype1 } from 'services/Product/product-type';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
   if (!productFamily) {
@@ -56,6 +57,65 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   }
 
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '-';
+}
+
+function getProductSubtype1DisplayName(productSubtype1: ProductSubtype1): string {
+  if (productSubtype1.nameTh && productSubtype1.nameEn) {
+    return `${productSubtype1.nameTh} (${productSubtype1.nameEn})`;
+  }
+
+  return productSubtype1.nameTh || productSubtype1.nameEn || productSubtype1.code;
+}
+
+function getProductMaterialDisplayName(productMaterial: ProductMaterial): string {
+  if (productMaterial.nameTh && productMaterial.nameEn) {
+    return `${productMaterial.nameTh} (${productMaterial.nameEn})`;
+  }
+
+  return productMaterial.nameTh || productMaterial.nameEn || productMaterial.code;
+}
+
+function getProductMaterialOptionLabel(
+  productMaterial: ProductMaterial,
+  isFamilySelected: boolean
+): string {
+  const label = getProductMaterialDisplayName(productMaterial);
+
+  if (isFamilySelected || !productMaterial.productFamilyCode) {
+    return label;
+  }
+
+  return `${label} [${productMaterial.productFamilyCode}]`;
+}
+
+function getRfqProductSubtype1Label(rfq: RFQRecord): string | null {
+  const productSubtype1 = rfq.productSubtype1;
+
+  if (!productSubtype1) {
+    return rfq.productUsage || null;
+  }
+
+  return (
+    productSubtype1.nameTh ||
+    productSubtype1.nameEn ||
+    productSubtype1.code ||
+    rfq.productUsage ||
+    null
+  );
+}
+
+function getRfqProductMaterialLabel(rfq: RFQRecord): string | null {
+  const material = rfq.material;
+
+  if (!material) {
+    return null;
+  }
+
+  if (typeof material === 'string') {
+    return material;
+  }
+
+  return material.nameTh || material.nameEn || material.code || null;
 }
 
 function getEmployeeLabel(employee?: RFQEmployee | null): string {
@@ -75,6 +135,10 @@ function getSalesProcurementLabel(rfq: RFQRecord): string {
 
 function getCustomerLabel(rfq: RFQRecord): string | null {
   return rfq.customer?.customerName || rfq.customer?.companyName || null;
+}
+
+function getRfqTypeLabel(rfq: RFQRecord): string {
+  return rfq.rfqType?.nameTh || rfq.rfqType?.nameEn || rfq.rfqType?.code || '-';
 }
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
@@ -219,6 +283,13 @@ function RFQPictureGrid({
             src={picture.pictureUrl}
             alt={String(picture.id)}
             loading="lazy"
+            onError={(event) => {
+              const image = event.currentTarget as HTMLImageElement;
+              if (image.getAttribute('src') === FALLBACK_RFQ_IMAGE_URL) {
+                return;
+              }
+              image.src = FALLBACK_RFQ_IMAGE_URL;
+            }}
             sx={{
               width: '100%',
               height: '100%',
@@ -248,6 +319,13 @@ function RFQPictureGrid({
             component="img"
             src={previewUrl}
             alt="RFQ preview"
+            onError={(event) => {
+              const image = event.currentTarget as HTMLImageElement;
+              if (image.getAttribute('src') === FALLBACK_RFQ_IMAGE_URL) {
+                return;
+              }
+              image.src = FALLBACK_RFQ_IMAGE_URL;
+            }}
             sx={{
               maxWidth: '90vw',
               maxHeight: '90vh',
@@ -269,6 +347,8 @@ function createDefaultFilter(salesId = '') {
     procurementId: '',
     orderTypeCode: '',
     productFamily: '',
+    productSubtype1: '',
+    productMaterial: '',
     status: '',
     keyword: '',
     requestedDateStart: dayjs().startOf('month').format('YYYY-MM-DD'),
@@ -276,7 +356,10 @@ function createDefaultFilter(salesId = '') {
   };
 }
 
+type RFQManagementFilter = ReturnType<typeof createDefaultFilter>;
+
 const SCREEN_CODE = 'RFQ_LIST';
+const FALLBACK_RFQ_IMAGE_URL = '/no-image.jpg';
 
 const RFQ_STATUS_OPTIONS = [
   'NEW',
@@ -346,8 +429,11 @@ export default function RFQManagement(): ReactElement {
     [visibleSearchFields]
   );
 
-  const canShowField = (fieldCode: keyof typeof defaultFilter) =>
-    fieldCode === 'keyword' || visibleFieldCodes.has(fieldCode);
+  const canShowField = (fieldCode: keyof RFQManagementFilter) =>
+    fieldCode === 'keyword' ||
+    fieldCode === 'productSubtype1' ||
+    fieldCode === 'productMaterial' ||
+    visibleFieldCodes.has(fieldCode);
 
   const {
     data: rfqResponse,
@@ -361,24 +447,34 @@ export default function RFQManagement(): ReactElement {
       filter.id,
       filter.customerId,
       filter.salesId,
+      filter.procurementId,
       filter.orderTypeCode,
       filter.productFamily,
+      filter.productSubtype1,
+      filter.productMaterial,
       filter.status,
       filter.keyword,
-      'slaDate',
-      'ASC'
+      filter.requestedDateStart,
+      filter.requestedDateEnd,
+      'requestedDate',
+      'DESC'
     ],
     () =>
       getRFQList(page, pageSize, {
         id: filter.id,
         customerId: filter.customerId,
         salesId: filter.salesId,
+        procurementId: filter.procurementId,
         orderTypeCode: filter.orderTypeCode,
         productFamily: filter.productFamily,
+        productSubtype1: filter.productSubtype1,
+        productMaterial: filter.productMaterial,
         status: filter.status || undefined,
         keyword: filter.keyword,
-        sortBy: 'slaDate',
-        sortDirection: 'ASC'
+        requestedDateStart: filter.requestedDateStart,
+        requestedDateEnd: filter.requestedDateEnd,
+        sortBy: 'requestedDate',
+        sortDirection: 'DESC'
       }),
     {
       refetchOnWindowFocus: false,
@@ -469,10 +565,23 @@ export default function RFQManagement(): ReactElement {
           : canShowField('salesId')
             ? values.salesId?.trim() || ''
             : '',
+        procurementId: canShowField('procurementId') ? values.procurementId?.trim() || '' : '',
         orderTypeCode: canShowField('orderTypeCode') ? values.orderTypeCode?.trim() || '' : '',
         productFamily: canShowField('productFamily') ? values.productFamily?.trim() || '' : '',
+        productSubtype1: canShowField('productSubtype1')
+          ? values.productSubtype1?.trim() || ''
+          : '',
+        productMaterial: canShowField('productMaterial')
+          ? values.productMaterial?.trim() || ''
+          : '',
         status: canShowField('status') ? values.status?.trim() || '' : '',
-        keyword: values.keyword?.trim() || ''
+        keyword: values.keyword?.trim() || '',
+        requestedDateStart: canShowField('requestedDateStart')
+          ? values.requestedDateStart?.trim() || ''
+          : '',
+        requestedDateEnd: canShowField('requestedDateEnd')
+          ? values.requestedDateEnd?.trim() || ''
+          : ''
       };
 
       setPage(1);
@@ -485,6 +594,35 @@ export default function RFQManagement(): ReactElement {
       setFilter(nextFilter);
     }
   });
+
+  const selectedProductFamily = useMemo(
+    () =>
+      productFamilyList.find(
+        (productFamily: ProductFamily) => productFamily.code === searchFormik.values.productFamily
+      ) || null,
+    [productFamilyList, searchFormik.values.productFamily]
+  );
+
+  const productSubtype1Options = useMemo(() => {
+    if (selectedProductFamily) {
+      return selectedProductFamily.subtype1List || [];
+    }
+
+    return productFamilyList.flatMap(
+      (productFamily: ProductFamily) => productFamily.subtype1List || []
+    );
+  }, [productFamilyList, selectedProductFamily]);
+
+  const productMaterialOptions = useMemo(() => {
+    if (selectedProductFamily) {
+      return selectedProductFamily.materialList || selectedProductFamily.productMaterialList || [];
+    }
+
+    return productFamilyList.flatMap(
+      (productFamily: ProductFamily) =>
+        productFamily.materialList || productFamily.productMaterialList || []
+    );
+  }, [productFamilyList, selectedProductFamily]);
 
   useEffect(() => {
     if (!isSalesRole) {
@@ -529,17 +667,30 @@ export default function RFQManagement(): ReactElement {
           onClick={() => history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.id))}
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1.5 }}>
-              <Typography variant="body2">{rfq.id}</Typography>
-              <Chip
-                label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
-                size="small"
-                sx={{
-                  backgroundColor: '#e8f5e9',
-                  color: '#2e7d32',
-                  fontWeight: 700
-                }}
-              />
+            <Stack spacing={0.25} sx={{ pl: 1.5 }}>
+              <Typography variant="body2" fontWeight={700}>
+                {rfq.id}
+              </Typography>
+              <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                <Chip
+                  label={getRfqTypeLabel(rfq)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontWeight: 700
+                  }}
+                />
+                <Chip
+                  label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#e8f5e9',
+                    color: '#2e7d32',
+                    fontWeight: 700
+                  }}
+                />
+              </Stack>
             </Stack>
           </TableCell>
           <TableCell align="center">
@@ -554,10 +705,8 @@ export default function RFQManagement(): ReactElement {
             <TextLineClamp>{getSalesProcurementLabel(rfq)}</TextLineClamp>
           </TableCell>
           <TableCell>
-            <TextLineClamp>{rfq.orderType?.nameTh || '-'}</TextLineClamp>
-          </TableCell>
-          <TableCell>
-            <TextLineClamp>{getProductFamilyLabel(rfq.productFamily)}</TextLineClamp>
+            {getRfqProductSubtype1Label(rfq) ? getRfqProductSubtype1Label(rfq) : null}{' '}
+            {getRfqProductMaterialLabel(rfq) ? getRfqProductMaterialLabel(rfq) : null}
           </TableCell>
           <TableCell>
             <TextLineClamp>{rfq.capacity || '-'}</TextLineClamp>
@@ -585,10 +734,19 @@ export default function RFQManagement(): ReactElement {
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
             <Stack spacing={0.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="subtitle2" fontWeight={700}>
-                  {rfq.id}
-                </Typography>
+              <Typography variant="subtitle2" fontWeight={700}>
+                {rfq.id}
+              </Typography>
+              <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                <Chip
+                  label={getRfqTypeLabel(rfq)}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontWeight: 700
+                  }}
+                />
                 <Chip
                   label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
                   size="small"
@@ -620,6 +778,16 @@ export default function RFQManagement(): ReactElement {
                 {t('rfqManagement.column.productFamily')}:{' '}
                 {getProductFamilyLabel(rfq.productFamily)}
               </Typography>
+              {getRfqProductSubtype1Label(rfq) ? (
+                <Typography variant="body2" color="text.secondary">
+                  Product Subtype 1: {getRfqProductSubtype1Label(rfq)}
+                </Typography>
+              ) : null}
+              {getRfqProductMaterialLabel(rfq) ? (
+                <Typography variant="body2" color="text.secondary">
+                  Product Material: {getRfqProductMaterialLabel(rfq)}
+                </Typography>
+              ) : null}
               <RFQPictureGrid pictures={getPictureResources(rfq)} />
             </Stack>
           </TableCell>
@@ -673,12 +841,8 @@ export default function RFQManagement(): ReactElement {
           </Button>
         </Stack>
 
-        <GridSearchSection container spacing={1}>
-          <Grid item xs={12}>
-            <Typography variant="h6" component="h2">
-              ค้นหาคำขอราคา
-            </Typography>
-          </Grid>
+        <CollapsibleWrapper title="ค้นหาคำขอราคา" defaultExpanded={false}>
+          <GridSearchSection container spacing={1} sx={{ mt: 0 }}>
           {canShowField('id') && (
             <GridTextField item xs={12} sm={4} md={3}>
               <TextField
@@ -698,8 +862,9 @@ export default function RFQManagement(): ReactElement {
                 loading={isCustomerFetching}
                 filterOptions={(options) => options}
                 value={
-                  customerOptions.find((customer) => customer.id === searchFormik.values.customerId) ||
-                  null
+                  customerOptions.find(
+                    (customer) => customer.id === searchFormik.values.customerId
+                  ) || null
                 }
                 getOptionLabel={(option: Customer) => `(${option.id}) ${option.customerName}`}
                 onChange={(_event, value) => {
@@ -717,9 +882,7 @@ export default function RFQManagement(): ReactElement {
                   }
                 }}
                 noOptionsText={
-                  debouncedCustomerKeyword
-                    ? 'ไม่พบข้อมูลลูกค้า'
-                    : 'พิมพ์เพื่อค้นหาลูกค้า'
+                  debouncedCustomerKeyword ? 'ไม่พบข้อมูลลูกค้า' : 'พิมพ์เพื่อค้นหาลูกค้า'
                 }
                 renderInput={(params) => (
                   <TextField
@@ -728,7 +891,9 @@ export default function RFQManagement(): ReactElement {
                     label="รหัสลูกค้า"
                     InputLabelProps={{ shrink: true }}
                     onBlur={() => searchFormik.setFieldTouched('customerId', true)}
-                    error={searchFormik.touched.customerId && Boolean(searchFormik.errors.customerId)}
+                    error={
+                      searchFormik.touched.customerId && Boolean(searchFormik.errors.customerId)
+                    }
                     helperText={searchFormik.touched.customerId && searchFormik.errors.customerId}
                     InputProps={{
                       ...params.InputProps,
@@ -836,7 +1001,11 @@ export default function RFQManagement(): ReactElement {
                 label="Product Family"
                 name="productFamily"
                 value={searchFormik.values.productFamily}
-                onChange={searchFormik.handleChange}
+                onChange={(event) => {
+                  searchFormik.handleChange(event);
+                  searchFormik.setFieldValue('productSubtype1', '');
+                  searchFormik.setFieldValue('productMaterial', '');
+                }}
                 disabled={isProductFamilyFetching}
                 InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">ทั้งหมด</MenuItem>
@@ -855,6 +1024,58 @@ export default function RFQManagement(): ReactElement {
                     {productFamily.nameTh && productFamily.nameEn
                       ? `${productFamily.nameTh} (${productFamily.nameEn})`
                       : productFamily.nameTh || productFamily.nameEn || productFamily.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+          )}
+          {canShowField('productSubtype1') && (
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="Product Subtype 1"
+                name="productSubtype1"
+                value={searchFormik.values.productSubtype1}
+                onChange={searchFormik.handleChange}
+                disabled={isProductFamilyFetching}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {!isProductFamilyFetching && productSubtype1Options.length === 0 ? (
+                  <MenuItem disabled value="">
+                    No product subtype 1 data
+                  </MenuItem>
+                ) : null}
+                {productSubtype1Options.map((productSubtype1: ProductSubtype1) => (
+                  <MenuItem key={productSubtype1.code} value={productSubtype1.code}>
+                    {getProductSubtype1DisplayName(productSubtype1)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+          )}
+          {canShowField('productMaterial') && (
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="Product Material"
+                name="productMaterial"
+                value={searchFormik.values.productMaterial}
+                onChange={searchFormik.handleChange}
+                disabled={isProductFamilyFetching}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {!isProductFamilyFetching && productMaterialOptions.length === 0 ? (
+                  <MenuItem disabled value="">
+                    No product material data
+                  </MenuItem>
+                ) : null}
+                {productMaterialOptions.map((productMaterial: ProductMaterial) => (
+                  <MenuItem
+                    key={`${productMaterial.productFamilyCode || 'ALL'}-${productMaterial.code}`}
+                    value={productMaterial.code}>
+                    {getProductMaterialOptionLabel(productMaterial, Boolean(selectedProductFamily))}
                   </MenuItem>
                 ))}
               </TextField>
@@ -918,7 +1139,8 @@ export default function RFQManagement(): ReactElement {
               />
             </GridTextField>
           )}
-        </GridSearchSection>
+          </GridSearchSection>
+        </CollapsibleWrapper>
 
         {isMobileOnly ? (
           <GridSearchSection container>
@@ -958,16 +1180,13 @@ export default function RFQManagement(): ReactElement {
                       {t('rfqManagement.column.requestedDate')}
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
-                      {t('rfqManagement.column.contact')}
+                      ลูกค้า
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
                       {t('rfqManagement.column.sales')}
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
-                      {t('rfqManagement.column.orderType')}
-                    </TableCell>
-                    <TableCell align="center" className={classes.tableHeader}>
-                      {t('rfqManagement.column.productFamily')}
+                      สินค้า
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
                       {t('rfqManagement.column.capacity')}
@@ -980,7 +1199,7 @@ export default function RFQManagement(): ReactElement {
                 {isRFQFetching ? (
                   <TableBody>
                     <TableRow>
-                      <TableCell colSpan={8} align="center">
+                      <TableCell colSpan={7} align="center">
                         <CircularProgress />
                       </TableCell>
                     </TableRow>

@@ -256,7 +256,7 @@ export default function SupplierManagement(): JSX.Element {
             alignItems: { xs: 'flex-end', sm: 'center' }
           }}
         >
-          <Can permission={PERMISSIONS.SUPPLIER_EDIT}>
+          <Can permission={PERMISSIONS.SUPPLIER_CREATE}>
             <Button
               fullWidth={isDownSm}
               variant="contained"
@@ -264,7 +264,7 @@ export default function SupplierManagement(): JSX.Element {
               onClick={() => history.push(ROUTE_PATHS.SUPPLIER_NEW)}
               startIcon={<PersonAddAlt1 />}
             >
-              {t('supplierManagement.action.create')}
+              {t('supplierManagement.action.createShort')}
             </Button>
           </Can>
           <Button

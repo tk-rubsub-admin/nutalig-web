@@ -9,6 +9,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -18,7 +19,9 @@ import {
   TextField,
   Typography
 } from '@mui/material';
+import Paginate from 'components/Paginate';
 import { ReactElement } from 'react';
+import { SystemConfig } from 'services/Config/config-type';
 import { Supplier } from 'services/Supplier/supplier-type';
 import { RFQSupplierQuote } from 'services/RFQ/rfq-type';
 import { blueActionButtonSx, outlinedActionButtonSx } from './supplierQuoteDialogStyles';
@@ -40,6 +43,8 @@ export interface SupplierQuoteDialogDetail {
     quantity: number;
     productPrice: number;
     shippingCost: number;
+    productPriceCurrency?: string | null;
+    shippingCostCurrency?: string | null;
     currency?: string | null;
     sortOrder: number;
     createdDate: string;
@@ -73,6 +78,20 @@ export interface SupplierQuoteDialogProps {
   onQuoteSupplierSearch: () => void;
   isQuoteSupplierSearchFetching: boolean;
   quoteSupplierSearchResult: Supplier[];
+  quoteSupplierSearchPagination?: {
+    page: number;
+    size: number;
+    totalPage: number;
+    totalRecords: number;
+  };
+  quoteSupplierSearchPage: number;
+  quoteSupplierSearchPageSize: number;
+  onQuoteSupplierSearchPageChange: (page: number) => void;
+  onQuoteSupplierSearchPageSizeChange: (pageSize: number) => void;
+  onQuoteSupplierSearchRefetch: () => void;
+  onOpenNewSupplierDialog: () => void;
+  onOpenExtractSupplierQuoteDialog: () => void;
+  currencyOptions: SystemConfig[];
   supplierQuoteBySupplierId: Record<string, RFQSupplierQuote | null>;
   onSelectSupplier: (supplier: Supplier) => void;
   onChangeSupplier: () => void;
@@ -109,7 +128,12 @@ export interface SupplierQuoteDialogProps {
   onTierChange: (
     detailId: number,
     tierId: number,
-    field: 'quantity' | 'productPrice' | 'shippingCost',
+    field:
+      | 'quantity'
+      | 'productPrice'
+      | 'shippingCost'
+      | 'productPriceCurrency'
+      | 'shippingCostCurrency',
     value: string
   ) => void;
   onDeleteTier: (detailId: number, tierId: number) => void;
@@ -137,6 +161,15 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     onQuoteSupplierSearch,
     isQuoteSupplierSearchFetching,
     quoteSupplierSearchResult,
+    quoteSupplierSearchPagination,
+    quoteSupplierSearchPage,
+    quoteSupplierSearchPageSize,
+    onQuoteSupplierSearchPageChange,
+    onQuoteSupplierSearchPageSizeChange,
+    onQuoteSupplierSearchRefetch,
+    onOpenNewSupplierDialog,
+    onOpenExtractSupplierQuoteDialog,
+    currencyOptions,
     supplierQuoteBySupplierId,
     onSelectSupplier,
     onChangeSupplier,
@@ -189,9 +222,16 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                   />
                   <Button
                     variant="contained"
-                    sx={blueActionButtonSx}
+                    className="btn-indigo-blue"
                     onClick={onQuoteSupplierSearch}>
                     ค้นหา
+                  </Button>
+                  <Button
+                    variant="contained"
+                    className="btn-emerald-green"
+                    sx={{ whiteSpace: 'nowrap', minWidth: 'fit-content', flexShrink: 0 }}
+                    onClick={onOpenNewSupplierDialog}>
+                    สร้างใหม่
                   </Button>
                 </Stack>
 
@@ -241,6 +281,18 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         </Box>
                       );
                     })}
+                    {quoteSupplierSearchPagination ? (
+                      <Paginate
+                        pagination={quoteSupplierSearchPagination}
+                        page={quoteSupplierSearchPage}
+                        pageSize={quoteSupplierSearchPageSize}
+                        setPage={onQuoteSupplierSearchPageChange}
+                        setPageSize={onQuoteSupplierSearchPageSizeChange}
+                        refetch={onQuoteSupplierSearchRefetch}
+                        totalRecords={quoteSupplierSearchPagination.totalRecords}
+                        isShow={true}
+                      />
+                    ) : null}
                   </Stack>
                 ) : (
                   <Box
@@ -298,14 +350,24 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                   <Typography variant="subtitle1" fontWeight={700}>
                     รายการราคาที่ตอบกลับ
                   </Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<Add />}
-                    sx={outlinedActionButtonSx}
-                    onClick={onAddDetail}>
-                    เพิ่มรายการ
-                  </Button>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      className="btn-indigo-blue"
+                      sx={{ whiteSpace: 'nowrap' }}
+                      onClick={onOpenExtractSupplierQuoteDialog}>
+                      แปลงจากข้อความ
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Add />}
+                      sx={outlinedActionButtonSx}
+                      onClick={onAddDetail}>
+                      เพิ่มรายการ
+                    </Button>
+                  </Stack>
                 </Stack>
                 {quoteDraftDetails.map((detail) => {
                   const detailError = quoteDraftErrors[detail.id] || {};
@@ -395,7 +457,9 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                             <TableRow>
                               <TableCell>MOQ</TableCell>
                               <TableCell>Product Price</TableCell>
+                              <TableCell>สกุลเงิน</TableCell>
                               <TableCell>ค่าขนส่ง</TableCell>
+                              <TableCell>สกุลเงิน</TableCell>
                               <TableCell align="center">จัดการ</TableCell>
                             </TableRow>
                           </TableHead>
@@ -431,13 +495,6 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                         value={tier.productPrice}
                                         error={Boolean(tierError.productPrice)}
                                         helperText={tierError.productPrice}
-                                        InputProps={{
-                                          endAdornment: (
-                                            <InputAdornment position="end">
-                                              หยวน​ (¥)
-                                            </InputAdornment>
-                                          )
-                                        }}
                                         onChange={(event) =>
                                           onTierChange(
                                             detail.id,
@@ -451,18 +508,34 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                     <TableCell>
                                       <TextField
                                         fullWidth
+                                        select
+                                        size="small"
+                                        value={tier.productPriceCurrency || tier.currency || ''}
+                                        onChange={(event) =>
+                                          onTierChange(
+                                            detail.id,
+                                            tier.id,
+                                            'productPriceCurrency',
+                                            event.target.value
+                                          )
+                                        }>
+                                        {currencyOptions.map((currencyOption) => (
+                                          <MenuItem
+                                            key={`product-${currencyOption.code}`}
+                                            value={currencyOption.code}>
+                                            {currencyOption.code}
+                                          </MenuItem>
+                                        ))}
+                                      </TextField>
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
                                         size="small"
                                         type="number"
                                         value={tier.shippingCost}
                                         error={Boolean(tierError.shippingCost)}
                                         helperText={tierError.shippingCost}
-                                        InputProps={{
-                                          endAdornment: (
-                                            <InputAdornment position="end">
-                                              หยวน​ (¥)
-                                            </InputAdornment>
-                                          )
-                                        }}
                                         onChange={(event) =>
                                           onTierChange(
                                             detail.id,
@@ -472,6 +545,29 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                           )
                                         }
                                       />
+                                    </TableCell>
+                                    <TableCell>
+                                      <TextField
+                                        fullWidth
+                                        select
+                                        size="small"
+                                        value={tier.shippingCostCurrency || tier.currency || ''}
+                                        onChange={(event) =>
+                                          onTierChange(
+                                            detail.id,
+                                            tier.id,
+                                            'shippingCostCurrency',
+                                            event.target.value
+                                          )
+                                        }>
+                                        {currencyOptions.map((currencyOption) => (
+                                          <MenuItem
+                                            key={`shipping-${currencyOption.code}`}
+                                            value={currencyOption.code}>
+                                            {currencyOption.code}
+                                          </MenuItem>
+                                        ))}
+                                      </TextField>
                                     </TableCell>
                                     <TableCell align="center">
                                       <IconButton
@@ -550,6 +646,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                         size="small"
                                         value={packageItem.packageWidth || ''}
                                         InputLabelProps={{ shrink: true }}
+                                        InputProps={{
+                                          endAdornment: (
+                                            <InputAdornment position="end">cm</InputAdornment>
+                                          )
+                                        }}
                                         onChange={(event) =>
                                           onPackageChange(
                                             detail.id,
@@ -566,6 +667,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                         size="small"
                                         value={packageItem.packageLength || ''}
                                         InputLabelProps={{ shrink: true }}
+                                        InputProps={{
+                                          endAdornment: (
+                                            <InputAdornment position="end">cm</InputAdornment>
+                                          )
+                                        }}
                                         onChange={(event) =>
                                           onPackageChange(
                                             detail.id,
@@ -582,6 +688,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                         size="small"
                                         value={packageItem.packageHeight || ''}
                                         InputLabelProps={{ shrink: true }}
+                                        InputProps={{
+                                          endAdornment: (
+                                            <InputAdornment position="end">cm</InputAdornment>
+                                          )
+                                        }}
                                         onChange={(event) =>
                                           onPackageChange(
                                             detail.id,
@@ -598,6 +709,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                         size="small"
                                         value={packageItem.packageWeight || ''}
                                         InputLabelProps={{ shrink: true }}
+                                        InputProps={{
+                                          endAdornment: (
+                                            <InputAdornment position="end">kg</InputAdornment>
+                                          )
+                                        }}
                                         onChange={(event) =>
                                           onPackageChange(
                                             detail.id,
@@ -614,6 +730,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                         size="small"
                                         value={packageItem.packageCapacity || ''}
                                         InputLabelProps={{ shrink: true }}
+                                        InputProps={{
+                                          endAdornment: (
+                                            <InputAdornment position="end">ชิ้น</InputAdornment>
+                                          )
+                                        }}
                                         onChange={(event) =>
                                           onPackageChange(
                                             detail.id,

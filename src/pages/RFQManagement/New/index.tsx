@@ -55,13 +55,15 @@ import {
   ProductSubtype1,
   ProductSubtype2
 } from 'services/Product/product-type';
-import { addRFQAttachments, createRFQ } from 'services/RFQ/rfq-api';
+import { addRFQAttachments, createRFQ, getRFQ, getRFQList } from 'services/RFQ/rfq-api';
+import { RFQRecord } from 'services/RFQ/rfq-type';
 import { getProcurementEmployees, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import * as Yup from 'yup';
 
 const CUSTOM_UNIT_OPTION = '__custom_unit__';
 const RFQ_SALES_TEAM_CODES = ['SALES_ONLINE', 'SALES_OFFLINE'];
+const PARENT_RFQ_TYPE_CODES = ['REPEAT_PRICE', 'REORDER', 'SPEC_REV', 'SPECIAL_PRICE_REVIEW'];
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
   if (productFamily.nameTh && productFamily.nameEn) {
@@ -103,6 +105,46 @@ function getSystemConfigDisplayName(systemConfig: SystemConfig): string {
   return systemConfig.nameTh || systemConfig.nameEn || systemConfig.code;
 }
 
+function getRfqDisplayLabel(rfq: RFQRecord): string {
+  return [rfq.id, rfq.productFamily.nameTh + ' ' + rfq.material.nameTh]
+    .filter(Boolean)
+    .join(' | ');
+}
+
+function getNamedCode(codeOrObject?: { code?: string | null } | string | null): string {
+  if (!codeOrObject) {
+    return '';
+  }
+
+  return typeof codeOrObject === 'string' ? codeOrObject : codeOrObject.code || '';
+}
+
+function parseCapacityValue(
+  capacity?: string | null,
+  unitOptions?: SystemConfig[]
+): { capacity: string; capacityUnit: string } {
+  const normalizedCapacity = (capacity || '').trim();
+  if (!normalizedCapacity) {
+    return { capacity: '', capacityUnit: '' };
+  }
+
+  const matchedUnit = (unitOptions || []).find((unit) => {
+    const unitCode = (unit.code || '').trim();
+    return unitCode && normalizedCapacity.endsWith(` ${unitCode}`);
+  });
+
+  if (!matchedUnit) {
+    return { capacity: normalizedCapacity, capacityUnit: '' };
+  }
+
+  return {
+    capacity: normalizedCapacity
+      .slice(0, normalizedCapacity.length - matchedUnit.code.length)
+      .trim(),
+    capacityUnit: matchedUnit.code
+  };
+}
+
 export default function NewRFQ(): JSX.Element {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
@@ -126,6 +168,7 @@ export default function NewRFQ(): JSX.Element {
   const isSalesRole = hasRole('SALES');
   const defaultSalesId = isSalesRole ? getEmployeeId() : '';
   const submitModeRef = useRef<'NORMAL' | 'URGENT'>('NORMAL');
+  const appliedParentRfqIdRef = useRef('');
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedCustomerKeyword(customerKeyword.trim());
@@ -142,17 +185,21 @@ export default function NewRFQ(): JSX.Element {
     }
   );
 
-  const { data: rfqTypeList = [] } = useQuery(
-    'rfq-type-list',
-    () => getSystemConfig('RFQ_TYPE'),
-    {
-      refetchOnWindowFocus: false
-    }
-  );
+  const { data: rfqTypeList = [] } = useQuery('rfq-type-list', () => getSystemConfig('RFQ_TYPE'), {
+    refetchOnWindowFocus: false
+  });
 
-  const { data: unitOptions = [], isFetching: isUnitFetching, refetch: refetchUnitOptions } = useQuery(
-    'rfq-unit-options',
-    () => getSystemConfig('UNIT'),
+  const {
+    data: unitOptions = [],
+    isFetching: isUnitFetching,
+    refetch: refetchUnitOptions
+  } = useQuery('rfq-unit-options', () => getSystemConfig('UNIT'), {
+    refetchOnWindowFocus: false
+  });
+
+  const { data: parentRfqOptions = [], isFetching: isParentRfqFetching } = useQuery(
+    'rfq-parent-options',
+    () => getRFQList(1, 100).then((response) => response.records || []),
     {
       refetchOnWindowFocus: false
     }
@@ -294,6 +341,7 @@ export default function NewRFQ(): JSX.Element {
     initialValues: {
       customerMode: 'NEW',
       customerId: '',
+      parentRfqId: '',
       contactName: '',
       contactPhone: '',
       salesId: defaultSalesId,
@@ -316,6 +364,11 @@ export default function NewRFQ(): JSX.Element {
       customerId: Yup.string().when('customerMode', {
         is: 'EXISTING',
         then: Yup.string().required(t('rfqManagement.validation.customerId')),
+        otherwise: Yup.string().nullable()
+      }),
+      parentRfqId: Yup.string().when('rfqTypeCode', {
+        is: (rfqTypeCode: string) => PARENT_RFQ_TYPE_CODES.includes(rfqTypeCode),
+        then: Yup.string().required('กรุณาเลือก RFQ อ้างอิง'),
         otherwise: Yup.string().nullable()
       }),
       contactName: Yup.string().when('customerMode', {
@@ -370,18 +423,31 @@ export default function NewRFQ(): JSX.Element {
     }
   );
 
+  const selectedParentRfq = useMemo(
+    () => parentRfqOptions.find((rfq) => rfq.id === formik.values.parentRfqId) || null,
+    [formik.values.parentRfqId, parentRfqOptions]
+  );
+
+  const { data: parentRfqDetail } = useQuery(
+    ['rfq-parent-detail', formik.values.parentRfqId],
+    () => getRFQ(formik.values.parentRfqId),
+    {
+      refetchOnWindowFocus: false,
+      enabled: Boolean(formik.values.parentRfqId)
+    }
+  );
+
   const selectedProductFamily = useMemo(
     () =>
       productFamilyList
         .filter((productFamily: ProductFamily) => productFamily.isActive !== false)
-        .find(
-        (productFamily: ProductFamily) => productFamily.code === formik.values.productFamily
-      ),
+        .find((productFamily: ProductFamily) => productFamily.code === formik.values.productFamily),
     [formik.values.productFamily, productFamilyList]
   );
 
   const activeProductFamilyList = useMemo(
-    () => productFamilyList.filter((productFamily: ProductFamily) => productFamily.isActive !== false),
+    () =>
+      productFamilyList.filter((productFamily: ProductFamily) => productFamily.isActive !== false),
     [productFamilyList]
   );
 
@@ -461,6 +527,57 @@ export default function NewRFQ(): JSX.Element {
   }, [formik, procurementOptions]);
 
   useEffect(() => {
+    if (PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode)) {
+      return;
+    }
+
+    appliedParentRfqIdRef.current = '';
+    if (formik.values.parentRfqId) {
+      formik.setFieldValue('parentRfqId', '');
+    }
+  }, [formik, formik.values.parentRfqId, formik.values.rfqTypeCode]);
+
+  useEffect(() => {
+    if (
+      !parentRfqDetail ||
+      !PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ||
+      appliedParentRfqIdRef.current === parentRfqDetail.id
+    ) {
+      return;
+    }
+
+    appliedParentRfqIdRef.current = parentRfqDetail.id;
+    const parsedCapacity = parseCapacityValue(parentRfqDetail.capacity, unitOptions);
+    const requestedMoqs = parentRfqDetail.requestedMoqs?.length
+      ? parentRfqDetail.requestedMoqs.map((value) => `${value}`)
+      : [''];
+
+    formik.setValues((prevValues) => ({
+      ...prevValues,
+      customerMode: parentRfqDetail.customer ? 'EXISTING' : prevValues.customerMode,
+      customerId: parentRfqDetail.customer?.id || '',
+      contactName: parentRfqDetail.contactName || '',
+      contactPhone: parentRfqDetail.contactPhone || '',
+      salesId: prevValues.salesId,
+      purchaseAccount: prevValues.purchaseAccount,
+      orderTypeCode: parentRfqDetail.orderType?.code || '',
+      shippingMethod: parentRfqDetail.shippingMethod || 'ALL',
+      productFamily: getNamedCode(parentRfqDetail.productFamily),
+      productUsage: getNamedCode(parentRfqDetail.productSubtype1),
+      systemMechanic: getNamedCode(parentRfqDetail.productSubType2),
+      material: getNamedCode(parentRfqDetail.material),
+      capacity: parsedCapacity.capacity,
+      capacityUnit: parsedCapacity.capacityUnit,
+      targetPrice:
+        parentRfqDetail.targetPrice === null || parentRfqDetail.targetPrice === undefined
+          ? ''
+          : String(parentRfqDetail.targetPrice),
+      requestedMoqs,
+      description: parentRfqDetail.description || ''
+    }));
+  }, [formik, formik.values.rfqTypeCode, parentRfqDetail, unitOptions]);
+
+  useEffect(() => {
     if (!formik.values.productFamily) {
       return;
     }
@@ -490,6 +607,7 @@ export default function NewRFQ(): JSX.Element {
     const touchedFields = {
       customerMode: true,
       customerId: true,
+      parentRfqId: true,
       contactName: true,
       contactPhone: true,
       salesId: true,
@@ -758,7 +876,7 @@ export default function NewRFQ(): JSX.Element {
             </GridTextField>
           )}
 
-          <GridTextField item xs={12} sm={6}>
+          <GridTextField item xs={12} sm={4}>
             <TextField
               select
               fullWidth
@@ -766,7 +884,9 @@ export default function NewRFQ(): JSX.Element {
               InputLabelProps={{ shrink: true }}
               name="rfqTypeCode"
               value={formik.values.rfqTypeCode}
-              onChange={formik.handleChange}
+              onChange={(event) => {
+                formik.handleChange(event);
+              }}
               onBlur={() => formik.setFieldTouched('rfqTypeCode', true)}
               error={formik.touched.rfqTypeCode && Boolean(formik.errors.rfqTypeCode)}
               helperText={formik.touched.rfqTypeCode && formik.errors.rfqTypeCode}>
@@ -777,7 +897,8 @@ export default function NewRFQ(): JSX.Element {
               ))}
             </TextField>
           </GridTextField>
-          <GridTextField item xs={12} sm={6}>
+
+          <GridTextField item xs={12} sm={2}>
             <TextField
               select
               fullWidth
@@ -796,6 +917,59 @@ export default function NewRFQ(): JSX.Element {
               ))}
             </TextField>
           </GridTextField>
+
+          {PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ? (
+            <GridTextField item xs={12} sm={6}>
+              <Autocomplete
+                options={parentRfqOptions}
+                loading={isParentRfqFetching}
+                filterOptions={(options, state) => {
+                  const keyword = state.inputValue.trim().toLowerCase();
+                  if (!keyword) {
+                    return options;
+                  }
+
+                  return options.filter((option) =>
+                    getRfqDisplayLabel(option).toLowerCase().includes(keyword)
+                  );
+                }}
+                value={selectedParentRfq}
+                getOptionLabel={(option: RFQRecord) => getRfqDisplayLabel(option)}
+                onChange={(_event, value) => {
+                  formik.setFieldValue('parentRfqId', value?.id || '');
+                }}
+                noOptionsText="ไม่พบข้อมูล RFQ"
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="RFQ อ้างอิง"
+                    InputLabelProps={{ shrink: true }}
+                    onBlur={() => formik.setFieldTouched('parentRfqId', true)}
+                    error={formik.touched.parentRfqId && Boolean(formik.errors.parentRfqId)}
+                    helperText={
+                      (formik.touched.parentRfqId && formik.errors.parentRfqId) ||
+                      'เลือก RFQ อ้างอิงเพื่อดึงข้อมูลมาเติมอัตโนมัติ'
+                    }
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isParentRfqFetching ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      )
+                    }}
+                  />
+                )}
+              />
+            </GridTextField>
+          ) : (
+            <GridTextField item sm={6} />
+          )}
+
           <GridTextField item xs={12} sm={6}>
             <TextField
               select
@@ -1093,7 +1267,7 @@ export default function NewRFQ(): JSX.Element {
             </Box>
           </GridTextField>
 
-          <GridTextField item xs={3} sm={3}>
+          <GridTextField item xs={12} sm={3}>
             <Stack spacing={1.25}>
               <Typography
                 variant="body2"
@@ -1102,7 +1276,9 @@ export default function NewRFQ(): JSX.Element {
               </Typography>
               {(() => {
                 const requestedMoqGroupError =
-                  typeof formik.errors.requestedMoqs === 'string' ? formik.errors.requestedMoqs : undefined;
+                  typeof formik.errors.requestedMoqs === 'string'
+                    ? formik.errors.requestedMoqs
+                    : undefined;
                 const shouldShowGroupError =
                   Boolean(requestedMoqGroupError) &&
                   (formik.submitCount > 0 || Boolean(formik.touched.requestedMoqs));
@@ -1129,15 +1305,15 @@ export default function NewRFQ(): JSX.Element {
                             ? requestedMoqErrors[index]
                             : undefined;
                         const fieldError =
-                          Boolean(helperText) ||
-                          (shouldShowGroupError && !requestedMoq?.trim());
+                          Boolean(helperText) || (shouldShowGroupError && !requestedMoq?.trim());
 
                         return (
                           <Stack
                             key={`requested-moq-${index}`}
-                            direction="row"
+                            direction={{ xs: 'column', sm: 'row' }}
                             spacing={1}
-                            alignItems="flex-start">
+                            alignItems="flex-start"
+                            sx={{ width: '100%' }}>
                             <TextField
                               fullWidth
                               type="number"
@@ -1154,21 +1330,37 @@ export default function NewRFQ(): JSX.Element {
                               helperText={helperText}
                               inputProps={{ min: 0, step: '1' }}
                               sx={{
+                                width: '100%',
                                 '& .MuiInputBase-root': {
                                   backgroundColor: 'common.white'
                                 }
                               }}
                             />
-                            <Stack direction="row" spacing={0.5} sx={{ pt: 0.5, flexShrink: 0 }}>
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              sx={{
+                                pt: { xs: 0, sm: 0.5 },
+                                width: { xs: '100%', sm: 'auto' },
+                                flexShrink: 0,
+                                justifyContent: { xs: 'stretch', sm: 'flex-start' }
+                              }}>
                               <IconButton
                                 color="primary"
                                 sx={{
                                   border: '1px solid',
                                   borderColor: 'primary.main',
-                                  borderRadius: 1.5
+                                  borderRadius: 1.5,
+                                  width: { xs: '50%', sm: 40 },
+                                  minWidth: { xs: 0, sm: 40 },
+                                  minHeight: { xs: 44, sm: 40 },
+                                  flex: { xs: 1, sm: '0 0 auto' }
                                 }}
                                 onClick={() =>
-                                  formik.setFieldValue('requestedMoqs', [...formik.values.requestedMoqs, ''])
+                                  formik.setFieldValue('requestedMoqs', [
+                                    ...formik.values.requestedMoqs,
+                                    ''
+                                  ])
                                 }>
                                 <AddCircleOutline />
                               </IconButton>
@@ -1178,14 +1370,23 @@ export default function NewRFQ(): JSX.Element {
                                 sx={{
                                   border: '1px solid',
                                   borderColor:
-                                    formik.values.requestedMoqs.length === 1 ? 'divider' : 'error.main',
-                                  borderRadius: 1.5
+                                    formik.values.requestedMoqs.length === 1
+                                      ? 'divider'
+                                      : 'error.main',
+                                  borderRadius: 1.5,
+                                  width: { xs: '50%', sm: 40 },
+                                  minWidth: { xs: 0, sm: 40 },
+                                  minHeight: { xs: 44, sm: 40 },
+                                  flex: { xs: 1, sm: '0 0 auto' }
                                 }}
                                 onClick={() => {
                                   const nextValues = formik.values.requestedMoqs.filter(
                                     (_, itemIndex) => itemIndex !== index
                                   );
-                                  formik.setFieldValue('requestedMoqs', nextValues.length ? nextValues : ['']);
+                                  formik.setFieldValue(
+                                    'requestedMoqs',
+                                    nextValues.length ? nextValues : ['']
+                                  );
                                 }}>
                                 <RemoveCircleOutline />
                               </IconButton>

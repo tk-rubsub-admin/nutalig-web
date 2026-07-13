@@ -5,6 +5,7 @@ import {
   CreateRFQDetailRequest,
   CreateRFQRequest,
   CreateRFQResponse,
+  ExtractRFQSupplierQuoteRequest,
   GenerateRFQInquiryRequest,
   GenerateRFQInquiryResponse,
   GetRFQResponse,
@@ -28,10 +29,15 @@ export const getRFQList = async (
     id?: string;
     customerId?: string;
     salesId?: string;
+    procurementId?: string;
     orderTypeCode?: string;
     productFamily?: string;
+    productSubtype1?: string;
+    productMaterial?: string;
     status?: string | null;
     keyword?: string;
+    requestedDateStart?: string;
+    requestedDateEnd?: string;
     sortBy?: string;
     sortDirection?: string;
     statuses?: string[];
@@ -63,6 +69,10 @@ export const getRFQList = async (
     payload.salesId = options.salesId;
   }
 
+  if (options?.procurementId) {
+    payload.procurementId = options.procurementId;
+  }
+
   if (options?.orderTypeCode) {
     payload.orderTypeCode = options.orderTypeCode;
   }
@@ -71,12 +81,28 @@ export const getRFQList = async (
     payload.productFamily = options.productFamily;
   }
 
+  if (options?.productSubtype1) {
+    payload.productSubtype1 = options.productSubtype1;
+  }
+
+  if (options?.productMaterial) {
+    payload.productMaterial = options.productMaterial;
+  }
+
   if (options?.status) {
     payload.status = options.status;
   }
 
   if (options?.keyword) {
     payload.keyword = options.keyword;
+  }
+
+  if (options?.requestedDateStart) {
+    payload.requestedDateStart = options.requestedDateStart;
+  }
+
+  if (options?.requestedDateEnd) {
+    payload.requestedDateEnd = options.requestedDateEnd;
   }
 
   if (options?.statuses?.length) {
@@ -189,6 +215,17 @@ export const createRFQSupplierQuote = async (
     .then((res) => res.data);
 
   return response.data;
+};
+
+export const extractRFQSupplierQuote = async (
+  id: string,
+  payload: ExtractRFQSupplierQuoteRequest
+) => {
+  const response: RFQSupplierQuoteResponse = await api
+    .post(`/v1/rfqs/${id}/supplier-quotes/extract`, payload)
+    .then((res) => res.data);
+
+  return response.data as unknown as UpsertRFQSupplierQuoteRequest;
 };
 
 export const updateRFQSupplierQuote = async (

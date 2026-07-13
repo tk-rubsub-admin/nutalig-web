@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  InputAdornment,
   Stack,
   Table,
   TableBody,
@@ -29,6 +30,7 @@ interface FinalPriceDraftTier {
   id: number;
   quantity: number;
   productPrice: number;
+  commission: string;
   landFreightCost: string;
   seaFreightCost: string;
   currency?: string | null;
@@ -76,6 +78,7 @@ interface FinalPriceQuoteDialogProps {
   isSubmitting: boolean;
   onClose: () => void;
   onRemarkChange: (value: string) => void;
+  onCommissionChange: (detailId: number, tierId: number, value: string) => void;
   onTierChange: (
     detailId: number,
     tierId: number,
@@ -106,6 +109,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     isSubmitting,
     onClose,
     onRemarkChange,
+    onCommissionChange,
     onTierChange,
     onAddAdditionalCost,
     onAdditionalCostChange,
@@ -219,10 +223,13 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontSize: 12 }}>
                             รวมทางเรือ
                           </TableCell>
+                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
+                            Commission
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {detail.tiers.map((tier) => {
+                        {detail.tiers.map((tier, tierIndex) => {
                           const landFreightCost = Number(tier.landFreightCost.replace(/,/g, '')) || 0;
                           const seaFreightCost = Number(tier.seaFreightCost.replace(/,/g, '')) || 0;
                           const exchangeRate = Number(tier.exchangeRate.replace(/,/g, '')) || 1;
@@ -306,6 +313,21 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                               </TableCell>
                               <TableCell align="right">
                                 {formatPrice(seaTotalPrice, 'THB')}
+                              </TableCell>
+                              <TableCell align="right" sx={{ minWidth: 50 }}>
+                                <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tier.commission}
+                                    onChange={(event) =>
+                                      onCommissionChange(detail.id, tier.id, event.target.value)
+                                    }
+                                  InputProps={{
+                                    endAdornment: <InputAdornment position="end">%</InputAdornment>
+                                  }}
+                                  inputProps={{ min: 0, step: '1', max: 100 }}
+                                  fullWidth
+                                />
                               </TableCell>
                             </TableRow>
                           );

@@ -1,6 +1,8 @@
 import { api } from 'api/api';
 import { Pagination } from 'services/general-type';
 import {
+  CreateSupplierRequest,
+  CreateSupplierResponse,
   GetSupplierResponse,
   SearchSupplierRequest,
   SearchSupplierResponse,
@@ -75,6 +77,13 @@ export const getSupplierList = async (
 
 export const searchSupplier = async (data: SearchSupplierRequest, page: number, size: number) =>
   getSupplierList(data, page, size);
+
+export const createNewSupplier = async (
+  data: CreateSupplierRequest
+): Promise<CreateSupplierResponse> => {
+  const response = await api.post('/v1/suppliers', data).then((res) => res.data);
+  return response;
+};
 
 export const getSupplierById = async (supplierId: string): Promise<Supplier> => {
   const response: GetSupplierResponse = await api

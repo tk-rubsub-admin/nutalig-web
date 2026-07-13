@@ -147,6 +147,7 @@ export interface RFQDetailTier {
   id: number;
   quantity: number;
   productPrice: number;
+  commission?: number | null;
   currency?: string | null;
   exchangeRate?: number | null;
   landFreightCost: number;
@@ -165,6 +166,7 @@ export interface RFQDetailOption {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  commission?: number | null;
   packageBoxWidth?: string;
   packageBoxLength?: string;
   packageBoxHeight?: string;
@@ -323,6 +325,7 @@ export interface LinkRFQSalesOrderRequest {
 export interface CreateRFQDetailTierRequest {
   quantity: number;
   productPrice: number;
+  commission?: number | null;
   currency?: string | null;
   exchangeRate?: number | null;
   landFreightCost: number;
@@ -338,6 +341,7 @@ export interface CreateRFQDetailRequest {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  commission?: number | null;
   recommend?: string | null;
   supplierId?: string;
   tiers: CreateRFQDetailTierRequest[];
@@ -395,6 +399,8 @@ export interface RFQSupplierQuoteTier {
   quantity: number;
   productPrice: number;
   shippingCost: number | null;
+  productPriceCurrency?: string | null;
+  shippingCostCurrency?: string | null;
   currency: string | null;
   sortOrder: number;
   createdDate?: string | null;
@@ -444,6 +450,8 @@ export interface UpsertRFQSupplierQuoteTierRequest {
   productPrice: number;
   shippingCost?: number | null;
   sortOrder: number;
+  productPriceCurrency?: string | null;
+  shippingCostCurrency?: string | null;
   currency: string;
 }
 
@@ -498,6 +506,13 @@ export interface UpsertRFQSupplierQuoteRequest {
   remark?: string | null;
   details: UpsertRFQSupplierQuoteDetailRequest[];
   additionalCosts: UpsertRFQSupplierQuoteAdditionalCostRequest[];
+}
+
+export interface ExtractRFQSupplierQuoteRequest {
+  supplierId: string;
+  inquiryId?: string | null;
+  defaultCurrency?: string | null;
+  supplierMessage: string;
 }
 
 export interface RFQSupplierQuoteListResponse {

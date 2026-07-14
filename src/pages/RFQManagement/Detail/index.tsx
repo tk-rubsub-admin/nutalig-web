@@ -42,7 +42,9 @@ import {
   TableRow,
   Tabs,
   TextField,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { useAuth } from 'auth/AuthContext';
 import { PERMISSIONS } from 'auth/permissions';
@@ -798,6 +800,8 @@ function validateDraftDetail(detail: RFQDetailOption): DraftDetailValidationErro
 }
 
 export default function RFQDetail(): ReactElement {
+  const theme = useTheme();
+  const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const params = useParams<RFQDetailParam>();
   const { t } = useTranslation();
   const history = useHistory();
@@ -1799,9 +1803,13 @@ export default function RFQDetail(): ReactElement {
         }
       />
       <PageTitle title={'คำขอราคาเลขที่ ' + rfq?.id || 'คำขอราคาเลขที่'}>
-        <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          useFlexGap>
           {rfq?.status ? (
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
               <Chip
                 label={t(`rfqManagement.rfqsStatus.${rfq.status}`, rfq.status)}
                 size="small"
@@ -1903,8 +1911,13 @@ export default function RFQDetail(): ReactElement {
         onClose={handleCloseRequestedInformationDialog}
       />
       <Wrapper>
-        <Stack spacing={2}>
-          <Stack direction="row" justifyContent="flex-end" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack spacing={{ xs: 1.5, sm: 2 }}>
+          <Stack
+            direction={{ xs: 'column-reverse', sm: 'row' }}
+            justifyContent="flex-end"
+            spacing={1}
+            flexWrap="wrap"
+            useFlexGap>
             {hasActionMenu ? (
               <>
                 <Button
@@ -1912,6 +1925,7 @@ export default function RFQDetail(): ReactElement {
                   className="btn-indigo-blue"
                   startIcon={<MenuIcon />}
                   endIcon={<ArrowDropDown />}
+                  fullWidth={isDownSm}
                   disabled={isQuotationDocumentLoading}
                   onClick={handleOpenDownloadMenu}
                   aria-controls={isDownloadMenuOpen ? 'rfq-action-menu' : undefined}
@@ -2007,24 +2021,25 @@ export default function RFQDetail(): ReactElement {
               variant="contained"
               className="btn-cool-grey"
               startIcon={<ArrowBackIos />}
+              fullWidth={isDownSm}
               onClick={() => history.push('/rfq-management')}>
               {t('button.back')}
             </Button>
           </Stack>
-          <br />
           <Box
             sx={{
-              mt: 1.5,
-              mb: 2,
-              px: 0.5,
+              mt: { xs: 2.5, sm: 1.5 },
+              mb: { xs: 2.75, sm: 2 },
+              px: { xs: 0, sm: 0.5 },
+              py: { xs: 1.25, sm: 0 },
               overflowX: 'auto'
             }}>
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                minWidth: 620,
-                gap: 1
+                minWidth: { xs: 520, sm: 620 },
+                gap: { xs: 1, sm: 1 }
               }}>
               {rfqDisplayedStatusTimelineSteps.map((status, index) => {
                 const isReached = rfqStatusTimelineReachedIndex >= index;
@@ -2043,10 +2058,10 @@ export default function RFQDetail(): ReactElement {
                   <Fragment key={status}>
                     <Stack
                       alignItems="center"
-                      spacing={0.75}
+                      spacing={{ xs: 1.35, sm: 0.75 }}
                       sx={{
                         flex: '0 0 auto',
-                        minWidth: 112
+                        minWidth: { xs: 88, sm: 112 }
                       }}>
                       <Box
                         sx={{
@@ -2068,14 +2083,15 @@ export default function RFQDetail(): ReactElement {
                         direction="row"
                         spacing={0.75}
                         alignItems="center"
-                        justifyContent="center">
+                        justifyContent="center"
+                        sx={{ minHeight: { xs: 34, sm: 'auto' } }}>
                         <Typography
                           variant="caption"
                           sx={{
                             fontWeight: 700,
                             color: textColor,
                             textAlign: 'center',
-                            lineHeight: 1.2
+                            lineHeight: 1.35
                           }}>
                           {t(`rfqManagement.rfqsStatus.${status}`, status)}
                         </Typography>
@@ -2110,7 +2126,7 @@ export default function RFQDetail(): ReactElement {
                           borderRadius: 999,
                           backgroundColor:
                             rfqStatusTimelineReachedIndex >= index + 1 ? reachedColor : pendingColor,
-                          mb: 3.4
+                          mb: { xs: 4.6, sm: 3.4 }
                         }}
                       />
                     ) : null}
@@ -2119,7 +2135,6 @@ export default function RFQDetail(): ReactElement {
               })}
             </Box>
           </Box>
-          <br />
           <Box
             sx={{
               backgroundColor: '#fff',
@@ -2131,8 +2146,9 @@ export default function RFQDetail(): ReactElement {
             <Tabs
               value={tab}
               onChange={handleChangeTab}
+              variant={isDownSm ? 'fullWidth' : 'standard'}
               sx={{
-                px: 2,
+                px: { xs: 0.5, sm: 2 },
                 '& .MuiTab-root': {
                   minHeight: 56,
                   textTransform: 'none',
@@ -2159,6 +2175,7 @@ export default function RFQDetail(): ReactElement {
                         variant="contained"
                         className="btn-amber-orange"
                         startIcon={<DisabledByDefault />}
+                        fullWidth={isDownSm}
                         onClick={handleCancelEdit}
                         disabled={formik.isSubmitting || isPictureSubmitting}>
                         {t('button.clear')}
@@ -2167,6 +2184,7 @@ export default function RFQDetail(): ReactElement {
                         variant="contained"
                         className="btn-emerald-green"
                         startIcon={<Save />}
+                        fullWidth={isDownSm}
                         onClick={() => setVisibleConfirmationDialog(true)}
                         disabled={formik.isSubmitting || isPictureSubmitting}>
                         {t('button.save')}
@@ -2417,7 +2435,7 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: true }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={3}>
+                  <Grid item xs={12} md={3}>
                     <Stack spacing={1.25}>
                       <Typography
                         variant="body2"
@@ -2439,6 +2457,7 @@ export default function RFQDetail(): ReactElement {
                               <TextField
                                 key={`requested-moq-display-${index}`}
                                 fullWidth
+                                size={isDownSm ? 'small' : 'medium'}
                                 label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
                                 value={requestedMoq}
                                 InputLabelProps={{ shrink: true }}
@@ -2455,7 +2474,7 @@ export default function RFQDetail(): ReactElement {
                       </Box>
                     </Stack>
                   </Grid>
-                  <Grid item sm={9} />
+                  <Grid item xs={false} md={9} />
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
@@ -2555,9 +2574,9 @@ export default function RFQDetail(): ReactElement {
                         {attachmentResources.map((attachment, index) => (
                           <Stack
                             key={`${attachment.id}-${index}`}
-                            direction="row"
+                            direction={{ xs: 'column', sm: 'row' }}
                             spacing={1}
-                            alignItems="center"
+                            alignItems={{ xs: 'stretch', sm: 'center' }}
                             justifyContent="space-between"
                             sx={{
                               px: 1.5,
@@ -2582,6 +2601,7 @@ export default function RFQDetail(): ReactElement {
                               target="_blank"
                               rel="noreferrer"
                               variant="outlined"
+                              fullWidth={isDownSm}
                               sx={outlinedActionButtonSx}>
                               เปิดไฟล์
                             </Button>

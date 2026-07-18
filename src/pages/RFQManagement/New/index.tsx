@@ -106,7 +106,16 @@ function getSystemConfigDisplayName(systemConfig: SystemConfig): string {
 }
 
 function getRfqDisplayLabel(rfq: RFQRecord): string {
-  return [rfq.id, rfq.productFamily.nameTh + ' ' + rfq.material.nameTh]
+  const productFamilyName =
+    typeof rfq.productFamily === 'string'
+      ? rfq.productFamily
+      : rfq.productFamily?.nameTh || rfq.productFamily?.nameEn || rfq.productFamily?.code || '';
+  const materialName =
+    typeof rfq.material === 'string'
+      ? rfq.material
+      : rfq.material?.nameTh || rfq.material?.nameEn || rfq.material?.code || '';
+
+  return [rfq.id, [productFamilyName, materialName].filter(Boolean).join(' ')]
     .filter(Boolean)
     .join(' | ');
 }
@@ -189,6 +198,11 @@ export default function NewRFQ(): JSX.Element {
     refetchOnWindowFocus: false
   });
 
+  const availableRfqTypeList = useMemo(
+    () => rfqTypeList.filter((item: SystemConfig) => item.code !== 'SPECIAL_PRICE_REVIEW'),
+    [rfqTypeList]
+  );
+
   const {
     data: unitOptions = [],
     isFetching: isUnitFetching,
@@ -196,14 +210,6 @@ export default function NewRFQ(): JSX.Element {
   } = useQuery('rfq-unit-options', () => getSystemConfig('UNIT'), {
     refetchOnWindowFocus: false
   });
-
-  const { data: parentRfqOptions = [], isFetching: isParentRfqFetching } = useQuery(
-    'rfq-parent-options',
-    () => getRFQList(1, 100).then((response) => response.records || []),
-    {
-      refetchOnWindowFocus: false
-    }
-  );
 
   const { data: customerOptions = [], isFetching: isCustomerFetching } = useQuery(
     ['rfq-customer-options', debouncedCustomerKeyword],
@@ -259,6 +265,7 @@ export default function NewRFQ(): JSX.Element {
     values: {
       customerMode: string;
       customerId: string;
+      parentRfqId: string;
       contactName: string;
       contactPhone: string;
       salesId: string;
@@ -290,6 +297,7 @@ export default function NewRFQ(): JSX.Element {
       const isUrgentRequest = submitModeRef.current === 'URGENT';
       const response = await createRFQ({
         customerId: values.customerMode === 'EXISTING' ? values.customerId : undefined,
+        referenceRfqId: values.parentRfqId || undefined,
         contactName: values.contactName,
         contactPhone: values.contactPhone,
         salesId: values.salesId,
@@ -368,7 +376,7 @@ export default function NewRFQ(): JSX.Element {
       }),
       parentRfqId: Yup.string().when('rfqTypeCode', {
         is: (rfqTypeCode: string) => PARENT_RFQ_TYPE_CODES.includes(rfqTypeCode),
-        then: Yup.string().required('กรุณาเลือก RFQ อ้างอิง'),
+        then: Yup.string().required('กรุณาเลือก RFQ ตัวหลัก'),
         otherwise: Yup.string().nullable()
       }),
       contactName: Yup.string().when('customerMode', {
@@ -414,6 +422,17 @@ export default function NewRFQ(): JSX.Element {
     }),
     onSubmit: submitCreateRFQ
   });
+
+  const { data: parentRfqOptions = [], isFetching: isParentRfqFetching } = useQuery(
+    ['rfq-parent-options', formik.values.rfqTypeCode],
+    () =>
+      getRFQList(1, 100, {
+        isCreatedPurchaseOrder: formik.values.rfqTypeCode === 'REORDER' ? true : null
+      }).then((response) => response.records || []),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
   const { data: procurementOptions = [], isFetching: isProcurementFetching } = useQuery(
     ['rfq-procurement-options', formik.values.salesId],
     () => getProcurementEmployees(formik.values.salesId),
@@ -890,7 +909,7 @@ export default function NewRFQ(): JSX.Element {
               onBlur={() => formik.setFieldTouched('rfqTypeCode', true)}
               error={formik.touched.rfqTypeCode && Boolean(formik.errors.rfqTypeCode)}
               helperText={formik.touched.rfqTypeCode && formik.errors.rfqTypeCode}>
-              {rfqTypeList.map((item: SystemConfig) => (
+              {availableRfqTypeList.map((item: SystemConfig) => (
                 <MenuItem key={item.code} value={item.code}>
                   {getSystemConfigDisplayName(item)}
                 </MenuItem>
@@ -943,13 +962,13 @@ export default function NewRFQ(): JSX.Element {
                   <TextField
                     {...params}
                     fullWidth
-                    label="RFQ อ้างอิง"
+                    label="RFQ ตัวหลัก"
                     InputLabelProps={{ shrink: true }}
                     onBlur={() => formik.setFieldTouched('parentRfqId', true)}
                     error={formik.touched.parentRfqId && Boolean(formik.errors.parentRfqId)}
                     helperText={
                       (formik.touched.parentRfqId && formik.errors.parentRfqId) ||
-                      'เลือก RFQ อ้างอิงเพื่อดึงข้อมูลมาเติมอัตโนมัติ'
+                      'เลือก RFQ ตัวหลักเพื่อดึงข้อมูลมาเติมอัตโนมัติ'
                     }
                     InputProps={{
                       ...params.InputProps,
@@ -1069,7 +1088,7 @@ export default function NewRFQ(): JSX.Element {
               ) : null}
               {!isProductFamilyFetching && activeProductFamilyList.length === 0 ? (
                 <MenuItem disabled value="">
-                  ไม่พบข้อมูล Product Family
+                  ไม่พบข้อมูลหมวดหลัก
                 </MenuItem>
               ) : null}
               {activeProductFamilyList.map((productFamily: ProductFamily) => (
@@ -1095,12 +1114,12 @@ export default function NewRFQ(): JSX.Element {
               helperText={formik.touched.material && formik.errors.material}>
               {!formik.values.productFamily ? (
                 <MenuItem disabled value="">
-                  กรุณาเลือก Product Family ก่อน
+                  กรุณาเลือกหมวดหลักก่อน
                 </MenuItem>
               ) : null}
               {formik.values.productFamily && materialOptions.length === 0 ? (
                 <MenuItem disabled value="">
-                  ไม่พบข้อมูล Material
+                  ไม่พบข้อมูลวัสดุ
                 </MenuItem>
               ) : null}
               {materialOptions.map((productMaterial: ProductMaterial) => (
@@ -1126,12 +1145,12 @@ export default function NewRFQ(): JSX.Element {
               helperText={formik.touched.productUsage && formik.errors.productUsage}>
               {!formik.values.productFamily ? (
                 <MenuItem disabled value="">
-                  กรุณาเลือก Product Family ก่อน
+                  กรุณาเลือกหมวดหลักก่อน
                 </MenuItem>
               ) : null}
               {formik.values.productFamily && productUsageOptions.length === 0 ? (
                 <MenuItem disabled value="">
-                  ไม่พบข้อมูล Product Subtype1
+                  ไม่พบข้อมูลหมวดย่อย 1
                 </MenuItem>
               ) : null}
               {productUsageOptions.map((productSubtype1: ProductSubtype1) => (
@@ -1156,7 +1175,7 @@ export default function NewRFQ(): JSX.Element {
               helperText={formik.touched.systemMechanic && formik.errors.systemMechanic}>
               {!formik.values.productUsage ? (
                 <MenuItem disabled value="">
-                  กรุณาเลือก Product Subtype1 ก่อน
+                  กรุณาเลือกหมวดย่อย 1 ก่อน
                 </MenuItem>
               ) : null}
               {formik.values.productUsage ? <MenuItem value="">ไม่บังคับเลือก</MenuItem> : null}
@@ -1187,7 +1206,7 @@ export default function NewRFQ(): JSX.Element {
             <TextField
               select
               fullWidth
-              label="Unit"
+              label="หน่วย"
               InputLabelProps={{ shrink: true }}
               name="capacityUnit"
               value={formik.values.capacityUnit}
@@ -1201,7 +1220,7 @@ export default function NewRFQ(): JSX.Element {
               ) : null}
               {!isUnitFetching && unitOptions.length === 0 ? (
                 <MenuItem disabled value="">
-                  ไม่พบข้อมูล Unit
+                  ไม่พบข้อมูลหน่วย
                 </MenuItem>
               ) : null}
               {unitOptions.map((unit: SystemConfig) => (
@@ -1214,7 +1233,7 @@ export default function NewRFQ(): JSX.Element {
             {formik.values.capacityUnit === CUSTOM_UNIT_OPTION ? (
               <TextField
                 fullWidth
-                label="New Unit"
+                label="หน่วยใหม่"
                 value={customUnitInput}
                 onChange={(event) => setCustomUnitInput(event.target.value)}
                 onBlur={() => {

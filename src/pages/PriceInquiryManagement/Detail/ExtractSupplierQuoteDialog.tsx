@@ -20,6 +20,11 @@ interface ExtractSupplierQuoteDialogProps {
   onClose: () => void;
   onExtract: () => void;
   isSubmitting: boolean;
+  title?: string;
+  helperText?: string;
+  inputLabel?: string;
+  inputPlaceholder?: string;
+  extractButtonText?: string;
 }
 
 export function ExtractSupplierQuoteDialog(
@@ -32,27 +37,38 @@ export function ExtractSupplierQuoteDialog(
     onSupplierMessageChange,
     onClose,
     onExtract,
-    isSubmitting
+    isSubmitting,
+    title,
+    helperText,
+    inputLabel,
+    inputPlaceholder,
+    extractButtonText
   } = props;
 
   return (
     <Dialog open={open} onClose={isSubmitting ? undefined : onClose} maxWidth="md" fullWidth>
       <LoadingDialog open={isSubmitting} />
-      <DialogTitle>แปลงข้อความจาก Supplier</DialogTitle>
+      <DialogTitle>{title || 'แปลงข้อความจาก Supplier'}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            {supplierName ? `Supplier: ${supplierName}` : 'กรุณาวางข้อความจาก supplier เพื่อให้ AI แปลงเป็น supplier quote'}
+            {helperText ||
+              (supplierName
+                ? `Supplier: ${supplierName}`
+                : 'กรุณาวางข้อความจาก supplier เพื่อให้ AI แปลงเป็น supplier quote')}
           </Typography>
           <TextField
             fullWidth
             multiline
             minRows={12}
-            label="ข้อความจาก Supplier"
+            label={inputLabel || 'ข้อความจาก Supplier'}
             value={supplierMessage}
             onChange={(event) => onSupplierMessageChange(event.target.value)}
             InputLabelProps={{ shrink: true }}
-            placeholder="วางข้อความจาก supplier ที่มีราคา MOQ package lead time หรือค่าใช้จ่ายเพิ่มเติม"
+            placeholder={
+              inputPlaceholder ||
+              'วางข้อความจาก supplier ที่มีราคา MOQ package lead time หรือค่าใช้จ่ายเพิ่มเติม'
+            }
           />
         </Stack>
       </DialogContent>
@@ -65,7 +81,7 @@ export function ExtractSupplierQuoteDialog(
           startIcon={<AutoFixHigh />}
           disabled={isSubmitting || !supplierMessage.trim()}
           onClick={onExtract}>
-          แปลงข้อความ
+          {extractButtonText || 'แปลงข้อความ'}
         </Button>
       </DialogActions>
     </Dialog>

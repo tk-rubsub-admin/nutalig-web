@@ -12,6 +12,7 @@ import {
   FilePresent,
   LocalShipping,
   Menu as MenuIcon,
+  OpenInNew,
   Save,
   DisabledByDefault,
   Cancel
@@ -19,6 +20,7 @@ import {
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   Collapse,
   Dialog,
@@ -27,12 +29,12 @@ import {
   DialogTitle,
   Divider,
   Grid,
+  InputAdornment,
   IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
-  Radio,
   Stack,
   Tab,
   Table,
@@ -94,6 +96,7 @@ import {
   deleteRFQPicture,
   closeRFQ,
   getRFQ,
+  requestSpecialPriceRFQ,
   rejectRFQ,
   updateRFQCustomer,
   updateRFQ
@@ -120,6 +123,7 @@ interface RFQDetailParam {
 }
 
 interface RFQEditableFormValues {
+  referenceRfqId?: string;
   orderTypeCode: string;
   productFamily: string;
   productUsage: string;
@@ -484,6 +488,7 @@ function getSLAStatusPresentation(
 
 function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
+    referenceRfqId: rfq?.referenceRfqId || rfq?.referenceRfq?.id || '',
     orderTypeCode: rfq?.orderType?.code || '',
     productFamily: getProductFamilyCode(rfq?.productFamily),
     productUsage:
@@ -707,6 +712,7 @@ function createDraftTier(sortOrder: number): RFQDetailTier {
     exchangeRate: 1,
     landFreightCost: 0,
     seaFreightCost: 0,
+    isFcl: false,
     landTotalPrice: 0,
     seaTotalPrice: 0,
     sortOrder,
@@ -736,6 +742,7 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
       exchangeRate: tier.exchangeRate ?? 1,
       landFreightCost: tier.landFreightCost,
       seaFreightCost: tier.seaFreightCost,
+      isFcl: Boolean(tier.isFcl),
       landTotalPrice: tier.productPrice + tier.landFreightCost,
       seaTotalPrice: tier.productPrice + tier.seaFreightCost,
       sortOrder: index + 1
@@ -823,7 +830,7 @@ export default function RFQDetail(): ReactElement {
   const [lastShownRequestedInformationKey, setLastShownRequestedInformationKey] = useState<
     string | null
   >(null);
-  const [selectedConfirmRfqTierKey, setSelectedConfirmRfqTierKey] = useState('');
+  const [selectedConfirmRfqTierKeys, setSelectedConfirmRfqTierKeys] = useState<string[]>([]);
   const [draftDetailOptions, setDraftDetailOptions] = useState<RFQDetailOption[]>([]);
   const [draftDetailErrors, setDraftDetailErrors] = useState<
     Record<number, DraftDetailValidationError>
@@ -1126,7 +1133,7 @@ export default function RFQDetail(): ReactElement {
         return;
       }
 
-      setSelectedConfirmRfqTierKey('');
+      setSelectedConfirmRfqTierKeys([]);
       setVisibleConfirmRfqDialog(true);
       return;
     }
@@ -1140,44 +1147,64 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    setSelectedConfirmRfqTierKey('');
+    setSelectedConfirmRfqTierKeys([]);
     setVisibleConfirmRfqDialog(true);
   };
 
+  const toggleConfirmRfqTierKey = (rowKey: string) => {
+    setSelectedConfirmRfqTierKeys((currentKeys) =>
+      currentKeys.includes(rowKey)
+        ? currentKeys.filter((key) => key !== rowKey)
+        : [...currentKeys, rowKey]
+    );
+  };
+
   const handleConfirmRfqPrice = () => {
-    if (!selectedConfirmRfqTierKey) {
+    if (!selectedConfirmRfqTierKeys.length) {
       toast.error('กรุณาเลือกรายการใบเสนอราคาที่ต้องการใช้สำหรับคอนเฟิร์มราคา');
       return;
     }
 
-    const selectedRow = confirmQuotationRows.find((row) => row.key === selectedConfirmRfqTierKey);
+    const selectedRows = selectedConfirmRfqTierKeys
+      .map((rowKey) => confirmQuotationRows.find((row) => row.key === rowKey))
+      .filter((row): row is ConfirmQuotationRow => Boolean(row));
 
-    if (!selectedRow) {
+    if (!selectedRows.length) {
       toast.error('ไม่พบข้อมูลรายการใบเสนอราคาที่เลือก');
       return;
     }
 
-    const selectedDetailIndex = detailOptions.findIndex((detail) => detail.id === selectedRow.detail.id);
-    const selectedDetail = selectedRow.detail;
-    const selectedShippingMethod = selectedRow.shippingMethod;
+    const serializedSelections = encodeURIComponent(
+      JSON.stringify(
+        selectedRows.map((row) => ({
+          detailId: row.detail.id,
+          quotationDetailId: row.quotationItem.id,
+          shippingMethod: row.shippingMethod
+        }))
+      )
+    );
+
+    const firstSelectedRow = selectedRows[0];
+    const selectedDetailIndex = detailOptions.findIndex(
+      (detail) => detail.id === firstSelectedRow.detail.id
+    );
+    const selectedDetail = firstSelectedRow.detail;
+    const selectedShippingMethod = firstSelectedRow.shippingMethod;
     const optionLabel = selectedDetail.optionName || `Option ${selectedDetailIndex + 1}`;
     const shippingLabel = getShippingMethodLabel(selectedShippingMethod);
-    const selectedPrice = selectedRow.quotationItem.unitPrice;
-
-    const query = new URLSearchParams({
-      detailId: String(selectedDetail.id),
-      quotationDetailId: String(selectedRow.quotationItem.id),
-      shippingMethod: selectedShippingMethod
-    });
+    const selectedPrice = firstSelectedRow.quotationItem.unitPrice;
 
     setVisibleConfirmRfqDialog(false);
     toast.success(
-      `เลือก ${selectedRow.quotationItem.name || optionLabel} จำนวน ${formatQuantity(
-        selectedRow.quotationItem.quantity
-      )} ${shippingLabel} ราคา ${formatPrice(selectedPrice)}`
+      selectedRows.length === 1
+        ? `เลือก ${firstSelectedRow.quotationItem.name || optionLabel} จำนวน ${formatQuantity(
+          firstSelectedRow.quotationItem.quantity
+        )} ${shippingLabel} ราคา ${formatPrice(selectedPrice)}`
+        : `เลือกรายการสำหรับคอนเฟิร์มราคาแล้ว ${selectedRows.length} รายการ`
     );
     history.push(
-      `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', params.id)}?${query.toString()}`
+      `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', params.id)
+      }?selectedItems=${serializedSelections}`
     );
   };
 
@@ -1230,6 +1257,16 @@ export default function RFQDetail(): ReactElement {
     } finally {
       setIsQuotationDocumentLoading(false);
     }
+  };
+
+  const handleViewQuotation = () => {
+    handleCloseDownloadMenu();
+
+    if (!rfq?.quotationNo) {
+      return;
+    }
+
+    history.push(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', rfq.quotationNo));
   };
 
   const handleDownloadSalesOrder = async () => {
@@ -1406,16 +1443,23 @@ export default function RFQDetail(): ReactElement {
   const canCloseRfqAction =
     !['CLOSED', 'COMPLETED', 'REJECTED', 'CANCELED'].includes(rfq?.status || '') &&
     hasPermission(PERMISSIONS.RFQ_EDIT);
+  const canRequestSpecialPriceAction =
+    hasPermission(PERMISSIONS.RFQ_EDIT) &&
+    rfq?.status === 'QUOTED' &&
+    rfq?.rfqType?.code !== 'SPECIAL_PRICE_REVIEW';
   const canConfirmPriceAction = rfq?.status === 'QUOTED' && hasPermission(PERMISSIONS.RFQ_CONFIRM);
   const canRequestQuotationAction =
     rfq?.status === 'QUOTED' && !rfq?.saleOrderId && !rfq?.quotationNo;
+  const canViewQuotationAction = Boolean(rfq?.quotationNo);
   const canDownloadQuotationAction = Boolean(rfq?.quotationNo);
   const canDownloadSalesOrderAction = Boolean(rfq?.saleOrderId);
   const hasActionMenu =
     canCloseRfqAction ||
     canRejectAction ||
+    canRequestSpecialPriceAction ||
     canConfirmPriceAction ||
     canRequestQuotationAction ||
+    canViewQuotationAction ||
     canDownloadQuotationAction ||
     canDownloadSalesOrderAction;
   const hasDraftDetailOptions = draftDetailOptions.length > 0;
@@ -1598,6 +1642,24 @@ export default function RFQDetail(): ReactElement {
     }
   };
 
+  const handleRequestSpecialPrice = async () => {
+    if (!params.id) {
+      return;
+    }
+
+    try {
+      setIsPictureSubmitting(true);
+      await toast.promise(requestSpecialPriceRFQ(params.id), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+      await refetchRFQ();
+    } finally {
+      setIsPictureSubmitting(false);
+    }
+  };
+
   const handleAddDetailOption = () => {
     const nextDetail = createDraftDetailOption(detailOptions.length + 1);
     setDraftDetailOptions((prev) => [...prev, nextDetail]);
@@ -1706,6 +1768,28 @@ export default function RFQDetail(): ReactElement {
     }));
   };
 
+  const handleDraftTierFclChange = (detailId: number, tierId: number, checked: boolean) => {
+    setDraftDetailOptions((prev) =>
+      prev.map((detail) => {
+        if (detail.id !== detailId) {
+          return detail;
+        }
+
+        return {
+          ...detail,
+          tiers: detail.tiers.map((tier) =>
+            tier.id === tierId
+              ? {
+                ...tier,
+                isFcl: checked
+              }
+              : tier
+          )
+        };
+      })
+    );
+  };
+
   const handleDeleteTier = (detailId: number, tierId: number) => {
     setDraftDetailOptions((prev) =>
       prev.map((detail) => {
@@ -1770,20 +1854,20 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    try {
-      setIsPictureSubmitting(true);
-      await toast.promise(createRFQDetails(params.id, payload), {
-        loading: t('toast.loading'),
-        success: t('toast.success'),
-        error: t('toast.failed')
-      });
-      setDraftDetailErrors({});
-      setDraftDetailOptions([]);
-      setCollapsedDetailOptionIds([]);
-      await refetchRFQ();
-    } finally {
-      setIsPictureSubmitting(false);
-    }
+    // try {
+    //   setIsPictureSubmitting(true);
+    //   await toast.promise(createRFQDetails(params.id, payload), {
+    //     loading: t('toast.loading'),
+    //     success: t('toast.success'),
+    //     error: t('toast.failed')
+    //   });
+    //   setDraftDetailErrors({});
+    //   setDraftDetailOptions([]);
+    //   setCollapsedDetailOptionIds([]);
+    //   await refetchRFQ();
+    // } finally {
+    //   setIsPictureSubmitting(false);
+    // }
   };
 
   const handleConfirmSaveAllDraftDetails = async () => {
@@ -1956,7 +2040,7 @@ export default function RFQDetail(): ReactElement {
                       <ListItemIcon>
                         <CheckCircle fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary="คอนเฟิร์มราคา" />
+                      <ListItemText primary={t('rfqManagement.detail.actions.confirmPrice')} />
                     </MenuItem>
                   ) : null}
                   {canRequestQuotationAction ? (
@@ -1969,7 +2053,30 @@ export default function RFQDetail(): ReactElement {
                       <ListItemIcon>
                         <FilePresent fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary="ขอใบเสนอราคา" />
+                      <ListItemText primary={t('rfqManagement.detail.actions.requestQuotation')} />
+                    </MenuItem>
+                  ) : null}
+                  {canRequestSpecialPriceAction ? (
+                    <MenuItem
+                      onClick={() => {
+                        handleCloseDownloadMenu();
+                        handleRequestSpecialPrice();
+                      }}
+                      sx={{ width: '100%' }}>
+                      <ListItemIcon>
+                        <InfoOutlined fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={t('rfqManagement.detail.actions.requestSpecialPrice')}
+                      />
+                    </MenuItem>
+                  ) : null}
+                  {canDownloadQuotationAction ? (
+                    <MenuItem onClick={handleViewQuotation} sx={{ width: '100%' }}>
+                      <ListItemIcon>
+                        <OpenInNew fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="ดูใบเสนอราคา" />
                     </MenuItem>
                   ) : null}
                   {canDownloadQuotationAction ? (
@@ -1977,7 +2084,9 @@ export default function RFQDetail(): ReactElement {
                       <ListItemIcon>
                         <Download fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary="ดาวน์โหลดใบเสนอราคา" />
+                      <ListItemText
+                        primary={t('rfqManagement.detail.actions.downloadQuotation')}
+                      />
                     </MenuItem>
                   ) : null}
                   {canDownloadSalesOrderAction ? (
@@ -1985,7 +2094,9 @@ export default function RFQDetail(): ReactElement {
                       <ListItemIcon>
                         <Download fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary="ดาวน์โหลดใบยืนยันสั่งซื้อ" />
+                      <ListItemText
+                        primary={t('rfqManagement.detail.actions.downloadSalesOrder')}
+                      />
                     </MenuItem>
                   ) : null}
                   {canCloseRfqAction ? (
@@ -1998,7 +2109,7 @@ export default function RFQDetail(): ReactElement {
                       <ListItemIcon>
                         <Cancel fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary="ปิดงาน" />
+                      <ListItemText primary={t('rfqManagement.detail.actions.close')} />
                     </MenuItem>
                   ) : null}
                   {canRejectAction ? (
@@ -2011,7 +2122,7 @@ export default function RFQDetail(): ReactElement {
                       <ListItemIcon>
                         <DisabledByDefault fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary="ปฏิเสธ" />
+                      <ListItemText primary={t('rfqManagement.detail.actions.reject')} />
                     </MenuItem>
                   ) : null}
                 </Menu>
@@ -2155,15 +2266,15 @@ export default function RFQDetail(): ReactElement {
                   fontWeight: 600
                 }
               }}>
-              <Tab value="detail" label="ข้อมูลการขอราคา" />
-              <Tab value="history" label="ประวัติ" />
+              <Tab value="detail" label={t('rfqManagement.detail.tabs.detail')} />
+              <Tab value="history" label={t('rfqManagement.detail.tabs.history')} />
             </Tabs>
           </Box>
 
           <TabPanel value="detail" currentTab={tab}>
             <>
               <CollapsibleWrapper
-                title="รายละเอียดการขอราคา"
+                title={t('rfqManagement.detail.sections.general')}
                 defaultExpanded
                 action={
                   isSalesPermission &&
@@ -2196,7 +2307,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="เลขที่ขอราคา"
+                      label={t('rfqManagement.column.id')}
                       value={rfq?.id || ''}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
@@ -2205,7 +2316,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="วันที่ขอราคา"
+                      label={t('rfqManagement.column.requestedDate')}
                       value={
                         rfq?.requestedDate
                           ? dayjs(rfq.requestedDate).format('DD/MM/YYYY HH:mm')
@@ -2219,14 +2330,14 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={12}>
                     <TextField
                       fullWidth
-                      label="ผู้ติดต่อ"
+                      label={t('rfqManagement.column.contact')}
                       value={rfq ? `${rfq.contactName || '-'}` : ''}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={6}>
+                  <GridTextField item xs={12} sm={4}>
                     <TextField
                       fullWidth
                       label={t('rfqManagement.form.rfqTypeCode')}
@@ -2236,11 +2347,11 @@ export default function RFQDetail(): ReactElement {
                     />
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={6}>
+                  <GridTextField item xs={12} sm={2}>
                     <TextField
                       select
                       fullWidth
-                      label="ประเภทงาน"
+                      label={t('rfqManagement.form.orderTypeCode')}
                       name="orderTypeCode"
                       value={
                         formik.values.orderTypeCode ||
@@ -2265,7 +2376,36 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="เซลล์ผู้ดูแล"
+                      label={t('rfqManagement.detail.fields.referenceRfqId')}
+                      value={rfq?.referenceRfqId || ''}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: rfq?.referenceRfqId ? (
+                          <InputAdornment position="end">
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              aria-label={t('rfqManagement.detail.actions.openReferenceRfq')}
+                              onClick={() =>
+                                window.open(
+                                  ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.referenceRfqId || ''),
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )
+                              }>
+                              <OpenInNew fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ) : undefined
+                      }}
+                    />
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('rfqManagement.form.salesId')}
                       value={getEmployeeLabel(rfq?.sales)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
@@ -2275,7 +2415,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="จัดซื้อที่ดูแล"
+                      label={t('rfqManagement.detail.fields.procurementId')}
                       value={getEmployeeLabel(rfq?.procurement)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
@@ -2286,7 +2426,7 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       select
                       fullWidth
-                      label="Product Family"
+                      label={t('rfqManagement.form.productFamily')}
                       name="productFamily"
                       value={formik.values.productFamily}
                       onChange={handleProductFamilyChange}
@@ -2317,7 +2457,7 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       select
                       fullWidth
-                      label="Product Subtype1"
+                      label={t('rfqManagement.form.productUsage')}
                       name="productUsage"
                       value={formik.values.productUsage}
                       onChange={handleProductUsageChange}
@@ -2356,7 +2496,7 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       select
                       fullWidth
-                      label="Product Subtype2"
+                      label={t('rfqManagement.form.systemMechanic')}
                       name="systemMechanic"
                       value={formik.values.systemMechanic}
                       onChange={formik.handleChange}
@@ -2391,7 +2531,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Material"
+                      label={t('rfqManagement.form.material')}
                       name="material"
                       value={materialDisplayValue}
                       onChange={formik.handleChange}
@@ -2406,7 +2546,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Capacity"
+                      label={t('rfqManagement.form.capacity')}
                       name="capacity"
                       value={formik.values.capacity}
                       onChange={formik.handleChange}
@@ -2429,7 +2569,7 @@ export default function RFQDetail(): ReactElement {
                   <Grid item xs={12} sm={3}>
                     <TextField
                       fullWidth
-                      label="การขนส่ง"
+                      label={t('rfqManagement.detail.fields.shippingMethod')}
                       value={getShippingMethodLabel(rfq?.shippingMethod)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
@@ -2478,7 +2618,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Created Date"
+                      label={t('rfqManagement.detail.fields.createdDate')}
                       value={
                         rfq?.createdDate
                           ? `${dayjs(rfq.createdDate).format('DD/MM/YYYY HH:mm')} By ${rfq?.createdBy || '-'
@@ -2492,7 +2632,7 @@ export default function RFQDetail(): ReactElement {
                   <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Updated Date"
+                      label={t('rfqManagement.detail.fields.updatedDate')}
                       value={
                         rfq?.updatedDate
                           ? `${dayjs(rfq.updatedDate).format('DD/MM/YYYY HH:mm')} By ${rfq?.updatedBy || '-'
@@ -2509,7 +2649,7 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       multiline
                       minRows={4}
-                      label="รายละเอียด"
+                      label={t('rfqManagement.form.description')}
                       name="description"
                       value={formik.values.description}
                       onChange={formik.handleChange}
@@ -2523,7 +2663,7 @@ export default function RFQDetail(): ReactElement {
 
                   <GridTextField item xs={12}>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      รูปอ้างอิง
+                      {t('rfqManagement.form.pictures')}
                     </Typography>
                   </GridTextField>
                   <GridTextField item xs={12}>
@@ -2546,7 +2686,7 @@ export default function RFQDetail(): ReactElement {
                   </GridTextField>
                   <GridTextField item xs={12}>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      ไฟล์แนบ
+                      {t('rfqManagement.form.attachments')}
                     </Typography>
                   </GridTextField>
                   <GridTextField item xs={12}>
@@ -2603,7 +2743,7 @@ export default function RFQDetail(): ReactElement {
                               variant="outlined"
                               fullWidth={isDownSm}
                               sx={outlinedActionButtonSx}>
-                              เปิดไฟล์
+                              {t('rfqManagement.detail.actions.openFile')}
                             </Button>
                           </Stack>
                         ))}
@@ -2619,14 +2759,17 @@ export default function RFQDetail(): ReactElement {
                           backgroundColor: '#f8fafc'
                         }}>
                         <Typography variant="body2" color="text.secondary">
-                          ยังไม่มีไฟล์แนบ
+                          {t('rfqManagement.form.noAttachments')}
                         </Typography>
                       </Box>
                     )}
                   </GridTextField>
                 </Grid>
               </CollapsibleWrapper>
-              <CollapsibleWrapper title="ตัวเลือกราคา" defaultExpanded action={null}>
+              <CollapsibleWrapper
+                title={t('rfqManagement.detail.sections.options')}
+                defaultExpanded
+                action={null}>
                 <Stack spacing={2}>
                   {detailOptions.length ? (
                     detailOptions.map((detail, index) => {
@@ -2673,7 +2816,7 @@ export default function RFQDetail(): ReactElement {
                                     <TextField
                                       fullWidth
                                       size="small"
-                                      label="ชื่อตัวเลือก"
+                                      label={t('rfqManagement.detail.fields.optionName')}
                                       value={detail.optionName}
                                       InputLabelProps={{ shrink: true }}
                                       error={Boolean(detailError.optionName)}
@@ -2699,7 +2842,7 @@ export default function RFQDetail(): ReactElement {
                                     <TextField
                                       fullWidth
                                       size="small"
-                                      label="สเปค"
+                                      label={t('rfqManagement.detail.fields.spec')}
                                       value={detail.spec}
                                       InputLabelProps={{ shrink: true }}
                                       error={Boolean(detailError.spec)}
@@ -2717,7 +2860,7 @@ export default function RFQDetail(): ReactElement {
                                     <TextField
                                       fullWidth
                                       size="small"
-                                      label="หมายเหตุ"
+                                      label={t('rfqManagement.detail.fields.remark')}
                                       value={detail.remark || ''}
                                       InputLabelProps={{ shrink: true }}
                                       onChange={(event) =>
@@ -2840,6 +2983,7 @@ export default function RFQDetail(): ReactElement {
                                         <TableCell>ราคาสินค้า</TableCell>
                                         <TableCell>ค่าขนส่งทางรถ</TableCell>
                                         <TableCell>ค่าขนส่งทางเรือ</TableCell>
+                                        <TableCell align="center">FCL</TableCell>
                                         <TableCell align="right">รวมทางรถ</TableCell>
                                         <TableCell align="right">รวมทางเรือ</TableCell>
                                         <TableCell align="center">จัดการ</TableCell>
@@ -2937,6 +3081,23 @@ export default function RFQDetail(): ReactElement {
                                                 }
                                               />
                                             </TableCell>
+                                            <TableCell align="center" sx={{ minWidth: 120 }}>
+                                              <FormControlLabel
+                                                control={
+                                                  <Checkbox
+                                                    checked={Boolean(tier.isFcl)}
+                                                    onChange={(event) =>
+                                                      handleDraftTierFclChange(
+                                                        detail.id,
+                                                        tier.id,
+                                                        event.target.checked
+                                                      )
+                                                    }
+                                                  />
+                                                }
+                                                label="FCL"
+                                              />
+                                            </TableCell>
                                             <TableCell
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#1565c0' }}>
@@ -2960,7 +3121,7 @@ export default function RFQDetail(): ReactElement {
                                       ) : (
                                         <TableRow>
                                           <TableCell
-                                            colSpan={7}
+                                            colSpan={8}
                                             align="center"
                                             sx={{ py: 3, color: 'text.secondary' }}>
                                             ยังไม่มี tier กรุณากด "เพิ่ม Tier"
@@ -2984,6 +3145,7 @@ export default function RFQDetail(): ReactElement {
                                       <TableCell>MOQ</TableCell>
                                       <TableCell align="right">ราคาสินค้า</TableCell>
                                       <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
+                                      <TableCell align="center">FCL</TableCell>
                                       <TableCell align="right">รวมทางรถ</TableCell>
                                       <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
                                       <TableCell align="right">รวมทางเรือ</TableCell>
@@ -3004,6 +3166,9 @@ export default function RFQDetail(): ReactElement {
                                         </TableCell>
                                         <TableCell align="right">
                                           {formatPrice(tier.landFreightCost, tier.currency)}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          {tier.isFcl ? 'ใช่' : '-'}
                                         </TableCell>
                                         <TableCell
                                           align="right"
@@ -3075,7 +3240,7 @@ export default function RFQDetail(): ReactElement {
                                               fullWidth
                                               size="small"
                                               type="number"
-                                              label="MOQ"
+                                              label={t('rfqManagement.form.requestedMoq')}
                                               value={tier.quantity}
                                               error={Boolean(
                                                 detailError.tierErrors?.[tier.id]?.quantity
@@ -3098,7 +3263,7 @@ export default function RFQDetail(): ReactElement {
                                               fullWidth
                                               size="small"
                                               type="number"
-                                              label="ราคาสินค้า"
+                                              label={t('rfqManagement.detail.fields.productPrice')}
                                               value={tier.productPrice}
                                               error={Boolean(
                                                 detailError.tierErrors?.[tier.id]?.productPrice
@@ -3121,7 +3286,7 @@ export default function RFQDetail(): ReactElement {
                                               fullWidth
                                               size="small"
                                               type="number"
-                                              label="ค่าขนส่งทางรถ"
+                                              label={t('rfqManagement.detail.fields.landFreightCost')}
                                               value={tier.landFreightCost}
                                               error={Boolean(
                                                 detailError.tierErrors?.[tier.id]?.landFreightCost
@@ -3144,7 +3309,7 @@ export default function RFQDetail(): ReactElement {
                                               fullWidth
                                               size="small"
                                               type="number"
-                                              label="ค่าขนส่งทางเรือ"
+                                              label={t('rfqManagement.detail.fields.seaFreightCost')}
                                               value={tier.seaFreightCost}
                                               error={Boolean(
                                                 detailError.tierErrors?.[tier.id]?.seaFreightCost
@@ -3160,6 +3325,23 @@ export default function RFQDetail(): ReactElement {
                                                   event.target.value
                                                 )
                                               }
+                                            />
+                                          </Grid>
+                                          <Grid item xs={12}>
+                                            <FormControlLabel
+                                              control={
+                                                <Checkbox
+                                                  checked={Boolean(tier.isFcl)}
+                                                  onChange={(event) =>
+                                                    handleDraftTierFclChange(
+                                                      detail.id,
+                                                      tier.id,
+                                                      event.target.checked
+                                                    )
+                                                  }
+                                                />
+                                              }
+                                              label="FCL (ส่งเรือแบบปิดตู้)"
                                             />
                                           </Grid>
                                           <Grid item xs={6}>
@@ -3262,6 +3444,14 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
+                                          FCL
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {tier.isFcl ? 'ใช่' : '-'}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={6}>
+                                        <Typography variant="caption" color="text.secondary">
                                           รวมทางเรือ
                                         </Typography>
                                         <Typography
@@ -3308,7 +3498,10 @@ export default function RFQDetail(): ReactElement {
                   )}
                 </Stack>
               </CollapsibleWrapper>
-              <CollapsibleWrapper title="รายละเอียดเพิ่มเติม" defaultExpanded action={null}>
+              <CollapsibleWrapper
+                title={t('rfqManagement.detail.sections.additional')}
+                defaultExpanded
+                action={null}>
                 {additionalCosts.length || draftAdditionalCosts.length ? (
                   <Box
                     sx={{
@@ -3328,9 +3521,9 @@ export default function RFQDetail(): ReactElement {
                             }
                           }}>
                           <TableCell align="center" width="40%">
-                            Name
+                            {t('rfqManagement.detail.additionalCost.name')}
                           </TableCell>
-                          <TableCell>Description</TableCell>
+                          <TableCell>{t('rfqManagement.detail.additionalCost.description')}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -3358,7 +3551,7 @@ export default function RFQDetail(): ReactElement {
                               <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="Name"
+                                placeholder={t('rfqManagement.detail.additionalCost.name')}
                                 value={additionalCost.description}
                                 onChange={(event) =>
                                   handleDraftAdditionalCostChange(
@@ -3374,7 +3567,7 @@ export default function RFQDetail(): ReactElement {
                                 <TextField
                                   fullWidth
                                   size="small"
-                                  placeholder="Value"
+                                  placeholder={t('rfqManagement.detail.additionalCost.value')}
                                   value={additionalCost.value}
                                   onChange={(event) =>
                                     handleDraftAdditionalCostChange(
@@ -3387,7 +3580,7 @@ export default function RFQDetail(): ReactElement {
                                 <TextField
                                   fullWidth
                                   size="small"
-                                  placeholder="Unit"
+                                  placeholder={t('rfqManagement.detail.additionalCost.unit')}
                                   value={additionalCost.unit}
                                   onChange={(event) =>
                                     handleDraftAdditionalCostChange(
@@ -3415,7 +3608,7 @@ export default function RFQDetail(): ReactElement {
                       backgroundColor: '#f8fafc'
                     }}>
                     <Typography variant="body1" fontWeight={600}>
-                      ยังไม่มีรายละเอียดเพิ่มเติม
+                      {t('rfqManagement.detail.additionalCost.empty')}
                     </Typography>
                   </Box>
                 )}
@@ -3443,8 +3636,8 @@ export default function RFQDetail(): ReactElement {
       />
       <ConfirmDialog
         open={visibleDetailSaveConfirmationDialog}
-        title="ยืนยันบันทึกตัวเลือกราคา"
-        message="คุณยืนยันบันทึกตัวเลือกราคาที่เพิ่มใหม่ทั้งหมดใช่หรือไม่"
+        title={t('rfqManagement.detail.dialogs.saveOptionsTitle')}
+        message={t('rfqManagement.detail.dialogs.saveOptionsMessage')}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -3454,8 +3647,11 @@ export default function RFQDetail(): ReactElement {
       />
       <ConfirmDialog
         open={Boolean(selectedDetailToDelete)}
-        title="ยืนยันลบตัวเลือกราคา"
-        message={`คุณยืนยันลบ ${selectedDetailToDelete?.optionName || 'ตัวเลือกราคา'} ใช่หรือไม่`}
+        title={t('rfqManagement.detail.dialogs.deleteOptionTitle')}
+        message={t('rfqManagement.detail.dialogs.deleteOptionMessage', {
+          optionName:
+            selectedDetailToDelete?.optionName || t('rfqManagement.detail.sections.options')
+        })}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -3465,9 +3661,12 @@ export default function RFQDetail(): ReactElement {
       />
       <ConfirmDialog
         open={Boolean(selectedAdditionalCostToDelete)}
-        title="ยืนยันลบรายละเอียดเพิ่มเติม"
-        message={`คุณยืนยันลบ ${selectedAdditionalCostToDelete?.description || 'รายละเอียดเพิ่มเติม'
-          } ใช่หรือไม่`}
+        title={t('rfqManagement.detail.dialogs.deleteAdditionalCostTitle')}
+        message={t('rfqManagement.detail.dialogs.deleteAdditionalCostMessage', {
+          description:
+            selectedAdditionalCostToDelete?.description ||
+            t('rfqManagement.detail.sections.additional')
+        })}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -3477,10 +3676,10 @@ export default function RFQDetail(): ReactElement {
       />
       <ConfirmDialog
         open={visibleMissingCustomerConfirmationDialog}
-        title="ยังไม่มีข้อมูลลูกค้า"
-        message="ยังไม่มีข้อมูลลูกค้าในระบบ กรุณาสร้างข้อมูลลูกค้าก่อนออกใบเสนอราคา"
-        confirmText="ยืนยัน"
-        cancelText="ปิด"
+        title={t('rfqManagement.detail.dialogs.missingCustomerTitle')}
+        message={t('rfqManagement.detail.dialogs.missingCustomerMessage')}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.close')}
         isShowCancelButton
         isShowConfirmButton
         onConfirm={() => {
@@ -3491,8 +3690,8 @@ export default function RFQDetail(): ReactElement {
       />
       <ConfirmDialog
         open={visibleRejectRfqDialog}
-        title="ยืนยันปฏิเสธคำขอราคา"
-        message={`คุณยืนยันปฏิเสธคำขอราคา ${rfq?.id || ''} ใช่หรือไม่`}
+        title={t('rfqManagement.detail.dialogs.rejectTitle')}
+        message={t('rfqManagement.detail.dialogs.rejectMessage', { id: rfq?.id || '' })}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -3502,8 +3701,8 @@ export default function RFQDetail(): ReactElement {
       />
       <ConfirmDialog
         open={visibleCloseRfqConfirmDialog}
-        title="ยืนยันปิดงาน"
-        message={`คุณยืนยันปิดงานคำขอราคา ${rfq?.id || ''} ใช่หรือไม่`}
+        title={t('rfqManagement.detail.dialogs.closeTitle')}
+        message={t('rfqManagement.detail.dialogs.closeMessage', { id: rfq?.id || '' })}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -3517,17 +3716,17 @@ export default function RFQDetail(): ReactElement {
         maxWidth="sm"
         disableEnforceFocus
         onClose={handleCloseCloseRfqDialog}>
-        <DialogTitle>ปิดงาน</DialogTitle>
+        <DialogTitle>{t('rfqManagement.detail.actions.close')}</DialogTitle>
         <DialogContent dividers>
           <TextField
             fullWidth
             multiline
             minRows={4}
-            label="เหตุผล"
+            label={t('rfqManagement.detail.dialogs.reasonLabel')}
             value={closeRfqRemark}
             onChange={(event) => setCloseRfqRemark(event.target.value)}
             InputLabelProps={{ shrink: true }}
-            placeholder="ระบุเหตุผลในการปิดงาน"
+            placeholder={t('rfqManagement.detail.dialogs.reasonPlaceholder')}
           />
         </DialogContent>
         <DialogActions>
@@ -3552,11 +3751,11 @@ export default function RFQDetail(): ReactElement {
         maxWidth="lg"
         disableEnforceFocus
         onClose={() => setVisibleConfirmRfqDialog(false)}>
-        <DialogTitle>คอนเฟิร์มราคา</DialogTitle>
+        <DialogTitle>{t('rfqManagement.detail.actions.confirmPrice')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
-              เลือกรายการจากใบเสนอราคาที่ต้องการใช้สำหรับคอนเฟิร์มราคา
+              {t('rfqManagement.detail.dialogs.confirmPriceDescription')}
             </Typography>
             {isQuotationFetching ? (
               <Box
@@ -3569,7 +3768,7 @@ export default function RFQDetail(): ReactElement {
                   backgroundColor: '#f8fafc'
                 }}>
                 <Typography variant="body1" fontWeight={600}>
-                  กำลังโหลดข้อมูลใบเสนอราคา...
+                  {t('rfqManagement.detail.dialogs.loadingQuotation')}
                 </Typography>
               </Box>
             ) : quotationItems.length ? (
@@ -3585,19 +3784,26 @@ export default function RFQDetail(): ReactElement {
                         }
                       }}>
                       <TableCell align="center" width={64}>
-                        เลือก
+                        {t('rfqManagement.detail.quotationTable.select')}
                       </TableCell>
-                      <TableCell>รายการใบเสนอราคา</TableCell>
-                      <TableCell align="center">จำนวน</TableCell>
-                      <TableCell align="center">วิธีการขนส่ง</TableCell>
-                      <TableCell align="center">ราคาต่อหน่วย</TableCell>
-                      <TableCell align="center">รวม</TableCell>
+                      <TableCell>{t('rfqManagement.detail.quotationTable.item')}</TableCell>
+                      <TableCell align="center">
+                        {t('rfqManagement.detail.quotationTable.quantity')}
+                      </TableCell>
+                      <TableCell align="center">
+                        {t('rfqManagement.detail.quotationTable.shippingMethod')}
+                      </TableCell>
+                      <TableCell align="center">
+                        {t('rfqManagement.detail.quotationTable.unitPrice')}
+                      </TableCell>
+                      <TableCell align="center">
+                        {t('rfqManagement.detail.quotationTable.amount')}
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {quotationItems.map((quotationItem, index) => {
                       const row = confirmQuotationRows[index];
-                      console.log('Row: ', row);
                       const fallbackShippingMethod =
                         inferQuotationItemShippingMethod(quotationItem.name) || 'LAND';
                       const optionLabel = row?.detail?.optionName || `Option ${index + 1}`;
@@ -3613,14 +3819,13 @@ export default function RFQDetail(): ReactElement {
                         <TableRow
                           key={rowKey}
                           hover
-                          selected={selectedConfirmRfqTierKey === rowKey}
-                          onClick={() => setSelectedConfirmRfqTierKey(rowKey)}
+                          selected={selectedConfirmRfqTierKeys.includes(rowKey)}
+                          onClick={() => toggleConfirmRfqTierKey(rowKey)}
                           sx={{ cursor: 'pointer' }}>
                           <TableCell align="center">
-                            <Radio
-                              checked={selectedConfirmRfqTierKey === rowKey}
-                              value={rowKey}
-                              onChange={(event) => setSelectedConfirmRfqTierKey(event.target.value)}
+                            <Checkbox
+                              checked={selectedConfirmRfqTierKeys.includes(rowKey)}
+                              onChange={() => toggleConfirmRfqTierKey(rowKey)}
                               inputProps={{
                                 'aria-label': `${quotationItem.name || optionLabel} ${formatQuantity(
                                   quotationItem.quantity
@@ -3654,6 +3859,20 @@ export default function RFQDetail(): ReactElement {
                               ) : (
                                 <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
                               )}
+                              {((row?.shippingMethod || fallbackShippingMethod) === 'SEA' && row?.tier?.isFcl) ? (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    px: 0.75,
+                                    py: 0.25,
+                                    borderRadius: 999,
+                                    backgroundColor: '#e0f2fe',
+                                    color: '#0369a1',
+                                    fontWeight: 700
+                                  }}>
+                                  แบบปิดตู้
+                                </Typography>
+                              ) : null}
                             </Stack>
                           </TableCell>
                           <TableCell align="center" sx={{ fontWeight: 700 }}>
@@ -3679,7 +3898,7 @@ export default function RFQDetail(): ReactElement {
                   backgroundColor: '#f8fafc'
                 }}>
                 <Typography variant="body1" fontWeight={600}>
-                  ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา
+                  {t('rfqManagement.detail.dialogs.noQuotation')}
                 </Typography>
               </Box>
             )}
@@ -3696,7 +3915,7 @@ export default function RFQDetail(): ReactElement {
             onClick={handleConfirmRfqPrice}
             className="btn-emerald-green"
             variant="contained"
-            disabled={!selectedConfirmRfqTierKey}>
+            disabled={!selectedConfirmRfqTierKeys.length}>
             {t('button.confirm')}
           </Button>
         </DialogActions>
@@ -3706,24 +3925,24 @@ export default function RFQDetail(): ReactElement {
         onClose={() => setVisibleUrgentDetailDialog(false)}
         maxWidth="sm"
         fullWidth>
-        <DialogTitle>รายละเอียดคำขอเร่งด่วน</DialogTitle>
+        <DialogTitle>{t('rfqManagement.detail.urgent.title')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                สถานะ
+                {t('rfqManagement.detail.urgent.status')}
               </Typography>
               <Typography variant="body1" fontWeight={700}>
                 {rfq?.urgentRequestStatus === 'APPROVED'
-                  ? 'เร่งด่วนอนุมัติแล้ว'
+                  ? t('rfqManagement.detail.urgent.statusApproved')
                   : rfq?.urgentRequestStatus === 'REJECTED'
-                    ? 'คำขอเร่งด่วนไม่อนุมัติ'
-                    : 'เร่งด่วนรออนุมัติ'}
+                    ? t('rfqManagement.detail.urgent.statusRejected')
+                    : t('rfqManagement.detail.urgent.statusPending')}
               </Typography>
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                เหตุผลที่ขอ
+                {t('rfqManagement.detail.urgent.requestReason')}
               </Typography>
               <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {rfq?.urgentRequestReason || '-'}
@@ -3731,7 +3950,7 @@ export default function RFQDetail(): ReactElement {
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                เหตุผลที่ถูกปฏิเสธ
+                {t('rfqManagement.detail.urgent.rejectReason')}
               </Typography>
               <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {rfq?.urgentRejectReason || '-'}
@@ -3741,7 +3960,7 @@ export default function RFQDetail(): ReactElement {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setVisibleUrgentDetailDialog(false)} variant="contained">
-            ปิด
+            {t('button.close')}
           </Button>
         </DialogActions>
       </Dialog>

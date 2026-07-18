@@ -37,6 +37,7 @@ import { getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import { getMySearchFields } from 'services/SearchField/search-field-api';
 import { formatNumber } from 'utils/utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 
 function getCustomerLabel(salesOrder: SalesOrderV1): string {
   const customer = salesOrder.customer as any;
@@ -55,25 +56,6 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
     .join(' ');
 
   return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
-}
-
-function getStatusColor(status?: string) {
-  switch (status) {
-    case 'DRAFT':
-      return { backgroundColor: '#f3f4f6', color: '#4b5563' };
-    case 'CREATED':
-      return { backgroundColor: '#e0f2fe', color: '#0369a1' };
-    case 'ISSUED':
-    case 'SENT':
-      return { backgroundColor: '#fef3c7', color: '#92400e' };
-    case 'ACCEPTED':
-      return { backgroundColor: '#dcfce7', color: '#166534' };
-    case 'REJECTED':
-    case 'CANCELED':
-      return { backgroundColor: '#fee2e2', color: '#991b1b' };
-    default:
-      return { backgroundColor: '#e5e7eb', color: '#374151' };
-  }
 }
 
 const defaultFilter: SearchSalesOrderRequestV1 = {
@@ -266,9 +248,9 @@ export default function SalesOrderManagement(): ReactElement {
           <Stack spacing={1} alignItems="center">
             <Typography variant="body2">{salesOrder.salesOrderNo}</Typography>
             <Chip
-              label={salesOrder.status || '-'}
+              label={getDocumentStatusLabel(salesOrder.status, salesOrder.statusProfile)}
               size="small"
-              sx={{ ...getStatusColor(salesOrder.status), fontWeight: 700 }}
+              sx={getDocumentStatusChipSx(salesOrder.status, salesOrder.statusProfile)}
             />
           </Stack>
         </TableCell>
@@ -305,9 +287,9 @@ export default function SalesOrderManagement(): ReactElement {
                 {salesOrder.salesOrderNo}
               </Typography>
               <Chip
-                label={salesOrder.status || '-'}
+                label={getDocumentStatusLabel(salesOrder.status, salesOrder.statusProfile)}
                 size="small"
-                sx={{ ...getStatusColor(salesOrder.status), fontWeight: 700 }}
+                sx={getDocumentStatusChipSx(salesOrder.status, salesOrder.statusProfile)}
               />
             </Stack>
             <Typography variant="body2">{salesOrder.docDate || '-'}</Typography>
@@ -426,9 +408,9 @@ export default function SalesOrderManagement(): ReactElement {
                 onChange={searchFormik.handleChange}
                 InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">ทั้งหมด</MenuItem>
-                {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELED'].map((status) => (
+                {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
                   <MenuItem key={status} value={status}>
-                    {status}
+                    {getDocumentStatusLabel(status)}
                   </MenuItem>
                 ))}
               </TextField>

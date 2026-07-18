@@ -1,5 +1,6 @@
 import { api } from 'api/api';
 import {
+  InvoiceAwaitingValidationResponse,
   CreateInvoiceRequest,
   CreateInvoiceResponse,
   InvoiceRecord,
@@ -17,6 +18,36 @@ export const getInvoice = async (id: string): Promise<InvoiceRecord> => {
     .get('/v1/invoices', {
       params: { id }
     })
+    .then((result) => result.data);
+
+  return response.data;
+};
+
+export const resolveAwaitingValidationInvoice = async (token: string): Promise<InvoiceAwaitingValidationResponse> => {
+  const response = await api
+    .get('/v1/invoices/awaiting-validation', {
+      params: { token }
+    })
+    .then((result) => result.data);
+
+  return response.data;
+};
+
+export const approveAwaitingValidationInvoice = async (
+  token: string
+): Promise<InvoiceAwaitingValidationResponse> => {
+  const response = await api
+    .post('/v1/invoices/awaiting-validation/approve', { token })
+    .then((result) => result.data);
+
+  return response.data;
+};
+
+export const rejectAwaitingValidationInvoice = async (
+  token: string
+): Promise<InvoiceAwaitingValidationResponse> => {
+  const response = await api
+    .post('/v1/invoices/awaiting-validation/reject', { token })
     .then((result) => result.data);
 
   return response.data;
@@ -50,6 +81,17 @@ export const receiveInvoicePayment = async (id: string, data: FormData): Promise
     .post(`/v1/invoices/${id}/payments`, data, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+    .then((result) => result.data);
+
+  return response.data;
+};
+
+export const sendAwaitingValidationNotification = async (
+  id: string,
+  paymentId: number
+): Promise<InvoiceRecord> => {
+  const response = await api
+    .post(`/v1/invoices/${id}/payments/${paymentId}/send-awaiting-validation-notification`)
     .then((result) => result.data);
 
   return response.data;

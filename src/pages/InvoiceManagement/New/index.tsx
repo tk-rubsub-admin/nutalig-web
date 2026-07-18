@@ -239,10 +239,19 @@ export default function NewInvoice(): ReactElement {
   }, [salesOrder]);
 
   const summary = useMemo(() => {
+    const paymentTerm = salesOrder?.customer?.customerPaymentTerm.code;
+
     const subTotal = Number(draft.subTotal || 0);
     const discount = Number(draft.discount || 0);
     const remainingAmount = Math.max(subTotal - discount, 0);
-    const depositAmount = remainingAmount / 2;
+    let depositAmount = 0;
+    if (paymentTerm === 'DEP50') {
+      depositAmount = (remainingAmount * 50) / 100;
+    } else if (paymentTerm === 'DEP30_BBS') {
+      depositAmount = (remainingAmount * 30) / 100;
+    } else {
+      depositAmount = remainingAmount;
+    }
     const vat = draft.isVat ? depositAmount * 0.07 : 0;
 
     return {
@@ -377,6 +386,10 @@ export default function NewInvoice(): ReactElement {
                 label={t('documentManagement.invoice.customerSection.contactNumber')}
                 value={getCustomerContactNumber(salesOrder)}
               />
+              <Info
+                label="เงื่อนไขการชำระเงิน"
+                value={salesOrder?.customer?.customerPaymentTerm?.nameTh}
+              />
             </Stack>
           </Grid>
 
@@ -397,12 +410,13 @@ export default function NewInvoice(): ReactElement {
                 control={
                   <Checkbox
                     checked={draft.isVat}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        isVat: event.target.checked
-                      }))
-                    }
+                    disabled
+                  // onChange={(event) =>
+                  //   setDraft((previous) => ({
+                  //     ...previous,
+                  //     isVat: event.target.checked
+                  //   }))
+                  // }
                   />
                 }
                 label={draft.isVat ? 'มี VAT 7%' : 'ไม่มี VAT'}

@@ -1,5 +1,5 @@
 import { api } from 'api/api';
-import { CalendarEventDto } from './calendar-type';
+import { CalendarEventDto, CreateMyCalendarEventRequest } from './calendar-type';
 
 interface GeneralResponse<T> {
   status: string;
@@ -22,4 +22,17 @@ export const getCalendarEvents = async (
     .then((res) => res.data.data);
 
   return response || [];
+};
+
+export const createMyCalendarEvent = async (
+  payload: CreateMyCalendarEventRequest
+): Promise<CalendarEventDto> => {
+  const response = await api
+    .post<GeneralResponse<CalendarEventDto>>('/v1/me/calendar-events', {
+      ...payload,
+      eventType: 'PRIVATE'
+    })
+    .then((res) => res.data.data);
+
+  return response;
 };

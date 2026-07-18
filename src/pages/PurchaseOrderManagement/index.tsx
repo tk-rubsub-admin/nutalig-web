@@ -34,22 +34,10 @@ import {
   PurchaseOrderRecord,
   SearchPurchaseOrderRequest
 } from 'services/PurchaseOrder/purchase-order-type';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 
 const PURCHASE_ORDER_STATUS_OPTIONS = ['CREATED', 'CANCELLED', 'CLOSED'];
-
-function getPurchaseOrderStatusLabel(status?: string | null): string {
-  switch (status) {
-    case 'CREATED':
-      return 'สร้างแล้ว';
-    case 'CANCELLED':
-      return 'ยกเลิก';
-    case 'CLOSED':
-      return 'ปิดงาน';
-    default:
-      return status || '-';
-  }
-}
 
 export default function PurchaseOrderManagement(): JSX.Element {
   const useStyles = makeStyles({
@@ -158,7 +146,11 @@ export default function PurchaseOrderManagement(): JSX.Element {
         <TableCell align="center">
           <Stack spacing={1} alignItems="center">
             <Typography variant="body2">{purchaseOrder.purchaseOrderNo}</Typography>
-            <Chip label={getPurchaseOrderStatusLabel(purchaseOrder.status)} size="small" />
+            <Chip
+              label={getDocumentStatusLabel(purchaseOrder.status, purchaseOrder.statusProfile)}
+              size="small"
+              sx={getDocumentStatusChipSx(purchaseOrder.status, purchaseOrder.statusProfile)}
+            />
           </Stack>
         </TableCell>
         <TableCell align="center">{purchaseOrder.docDate || '-'}</TableCell>
@@ -199,7 +191,11 @@ export default function PurchaseOrderManagement(): JSX.Element {
               <Typography variant="body1" fontWeight={600}>
                 {purchaseOrder.purchaseOrderNo}
               </Typography>
-              <Chip label={getPurchaseOrderStatusLabel(purchaseOrder.status)} size="small" />
+              <Chip
+                label={getDocumentStatusLabel(purchaseOrder.status, purchaseOrder.statusProfile)}
+                size="small"
+                sx={getDocumentStatusChipSx(purchaseOrder.status, purchaseOrder.statusProfile)}
+              />
             </Stack>
             <Typography variant="body2">{purchaseOrder.docDate || '-'}</Typography>
             <Typography variant="body2">ระยะเวลาผลิต: {purchaseOrder.productionLeadTimeDay ?? '-'}</Typography>
@@ -288,7 +284,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
               <MenuItem value="">ทั้งหมด</MenuItem>
               {PURCHASE_ORDER_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status} value={status}>
-                  {getPurchaseOrderStatusLabel(status)}
+                  {getDocumentStatusLabel(status)}
                 </MenuItem>
               ))}
             </TextField>

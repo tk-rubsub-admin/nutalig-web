@@ -345,6 +345,7 @@ function createDefaultFilter(salesId = '') {
     customerId: '',
     salesId,
     procurementId: '',
+    rfqTypeCode: '',
     orderTypeCode: '',
     productFamily: '',
     productSubtype1: '',
@@ -431,6 +432,7 @@ export default function RFQManagement(): ReactElement {
 
   const canShowField = (fieldCode: keyof RFQManagementFilter) =>
     fieldCode === 'keyword' ||
+    fieldCode === 'rfqTypeCode' ||
     fieldCode === 'productSubtype1' ||
     fieldCode === 'productMaterial' ||
     visibleFieldCodes.has(fieldCode);
@@ -448,6 +450,7 @@ export default function RFQManagement(): ReactElement {
       filter.customerId,
       filter.salesId,
       filter.procurementId,
+      filter.rfqTypeCode,
       filter.orderTypeCode,
       filter.productFamily,
       filter.productSubtype1,
@@ -465,6 +468,7 @@ export default function RFQManagement(): ReactElement {
         customerId: filter.customerId,
         salesId: filter.salesId,
         procurementId: filter.procurementId,
+        rfqTypeCode: filter.rfqTypeCode,
         orderTypeCode: filter.orderTypeCode,
         productFamily: filter.productFamily,
         productSubtype1: filter.productSubtype1,
@@ -511,6 +515,10 @@ export default function RFQManagement(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+
+  const { data: rfqTypeList } = useQuery('rfq-type-list', () => getSystemConfig('RFQ_TYPE'), {
+    refetchOnWindowFocus: false
+  });
 
   const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
     'rfq-product-family-list',
@@ -566,6 +574,7 @@ export default function RFQManagement(): ReactElement {
             ? values.salesId?.trim() || ''
             : '',
         procurementId: canShowField('procurementId') ? values.procurementId?.trim() || '' : '',
+        rfqTypeCode: canShowField('rfqTypeCode') ? values.rfqTypeCode?.trim() || '' : '',
         orderTypeCode: canShowField('orderTypeCode') ? values.orderTypeCode?.trim() || '' : '',
         productFamily: canShowField('productFamily') ? values.productFamily?.trim() || '' : '',
         productSubtype1: canShowField('productSubtype1')
@@ -843,302 +852,330 @@ export default function RFQManagement(): ReactElement {
 
         <CollapsibleWrapper title="ค้นหาคำขอราคา" defaultExpanded={false}>
           <GridSearchSection container spacing={1} sx={{ mt: 0 }}>
-          {canShowField('id') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                label="เลข RFQ"
-                name="id"
-                value={searchFormik.values.id}
-                onChange={searchFormik.handleChange}
-                InputLabelProps={{ shrink: true }}
-              />
-            </GridTextField>
-          )}
-          {canShowField('customerId') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <Autocomplete
-                options={customerOptions}
-                loading={isCustomerFetching}
-                filterOptions={(options) => options}
-                value={
-                  customerOptions.find(
-                    (customer) => customer.id === searchFormik.values.customerId
-                  ) || null
-                }
-                getOptionLabel={(option: Customer) => `(${option.id}) ${option.customerName}`}
-                onChange={(_event, value) => {
-                  searchFormik.setFieldValue('customerId', value?.id || '');
-                  setCustomerKeyword(value ? `(${value.id}) ${value.customerName}` : '');
-                }}
-                onInputChange={(_event, value, reason) => {
-                  if (reason === 'input') {
-                    setCustomerKeyword(value);
+            {canShowField('id') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  label="เลข RFQ"
+                  name="id"
+                  value={searchFormik.values.id}
+                  onChange={searchFormik.handleChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </GridTextField>
+            )}
+            {canShowField('customerId') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <Autocomplete
+                  options={customerOptions}
+                  loading={isCustomerFetching}
+                  filterOptions={(options) => options}
+                  value={
+                    customerOptions.find(
+                      (customer) => customer.id === searchFormik.values.customerId
+                    ) || null
                   }
-
-                  if (reason === 'clear') {
-                    setCustomerKeyword('');
-                    searchFormik.setFieldValue('customerId', '');
-                  }
-                }}
-                noOptionsText={
-                  debouncedCustomerKeyword ? 'ไม่พบข้อมูลลูกค้า' : 'พิมพ์เพื่อค้นหาลูกค้า'
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    fullWidth
-                    label="รหัสลูกค้า"
-                    InputLabelProps={{ shrink: true }}
-                    onBlur={() => searchFormik.setFieldTouched('customerId', true)}
-                    error={
-                      searchFormik.touched.customerId && Boolean(searchFormik.errors.customerId)
+                  getOptionLabel={(option: Customer) => `(${option.id}) ${option.customerName}`}
+                  onChange={(_event, value) => {
+                    searchFormik.setFieldValue('customerId', value?.id || '');
+                    setCustomerKeyword(value ? `(${value.id}) ${value.customerName}` : '');
+                  }}
+                  onInputChange={(_event, value, reason) => {
+                    if (reason === 'input') {
+                      setCustomerKeyword(value);
                     }
-                    helperText={searchFormik.touched.customerId && searchFormik.errors.customerId}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {isCustomerFetching ? (
-                            <CircularProgress color="inherit" size={20} />
-                          ) : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      )
-                    }}
-                  />
-                )}
-              />
-            </GridTextField>
-          )}
-          {(canShowField('salesId') || isSalesRole) && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="รหัสเซลล์"
-                name="salesId"
-                value={searchFormik.values.salesId}
-                onChange={searchFormik.handleChange}
-                disabled={isSalesRole || isSalesFetching}
-                InputLabelProps={{ shrink: true }}>
-                {!isSalesRole && <MenuItem value="">ทั้งหมด</MenuItem>}
-                {isSalesFetching ? (
-                  <MenuItem disabled value="">
-                    Loading...
-                  </MenuItem>
-                ) : null}
-                {!isSalesFetching && salesDropdownOptions.length === 0 ? (
-                  <MenuItem disabled value="">
-                    No sales data
-                  </MenuItem>
-                ) : null}
-                {salesDropdownOptions.map((option) => (
-                  <MenuItem key={option.salesId} value={option.salesId}>
-                    {`${option.salesId} - ${option.nickname || option.name}`}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('procurementId') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="รหัสจัดซื้อ"
-                name="procurementId"
-                value={searchFormik.values.procurementId}
-                onChange={searchFormik.handleChange}
-                disabled={isProcurementFetching}
-                InputLabelProps={{ shrink: true }}>
-                {<MenuItem value="">ทั้งหมด</MenuItem>}
-                {isProcurementFetching ? (
-                  <MenuItem disabled value="">
-                    Loading...
-                  </MenuItem>
-                ) : null}
-                {!isProcurementFetching && procurementOptions.length === 0 ? (
-                  <MenuItem disabled value="">
-                    No procurement data
-                  </MenuItem>
-                ) : null}
-                {procurementOptions.map((option) => (
-                  <MenuItem key={option.salesId} value={option.salesId}>
-                    {`${option.salesId} - ${option.nickname || option.name}`}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('orderTypeCode') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="ประเภทงาน"
-                name="orderTypeCode"
-                value={searchFormik.values.orderTypeCode}
-                onChange={searchFormik.handleChange}
-                error={
-                  searchFormik.touched.orderTypeCode && Boolean(searchFormik.errors.orderTypeCode)
-                }
-                helperText={searchFormik.touched.orderTypeCode && searchFormik.errors.orderTypeCode}
-                InputLabelProps={{ shrink: true }}>
-                {(orderTypeList || []).map((item: SystemConfig) => (
-                  <MenuItem key={item.code} value={item.code}>
-                    {item.nameTh || item.code}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('productFamily') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="Product Family"
-                name="productFamily"
-                value={searchFormik.values.productFamily}
-                onChange={(event) => {
-                  searchFormik.handleChange(event);
-                  searchFormik.setFieldValue('productSubtype1', '');
-                  searchFormik.setFieldValue('productMaterial', '');
-                }}
-                disabled={isProductFamilyFetching}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">ทั้งหมด</MenuItem>
-                {isProductFamilyFetching ? (
-                  <MenuItem disabled value="">
-                    Loading...
-                  </MenuItem>
-                ) : null}
-                {!isProductFamilyFetching && productFamilyList.length === 0 ? (
-                  <MenuItem disabled value="">
-                    No product family data
-                  </MenuItem>
-                ) : null}
-                {productFamilyList.map((productFamily: ProductFamily) => (
-                  <MenuItem key={productFamily.code} value={productFamily.code}>
-                    {productFamily.nameTh && productFamily.nameEn
-                      ? `${productFamily.nameTh} (${productFamily.nameEn})`
-                      : productFamily.nameTh || productFamily.nameEn || productFamily.code}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('productSubtype1') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="Product Subtype 1"
-                name="productSubtype1"
-                value={searchFormik.values.productSubtype1}
-                onChange={searchFormik.handleChange}
-                disabled={isProductFamilyFetching}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">ทั้งหมด</MenuItem>
-                {!isProductFamilyFetching && productSubtype1Options.length === 0 ? (
-                  <MenuItem disabled value="">
-                    No product subtype 1 data
-                  </MenuItem>
-                ) : null}
-                {productSubtype1Options.map((productSubtype1: ProductSubtype1) => (
-                  <MenuItem key={productSubtype1.code} value={productSubtype1.code}>
-                    {getProductSubtype1DisplayName(productSubtype1)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('productMaterial') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="Product Material"
-                name="productMaterial"
-                value={searchFormik.values.productMaterial}
-                onChange={searchFormik.handleChange}
-                disabled={isProductFamilyFetching}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">ทั้งหมด</MenuItem>
-                {!isProductFamilyFetching && productMaterialOptions.length === 0 ? (
-                  <MenuItem disabled value="">
-                    No product material data
-                  </MenuItem>
-                ) : null}
-                {productMaterialOptions.map((productMaterial: ProductMaterial) => (
-                  <MenuItem
-                    key={`${productMaterial.productFamilyCode || 'ALL'}-${productMaterial.code}`}
-                    value={productMaterial.code}>
-                    {getProductMaterialOptionLabel(productMaterial, Boolean(selectedProductFamily))}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('status') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="สถานะ"
-                name="status"
-                value={searchFormik.values.status}
-                onChange={searchFormik.handleChange}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">ทั้งหมด</MenuItem>
-                {RFQ_STATUS_OPTIONS.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {t(`rfqManagement.rfqsStatus.${status}`, status)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </GridTextField>
-          )}
-          {canShowField('requestedDateStart') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                type="date"
-                label="วันที่ขอราคาเริ่มต้น"
-                name="requestedDateStart"
-                value={searchFormik.values.requestedDateStart}
-                onChange={searchFormik.handleChange}
-                InputLabelProps={{ shrink: true }}
-              />
-            </GridTextField>
-          )}
-          {canShowField('requestedDateEnd') && (
-            <GridTextField item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth
-                type="date"
-                label="วันที่ขอราคาสิ้นสุด"
-                name="requestedDateEnd"
-                value={searchFormik.values.requestedDateEnd}
-                onChange={searchFormik.handleChange}
-                InputLabelProps={{ shrink: true }}
-              />
-            </GridTextField>
-          )}
-          {canShowField('keyword') && (
-            <GridTextField item xs={12} sm={8} md={6}>
-              <TextField
-                fullWidth
-                label="คำค้นหา"
-                placeholder="เลข RFQ, ชื่อลูกค้า, ชื่อสินค้า"
-                name="keyword"
-                value={searchFormik.values.keyword}
-                onChange={searchFormik.handleChange}
-                InputLabelProps={{ shrink: true }}
-              />
-            </GridTextField>
-          )}
+
+                    if (reason === 'clear') {
+                      setCustomerKeyword('');
+                      searchFormik.setFieldValue('customerId', '');
+                    }
+                  }}
+                  noOptionsText={
+                    debouncedCustomerKeyword ? 'ไม่พบข้อมูลลูกค้า' : 'พิมพ์เพื่อค้นหาลูกค้า'
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      fullWidth
+                      label="รหัสลูกค้า"
+                      InputLabelProps={{ shrink: true }}
+                      onBlur={() => searchFormik.setFieldTouched('customerId', true)}
+                      error={
+                        searchFormik.touched.customerId && Boolean(searchFormik.errors.customerId)
+                      }
+                      helperText={searchFormik.touched.customerId && searchFormik.errors.customerId}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isCustomerFetching ? (
+                              <CircularProgress color="inherit" size={20} />
+                            ) : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        )
+                      }}
+                    />
+                  )}
+                />
+              </GridTextField>
+            )}
+            {(canShowField('salesId') || isSalesRole) && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="รหัสเซลล์"
+                  name="salesId"
+                  value={searchFormik.values.salesId}
+                  onChange={searchFormik.handleChange}
+                  disabled={isSalesRole || isSalesFetching}
+                  InputLabelProps={{ shrink: true }}>
+                  {!isSalesRole && <MenuItem value="">ทั้งหมด</MenuItem>}
+                  {isSalesFetching ? (
+                    <MenuItem disabled value="">
+                      Loading...
+                    </MenuItem>
+                  ) : null}
+                  {!isSalesFetching && salesDropdownOptions.length === 0 ? (
+                    <MenuItem disabled value="">
+                      No sales data
+                    </MenuItem>
+                  ) : null}
+                  {salesDropdownOptions.map((option) => (
+                    <MenuItem key={option.salesId} value={option.salesId}>
+                      {`${option.salesId} - ${option.nickname || option.name}`}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('procurementId') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="รหัสจัดซื้อ"
+                  name="procurementId"
+                  value={searchFormik.values.procurementId}
+                  onChange={searchFormik.handleChange}
+                  disabled={isProcurementFetching}
+                  InputLabelProps={{ shrink: true }}>
+                  {<MenuItem value="">ทั้งหมด</MenuItem>}
+                  {isProcurementFetching ? (
+                    <MenuItem disabled value="">
+                      Loading...
+                    </MenuItem>
+                  ) : null}
+                  {!isProcurementFetching && procurementOptions.length === 0 ? (
+                    <MenuItem disabled value="">
+                      No procurement data
+                    </MenuItem>
+                  ) : null}
+                  {procurementOptions.map((option) => (
+                    <MenuItem key={option.salesId} value={option.salesId}>
+                      {`${option.salesId} - ${option.nickname || option.name}`}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('rfqTypeCode') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="ประเภท RFQ"
+                  name="rfqTypeCode"
+                  value={searchFormik.values.rfqTypeCode}
+                  onChange={searchFormik.handleChange}
+                  error={
+                    searchFormik.touched.rfqTypeCode && Boolean(searchFormik.errors.rfqTypeCode)
+                  }
+                  helperText={searchFormik.touched.rfqTypeCode && searchFormik.errors.rfqTypeCode}
+                  InputLabelProps={{ shrink: true }}>
+                  <MenuItem value="">ทั้งหมด</MenuItem>
+                  {(rfqTypeList || []).map((item: SystemConfig) => (
+                    <MenuItem key={item.code} value={item.code}>
+                      {item.nameTh || item.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('orderTypeCode') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="ประเภทงาน"
+                  name="orderTypeCode"
+                  value={searchFormik.values.orderTypeCode}
+                  onChange={searchFormik.handleChange}
+                  error={
+                    searchFormik.touched.orderTypeCode && Boolean(searchFormik.errors.orderTypeCode)
+                  }
+                  helperText={
+                    searchFormik.touched.orderTypeCode && searchFormik.errors.orderTypeCode
+                  }
+                  InputLabelProps={{ shrink: true }}>
+                  {(orderTypeList || []).map((item: SystemConfig) => (
+                    <MenuItem key={item.code} value={item.code}>
+                      {item.nameTh || item.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('productFamily') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Product Family"
+                  name="productFamily"
+                  value={searchFormik.values.productFamily}
+                  onChange={(event) => {
+                    searchFormik.handleChange(event);
+                    searchFormik.setFieldValue('productSubtype1', '');
+                    searchFormik.setFieldValue('productMaterial', '');
+                  }}
+                  disabled={isProductFamilyFetching}
+                  InputLabelProps={{ shrink: true }}>
+                  <MenuItem value="">ทั้งหมด</MenuItem>
+                  {isProductFamilyFetching ? (
+                    <MenuItem disabled value="">
+                      Loading...
+                    </MenuItem>
+                  ) : null}
+                  {!isProductFamilyFetching && productFamilyList.length === 0 ? (
+                    <MenuItem disabled value="">
+                      No product family data
+                    </MenuItem>
+                  ) : null}
+                  {productFamilyList.map((productFamily: ProductFamily) => (
+                    <MenuItem key={productFamily.code} value={productFamily.code}>
+                      {productFamily.nameTh && productFamily.nameEn
+                        ? `${productFamily.nameTh} (${productFamily.nameEn})`
+                        : productFamily.nameTh || productFamily.nameEn || productFamily.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('productSubtype1') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Product Subtype 1"
+                  name="productSubtype1"
+                  value={searchFormik.values.productSubtype1}
+                  onChange={searchFormik.handleChange}
+                  disabled={isProductFamilyFetching}
+                  InputLabelProps={{ shrink: true }}>
+                  <MenuItem value="">ทั้งหมด</MenuItem>
+                  {!isProductFamilyFetching && productSubtype1Options.length === 0 ? (
+                    <MenuItem disabled value="">
+                      No product subtype 1 data
+                    </MenuItem>
+                  ) : null}
+                  {productSubtype1Options.map((productSubtype1: ProductSubtype1) => (
+                    <MenuItem key={productSubtype1.code} value={productSubtype1.code}>
+                      {getProductSubtype1DisplayName(productSubtype1)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('productMaterial') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Product Material"
+                  name="productMaterial"
+                  value={searchFormik.values.productMaterial}
+                  onChange={searchFormik.handleChange}
+                  disabled={isProductFamilyFetching}
+                  InputLabelProps={{ shrink: true }}>
+                  <MenuItem value="">ทั้งหมด</MenuItem>
+                  {!isProductFamilyFetching && productMaterialOptions.length === 0 ? (
+                    <MenuItem disabled value="">
+                      No product material data
+                    </MenuItem>
+                  ) : null}
+                  {productMaterialOptions.map((productMaterial: ProductMaterial) => (
+                    <MenuItem
+                      key={`${productMaterial.productFamilyCode || 'ALL'}-${productMaterial.code}`}
+                      value={productMaterial.code}>
+                      {getProductMaterialOptionLabel(
+                        productMaterial,
+                        Boolean(selectedProductFamily)
+                      )}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('status') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="สถานะ"
+                  name="status"
+                  value={searchFormik.values.status}
+                  onChange={searchFormik.handleChange}
+                  InputLabelProps={{ shrink: true }}>
+                  <MenuItem value="">ทั้งหมด</MenuItem>
+                  {RFQ_STATUS_OPTIONS.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {t(`rfqManagement.rfqsStatus.${status}`, status)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
+            {canShowField('requestedDateStart') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="วันที่ขอราคาเริ่มต้น"
+                  name="requestedDateStart"
+                  value={searchFormik.values.requestedDateStart}
+                  onChange={searchFormik.handleChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </GridTextField>
+            )}
+            {canShowField('requestedDateEnd') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="วันที่ขอราคาสิ้นสุด"
+                  name="requestedDateEnd"
+                  value={searchFormik.values.requestedDateEnd}
+                  onChange={searchFormik.handleChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </GridTextField>
+            )}
+            {canShowField('keyword') && (
+              <GridTextField item xs={12} sm={8} md={6}>
+                <TextField
+                  fullWidth
+                  label="คำค้นหา"
+                  placeholder="เลข RFQ, ชื่อลูกค้า, ชื่อสินค้า"
+                  name="keyword"
+                  value={searchFormik.values.keyword}
+                  onChange={searchFormik.handleChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </GridTextField>
+            )}
           </GridSearchSection>
         </CollapsibleWrapper>
 

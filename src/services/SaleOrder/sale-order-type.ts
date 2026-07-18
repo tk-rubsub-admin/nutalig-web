@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { Customer, CustomerDropOff } from 'services/Customer/customer-type';
+import { DocumentStatusProfile } from 'services/document-status-type';
 import { Pagination } from 'services/general-type';
 import { ProductDto } from 'services/Product/product-type';
 import { Staff, StaffKPI } from 'services/Staff/staff-type';
@@ -68,10 +69,13 @@ export interface CreateSalesOrderRequestV1 {
     customerContactId?: string;
     salesId: string;
     coSaleId?: string;
+    coSaleCommission?: number;
     discount?: number;
     freight?: number;
     isVat: boolean;
     shippingType?: string;
+    requestCoa?: boolean;
+    requestPo?: boolean;
     remark?: string;
     items: CreateSalesOrderDetailRequest[];
 }
@@ -92,6 +96,7 @@ export interface SalesOrderV1 {
     docDate: string | null;
     expireDate: string | null;
     status: string;
+    statusProfile?: DocumentStatusProfile;
     procurementStatus: string | null;
     currency: string;
     customer: Customer | null;
@@ -104,11 +109,27 @@ export interface SalesOrderV1 {
     grandTotal: number;
     amount: number;
     commission: number;
+    coSaleCommission: number;
+    requestCoa: boolean;
+    requestPo: boolean;
     shippingType: string | null;
     vatRate: number;
     remark: string | null;
     revNo: number;
+    attachments: SalesOrderAttachment[];
     items: SalesOrderDetailV1[];
+}
+
+export interface SalesOrderAttachment {
+    id: number;
+    salesOrderNo: string;
+    fileName: string | null;
+    originalFileName: string | null;
+    fileUrl: string | null;
+    contentType: string | null;
+    fileSize: number | null;
+    remark: string | null;
+    sortOrder: number | null;
 }
 
 export interface SalesOrderDetailV1 {
@@ -163,10 +184,14 @@ export interface UpdateSalesOrderRequestV1 {
     docDate?: string | null;
     expireDate?: string | null;
     coSaleId?: string | null;
+    commission?: number;
+    coSaleCommission?: number | null;
     discount?: number;
     freight?: number;
     isVat?: boolean;
     shippingType?: string | null;
+    requestCoa?: boolean | null;
+    requestPo?: boolean | null;
     remark?: string | null;
     items?: UpdateSalesOrderDetailRequestV1[];
 }

@@ -1,6 +1,7 @@
 import { Address, Contact, Customer } from 'services/Customer/customer-type';
 import { EmployeeRecord } from 'services/Employee/employee-type';
 import { Pagination } from 'services/general-type';
+import { DocumentStatusProfile } from 'services/document-status-type';
 
 export interface CreateInvoiceRequest {
   salesOrderNo: string;
@@ -23,6 +24,7 @@ export interface InvoicePayment {
   paymentDate: string;
   amount: number;
   paymentMethod: 'TRANSFER' | 'CHEQUE' | 'CASH';
+  status?: 'PENDING' | 'APPROVE' | 'REJECT';
   chequeBank: string | null;
   chequeNo: string | null;
   chequeDate: string | null;
@@ -66,6 +68,7 @@ export interface InvoiceRecord {
   docDate: string | null;
   dueDate: string | null;
   status: string;
+  statusProfile?: DocumentStatusProfile;
   currency: string | null;
   customer: Customer | null;
   customerAddress: Address | null;
@@ -84,6 +87,12 @@ export interface InvoiceRecord {
   outstandingTotal: number;
   remark: string | null;
   revNo: number | null;
+  customerNameSnapshot?: string | null;
+  customerTaxIdSnapshot?: string | null;
+  customerAddressSnapshot?: string | null;
+  customerContactSnapshot?: string | null;
+  customerPhoneSnapshot?: string | null;
+  salesNameSnapshot?: string | null;
   items: InvoiceItem[];
   payments?: InvoicePayment[];
 }
@@ -94,4 +103,9 @@ export interface SearchInvoiceResponse {
     records: InvoiceRecord[];
     pagination: Pagination;
   };
+}
+
+export interface InvoiceAwaitingValidationResponse {
+  invoice: InvoiceRecord;
+  paymentId: number;
 }

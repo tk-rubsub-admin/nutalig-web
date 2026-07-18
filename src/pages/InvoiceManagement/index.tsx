@@ -32,8 +32,9 @@ import { ROUTE_PATHS } from 'routes';
 import { InvoiceRecord, SearchInvoiceRequest } from 'services/Invoice/invoice-type';
 import { searchInvoices } from 'services/Invoice/invoice-api';
 import { formatNumber } from 'utils/utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 
-const INVOICE_STATUS_OPTIONS = ['ISSUED', 'PARTIALLY_PAID', 'PAID', 'CANCELLED', 'VOID'];
+const INVOICE_STATUS_OPTIONS = ['ISSUED', 'AWAITING_VALIDATION', 'PARTIALLY_PAID', 'PAID', 'CANCELLED', 'VOID'];
 
 export default function InvoiceManagement(): JSX.Element {
   const useStyles = makeStyles({
@@ -147,7 +148,11 @@ export default function InvoiceManagement(): JSX.Element {
               justifyContent="center"
               flexWrap="wrap"
               useFlexGap>
-              <Chip label={invoice.status} size="small" />
+              <Chip
+                label={getDocumentStatusLabel(invoice.status, invoice.statusProfile)}
+                size="small"
+                sx={getDocumentStatusChipSx(invoice.status, invoice.statusProfile)}
+              />
             </Stack>
           </Stack>
         </TableCell>
@@ -188,7 +193,11 @@ export default function InvoiceManagement(): JSX.Element {
               <Typography variant="body1" fontWeight={600}>
                 {invoice.invoiceNo}
               </Typography>
-              <Chip label={invoice.status} size="small" />
+              <Chip
+                label={getDocumentStatusLabel(invoice.status, invoice.statusProfile)}
+                size="small"
+                sx={getDocumentStatusChipSx(invoice.status, invoice.statusProfile)}
+              />
             </Stack>
             <Typography variant="body2">{invoice.docDate || '-'}</Typography>
             <Typography variant="body2">{invoice.dueDate || '-'}</Typography>
@@ -275,7 +284,7 @@ export default function InvoiceManagement(): JSX.Element {
               <MenuItem value="">ทั้งหมด</MenuItem>
               {INVOICE_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status} value={status}>
-                  {status}
+                  {getDocumentStatusLabel(status)}
                 </MenuItem>
               ))}
             </TextField>

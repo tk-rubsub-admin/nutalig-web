@@ -100,6 +100,31 @@ export const updateSalesOrderV1 = async (id: string, data: UpdateSalesOrderReque
     return response.data;
 };
 
+export const uploadSalesOrderAttachments = async (id: string, files: File[]) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+        formData.append('attachments', file);
+    });
+
+    const response = await api
+        .post(`/v1/sales-orders/${id}/attachments`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+        .then((result) => result.data);
+
+    return response.data;
+};
+
+export const deleteSalesOrderAttachment = async (id: string, attachmentId: number) => {
+    const response = await api
+        .delete(`/v1/sales-orders/${id}/attachments/${attachmentId}`)
+        .then((result) => result.data);
+
+    return response.data;
+};
+
 export const downloadSaleOrder = async (id: string, format: string, original: boolean, copy: boolean) => {
     const response = await api
         .get(`/v1/sales-orders/document`, {

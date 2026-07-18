@@ -36,6 +36,7 @@ import { EmployeeRecord } from "services/Employee/employee-type";
 import { ROUTE_PATHS } from "routes";
 import toast from "react-hot-toast";
 import { base64ToBlob } from "utils";
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from "utils/documentStatus";
 import { formatNumber } from "utils/utils";
 import ViewQuotationDialog from "./ViewQuotationDialog";
 
@@ -186,7 +187,11 @@ export default function QuotationManagement(): JSX.Element {
                     <Stack spacing={1} alignItems="center">
                         <Typography variant="body2">{quo.quotationNo}</Typography>
                         <Stack direction="row" spacing={0.75} justifyContent="center" flexWrap="wrap" useFlexGap>
-                            <Chip label={quo.status} size="small" />
+                            <Chip
+                                label={getDocumentStatusLabel(quo.status, quo.statusProfile)}
+                                size="small"
+                                sx={getDocumentStatusChipSx(quo.status, quo.statusProfile)}
+                            />
                         </Stack>
                     </Stack>
                 </TableCell>
@@ -236,7 +241,11 @@ export default function QuotationManagement(): JSX.Element {
                                 {quo.quotationNo}
                             </Typography>
                             <Stack direction="row" spacing={0.75} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
-                                <Chip label={quo.status} size="small" />
+                                <Chip
+                                    label={getDocumentStatusLabel(quo.status, quo.statusProfile)}
+                                    size="small"
+                                    sx={getDocumentStatusChipSx(quo.status, quo.statusProfile)}
+                                />
                             </Stack>
                         </Stack>
                         <Typography variant="body2">{quo.docDate || '-'}</Typography>

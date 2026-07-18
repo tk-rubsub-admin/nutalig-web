@@ -71,6 +71,7 @@ import {
   UpdatePurchaseOrderRequest
 } from 'services/PurchaseOrder/purchase-order-type';
 import { base64ToBlob } from 'utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 
 interface PurchaseOrderDetailParams {
@@ -124,19 +125,6 @@ function Summary({ label, value, suffix }: { label: string; value: number; suffi
       </Typography>
     </Stack>
   );
-}
-
-function getStatusLabel(status?: string | null): string {
-  switch (status) {
-    case 'CREATED':
-      return 'สร้างแล้ว';
-    case 'CANCELLED':
-      return 'ยกเลิก';
-    case 'CLOSED':
-      return 'ปิดงาน';
-    default:
-      return status || '-';
-  }
 }
 
 function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
@@ -462,7 +450,13 @@ export default function PurchaseOrderDetail(): ReactElement {
     <Page>
       <LoadingDialog open={isFetching || isActivityHistoryFetching || isSubmitting} />
       <PageTitle title={purchaseOrder?.purchaseOrderNo ? `ใบสั่งซื้อเลขที่ ${purchaseOrder.purchaseOrderNo}` : 'ใบสั่งซื้อ'}>
-        {purchaseOrder?.status ? <Chip label={getStatusLabel(purchaseOrder.status)} size="small" /> : null}
+        {purchaseOrder?.status ? (
+          <Chip
+            label={getDocumentStatusLabel(purchaseOrder.status, purchaseOrder.statusProfile)}
+            size="small"
+            sx={getDocumentStatusChipSx(purchaseOrder.status, purchaseOrder.statusProfile)}
+          />
+        ) : null}
       </PageTitle>
       <Wrapper>
         <Stack
@@ -653,7 +647,10 @@ export default function PurchaseOrderDetail(): ReactElement {
                       <Info label="ระยะเวลาส่งของ" value={purchaseOrder?.shippingLeadTimeDay ?? '-'} />
                     )}
                   </Grid>
-                  <Grid item xs={12} sm={6}><Info label="สถานะ" value={getStatusLabel(purchaseOrder?.status)} /></Grid>
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}><Info label="สถานะ" value={getDocumentStatusLabel(purchaseOrder?.status, purchaseOrder?.statusProfile)} /></Grid>
                   <Grid item xs={12} sm={6}><Info label="สกุลเงิน" value={purchaseOrder?.currency} /></Grid>
                   <Grid item xs={12} sm={6}>
                     <Info

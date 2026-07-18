@@ -11,13 +11,17 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
+  DialogTitle,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import LoadingDialog from 'components/LoadingDialog';
 import { getLineLoginUrl } from 'services/Line/line-api';
 
 export default function SignInSide(): JSX.Element {
+  const theme = useTheme();
+  const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const [openDialog, setOpenDialog] = useState(false);
   const [isOpenLoading, setIsOpenLoading] = useState(false);
   const [dialogMessage, setDialogMessage] = useState<string>();
@@ -71,10 +75,11 @@ export default function SignInSide(): JSX.Element {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          px: 2.5,
+          px: { xs: 1.5, sm: 2.5 },
+          py: { xs: 2, sm: 3 },
           m: 0,
           background:
-            'radial-gradient(circle at top, rgba(140, 162, 129, 0.14), transparent 30%), linear-gradient(180deg, #fcfcf8 0%, #f3f4ee 100%)'
+            'radial-gradient(circle at top, rgba(140, 162, 129, 0.16), transparent 34%), linear-gradient(180deg, #fcfcf8 0%, #f3f4ee 100%)'
         }}>
         <CssBaseline />
         <Paper
@@ -82,13 +87,14 @@ export default function SignInSide(): JSX.Element {
           sx={{
             width: '100%',
             maxWidth: 440,
-            borderRadius: '28px',
+            borderRadius: { xs: '24px', sm: '28px' },
             border: '1px solid rgba(38, 52, 33, 0.08)',
             boxShadow: '0 28px 70px rgba(30, 40, 24, 0.10), 0 10px 28px rgba(30, 40, 24, 0.05)',
             background:
               'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 251, 246, 0.98) 100%)',
             overflow: 'hidden',
             position: 'relative',
+            alignSelf: { xs: 'stretch', sm: 'center' },
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -101,8 +107,8 @@ export default function SignInSide(): JSX.Element {
           }}>
           <Box
             sx={{
-              px: { xs: 3.5, sm: 5.5 },
-              py: { xs: 6, sm: 6.5 },
+              px: { xs: 2.25, sm: 5.5 },
+              py: { xs: 3, sm: 6.5 },
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -110,11 +116,11 @@ export default function SignInSide(): JSX.Element {
             }}>
             <Typography
               sx={{
-                mb: 2.5,
+                mb: { xs: 1.75, sm: 2.5 },
                 color: '#6a7464',
-                fontSize: '0.74rem',
+                fontSize: { xs: '0.68rem', sm: '0.74rem' },
                 fontWeight: 700,
-                letterSpacing: '0.22em',
+                letterSpacing: { xs: '0.18em', sm: '0.22em' },
                 textTransform: 'uppercase'
               }}>
               Nutalig Portal
@@ -123,9 +129,9 @@ export default function SignInSide(): JSX.Element {
               src="/logo_nutalig.jpg"
               alt="Nutalig Logo"
               sx={{
-                mb: 3,
-                width: 132,
-                height: 132,
+                mb: { xs: 2.25, sm: 3 },
+                width: { xs: 92, sm: 132 },
+                height: { xs: 92, sm: 132 },
                 bgcolor: 'transparent',
                 border: '1px solid rgba(38, 52, 33, 0.08)',
                 boxShadow: '0 14px 34px rgba(31, 56, 24, 0.08)'
@@ -135,19 +141,22 @@ export default function SignInSide(): JSX.Element {
               variant="h5"
               sx={{
                 fontWeight: 700,
-                mb: 1,
+                mb: 0.75,
                 color: '#1f2a1c',
-                letterSpacing: '-0.02em'
+                letterSpacing: '-0.02em',
+                fontSize: { xs: '1.45rem', sm: '1.75rem' }
               }}>
               เข้าสู่ระบบ
             </Typography>
             <Typography
               color="text.secondary"
               sx={{
-                mb: 3,
+                mb: { xs: 2.25, sm: 3 },
                 textAlign: 'center',
-                maxWidth: 280,
+                maxWidth: { xs: '100%', sm: 280 },
+                px: { xs: 0.5, sm: 0 },
                 lineHeight: 1.7,
+                fontSize: { xs: '0.92rem', sm: '1rem' },
                 color: '#6b7468'
               }}>
               เข้าสู่ระบบเพื่อใช้งานระบบ ผ่านบัญชี LINE ของคุณ
@@ -155,9 +164,9 @@ export default function SignInSide(): JSX.Element {
             <Box
               sx={{
                 width: '100%',
-                mb: 3,
-                p: 2.25,
-                borderRadius: 3,
+                mb: { xs: 2.25, sm: 3 },
+                p: { xs: 1.5, sm: 2.25 },
+                borderRadius: { xs: 2.5, sm: 3 },
                 border: '1px solid rgba(38, 52, 33, 0.10)',
                 background:
                   'linear-gradient(180deg, rgba(248, 251, 245, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%)'
@@ -166,30 +175,41 @@ export default function SignInSide(): JSX.Element {
                 sx={{
                   fontWeight: 700,
                   color: '#1f2a1c',
-                  mb: 1
+                  mb: 1,
+                  fontSize: { xs: '0.98rem', sm: '1rem' }
                 }}>
                 การขอใช้อีเมลจากบัญชี LINE
               </Typography>
-              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75, mb: 0.75 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: '#5f6c5a', lineHeight: 1.7, mb: 0.75, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 ระบบจะขออีเมลจากบัญชี LINE ของคุณเพื่อใช้สำหรับระบุตัวตนผู้ใช้งาน และผูกบัญชีสำหรับเข้าสู่ระบบ Nutalig Portal
               </Typography>
-              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75, mb: 0.75 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: '#5f6c5a', lineHeight: 1.7, mb: 0.75, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 อีเมลจะถูกใช้เพื่อ:
               </Typography>
-              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: '#5f6c5a', lineHeight: 1.7, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 1. ตรวจสอบและยืนยันตัวตนผู้ใช้งาน
               </Typography>
-              <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: '#5f6c5a', lineHeight: 1.7, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 2. เชื่อมบัญชี LINE กับบัญชีผู้ใช้งานในระบบ
               </Typography>
             </Box>
             <FormControlLabel
               sx={{
                 alignSelf: 'stretch',
-                mb: 3,
+                alignItems: 'flex-start',
+                mb: { xs: 2.5, sm: 3 },
                 mx: 0,
+                gap: 0.5,
                 '& .MuiFormControlLabel-label': {
-                  fontSize: '0.92rem',
+                  fontSize: { xs: '0.84rem', sm: '0.92rem' },
                   color: '#42503e',
                   lineHeight: 1.6
                 }
@@ -199,6 +219,7 @@ export default function SignInSide(): JSX.Element {
                   checked={isEmailConsentChecked}
                   onChange={(event) => setIsEmailConsentChecked(event.target.checked)}
                   sx={{
+                    mt: isDownSm ? -0.25 : 0,
                     color: '#8aa281',
                     '&.Mui-checked': {
                       color: '#4d6b41'
@@ -215,11 +236,12 @@ export default function SignInSide(): JSX.Element {
               sx={{
                 backgroundColor: '#06c755 !important',
                 borderRadius: '999px',
-                px: 5,
-                py: 1.55,
-                minWidth: 240,
+                px: { xs: 2.5, sm: 5 },
+                py: { xs: 1.45, sm: 1.55 },
+                minWidth: { xs: '100%', sm: 240 },
+                width: { xs: '100%', sm: 'auto' },
                 fontWeight: 700,
-                fontSize: '0.98rem',
+                fontSize: { xs: '0.94rem', sm: '0.98rem' },
                 letterSpacing: '0.01em',
                 boxShadow: '0 12px 28px rgba(6, 199, 85, 0.22)',
                 '&:hover': {

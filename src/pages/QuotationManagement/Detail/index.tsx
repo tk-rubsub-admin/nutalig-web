@@ -28,6 +28,7 @@ import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
+import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -42,8 +43,12 @@ import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getQuotation, updateQuotation, viewQuotation } from 'services/Document/document-api';
 import { Quotation, QuotationItem } from 'services/Document/document-type';
+import { searchInvoices } from 'services/Invoice/invoice-api';
+import { searchReceipts } from 'services/Receipt/receipt-api';
+import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 
 const getEmployeeName = (quotation?: Quotation) => {
@@ -153,9 +158,102 @@ export default function QuotationDetail(): JSX.Element {
         }
     );
 
+    const { data: invoiceSearchResponse, isFetching: isInvoiceFlowFetching } = useQuery(
+        ['quotation-document-flow-invoices', quotationNo],
+        () =>
+            searchInvoices(
+                {
+                    keyword: quotationNo
+                },
+                1,
+                10
+            ),
+        {
+            enabled: !!quotationNo,
+            refetchOnWindowFocus: false
+        }
+    );
+
+    const { data: receiptSearchResponse, isFetching: isReceiptFlowFetching } = useQuery(
+        ['quotation-document-flow-receipts', quotationNo],
+        () =>
+            searchReceipts(
+                {
+                    keyword: quotationNo
+                },
+                1,
+                10
+            ),
+        {
+            enabled: !!quotationNo,
+            refetchOnWindowFocus: false
+        }
+    );
+
     const quotation = quotationResponse?.data;
     const displayItems = isEditing ? draftItems : quotation?.items || [];
     const isActionMenuOpen = Boolean(actionMenuAnchorEl);
+    const invoiceRecords = invoiceSearchResponse?.data?.records || [];
+    const receiptRecords = receiptSearchResponse?.data?.records || [];
+    const latestInvoice =
+        invoiceRecords.find((record) => record.quotationNo === quotationNo) || invoiceRecords[0] || null;
+    const latestReceipt =
+        receiptRecords.find((record) => record.quotationNo === quotationNo) || receiptRecords[0] || null;
+    const salesOrderNo = latestInvoice?.salesOrderNo || latestReceipt?.salesOrderNo || null;
+
+    const { data: salesOrder, isFetching: isSalesOrderFlowFetching } = useQuery(
+        ['quotation-document-flow-sales-order', salesOrderNo],
+        () => getSalesOrderV1(salesOrderNo as string),
+        {
+            enabled: !!salesOrderNo,
+            refetchOnWindowFocus: false
+        }
+    );
+
+    const documentFlowItems: DocumentFlowItem[] = [
+        {
+            title: 'ใบเสนอราคา',
+            docNo: quotation?.quotationNo || null,
+            status: quotation?.status || null,
+            statusProfile: quotation?.statusProfile,
+            isCurrent: true,
+            onOpen: quotation?.quotationNo
+                ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotation.quotationNo), '_blank', 'noopener,noreferrer')
+                : undefined
+        },
+        {
+            title: 'ใบยืนยันสั่งซื้อ',
+            docNo: salesOrder?.salesOrderNo || salesOrderNo,
+            status: salesOrder?.status || null,
+            statusProfile: salesOrder?.statusProfile,
+            isLoading: isSalesOrderFlowFetching,
+            onOpen: salesOrder?.salesOrderNo
+                ? () => window.open(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo), '_blank', 'noopener,noreferrer')
+                : undefined
+        },
+        {
+            title: 'ใบแจ้งหนี้',
+            docNo: latestInvoice?.invoiceNo || null,
+            status: latestInvoice?.status || null,
+            statusProfile: latestInvoice?.statusProfile,
+            count: invoiceRecords.length > 1 ? invoiceRecords.length : undefined,
+            isLoading: isInvoiceFlowFetching,
+            onOpen: latestInvoice?.invoiceNo
+                ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', latestInvoice.invoiceNo), '_blank', 'noopener,noreferrer')
+                : undefined
+        },
+        {
+            title: 'ใบเสร็จรับเงิน',
+            docNo: latestReceipt?.receiptNo || null,
+            status: latestReceipt?.status || null,
+            statusProfile: latestReceipt?.statusProfile,
+            count: receiptRecords.length > 1 ? receiptRecords.length : undefined,
+            isLoading: isReceiptFlowFetching,
+            onOpen: latestReceipt?.receiptNo
+                ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', latestReceipt.receiptNo), '_blank', 'noopener,noreferrer')
+                : undefined
+        }
+    ];
 
     useEffect(() => {
         if (!quotation) {
@@ -291,7 +389,13 @@ export default function QuotationDetail(): JSX.Element {
         <Page>
             <LoadingDialog open={isFetching || isActivityHistoryFetching || isUpdating} />
             <PageTitle title={'ใบเสนอราคาเลขที่ ' + quotation?.quotationNo || t('documentManagement.quotation.title')}>
-                {quotation?.status ? <Chip label={quotation.status} size="small" /> : null}
+                {quotation?.status ? (
+                    <Chip
+                        label={getDocumentStatusLabel(quotation.status, quotation.statusProfile)}
+                        size="small"
+                        sx={getDocumentStatusChipSx(quotation.status, quotation.statusProfile)}
+                    />
+                ) : null}
             </PageTitle>
             <Wrapper>
                 <Stack
@@ -384,6 +488,8 @@ export default function QuotationDetail(): JSX.Element {
                     </Button>
                 </Stack>
 
+                <DocumentFlow items={documentFlowItems} />
+
                 <Box
                     sx={{
                         backgroundColor: '#fff',
@@ -417,7 +523,10 @@ export default function QuotationDetail(): JSX.Element {
                                     <Info label={t('documentManagement.quotation.docNo')} value={quotation?.quotationNo} />
                                     <Info label={t('documentManagement.quotation.docDate')} value={quotation?.docDate} />
                                     <Info label={t('documentManagement.quotation.expectiveDate')} value={quotation?.effectiveDate} />
-                                    <Info label={t('documentManagement.quotation.status')} value={quotation?.status} />
+                                    <Info
+                                        label={t('documentManagement.quotation.status')}
+                                        value={getDocumentStatusLabel(quotation?.status, quotation?.statusProfile)}
+                                    />
                                     <Info label={"Revision : "} value={quotation?.revNo ?? '-'} />
                                 </Stack>
                             </Grid>

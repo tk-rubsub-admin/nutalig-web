@@ -3,8 +3,15 @@ import { api } from 'api/api';
 import { CreateQuotationRequest, GetQuotationResponse, SearchQuotationRequest, SearchQuotationResponse, UpdateQuotationRequest } from './document-type';
 import { UploadFileResponse } from 'services/general-type';
 
+export interface CreateQuotationResponse {
+    status: string;
+    data?: {
+        id?: string;
+    };
+}
+
 export const createQuotation = async (data: CreateQuotationRequest) => {
-    const response: string = await api
+    const response: CreateQuotationResponse = await api
         .post(`/v1/quotations`, data)
         .then((response) => response.data);
     return response;

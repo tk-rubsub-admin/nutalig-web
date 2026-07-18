@@ -85,6 +85,11 @@ export default function NewCustomer(): JSX.Element {
     () => getSystemConfig(GROUP_CODE.CUSTOMER_CREDIT_TERM),
     { refetchOnWindowFocus: false }
   );
+  const { data: paymentTermList, isFetching: isPaymentTermFetching } = useQuery(
+    'payment-term-list',
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+    { refetchOnWindowFocus: false }
+  );
   const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
     'customer-sales-options',
     () => getSales(1, 20),
@@ -113,6 +118,7 @@ export default function NewCustomer(): JSX.Element {
       companyBranchCode: '',
       companyBranchName: '',
       creditTerm: 'NON',
+      paymentTerm: '',
       salesAccount: '',
       coSalesAccount: '',
       address: {
@@ -151,6 +157,7 @@ export default function NewCustomer(): JSX.Element {
         otherwise: Yup.string().nullable()
       }),
       creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
+      paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm')),
       salesAccount: Yup.string().required(t('customerManagement.message.validateSalesAccount')),
       address: Yup.object().shape({
         addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
@@ -181,6 +188,7 @@ export default function NewCustomer(): JSX.Element {
         branchNumber: values.companyBranchCode,
         branchName: values.companyBranchName,
         creditTerm: values.creditTerm,
+        paymentTerm: values.paymentTerm,
         salesAccount: values.salesAccount,
         coSalesAccount: values.coSalesAccount,
 
@@ -407,6 +415,36 @@ export default function NewCustomer(): JSX.Element {
                   {t('general.clearSelected')}
                 </MenuItem>
                 {creditTermList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh}
+                  </MenuItem>
+                )) || []}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label={t('customerManagement.column.paymentTerm')}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.paymentTerm && formik.errors.paymentTerm)}
+                helperText={formik.touched.paymentTerm && formik.errors.paymentTerm}
+                value={formik.values.paymentTerm || ''}
+                onChange={(event) => {
+                  const selectedCode = event.target.value;
+                  if (selectedCode === '') {
+                    formik.setFieldValue('paymentTerm', selectedCode);
+                  } else {
+                    const selectedValue = paymentTermList?.find((paymentTerm) => paymentTerm.code === selectedCode) || null;
+                    formik.setFieldValue('paymentTerm', selectedValue?.code);
+                  }
+                }}
+                disabled={isPaymentTermFetching}
+              >
+                <MenuItem value="">
+                  {t('general.clearSelected')}
+                </MenuItem>
+                {paymentTermList?.map((option) => (
                   <MenuItem key={option.code} value={option.code}>
                     {option.nameTh}
                   </MenuItem>

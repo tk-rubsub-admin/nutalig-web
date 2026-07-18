@@ -20,6 +20,7 @@ export const ROUTE_PATHS = Object.freeze({
   CHANGE_PASSWORD: '/change-password',
   MAGIC_LINK: '/magic-link',
   APPROVAL_REJECT: '/approval-reject',
+  INVOICE_AWAITING_VALIDATION: '/invoice-awaiting-validation',
   SUPPLIER_MANAGEMENT: '/supplier-management',
   SUPPLIER_DETAIL: '/supplier/:id',
   SUPPLIER_NEW: '/supplier-create',
@@ -34,6 +35,7 @@ export const ROUTE_PATHS = Object.freeze({
   PRODUCT_FAMILY_MANAGEMENT: '/product-family-management',
   SYSTEM_CONFIG_MANAGEMENT: '/system-config-management',
   RFQ_MANAGEMENT: '/rfq-management',
+  TODO_MANAGEMENT: '/to-do-management',
   PRICE_INQUIRY: '/price-inquiry/:id',
   PRICE_INQUIRY_MANAGEMENT: '/price-inquiry-management',
   RFQ_CREATE: '/rfq-create',
@@ -133,6 +135,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     component: lazy(() => import('./pages/ApprovalReject' /* webpackChunkName: "app" */))
   },
   {
+    path: ROUTE_PATHS.INVOICE_AWAITING_VALIDATION,
+    isPublic: true,
+    component: lazy(() => import('./pages/InvoiceAwaitingValidation' /* webpackChunkName: "app" */))
+  },
+  {
     path: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
     component: lazy(() => import('./pages/SupplierManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.SUPPLIER_VIEW]
@@ -205,6 +212,10 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.RFQ_MANAGEMENT,
     component: lazy(() => import('./pages/RFQManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.RFQ_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.TODO_MANAGEMENT,
+    component: lazy(() => import('./pages/UserTodoManagement' /* webpackChunkName: "app" */))
   },
   {
     path: ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT,

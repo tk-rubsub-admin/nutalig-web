@@ -166,6 +166,7 @@ export default function CreateRFQCustomerDialog({
         branchNumber: values.companyBranchCode,
         branchName: values.companyBranchName,
         creditTerm: values.creditTerm,
+        paymentTerm: '',
         salesAccount: values.salesAccount,
         coSalesAccount: values.coSalesAccount,
         address: {

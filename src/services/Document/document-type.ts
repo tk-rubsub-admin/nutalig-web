@@ -3,6 +3,7 @@
 import { Address, Contact, Customer } from "services/Customer/customer-type";
 import { EmployeeDetailResponse, EmployeeRecord } from "services/Employee/employee-type";
 import { Pagination } from "services/general-type";
+import { DocumentStatusProfile } from "services/document-status-type";
 
 export interface CreateQuotationRequest {
     docDate: string;
@@ -49,6 +50,7 @@ export interface Quotation {
     coSaleId?: string;
     remark: string;
     status: string;
+    statusProfile?: DocumentStatusProfile;
     revNo?: number;
     discount: number;
     freight: number;

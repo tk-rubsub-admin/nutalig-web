@@ -30,6 +30,7 @@ import {
 import { makeStyles } from '@mui/styles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
+import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -41,11 +42,16 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
+import { getInvoice } from 'services/Invoice/invoice-api';
+import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { getReceipt, viewReceipt, voidReceipt } from 'services/Receipt/receipt-api';
 import { ReceiptItem, ReceiptRecord } from 'services/Receipt/receipt-type';
+import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
+import { SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 
 interface ReceiptDetailParams {
@@ -121,32 +127,6 @@ function paymentMethodLabel(paymentMethod?: string | null): string {
       return 'เงินสด';
     default:
       return '-';
-  }
-}
-
-function getReceiptStatusColor(status?: string) {
-  switch (status) {
-    case 'ISSUED':
-      return { backgroundColor: '#dcfce7', color: '#166534' };
-    case 'CANCELLED':
-      return { backgroundColor: '#fef3c7', color: '#92400e' };
-    case 'VOID':
-      return { backgroundColor: '#fee2e2', color: '#991b1b' };
-    default:
-      return { backgroundColor: '#e5e7eb', color: '#374151' };
-  }
-}
-
-function getReceiptStatusLabel(status?: string | null): string {
-  switch (status) {
-    case 'ISSUED':
-      return 'ออกเอกสารแล้ว';
-    case 'CANCELLED':
-      return 'ยกเลิก';
-    case 'VOID':
-      return 'Void';
-    default:
-      return status || '-';
   }
 }
 
@@ -237,6 +217,26 @@ export default function ReceiptDetail(): ReactElement {
     refetchOnWindowFocus: false
   });
 
+  const {
+    data: relatedInvoice,
+    isFetching: isInvoiceFlowFetching
+  } = useQuery(['receipt-invoice', receipt?.invoiceNo], () => getInvoice(receipt?.invoiceNo as string), {
+    enabled: Boolean(receipt?.invoiceNo),
+    refetchOnWindowFocus: false
+  });
+
+  const {
+    data: relatedSalesOrder,
+    isFetching: isSalesOrderFlowFetching
+  } = useQuery(
+    ['receipt-sales-order', receipt?.salesOrderNo],
+    () => getSalesOrderV1(receipt?.salesOrderNo as string),
+    {
+      enabled: Boolean(receipt?.salesOrderNo),
+      refetchOnWindowFocus: false
+    }
+  );
+
   const summary = useMemo(() => {
     return {
       subTotal: Number(receipt?.subTotal || 0),
@@ -249,6 +249,61 @@ export default function ReceiptDetail(): ReactElement {
 
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const isVoidReceiptEnabled = Boolean(receipt && receipt.status !== 'VOID');
+  const documentFlowItems: DocumentFlowItem[] = [
+    {
+      title: 'ใบเสนอราคา',
+      docNo: receipt?.quotationNo || relatedInvoice?.quotationNo || null,
+      onOpen: receipt?.quotationNo || relatedInvoice?.quotationNo
+        ? () =>
+            window.open(
+              ROUTE_PATHS.QUOTATION_DETAIL.replace(
+                ':id',
+                String(receipt?.quotationNo || relatedInvoice?.quotationNo)
+              ),
+              '_blank',
+              'noopener,noreferrer'
+            )
+        : undefined
+    },
+    {
+      title: 'ใบยืนยันสั่งซื้อ',
+      docNo: receipt?.salesOrderNo || relatedInvoice?.salesOrderNo || null,
+      status: relatedSalesOrder?.status || null,
+      statusProfile: relatedSalesOrder?.statusProfile,
+      isLoading: isSalesOrderFlowFetching,
+      onOpen: receipt?.salesOrderNo || relatedInvoice?.salesOrderNo
+        ? () =>
+            window.open(
+              ROUTE_PATHS.SALE_ORDER_DETAIL.replace(
+                ':id',
+                String(receipt?.salesOrderNo || relatedInvoice?.salesOrderNo)
+              ),
+              '_blank',
+              'noopener,noreferrer'
+            )
+        : undefined
+    },
+    {
+      title: 'ใบแจ้งหนี้',
+      docNo: receipt?.invoiceNo || null,
+      status: relatedInvoice?.status || null,
+      statusProfile: relatedInvoice?.statusProfile,
+      isLoading: isInvoiceFlowFetching,
+      onOpen: receipt?.invoiceNo
+        ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', receipt.invoiceNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบเสร็จรับเงิน',
+      docNo: receipt?.receiptNo || null,
+      status: receipt?.status || null,
+      statusProfile: receipt?.statusProfile,
+      isCurrent: true,
+      onOpen: receipt?.receiptNo
+        ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', receipt.receiptNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    }
+  ];
 
   const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history') => {
     setTab(value);
@@ -322,9 +377,9 @@ export default function ReceiptDetail(): ReactElement {
       <PageTitle title={receipt?.receiptNo ? `ใบเสร็จรับเงินเลขที่ ${receipt.receiptNo}` : 'รายละเอียดใบเสร็จรับเงิน'}>
         {receipt?.status ? (
           <Chip
-            label={getReceiptStatusLabel(receipt.status)}
+            label={getDocumentStatusLabel(receipt.status, receipt.statusProfile)}
             size="small"
-            sx={{ ...getReceiptStatusColor(receipt.status), fontWeight: 700 }}
+            sx={getDocumentStatusChipSx(receipt.status, receipt.statusProfile)}
           />
         ) : null}
       </PageTitle>
@@ -389,6 +444,8 @@ export default function ReceiptDetail(): ReactElement {
             {t('button.back')}
           </Button>
         </Stack>
+
+        <DocumentFlow items={documentFlowItems} />
 
         <Box
           sx={{

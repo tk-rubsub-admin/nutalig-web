@@ -8,6 +8,7 @@ import {
   ExtractRFQSupplierQuoteRequest,
   GenerateRFQInquiryRequest,
   GenerateRFQInquiryResponse,
+  GenerateRFQInquiryTextResponse,
   GetRFQResponse,
   RFQSupplierQuoteListResponse,
   RFQSupplierQuoteResponse,
@@ -30,10 +31,12 @@ export const getRFQList = async (
     customerId?: string;
     salesId?: string;
     procurementId?: string;
+    rfqTypeCode?: string;
     orderTypeCode?: string;
     productFamily?: string;
     productSubtype1?: string;
     productMaterial?: string;
+    isCreatedPurchaseOrder?: boolean | null;
     status?: string | null;
     keyword?: string;
     requestedDateStart?: string;
@@ -71,6 +74,10 @@ export const getRFQList = async (
 
   if (options?.procurementId) {
     payload.procurementId = options.procurementId;
+  }
+
+  if (options?.rfqTypeCode) {
+    payload.rfqTypeCode = options.rfqTypeCode;
   }
 
   if (options?.orderTypeCode) {
@@ -111,6 +118,10 @@ export const getRFQList = async (
 
   if (options?.prioritizeApprovedUrgent) {
     payload.prioritizeApprovedUrgent = true;
+  }
+
+  if (options?.isCreatedPurchaseOrder === true) {
+    payload.isCreatedPurchaseOrder = true;
   }
 
   const response: SearchRFQResponse = await api
@@ -186,6 +197,12 @@ export const closeRFQ = async (rfqId: string, remark: string) => {
   return response.data;
 };
 
+export const requestSpecialPriceRFQ = async (id: string) => {
+  const response = await api.patch(`/v1/rfqs/${id}/request-special-price`).then((res) => res.data);
+
+  return response.data;
+};
+
 export const updateRFQInquiry = async (
   id: string,
   inquiryId: string,
@@ -196,6 +213,14 @@ export const updateRFQInquiry = async (
     .then((res) => res.data);
 
   return response.data;
+};
+
+export const generateFinalRFQInquiry = async (id: string) => {
+  const response: GenerateRFQInquiryTextResponse = await api
+    .post(`/v1/rfqs/${id}/inquiries/generate-final`)
+    .then((res) => res.data);
+
+  return response.data || '';
 };
 
 export const getRFQSupplierQuotes = async (id: string) => {
@@ -228,6 +253,17 @@ export const extractRFQSupplierQuote = async (
   return response.data as unknown as UpsertRFQSupplierQuoteRequest;
 };
 
+export const finalExtractRFQSupplierQuote = async (
+  id: string,
+  payload: ExtractRFQSupplierQuoteRequest
+) => {
+  const response: RFQSupplierQuoteResponse = await api
+    .post(`/v1/rfqs/${id}/supplier-quotes/final-extract`, payload)
+    .then((res) => res.data);
+
+  return response.data as unknown as UpsertRFQSupplierQuoteRequest;
+};
+
 export const updateRFQSupplierQuote = async (
   id: string,
   quoteId: string,
@@ -253,6 +289,10 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
 
   if (payload.customerId) {
     formData.append('customerId', payload.customerId);
+  }
+
+  if (payload.referenceRfqId) {
+    formData.append('referenceRfqId', payload.referenceRfqId);
   }
 
   formData.append('contactName', payload.contactName);

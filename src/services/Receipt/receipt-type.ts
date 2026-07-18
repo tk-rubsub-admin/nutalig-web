@@ -1,6 +1,7 @@
 import { Address, Contact, Customer } from 'services/Customer/customer-type';
 import { EmployeeRecord } from 'services/Employee/employee-type';
 import { Pagination } from 'services/general-type';
+import { DocumentStatusProfile } from 'services/document-status-type';
 
 export type ReceiptType =
   | 'RECEIPT'
@@ -39,6 +40,7 @@ export interface ReceiptRecord {
   receiptNo: string;
   receiptType: ReceiptType;
   status: string;
+  statusProfile?: DocumentStatusProfile;
   invoiceNo: string;
   invoicePaymentId: number;
   salesOrderNo: string | null;

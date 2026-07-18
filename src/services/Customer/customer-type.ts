@@ -17,6 +17,7 @@ export interface CreateCustomerRequest {
   branchNumber: string;
   branchName: string;
   creditTerm: string;
+  paymentTerm: string;
   customerSegment: string;
   customerTier: string;
   salesAccount: string;
@@ -152,6 +153,7 @@ export interface UpdateCustomerRequest {
   branchNumber: string | null;
   branchName: string | null;
   creditTerm: string | null;
+  paymentTerm: string | null;
   salesAccount: string | null;
   coSalesAccount: string | null;
 }
@@ -162,6 +164,7 @@ export interface Customer {
   status: string;
   customerType: SystemConfig;
   customerCreditTerm: SystemConfig;
+  customerPaymentTerm: SystemConfig | null;
   customerTier: SystemConfig | null;
   customerSegment: SystemConfig | null;
   companyName: string;

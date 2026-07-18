@@ -1,26 +1,34 @@
 import {
   Business,
+  Add,
   CalendarMonth,
-  CheckCircle,
-  Checklist,
   FlightTakeoff,
   LocalShipping,
   EventAvailable,
-  RadioButtonUnchecked,
   Groups,
   MeetingRoom,
   FlightLand
 } from '@mui/icons-material';
 import {
   Box,
-  Chip,
+  Button,
   Checkbox,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  Chip,
   Grid,
+  TextField,
   Tooltip,
   Stack,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
-import { KeyboardEvent, MouseEvent, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { ScheduleXCalendar, useCalendarApp } from '@schedule-x/react';
@@ -30,11 +38,10 @@ import { darken, getLuminance, lighten, readableColor } from 'polished';
 import dayjs from 'dayjs';
 import 'temporal-polyfill/global';
 import '@schedule-x/theme-default';
-import { getCalendarEvents } from 'services/Calendar/calendar-api';
-import { CalendarEventDto } from 'services/Calendar/calendar-type';
-import { getUserTodos, markUserTodoAsDone } from 'services/UserTodo/user-todo-api';
-import { UserTodo, UserTodoPriority } from 'services/UserTodo/user-todo-type';
-import { buildUserTodoTargetPath } from 'utils/userTodoTarget';
+import UserTodoPanel from 'components/UserTodoPanel';
+import { createMyCalendarEvent, getCalendarEvents } from 'services/Calendar/calendar-api';
+import { CalendarEventDto, CreateMyCalendarEventRequest } from 'services/Calendar/calendar-type';
+import { ROUTE_PATHS } from 'routes';
 
 const Temporal = (
   globalThis as typeof globalThis & {
@@ -43,24 +50,6 @@ const Temporal = (
 ).Temporal;
 const DASHBOARD_TIME_ZONE = 'Asia/Bangkok';
 const DEFAULT_CALENDAR_COLOR = '#64748b';
-
-const getTodoColor = (priority?: UserTodoPriority | null): string => {
-  if (priority === 'URGENT') return '#ffe4e6';
-  if (priority === 'HIGH') return '#fee2e2';
-  if (priority === 'LOW') return '#dcfce7';
-  return '#dbeafe';
-};
-
-const getTodoNote = (todo: UserTodo): string => {
-  if (todo.description) return todo.description;
-  if (todo.targetId) return todo.targetId;
-  return todo.todoType;
-};
-
-const getTodoDueText = (todo: UserTodo): string | null => {
-  if (!todo.dueDate) return null;
-  return `กำหนด ${dayjs(todo.dueDate).format('DD/MM/YYYY HH:mm')}`;
-};
 
 const normalizeCalendarColor = (value?: string | null) => {
   const color = (value || DEFAULT_CALENDAR_COLOR).trim();
@@ -99,6 +88,17 @@ interface CalendarMonthGridEventProps {
     status?: string | null;
     sourceModule?: string | null;
   };
+  compact?: boolean;
+}
+
+interface CalendarDialogEvent {
+  title?: string;
+  description?: string | null;
+  location?: string | null;
+  start?: string | { year: number; month: number; day: number; hour?: number; minute?: number };
+  end?: string | { year: number; month: number; day: number; hour?: number; minute?: number };
+  eventType?: string | null;
+  status?: string | null;
 }
 
 function getCalendarEventIcon(calendarEvent: CalendarMonthGridEventProps['calendarEvent']) {
@@ -129,10 +129,15 @@ function getCalendarEventTime(start?: unknown): string | null {
   }
 
   const calendarDateTime = start as { hour: number; minute: number };
-  return `${String(calendarDateTime.hour).padStart(2, '0')}:${String(calendarDateTime.minute).padStart(2, '0')}`;
+  return `${String(calendarDateTime.hour).padStart(2, '0')}:${String(
+    calendarDateTime.minute
+  ).padStart(2, '0')}`;
 }
 
-function CalendarMonthGridEvent({ calendarEvent }: CalendarMonthGridEventProps): JSX.Element {
+function CalendarMonthGridEvent({
+  calendarEvent,
+  compact = false
+}: CalendarMonthGridEventProps): JSX.Element {
   const Icon = getCalendarEventIcon(calendarEvent);
   const colorName = calendarEvent.calendarId || buildCalendarColorName(DEFAULT_CALENDAR_COLOR);
   const startTime = getCalendarEventTime(calendarEvent.start);
@@ -144,45 +149,51 @@ function CalendarMonthGridEvent({ calendarEvent }: CalendarMonthGridEventProps):
         sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: 0.5,
+          gap: compact ? 0 : 0.5,
           width: '100%',
           height: '100%',
-          minHeight: 28,
+          minHeight: compact ? 24 : 28,
           minWidth: 0,
-          px: 0.75,
-          py: 0.5,
-          borderRadius: 'var(--sx-rounding-extra-small)',
-          color: `var(--sx-color-on-${colorName}-container)`,
-          backgroundColor: `var(--sx-color-${colorName}-container)`,
-          borderInlineStart: `4px solid var(--sx-color-${colorName})`,
+          px: compact ? 0 : 0.75,
+          py: compact ? 0 : 0.5,
+          borderRadius: compact ? 999 : 'var(--sx-rounding-extra-small)',
+          color: compact ? 'transparent' : `var(--sx-color-on-${colorName}-container)`,
+          backgroundColor: compact
+            ? `var(--sx-color-${colorName})`
+            : `var(--sx-color-${colorName}-container)`,
+          borderInlineStart: compact ? 'none' : `4px solid var(--sx-color-${colorName})`,
           overflow: 'hidden'
         }}>
-        <Icon sx={{ fontSize: 14, flexShrink: 0 }} />
-        {startTime ? (
-          <Typography
-            component="span"
-            sx={{
-              flexShrink: 0,
-              fontSize: 12,
-              fontWeight: 700,
-              lineHeight: 1.2
-            }}>
-            {startTime}
-          </Typography>
-        ) : null}
-        <Typography
-          component="span"
-          sx={{
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: 1.2
-          }}>
-          {fullTitle}
-        </Typography>
+        {compact ? null : (
+          <>
+            <Icon sx={{ fontSize: compact ? 12 : 14, flexShrink: 0 }} />
+            {startTime ? (
+              <Typography
+                component="span"
+                sx={{
+                  flexShrink: 0,
+                  fontSize: compact ? 10 : 12,
+                  fontWeight: 700,
+                  lineHeight: 1.2
+                }}>
+                {startTime}
+              </Typography>
+            ) : null}
+            <Typography
+              component="span"
+              sx={{
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: compact ? 10 : 12,
+                fontWeight: 700,
+                lineHeight: 1.2
+              }}>
+              {fullTitle}
+            </Typography>
+          </>
+        )}
       </Box>
     </Tooltip>
   );
@@ -212,9 +223,29 @@ const applyCalendarColors = (
   });
 };
 
+const getDefaultCalendarStart = () =>
+  dayjs().add(1, 'day').hour(12).minute(0).second(0).millisecond(0).toISOString();
+
+const getDefaultCalendarEnd = () =>
+  dayjs().add(1, 'day').hour(13).minute(0).second(0).millisecond(0).toISOString();
+
 export default function HomeWidgets(): JSX.Element {
   const history = useHistory();
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarDialogEvent | null>(
+    null
+  );
+  const [isCreateCalendarDialogOpen, setIsCreateCalendarDialogOpen] = useState(false);
+  const [createCalendarForm, setCreateCalendarForm] = useState<CreateMyCalendarEventRequest>({
+    title: '',
+    description: '',
+    start: getDefaultCalendarStart(),
+    end: getDefaultCalendarEnd(),
+    allDay: false,
+    remark: ''
+  });
   const { data: calendarEventsData } = useQuery<CalendarEventDto[]>(
     ['calendar-events'],
     () => getCalendarEvents(),
@@ -222,47 +253,24 @@ export default function HomeWidgets(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
-  const { data: todoItems = [], isLoading: isTodoLoading } = useQuery<UserTodo[]>(
-    ['me-to-dos'],
-    () => getUserTodos(),
+  const createCalendarMutation = useMutation(
+    (payload: CreateMyCalendarEventRequest) => createMyCalendarEvent(payload),
     {
-      refetchOnWindowFocus: false
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(['calendar-events']);
+        await queryClient.refetchQueries(['calendar-events'], { active: true });
+        setIsCreateCalendarDialogOpen(false);
+        setCreateCalendarForm({
+          title: '',
+          description: '',
+          start: getDefaultCalendarStart(),
+          end: getDefaultCalendarEnd(),
+          allDay: false,
+          remark: ''
+        });
+      }
     }
   );
-  const displayTodoItems = useMemo(
-    () =>
-      [...todoItems].sort((a, b) => {
-        if (a.status === 'DONE' && b.status !== 'DONE') return 1;
-        if (a.status !== 'DONE' && b.status === 'DONE') return -1;
-        return 0;
-      }),
-    [todoItems]
-  );
-  const markTodoDoneMutation = useMutation((todoId: number) => markUserTodoAsDone(todoId), {
-    onSuccess: async () => {
-      await queryClient.invalidateQueries(['me-to-dos']);
-      await queryClient.refetchQueries(['me-to-dos'], { active: true });
-    }
-  });
-
-  const handleOpenTodo = (todo: UserTodo) => {
-    const targetPath = buildUserTodoTargetPath(todo);
-    if (targetPath) {
-      history.push(targetPath);
-    }
-  };
-
-  const handleTodoKeyDown = (event: KeyboardEvent<HTMLDivElement>, todo: UserTodo) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleOpenTodo(todo);
-    }
-  };
-
-  const handleMarkTodoDone = (event: MouseEvent<HTMLButtonElement>, todoId: number) => {
-    event.stopPropagation();
-    markTodoDoneMutation.mutate(todoId);
-  };
 
   const calendarDefinitions = useMemo(() => {
     const definitions: Record<
@@ -303,10 +311,23 @@ export default function HomeWidgets(): JSX.Element {
       datePicker: {
         disabled: true
       },
+      callbacks: {
+        onEventClick: (event) => {
+          setSelectedCalendarEvent({
+            title: event.title,
+            description: event.description,
+            location: event.location,
+            start: event.start,
+            end: event.end,
+            eventType: event.eventType,
+            status: event.status
+          });
+        }
+      },
       views: [viewMonthGrid],
       selectedDate: Temporal.PlainDate.from(dayjs().format('YYYY-MM-DD')),
       monthGridOptions: {
-        nEventsPerDay: 2
+        nEventsPerDay: isMobile ? 1 : 2
       }
     },
     [eventsServicePlugin]
@@ -371,9 +392,11 @@ export default function HomeWidgets(): JSX.Element {
 
   const calendarCustomComponents = useMemo(
     () => ({
-      monthGridEvent: CalendarMonthGridEvent
+      monthGridEvent: (props: CalendarMonthGridEventProps) => (
+        <CalendarMonthGridEvent {...props} compact={isMobile} />
+      )
     }),
-    []
+    [isMobile]
   );
 
   useEffect(() => {
@@ -390,148 +413,117 @@ export default function HomeWidgets(): JSX.Element {
     return () => window.clearTimeout(timer);
   }, [calendarApp, calendarDefinitions, eventsServicePlugin, scheduleXEvents]);
 
+  const formatCalendarDialogDateTime = (value?: CalendarDialogEvent['start']) => {
+    if (!value) return '-';
+    if (typeof value === 'string') {
+      return dayjs(value).format('DD/MM/YYYY HH:mm');
+    }
+
+    const hasTime = typeof value.hour === 'number' && typeof value.minute === 'number';
+    return dayjs(
+      new Date(
+        value.year,
+        Math.max(value.month - 1, 0),
+        value.day,
+        hasTime ? value.hour || 0 : 0,
+        hasTime ? value.minute || 0 : 0
+      )
+    ).format(hasTime ? 'DD/MM/YYYY HH:mm' : 'DD/MM/YYYY');
+  };
+
+  const handleCreateCalendarEvent = () => {
+    if (!createCalendarForm.title?.trim()) {
+      return;
+    }
+
+    createCalendarMutation.mutate({
+      title: createCalendarForm.title.trim(),
+      description: createCalendarForm.description?.trim() || null,
+      start: createCalendarForm.start,
+      end: createCalendarForm.end,
+      allDay: Boolean(createCalendarForm.allDay),
+      remark: createCalendarForm.remark?.trim() || null
+    });
+  };
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} md={3}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Checklist fontSize="small" />
-            <Typography variant="h6" component="h1">
-              To-Do List
-            </Typography>
-          </Stack>
-          <Box
-            sx={{
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              bgcolor: 'background.paper',
-              p: 1.5
-            }}>
-            <Stack spacing={1}>
-              {isTodoLoading ? (
-                <Typography variant="body2" color="text.secondary">
-                  กำลังโหลดรายการที่ต้องทำ...
-                </Typography>
-              ) : null}
-              {!isTodoLoading && displayTodoItems.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  ไม่มีรายการที่ต้องทำ
-                </Typography>
-              ) : null}
-              {displayTodoItems.map((item) => {
-                const backgroundColor = normalizeCalendarColor(getTodoColor(item.priority));
-                const textColor = readableColor(backgroundColor, '#111827', '#ffffff');
-                const targetPath = buildUserTodoTargetPath(item);
-                const isMarkingDone = markTodoDoneMutation.isLoading;
-                const dueText = getTodoDueText(item);
-                const isCompleted = item.status === 'DONE';
-
-                return (
-                  <Box
-                    key={item.id}
-                    role={targetPath ? 'button' : undefined}
-                    tabIndex={targetPath ? 0 : undefined}
-                    onClick={targetPath ? () => handleOpenTodo(item) : undefined}
-                    onKeyDown={targetPath ? (event) => handleTodoKeyDown(event, item) : undefined}
-                    sx={{
-                      display: 'block',
-                      width: '100%',
-                      border: '1px solid',
-                      borderColor: 'transparent',
-                      borderRadius: 1,
-                      px: 1.25,
-                      py: 1,
-                      bgcolor: backgroundColor,
-                      color: textColor,
-                      textAlign: 'left',
-                      font: 'inherit',
-                      cursor: targetPath ? 'pointer' : 'default',
-                      '&:hover': targetPath
-                        ? {
-                          filter: 'brightness(0.98)'
-                        }
-                        : undefined
-                    }}>
-                    <Stack direction="row" alignItems="flex-start" spacing={1}>
-                      <Checkbox
-                        size="small"
-                        checked={isCompleted}
-                        disabled={isMarkingDone || isCompleted}
-                        onClick={(event) => {
-                          if (!isCompleted) {
-                            handleMarkTodoDone(event, item.id);
-                          }
-                        }}
-                        icon={<RadioButtonUnchecked fontSize="small" />}
-                        checkedIcon={<CheckCircle fontSize="small" />}
-                        sx={{
-                          mt: '-2px',
-                          color: textColor,
-                          '&.Mui-checked': {
-                            color: textColor
-                          }
-                        }}
-                      />
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                          variant="body2"
-                          fontWeight={600}
-                          noWrap
-                          sx={{
-                            textDecoration: isCompleted ? 'line-through' : 'none',
-                            opacity: isMarkingDone ? 0.75 : 1
-                          }}>
-                          {item.title}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="inherit"
-                          sx={{
-                            opacity: 0.8,
-                            textDecoration: isCompleted ? 'line-through' : 'none'
-                          }}
-                          display="block">
-                          {getTodoNote(item)}
-                        </Typography>
-                        {dueText ? (
-                          <Typography
-                            variant="caption"
-                            color="inherit"
-                            sx={{
-                              opacity: 0.72,
-                              textDecoration: isCompleted ? 'line-through' : 'none'
-                            }}
-                            display="block">
-                            {dueText}
-                          </Typography>
-                        ) : null}
-                      </Box>
-                    </Stack>
-                  </Box>
-                );
-              })}
-            </Stack>
-          </Box>
-        </Stack>
+        <UserTodoPanel
+          maxItems={10}
+          onViewMore={() => {
+            history.push(ROUTE_PATHS.TODO_MANAGEMENT);
+          }}
+        />
       </Grid>
       <Grid item xs={12} md={9}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <CalendarMonth fontSize="small" />
-          <Typography variant="h6" component="h1">
-            ปฏิทิน Nutalig
-          </Typography>
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+          <Stack direction="row" spacing={1} alignItems="center">
+            <CalendarMonth fontSize="small" />
+            <Typography variant="h6" component="h1">
+              ปฏิทิน Nutalig
+            </Typography>
+          </Stack>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setIsCreateCalendarDialogOpen(true)}>
+            เพิ่มปฏิทิน
+          </Button>
         </Stack>
         <Box
           sx={{
-            height: 760,
+            mt: 1,
+            height: isMobile ? 560 : 760,
             overflow: 'hidden',
+            borderRadius: 0,
+            bgcolor: isMobile ? '#f5f5f7' : 'transparent',
+            border: isMobile ? '1px solid rgba(15, 23, 42, 0.08)' : 'none',
+            boxShadow: isMobile ? '0 18px 40px rgba(15, 23, 42, 0.08)' : 'none',
+            p: isMobile ? 1 : 0,
+            '& .sx__calendar': {
+              height: '100%',
+              border: 'none',
+              borderRadius: 0,
+              backgroundColor: isMobile ? '#ffffff' : 'transparent',
+              overflow: 'hidden'
+            },
             '& .sx__calendar-wrapper': {
-              height: 760,
-              minHeight: 760
+              height: isMobile ? 560 : 760,
+              minHeight: isMobile ? 560 : 760
             },
             '& .sx__date-input-wrapper, & .sx__date-picker-popup': {
               display: 'none'
+            },
+            '& .sx__view-container': {
+              backgroundColor: 'transparent'
+            },
+            '& .sx__calendar-header': {
+              paddingInline: isMobile ? '16px' : undefined,
+              paddingBlock: isMobile ? '12px 8px' : undefined,
+              backgroundColor: isMobile ? '#ffffff' : undefined,
+              borderBottom: isMobile ? '1px solid rgba(15, 23, 42, 0.06)' : undefined
+            },
+            '& .sx__calendar-header-content': {
+              fontSize: isMobile ? '1rem' : undefined,
+              fontWeight: isMobile ? 700 : undefined,
+              letterSpacing: isMobile ? '-0.02em' : undefined,
+              color: isMobile ? '#111827' : undefined
+            },
+            '& .sx__month-grid': {
+              paddingInline: isMobile ? '6px' : 0,
+              paddingBottom: isMobile ? '8px' : 0,
+              backgroundColor: isMobile ? '#ffffff' : 'transparent'
+            },
+            '& .sx__month-grid-day-name-row': {
+              paddingInline: isMobile ? '6px' : 0,
+              marginBottom: isMobile ? '4px' : 0,
+              color: isMobile ? '#6b7280' : undefined,
+              fontSize: isMobile ? '0.7rem' : undefined,
+              fontWeight: isMobile ? 700 : undefined,
+              textTransform: isMobile ? 'uppercase' : undefined,
+              letterSpacing: isMobile ? '0.08em' : undefined
             },
             '& .sx__month-grid-wrapper': {
               height: '100%'
@@ -542,16 +534,27 @@ export default function HomeWidgets(): JSX.Element {
             '& .sx__month-grid-day': {
               position: 'relative',
               minHeight: 0,
-              overflow: 'hidden'
+              overflow: 'hidden',
+              ...(isMobile
+                ? {
+                  borderRadius: 0,
+                  margin: '2px',
+                  border: '1px solid rgba(148, 163, 184, 0.14)',
+                  backgroundColor: '#fbfbfd',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.65)'
+                }
+                : {})
             },
             '& .sx__month-grid-day:has(.sx__month-grid-day__header-date.sx__is-today)': {
-              backgroundColor: 'rgba(25, 118, 210, 0.08)'
+              backgroundColor: isMobile ? 'rgba(59, 130, 246, 0.1)' : 'rgba(25, 118, 210, 0.08)'
             },
             '& .sx__month-grid-day:has(.sx__month-grid-day__header-date.sx__is-today)::before': {
               content: '""',
               position: 'absolute',
               inset: 0,
-              border: '1px solid rgba(25, 118, 210, 0.28)',
+              border: isMobile
+                ? '1.5px solid rgba(59, 130, 246, 0.35)'
+                : '1px solid rgba(25, 118, 210, 0.28)',
               pointerEvents: 'none',
               boxSizing: 'border-box',
               zIndex: 0
@@ -560,11 +563,35 @@ export default function HomeWidgets(): JSX.Element {
               position: 'relative',
               zIndex: 1
             },
+            '& .sx__month-grid-day__header': {
+              paddingInline: isMobile ? '8px' : undefined,
+              paddingTop: isMobile ? '8px' : undefined
+            },
+            '& .sx__month-grid-day__header-date': {
+              width: isMobile ? 28 : undefined,
+              height: isMobile ? 28 : undefined,
+              borderRadius: isMobile ? '50%' : undefined,
+              display: isMobile ? 'inline-flex' : undefined,
+              alignItems: isMobile ? 'center' : undefined,
+              justifyContent: isMobile ? 'center' : undefined,
+              fontSize: isMobile ? '0.85rem' : undefined,
+              fontWeight: isMobile ? 700 : undefined
+            },
+            '& .sx__month-grid-day__header-date.sx__is-today': {
+              backgroundColor: isMobile ? '#111827' : undefined,
+              color: isMobile ? '#ffffff' : undefined
+            },
             '& .sx__month-grid-day__events': {
-              overflow: 'hidden'
+              overflow: 'hidden',
+              paddingInline: isMobile ? '6px' : undefined,
+              paddingBottom: isMobile ? '6px' : undefined,
+              gap: isMobile ? '4px' : undefined
             },
             '& .sx__month-grid-event': {
-              minHeight: 28
+              minHeight: isMobile ? 24 : 28
+            },
+            '& .sx__month-grid-day--other-month': {
+              opacity: isMobile ? 0.42 : undefined
             }
           }}>
           {calendarApp ? (
@@ -574,6 +601,201 @@ export default function HomeWidgets(): JSX.Element {
             />
           ) : null}
         </Box>
+        <Dialog
+          open={Boolean(selectedCalendarEvent)}
+          onClose={() => setSelectedCalendarEvent(null)}
+          fullWidth
+          maxWidth="xs">
+          <DialogTitle>{selectedCalendarEvent?.title || 'รายละเอียดกิจกรรม'}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={1.5} sx={{ pt: 0.5 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  วันเวลาเริ่ม
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {formatCalendarDialogDateTime(selectedCalendarEvent?.start)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  วันเวลาสิ้นสุด
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {formatCalendarDialogDateTime(selectedCalendarEvent?.end)}
+                </Typography>
+              </Box>
+              {selectedCalendarEvent?.eventType ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    ประเภท
+                  </Typography>
+                  <Typography variant="body2">{selectedCalendarEvent.eventType}</Typography>
+                </Box>
+              ) : null}
+              {selectedCalendarEvent?.status ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    สถานะ
+                  </Typography>
+                  <Typography variant="body2">{selectedCalendarEvent.status}</Typography>
+                </Box>
+              ) : null}
+              {selectedCalendarEvent?.location ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    สถานที่
+                  </Typography>
+                  <Typography variant="body2">{selectedCalendarEvent.location}</Typography>
+                </Box>
+              ) : null}
+              {selectedCalendarEvent?.description ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    รายละเอียด
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedCalendarEvent.description}
+                  </Typography>
+                </Box>
+              ) : null}
+            </Stack>
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={isCreateCalendarDialogOpen}
+          onClose={() => {
+            if (!createCalendarMutation.isLoading) {
+              setIsCreateCalendarDialogOpen(false);
+            }
+          }}
+          fullWidth
+          maxWidth="sm">
+          <DialogTitle>เพิ่มรายการปฏิทิน</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                label="หัวข้อ"
+                value={createCalendarForm.title}
+                onChange={(event) =>
+                  setCreateCalendarForm((prev) => ({
+                    ...prev,
+                    title: event.target.value
+                  }))
+                }
+                fullWidth
+                required
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="รายละเอียด"
+                value={createCalendarForm.description || ''}
+                onChange={(event) =>
+                  setCreateCalendarForm((prev) => ({
+                    ...prev,
+                    description: event.target.value
+                  }))
+                }
+                fullWidth
+                multiline
+                minRows={3}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="วันเวลาเริ่ม"
+                type="datetime-local"
+                value={dayjs(createCalendarForm.start).format('YYYY-MM-DDTHH:mm')}
+                onChange={(event) =>
+                  setCreateCalendarForm((prev) => ({
+                    ...prev,
+                    start: dayjs(event.target.value).toISOString()
+                  }))
+                }
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="วันเวลาสิ้นสุด"
+                type="datetime-local"
+                value={dayjs(createCalendarForm.end).format('YYYY-MM-DDTHH:mm')}
+                onChange={(event) =>
+                  setCreateCalendarForm((prev) => ({
+                    ...prev,
+                    end: dayjs(event.target.value).toISOString()
+                  }))
+                }
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={Boolean(createCalendarForm.allDay)}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+
+                      setCreateCalendarForm((prev) => {
+                        if (!checked) {
+                          return {
+                            ...prev,
+                            allDay: false
+                          };
+                        }
+
+                        const startDate = dayjs(prev.start);
+                        const endDate = dayjs(prev.end);
+
+                        return {
+                          ...prev,
+                          allDay: true,
+                          start: startDate.hour(0).minute(0).second(0).millisecond(0).toISOString(),
+                          end: endDate.hour(23).minute(59).second(0).millisecond(0).toISOString()
+                        };
+                      });
+                    }}
+                  />
+                }
+                label="ทั้งวัน"
+              />
+              <TextField
+                label="หมายเหตุ"
+                value={createCalendarForm.remark || ''}
+                onChange={(event) =>
+                  setCreateCalendarForm((prev) => ({
+                    ...prev,
+                    remark: event.target.value
+                  }))
+                }
+                fullWidth
+                multiline
+                minRows={2}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              className="btn-crimson-red"
+              variant="contained"
+              onClick={() => setIsCreateCalendarDialogOpen(false)}
+              disabled={createCalendarMutation.isLoading}>
+              ยกเลิก
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleCreateCalendarEvent}
+              disabled={createCalendarMutation.isLoading || !createCalendarForm.title?.trim()}
+              startIcon={
+                createCalendarMutation.isLoading ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <Add />
+                )
+              }>
+              บันทึกรายการ
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Grid>
     </Grid>
   );

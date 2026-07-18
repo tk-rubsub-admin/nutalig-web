@@ -17,3 +17,12 @@ export interface CalendarEventDto {
   remark?: string | null;
   active?: boolean | null;
 }
+
+export interface CreateMyCalendarEventRequest {
+  title: string;
+  description?: string | null;
+  start: string;
+  end: string;
+  allDay?: boolean | null;
+  remark?: string | null;
+}

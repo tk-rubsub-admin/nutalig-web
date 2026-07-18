@@ -1,5 +1,5 @@
 import { api } from 'api/api';
-import { UserTodo, UserTodoStatus, UserTodoType } from './user-todo-type';
+import { CreateUserTodoRequest, UserTodo, UserTodoStatus, UserTodoType } from './user-todo-type';
 
 interface GeneralResponse<T> {
   status: string;
@@ -33,6 +33,14 @@ export const getUserTodos = async (params?: GetUserTodosParams): Promise<UserTod
 export const markUserTodoAsDone = async (id: number): Promise<UserTodo> => {
   const response = await api
     .patch<GeneralResponse<UserTodo>>(`/v1/me/to-dos/${id}/done`)
+    .then((res) => res.data.data);
+
+  return response;
+};
+
+export const createUserTodo = async (payload: CreateUserTodoRequest): Promise<UserTodo> => {
+  const response = await api
+    .post<GeneralResponse<UserTodo>>('/v1/me/to-dos', payload)
     .then((res) => res.data.data);
 
   return response;

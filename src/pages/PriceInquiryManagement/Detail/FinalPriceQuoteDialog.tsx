@@ -1,11 +1,13 @@
-import { Add, DeleteOutline } from '@mui/icons-material';
+import { Add, AutoAwesome, DeleteOutline } from '@mui/icons-material';
 import {
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Grid,
   IconButton,
   InputAdornment,
@@ -29,12 +31,12 @@ import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 interface FinalPriceDraftTier {
   id: number;
   quantity: number;
-  productPrice: number;
+  productPrice: string;
   commission: string;
-  landFreightCost: string;
-  seaFreightCost: string;
+  landTotalPrice: string;
+  seaTotalPrice: string;
+  isFcl: boolean;
   currency?: string | null;
-  exchangeRate: string;
 }
 
 interface FinalPriceDraftDetail {
@@ -55,10 +57,7 @@ interface FinalPriceDraftPackage {
 }
 
 interface FinalPriceDraftErrors {
-  details?: Record<
-    number,
-    { landFreightCost?: string; seaFreightCost?: string; exchangeRate?: string }
-  >;
+  details?: Record<number, { productPrice?: string; landTotalPrice?: string; seaTotalPrice?: string }>;
 }
 
 interface FinalPriceQuoteDialogProps {
@@ -72,19 +71,22 @@ interface FinalPriceQuoteDialogProps {
       value: string;
       unit: string;
     }[];
+    remark: string;
     recommend: string;
   };
   finalPriceErrors: FinalPriceDraftErrors;
   isSubmitting: boolean;
   onClose: () => void;
   onRemarkChange: (value: string) => void;
+  onRecommendChange: (value: string) => void;
   onCommissionChange: (detailId: number, tierId: number, value: string) => void;
   onTierChange: (
     detailId: number,
     tierId: number,
-    field: 'landFreightCost' | 'seaFreightCost' | 'exchangeRate',
+    field: 'productPrice' | 'landTotalPrice' | 'seaTotalPrice',
     value: string
   ) => void;
+  onTierFclChange: (detailId: number, tierId: number, checked: boolean) => void;
   onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
@@ -93,6 +95,8 @@ interface FinalPriceQuoteDialogProps {
   ) => void;
   onDeleteAdditionalCost: (additionalCostId: number) => void;
   onRequestSave: () => void;
+  onGenerateMessage: () => void;
+  onTranslateMessage: () => void;
   formatQuantity: (value?: number | null) => string;
   formatPrice: (value?: number | null, currency?: string | null) => string;
   formatSupplierQuoteAdditionalCost: (additionalCost: RFQSupplierQuoteAdditionalCost) => string;
@@ -109,12 +113,16 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     isSubmitting,
     onClose,
     onRemarkChange,
+    onRecommendChange,
     onCommissionChange,
     onTierChange,
+    onTierFclChange,
     onAddAdditionalCost,
     onAdditionalCostChange,
     onDeleteAdditionalCost,
     onRequestSave,
+    onGenerateMessage,
+    onTranslateMessage,
     formatQuantity,
     formatPrice,
     formatSupplierQuoteAdditionalCost,
@@ -148,6 +156,12 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     return quoteTier?.shippingCost ?? null;
   };
 
+  const getTierSupplierProductPrice = (detailId: number, tierId: number): number | null => {
+    const quoteDetail = finalPriceQuote?.details?.find((item) => item.id === detailId);
+    const quoteTier = quoteDetail?.tiers?.find((item) => item.id === tierId);
+    return quoteTier?.productPrice ?? null;
+  };
+
   const getTierQuantity = (detailId: number, tierId: number): number => {
     const quoteDetail = finalPriceQuote?.details?.find((item) => item.id === detailId);
     const quoteTier = quoteDetail?.tiers?.find((item) => item.id === tierId);
@@ -169,9 +183,33 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
           </Box>
 
           <Stack spacing={2}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              รายการ Final ราคา
-            </Typography>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              useFlexGap>
+              <Typography variant="subtitle1" fontWeight={700}>
+                รายการ Final ราคา
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
+                <Button
+                  variant="outlined"
+                  startIcon={<AutoAwesome />}
+                  disabled={isSubmitting}
+                  className={'btn-indigo-blue'}
+                  onClick={onGenerateMessage}>
+                  {t('priceInquiryManagement.generateFinalInquiry.button')}
+                </Button>
+                <Button
+                  variant="outlined"
+                  className={'btn-indigo-blue'}
+                  disabled={isSubmitting}
+                  onClick={onTranslateMessage}>
+                  {t('priceInquiryManagement.generateFinalInquiry.translateButton')}
+                </Button>
+              </Stack>
+            </Stack>
             {finalPriceDraft.details.length ? (
               finalPriceDraft.details.map((detail, detailIndex) => (
                 <Box
@@ -198,30 +236,23 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       <TableHead>
                         <TableRow>
                           <TableCell sx={{ whiteSpace: 'nowrap' }}>MOQ</TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                            ราคาสินค้า
+                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
+                            ราคาจาก supplier
                           </TableCell>
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                            ค่าขนส่ง
+                            ค่าขนส่งภายในจีน
                           </TableCell>
-                          <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
-                            อัตราแลกเปลี่ยน
+                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
+                            ราคาสินค้า(บาท)
                           </TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{ width: 120, whiteSpace: 'nowrap', fontSize: 12 }}>
-                            ค่าขนส่งทางรถ
+                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap', fontSize: 12 }}>
+                            รวมส่งทางรถ
                           </TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontSize: 12 }}>
-                            รวมทางรถ
+                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap', fontSize: 12 }}>
+                            รวมส่งทางเรือ
                           </TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{ width: 120, whiteSpace: 'nowrap', fontSize: 12 }}>
-                            ค่าขนส่งทางเรือ
-                          </TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontSize: 12 }}>
-                            รวมทางเรือ
+                          <TableCell align="center" sx={{ minWidth: 120, whiteSpace: 'nowrap' }}>
+                            ปิดตู้
                           </TableCell>
                           <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
                             Commission
@@ -229,99 +260,88 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {detail.tiers.map((tier, tierIndex) => {
-                          const landFreightCost = Number(tier.landFreightCost.replace(/,/g, '')) || 0;
-                          const seaFreightCost = Number(tier.seaFreightCost.replace(/,/g, '')) || 0;
-                          const exchangeRate = Number(tier.exchangeRate.replace(/,/g, '')) || 1;
+                        {detail.tiers.map((tier) => {
                           const tierError = finalPriceErrors.details?.[tier.id] || {};
                           const tierCurrency = getTierCurrency(detail.id, tier.id);
+                          const tierSupplierProductPrice = getTierSupplierProductPrice(
+                            detail.id,
+                            tier.id
+                          );
                           const tierShippingCost = getTierShippingCost(detail.id, tier.id);
-                          const quantity = getTierQuantity(detail.id, tier.id) || tier.quantity;
-                          const shippingPerUnit = quantity > 0 ? (tierShippingCost || 0) / quantity : 0;
-                          const baseAmount = tier.productPrice + shippingPerUnit;
-                          const landTotalPrice = baseAmount * exchangeRate + landFreightCost;
-                          const seaTotalPrice = baseAmount * exchangeRate + seaFreightCost;
 
                           return (
                             <TableRow key={tier.id}>
                               <TableCell>{formatQuantity(tier.quantity)}</TableCell>
                               <TableCell align="right">
-                                {formatPrice(tier.productPrice, tierCurrency)}
+                                {formatPrice(tierSupplierProductPrice, tierCurrency)}
                               </TableCell>
                               <TableCell align="right">
                                 {formatPrice(tierShippingCost, tierCurrency)}
                               </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 120 }}>
+                              <TableCell align="right" sx={{ minWidth: 140 }}>
                                 <TextField
                                   size="small"
                                   type="number"
-                                  value={tier.exchangeRate}
+                                  value={tier.productPrice}
                                   onChange={(event) =>
-                                    onTierChange(
-                                      detail.id,
-                                      tier.id,
-                                      'exchangeRate',
-                                      event.target.value
-                                    )
+                                    onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
                                   }
-                                  error={Boolean(tierError.exchangeRate)}
-                                  helperText={tierError.exchangeRate}
-                                  inputProps={{ min: 0, step: '0.0001' }}
-                                  fullWidth
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 120 }}>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={tier.landFreightCost}
-                                  onChange={(event) =>
-                                    onTierChange(
-                                      detail.id,
-                                      tier.id,
-                                      'landFreightCost',
-                                      event.target.value
-                                    )
-                                  }
-                                  error={Boolean(tierError.landFreightCost)}
-                                  helperText={tierError.landFreightCost}
+                                  error={Boolean(tierError.productPrice)}
+                                  helperText={tierError.productPrice}
                                   inputProps={{ min: 0, step: '0.01' }}
                                   fullWidth
                                 />
                               </TableCell>
-                              <TableCell align="right">
-                                {formatPrice(landTotalPrice, 'THB')}
-                              </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 120 }}>
+                              <TableCell align="right" sx={{ minWidth: 140 }}>
                                 <TextField
                                   size="small"
                                   type="number"
-                                  value={tier.seaFreightCost}
+                                  value={tier.landTotalPrice}
                                   onChange={(event) =>
-                                    onTierChange(
-                                      detail.id,
-                                      tier.id,
-                                      'seaFreightCost',
-                                      event.target.value
-                                    )
+                                    onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
                                   }
-                                  error={Boolean(tierError.seaFreightCost)}
-                                  helperText={tierError.seaFreightCost}
+                                  error={Boolean(tierError.landTotalPrice)}
+                                  helperText={tierError.landTotalPrice}
                                   inputProps={{ min: 0, step: '0.01' }}
                                   fullWidth
                                 />
                               </TableCell>
-                              <TableCell align="right">
-                                {formatPrice(seaTotalPrice, 'THB')}
+                              <TableCell align="right" sx={{ minWidth: 140 }}>
+                                <TextField
+                                  size="small"
+                                  type="number"
+                                  value={tier.seaTotalPrice}
+                                  onChange={(event) =>
+                                    onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
+                                  }
+                                  error={Boolean(tierError.seaTotalPrice)}
+                                  helperText={tierError.seaTotalPrice}
+                                  inputProps={{ min: 0, step: '0.01' }}
+                                  fullWidth
+                                />
+                              </TableCell>
+                              <TableCell align="center" sx={{ minWidth: 120 }}>
+                                <FormControlLabel
+                                  sx={{ m: 0, justifyContent: 'center' }}
+                                  control={
+                                    <Checkbox
+                                      checked={Boolean(tier.isFcl)}
+                                      onChange={(event) =>
+                                        onTierFclChange(detail.id, tier.id, event.target.checked)
+                                      }
+                                    />
+                                  }
+                                  label=""
+                                />
                               </TableCell>
                               <TableCell align="right" sx={{ minWidth: 50 }}>
                                 <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.commission}
-                                    onChange={(event) =>
-                                      onCommissionChange(detail.id, tier.id, event.target.value)
-                                    }
+                                  size="small"
+                                  type="number"
+                                  value={tier.commission}
+                                  onChange={(event) =>
+                                    onCommissionChange(detail.id, tier.id, event.target.value)
+                                  }
                                   InputProps={{
                                     endAdornment: <InputAdornment position="end">%</InputAdornment>
                                   }}
@@ -470,9 +490,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
             </Stack>
 
             <TextField
-              label="Remark / คำแนะนำสำหรับ RFQ นี้"
-              value={finalPriceDraft.recommend}
+              label="Remark"
+              value={finalPriceDraft.remark}
               onChange={(event) => onRemarkChange(event.target.value)}
+              multiline
+              minRows={4}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+
+            <TextField
+              label="คำแนะนำสำหรับ RFQ นี้"
+              value={finalPriceDraft.recommend}
+              onChange={(event) => onRecommendChange(event.target.value)}
               multiline
               minRows={4}
               InputLabelProps={{ shrink: true }}

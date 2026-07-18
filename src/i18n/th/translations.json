@@ -227,7 +227,29 @@
     "rememberMe": "จำรหัสผ่านของฉัน"
   },
   "home": {
-    "title": "ยินดีต้อนรับเข้าสู่ Nutalig"
+    "title": "ยินดีต้อนรับเข้าสู่ Nutalig",
+    "todo": {
+      "title": "To-Do List",
+      "pageTitle": "รายการสิ่งที่ต้องทำ",
+      "loading": "กำลังโหลดรายการที่ต้องทำ...",
+      "empty": "ไม่มีรายการที่ต้องทำ",
+      "viewMore": "ดูเพิ่มเติม",
+      "add": "เพิ่ม",
+      "createTitle": "เพิ่มรายการ To-Do",
+      "createAction": "บันทึกรายการ",
+      "fields": {
+        "title": "หัวข้อ",
+        "description": "รายละเอียด",
+        "priority": "ความสำคัญ",
+        "dueDate": "กำหนดวันเวลา"
+      },
+      "priority": {
+        "low": "ต่ำ",
+        "medium": "ปานกลาง",
+        "high": "สูง",
+        "urgent": "ด่วน"
+      }
+    }
   },
   "dashboard": {
     "title": "แดชบอร์ดงาน",
@@ -366,6 +388,7 @@
         "headOffice": "สำนักงานใหญ่"
       },
       "creditTerm": "เงื่อนไขการให้เครดิต",
+      "paymentTerm": "เงื่อนไขการชำระเงิน",
       "searchPanel": "ค้นหาข้อมูลลูกค้า",
       "customerName": "ชื่อ-นามสกุลลูกค้า",
       "customerFirstName": "ชื่อลูกค้า",
@@ -391,6 +414,7 @@
       "validateCompanyBranchCode": "กรุณาระบุรหัสสาขา",
       "validateCompanyBranchName": "กรุณาระบุชื่อสาขา",
       "validateCreditTerm": "กรุณาเลือกเงื่อนไขการให้เครดิต",
+      "validatePaymentTerm": "กรุณาเลือกเงื่อนไขการชำระเงิน",
       "validateSalesAccount": "กรุณาเลือกเซลล์ที่ดูแลลูกค้ารายนี้",
       "validateAddress": "กรุณาระบุที่อยู่ในการออกเอกสาร",
       "validateProvince": "กรุณาเลือกจังหวัด",
@@ -738,15 +762,15 @@
       "salesId": "เซลล์ผู้ดูแล",
       "rfqTypeCode": "RFQ Type",
       "orderTypeCode": "ประเภทงาน",
-      "productFamily": "Product Family",
-      "productUsage": "Product Subtype1",
-      "systemMechanic": "Product Subtype2",
-      "material": "Material",
-      "capacity": "Capacity",
-      "targetPrice": "Target Price",
+      "productFamily": "หมวดหลัก",
+      "productUsage": "หมวดย่อย 1",
+      "systemMechanic": "หมวดย่อย 2",
+      "material": "วัสดุ",
+      "capacity": "ความจุ",
+      "targetPrice": "ราคาที่ต้องการ",
       "requestedMoqs": "MOQ ที่ต้องการขอราคา",
       "requestedMoq": "MOQ",
-      "description": "รายละเอียด",
+      "description": "รายละเอียด/สเปค",
       "pictures": "รูปอ้างอิง",
       "pictureHelper": "อัปโหลดรูปอ้างอิงได้สูงสุด 5 รูป",
       "attachments": "ไฟล์แนบ",
@@ -762,15 +786,15 @@
       "salesId": "กรุณาเลือกเซลล์ผู้ดูแล",
       "rfqTypeCode": "กรุณาเลือก RFQ Type",
       "orderTypeCode": "กรุณาเลือกประเภทงาน",
-      "productFamily": "กรุณาระบุ Product Family",
-      "productUsage": "กรุณาระบุ Product Subtype1",
-      "systemMechanic": "กรุณาระบุ Product Subtype2",
-      "material": "กรุณาระบุ Material",
-      "capacity": "กรุณาระบุ Capacity",
-      "targetPrice": "กรุณาระบุ Target Price เป็นตัวเลขมากกว่า 0",
+      "productFamily": "กรุณาระบุหมวดหลัก",
+      "productUsage": "กรุณาระบุหมวดย่อย 1",
+      "systemMechanic": "กรุณาระบุหมวดย่อย 2",
+      "material": "กรุณาระบุวัสดุ",
+      "capacity": "กรุณาระบุความจุ",
+      "targetPrice": "กรุณาระบุราคาที่ต้องการเป็นตัวเลขมากกว่า 0",
       "requestedMoqs": "กรุณาระบุ MOQ เป็นตัวเลขมากกว่า 0",
       "requestedMoqsRequired": "กรุณากรอก MOQ ให้ครบทุกแถว",
-      "description": "กรุณาระบุรายละเอียด"
+      "description": "กรุณาระบุรายละเอียด/สเปค"
     },
     "message": {
       "confirmCreateTitle": "ยืนยันสร้างคำขอราคา",
@@ -779,6 +803,84 @@
       "confirmUpdateMsg": "คุณยืนยันบันทึกการแก้ไขข้อมูลคำขอราคานี้ใช่หรือไม่",
       "createSuccess": "สร้างคำขอราคาสำเร็จ",
       "createFailed": "สร้างคำขอราคาไม่สำเร็จ "
+    },
+    "detail": {
+      "tabs": {
+        "detail": "ข้อมูลการขอราคา",
+        "history": "ประวัติ"
+      },
+      "sections": {
+        "general": "รายละเอียดการขอราคา",
+        "options": "ตัวเลือกราคา",
+        "additional": "รายละเอียดเพิ่มเติม"
+      },
+      "fields": {
+        "referenceRfqId": "RFQ อ้างอิง",
+        "procurementId": "จัดซื้อที่ดูแล",
+        "shippingMethod": "การขนส่ง",
+        "createdDate": "Created Date",
+        "updatedDate": "Updated Date",
+        "optionName": "ชื่อตัวเลือก",
+        "spec": "สเปค",
+        "remark": "หมายเหตุ",
+        "productPrice": "ราคาสินค้า",
+        "landFreightCost": "ค่าขนส่งทางรถ",
+        "seaFreightCost": "ค่าขนส่งทางเรือ"
+      },
+      "actions": {
+        "confirmPrice": "คอนเฟิร์มราคา",
+        "requestQuotation": "ขอใบเสนอราคา",
+        "requestSpecialPrice": "ขอทบทวนราคาพิเศษ",
+        "downloadQuotation": "ดาวน์โหลดใบเสนอราคา",
+        "downloadSalesOrder": "ดาวน์โหลดใบยืนยันสั่งซื้อ",
+        "close": "ปิดงาน",
+        "reject": "ปฏิเสธ",
+        "openFile": "เปิดไฟล์",
+        "openReferenceRfq": "เปิด RFQ อ้างอิง"
+      },
+      "additionalCost": {
+        "name": "Name",
+        "description": "Description",
+        "value": "Value",
+        "unit": "Unit",
+        "empty": "ยังไม่มีรายละเอียดเพิ่มเติม"
+      },
+      "dialogs": {
+        "saveOptionsTitle": "ยืนยันบันทึกตัวเลือกราคา",
+        "saveOptionsMessage": "คุณยืนยันบันทึกตัวเลือกราคาที่เพิ่มใหม่ทั้งหมดใช่หรือไม่",
+        "deleteOptionTitle": "ยืนยันลบตัวเลือกราคา",
+        "deleteOptionMessage": "คุณยืนยันลบ {{optionName}} ใช่หรือไม่",
+        "deleteAdditionalCostTitle": "ยืนยันลบรายละเอียดเพิ่มเติม",
+        "deleteAdditionalCostMessage": "คุณยืนยันลบ {{description}} ใช่หรือไม่",
+        "missingCustomerTitle": "ยังไม่มีข้อมูลลูกค้า",
+        "missingCustomerMessage": "ยังไม่มีข้อมูลลูกค้าในระบบ กรุณาสร้างข้อมูลลูกค้าก่อนออกใบเสนอราคา",
+        "rejectTitle": "ยืนยันปฏิเสธคำขอราคา",
+        "rejectMessage": "คุณยืนยันปฏิเสธคำขอราคา {{id}} ใช่หรือไม่",
+        "closeTitle": "ยืนยันปิดงาน",
+        "closeMessage": "คุณยืนยันปิดงานคำขอราคา {{id}} ใช่หรือไม่",
+        "reasonLabel": "เหตุผล",
+        "reasonPlaceholder": "ระบุเหตุผลในการปิดงาน",
+        "confirmPriceDescription": "เลือกรายการจากใบเสนอราคาที่ต้องการใช้สำหรับคอนเฟิร์มราคา",
+        "loadingQuotation": "กำลังโหลดข้อมูลใบเสนอราคา...",
+        "noQuotation": "ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา"
+      },
+      "quotationTable": {
+        "select": "เลือก",
+        "item": "รายการใบเสนอราคา",
+        "quantity": "จำนวน",
+        "shippingMethod": "วิธีการขนส่ง",
+        "unitPrice": "ราคาต่อหน่วย",
+        "amount": "รวม"
+      },
+      "urgent": {
+        "title": "รายละเอียดคำขอเร่งด่วน",
+        "status": "สถานะ",
+        "statusApproved": "เร่งด่วนอนุมัติแล้ว",
+        "statusRejected": "คำขอเร่งด่วนไม่อนุมัติ",
+        "statusPending": "เร่งด่วนรออนุมัติ",
+        "requestReason": "เหตุผลที่ขอ",
+        "rejectReason": "เหตุผลที่ถูกปฏิเสธ"
+      }
     },
     "rfqsStatus": {
       "NEW": "คำขอใหม่",
@@ -811,6 +913,19 @@
       "button": "Generate ข้อความ",
       "confirmUpdateTitle": "ยืนยันอัปเดตข้อความสอบถามราคา",
       "confirmUpdateMsg": "คุณต้องการบันทึกการแก้ไขข้อความสอบถามราคานี้ใช่หรือไม่"
+    },
+    "generateFinalInquiry": {
+      "title": "ข้อความ Final Inquiry",
+      "button": "Generate ข้อความ",
+      "translateButton": "แปลงข้อความ",
+      "messageLabel": "ข้อความที่สร้างแล้ว"
+    },
+    "finalExtract": {
+      "title": "แปลงข้อความ Final ราคา",
+      "button": "แปลงข้อความ",
+      "helperText": "Supplier: {{supplierName}}",
+      "inputLabel": "ข้อความสำหรับแปลง",
+      "inputPlaceholder": "วางข้อความที่ต้องการให้ AI แปลงเป็นข้อมูล Final ราคา เช่น MOQ ราคา ค่าขนส่ง package หรือค่าใช้จ่ายเพิ่มเติม"
     },
     "action": {
       "create": "สร้างรายการสอบถามราคา"
@@ -928,7 +1043,7 @@
         "title": "สรุปยอด",
         "subtotal": "ยอดรวมสินค้า",
         "remainingAmount": "ยอดคงเหลือหลังหักส่วนลด",
-        "depositAmount": "ยอดมัดจำ 50%",
+        "depositAmount": "ยอดมัดจำ",
         "discount": "ส่วนลด",
         "freight": "ค่าขนส่ง",
         "vat": "ภาษีมูลค่าเพิ่ม",

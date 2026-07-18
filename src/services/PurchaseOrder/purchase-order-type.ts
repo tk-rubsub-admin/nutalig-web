@@ -1,4 +1,5 @@
 import { Supplier, SupplierShipping } from 'services/Supplier/supplier-type';
+import { DocumentStatusProfile } from 'services/document-status-type';
 import { Pagination } from 'services/general-type';
 
 export interface CreatePurchaseOrderRequest {
@@ -100,6 +101,7 @@ export interface PurchaseOrderRecord {
   productionLeadTimeDay: number | null;
   shippingLeadTimeDay: number | null;
   status: string;
+  statusProfile?: DocumentStatusProfile;
   currency: string | null;
   exchangeRate: number | null;
   supplier: Supplier | null;

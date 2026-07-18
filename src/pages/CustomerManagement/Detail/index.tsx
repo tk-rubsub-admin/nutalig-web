@@ -148,6 +148,11 @@ export default function CustomerDetail(): JSX.Element {
     () => getSystemConfig(GROUP_CODE.CUSTOMER_CREDIT_TERM),
     { refetchOnWindowFocus: false }
   );
+  const { data: paymentTermList, isFetching: isPaymentTermFetching } = useQuery(
+    ['payment-term-list', GROUP_CODE.CUSTOMER_PAYMENT_TERM],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+    { refetchOnWindowFocus: false }
+  );
   const { data: customerTierList, isFetching: isCustomerTierFetching } = useQuery(
     ['customer-tier', GROUP_CODE.CUSTOMER_TIER],
     () => getSystemConfig(GROUP_CODE.CUSTOMER_TIER),
@@ -185,6 +190,7 @@ export default function CustomerDetail(): JSX.Element {
       companyBranchCode: customer?.branchNumber ?? '',
       companyBranchName: customer?.branchName ?? '',
       creditTerm: customer?.customerCreditTerm?.code ?? '',
+      paymentTerm: customer?.customerPaymentTerm?.code ?? '',
       salesAccount: customer?.salesAccount ?? '',
       coSalesAccount: customer?.coSalesAccount ?? ''
     }),
@@ -195,9 +201,9 @@ export default function CustomerDetail(): JSX.Element {
     initialValues,
     enableReinitialize: true,
     validationSchema: Yup.object().shape({
-      customerName: Yup.string()
-        .max(255)
-        .required(t('customerManagement.message.validateCustomerName')),
+      // customerName: Yup.string()
+      //   .max(255)
+      //   .required(t('customerManagement.message.validateCustomerName')),
       type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
       tier: Yup.string().max(255).nullable(),
       segment: Yup.string().max(255).nullable(),
@@ -216,7 +222,8 @@ export default function CustomerDetail(): JSX.Element {
         then: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
         otherwise: Yup.string().nullable()
       }),
-      creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm'))
+      creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
+      paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm'))
     }),
     onSubmit: (values, actions) => {
       actions.setSubmitting(true);
@@ -231,6 +238,7 @@ export default function CustomerDetail(): JSX.Element {
         branchNumber: values.companyBranchCode || null,
         branchName: values.companyBranchName || null,
         creditTerm: values.creditTerm || null,
+        paymentTerm: values.paymentTerm || null,
         salesAccount: values.salesAccount || null,
         coSalesAccount: values.coSalesAccount || null
       };
@@ -763,6 +771,27 @@ export default function CustomerDetail(): JSX.Element {
                 disabled={isCreditTermFetching || !canEdit}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {creditTermList?.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh}
+                  </MenuItem>
+                )) || []}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="paymentTerm"
+                select
+                fullWidth
+                label={t('customerManagement.column.paymentTerm')}
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(formik.touched.paymentTerm && formik.errors.paymentTerm)}
+                helperText={formik.touched.paymentTerm && formik.errors.paymentTerm}
+                value={formik.values.paymentTerm ?? ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                disabled={isPaymentTermFetching || !canEdit}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {paymentTermList?.map((option) => (
                   <MenuItem key={option.code} value={option.code}>
                     {option.nameTh}
                   </MenuItem>

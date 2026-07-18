@@ -143,6 +143,17 @@ export interface RFQStatusTimeline {
   statusDatetime: string;
 }
 
+export interface RFQReference {
+  id: string;
+  requestedDate?: string | null;
+  status?: string | null;
+  rfqType?: SystemConfig | null;
+  productFamily?: RFQProductFamily | string | null;
+  productSubtype1?: RFQProductSubtype1 | null;
+  productSubType2?: RFQProductSubtype2 | null;
+  material?: RFQProductMaterial | string | null;
+}
+
 export interface RFQDetailTier {
   id: number;
   quantity: number;
@@ -152,6 +163,7 @@ export interface RFQDetailTier {
   exchangeRate?: number | null;
   landFreightCost: number;
   seaFreightCost: number;
+  isFcl?: boolean | null;
   landTotalPrice: number;
   seaTotalPrice: number;
   supplierQuoteTierId?: number | null;
@@ -193,6 +205,8 @@ export interface RFQAdditionalCost {
 
 export interface RFQRecord {
   id: string;
+  referenceRfqId?: string | null;
+  referenceRfq?: RFQReference | null;
   quotationNo?: string | null;
   saleOrderId?: string | null;
   shippingMethod?: 'ALL' | 'LAND' | 'SEA' | null;
@@ -264,6 +278,7 @@ export interface GetRFQResponse {
 
 export interface CreateRFQRequest {
   customerId?: string;
+  referenceRfqId?: string;
   contactName: string;
   contactPhone: string;
   salesId: string;
@@ -292,6 +307,7 @@ export interface CreateRFQResponse {
 }
 
 export interface UpdateRFQRequest {
+  referenceRfqId?: string | null;
   rfqTypeCode?: string;
   orderTypeCode: string;
   productFamily: string;
@@ -316,6 +332,14 @@ export interface RejectUrgentRFQRequest {
 
 export interface LinkRFQSalesOrderRequest {
   saleOrderId: string;
+  detailId?: number;
+  tierId?: number;
+  shippingMethod?: 'LAND' | 'SEA';
+  price?: number | null;
+  selections?: LinkRFQSalesOrderSelectionRequest[];
+}
+
+export interface LinkRFQSalesOrderSelectionRequest {
   detailId: number;
   tierId: number;
   shippingMethod: 'LAND' | 'SEA';
@@ -330,6 +354,7 @@ export interface CreateRFQDetailTierRequest {
   exchangeRate?: number | null;
   landFreightCost: number;
   seaFreightCost: number;
+  isFcl?: boolean | null;
   landTotalPrice: number;
   seaTotalPrice: number;
   supplierQuoteTierId?: number | null;
@@ -383,6 +408,11 @@ export interface RFQInquiryMessage {
 export interface GenerateRFQInquiryResponse {
   status: string;
   data?: RFQInquiryMessage;
+}
+
+export interface GenerateRFQInquiryTextResponse {
+  status: string;
+  data?: string;
 }
 
 export interface GenerateRFQInquiryRequest {
@@ -449,6 +479,9 @@ export interface UpsertRFQSupplierQuoteTierRequest {
   quantity: number;
   productPrice: number;
   shippingCost?: number | null;
+  commission?: number | null;
+  landTotalPrice?: number | null;
+  seaTotalPrice?: number | null;
   sortOrder: number;
   productPriceCurrency?: string | null;
   shippingCostCurrency?: string | null;
@@ -504,6 +537,7 @@ export interface UpsertRFQSupplierQuoteRequest {
   inquiryId?: string | null;
   status?: string;
   remark?: string | null;
+  recommend?: string | null;
   details: UpsertRFQSupplierQuoteDetailRequest[];
   additionalCosts: UpsertRFQSupplierQuoteAdditionalCostRequest[];
 }

@@ -32,6 +32,7 @@ import { ROUTE_PATHS } from 'routes';
 import { ReceiptRecord, ReceiptType, SearchReceiptRequest } from 'services/Receipt/receipt-type';
 import { searchReceipts } from 'services/Receipt/receipt-api';
 import { formatDate } from 'utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 
 const RECEIPT_STATUS_OPTIONS = ['ISSUED', 'CANCELLED', 'VOID'];
@@ -41,32 +42,6 @@ const RECEIPT_TYPE_OPTIONS: { value: ReceiptType; label: string }[] = [
   { value: 'RECEIPT_TAX_INVOICE', label: 'ใบเสร็จรับเงิน/ใบกำกับภาษี' },
   { value: 'DEPOSIT_TAX_INVOICE', label: 'ใบรับเงินมัดจำ/ใบกำกับภาษี' }
 ];
-
-function getReceiptStatusColor(status?: string) {
-  switch (status) {
-    case 'ISSUED':
-      return { backgroundColor: '#dcfce7', color: '#166534' };
-    case 'CANCELLED':
-      return { backgroundColor: '#fef3c7', color: '#92400e' };
-    case 'VOID':
-      return { backgroundColor: '#fee2e2', color: '#991b1b' };
-    default:
-      return { backgroundColor: '#e5e7eb', color: '#374151' };
-  }
-}
-
-function getReceiptStatusLabel(status?: string | null): string {
-  switch (status) {
-    case 'ISSUED':
-      return 'ออกเอกสารแล้ว';
-    case 'CANCELLED':
-      return 'ยกเลิก';
-    case 'VOID':
-      return 'Void';
-    default:
-      return status || '-';
-  }
-}
 
 export default function ReceiptManagement(): JSX.Element {
   const useStyles = makeStyles({
@@ -173,9 +148,9 @@ export default function ReceiptManagement(): JSX.Element {
           <Stack spacing={1} alignItems="center">
             <Typography variant="body2">{receipt.receiptNo}</Typography>
             <Chip
-              label={getReceiptStatusLabel(receipt.status)}
+              label={getDocumentStatusLabel(receipt.status, receipt.statusProfile)}
               size="small"
-              sx={{ ...getReceiptStatusColor(receipt.status), fontWeight: 700 }}
+              sx={getDocumentStatusChipSx(receipt.status, receipt.statusProfile)}
             />
           </Stack>
         </TableCell>
@@ -219,9 +194,9 @@ export default function ReceiptManagement(): JSX.Element {
                 {receipt.receiptNo}
               </Typography>
               <Chip
-                label={getReceiptStatusLabel(receipt.status)}
+                label={getDocumentStatusLabel(receipt.status, receipt.statusProfile)}
                 size="small"
-                sx={{ ...getReceiptStatusColor(receipt.status), fontWeight: 700 }}
+                sx={getDocumentStatusChipSx(receipt.status, receipt.statusProfile)}
               />
             </Stack>
             <Typography variant="body2" fontWeight={500}>
@@ -326,7 +301,7 @@ export default function ReceiptManagement(): JSX.Element {
               <MenuItem value="">ทั้งหมด</MenuItem>
               {RECEIPT_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status} value={status}>
-                  {getReceiptStatusLabel(status)}
+                  {getDocumentStatusLabel(status)}
                 </MenuItem>
               ))}
             </TextField>

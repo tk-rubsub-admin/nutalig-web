@@ -2,6 +2,7 @@ import { ArrowBackIos, DirectionsBoat, LocalShipping, Save } from '@mui/icons-ma
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   Divider,
   FormControlLabel,
@@ -43,6 +44,7 @@ import { getCustomer } from 'services/Customer/customer-api';
 import { Address, Contact, Customer, CustomerDropOff } from 'services/Customer/customer-type';
 import { getQuotation } from 'services/Document/document-api';
 import { Quotation } from 'services/Document/document-type';
+import { getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
 import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
 import { createSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
@@ -65,6 +67,7 @@ interface SaleOrderRFQItem {
   supplierQuoteTierId?: number;
   quotationDetailId?: number | string;
   shippingMethod: 'LAND' | 'SEA';
+  isFcl?: boolean;
   supplierCurrency?: string | null;
   supplierUnitPrice?: number | null;
   exchangeRate?: number | null;
@@ -84,6 +87,7 @@ interface SaleOrderRFQFormValues {
   isVat: boolean;
   discount: number;
   salesId: string;
+  coSaleId: string;
   docDate: dayjs.Dayjs | string;
   effectiveDate: dayjs.Dayjs | string;
   urgentOrder: boolean;
@@ -103,8 +107,15 @@ interface SaleOrderRFQFormValues {
   deliveryDate: string;
   sendingTime: string;
   notes: string;
-  selectedItemId: number | '';
+  requestCoa: boolean;
+  requestPo: boolean;
   items: SaleOrderRFQItem[];
+}
+
+interface SelectedRFQQueryItem {
+  detailId: number;
+  quotationDetailId: string;
+  shippingMethod: 'LAND' | 'SEA';
 }
 
 const fieldSx = {
@@ -232,6 +243,51 @@ function formatApiDate(value: dayjs.Dayjs | string): string | undefined {
   return date.isValid() ? date.format(DEFAULT_DATE_FORMAT_BFF) : undefined;
 }
 
+function getShippingDisplayLabel(
+  shippingMethod: 'LAND' | 'SEA',
+  isFcl?: boolean | null
+): string {
+  const shippingLabel = shippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
+
+  return shippingMethod === 'SEA' && Boolean(isFcl)
+    ? `${shippingLabel} แบบปิดตู้`
+    : shippingLabel;
+}
+
+function hasFclShippingTag(item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFcl' | 'name' | 'remark'>): boolean {
+  if (item.shippingMethod !== 'SEA') {
+    return false;
+  }
+
+  if (Boolean(item.isFcl)) {
+    return true;
+  }
+
+  return [item.name, item.remark].some((value) => String(value || '').includes('แบบปิดตู้'));
+}
+
+function buildPaymentTermRemark(baseRemark: string | null | undefined, customer?: Customer | null): string {
+  const normalizedBaseRemark = (baseRemark || '').trim();
+  const paymentTermLabel =
+    customer?.customerPaymentTerm?.nameTh ||
+    customer?.customerPaymentTerm?.nameEn ||
+    customer?.customerPaymentTerm?.code ||
+    '';
+
+  if (!paymentTermLabel) {
+    return normalizedBaseRemark;
+  }
+
+  const paymentTermPrefix = 'เงื่อนไขการชำระเงิน :';
+  const paymentTermLine = `${paymentTermPrefix} ${paymentTermLabel}`;
+
+  if (normalizedBaseRemark.includes(paymentTermPrefix)) {
+    return normalizedBaseRemark;
+  }
+
+  return [paymentTermLine, normalizedBaseRemark].filter(Boolean).join('\n');
+}
+
 function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
   const material = getRFQProductLabel(rfq.material);
   const productFamily = getRFQProductLabel(rfq.productFamily);
@@ -277,7 +333,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
       return (['LAND', 'SEA'] as const).map((shippingMethod, shippingIndex) => {
         const quantity = Number(tier.quantity || 1);
         const unitPrice = getShippingPrice(tier, shippingMethod);
-        const shippingLabel = shippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
+        const shippingDisplayLabel = getShippingDisplayLabel(shippingMethod, tier.isFcl);
 
         return {
           id: Number(`${detail.id}${tier.id}${shippingIndex}`),
@@ -285,6 +341,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           tierId: tier.id,
           supplierQuoteTierId: tier.supplierQuoteTierId || undefined,
           shippingMethod,
+          isFcl: Boolean(tier.isFcl),
           supplierCurrency: tier.currency || null,
           supplierUnitPrice: Number(tier.productPrice || 0),
           exchangeRate: Number(tier.exchangeRate || 0),
@@ -296,7 +353,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
             Number(shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0),
           name: `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
             quantity
-          )} - ${shippingLabel}`,
+          )} - ${shippingDisplayLabel}`,
           spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
           quantity,
           unitPrice,
@@ -306,7 +363,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
             `RFQ: ${rfq.id}`,
             `Option: ${detail.optionName || `Option ${optionIndex + 1}`}`,
             `MOQ: ${formatNumber(quantity)}`,
-            `Shipping: ${shippingLabel}`
+            `Shipping: ${shippingDisplayLabel}`
           ].join('\n')
         };
       });
@@ -435,6 +492,13 @@ function createSaleOrderItemsFromQuotation(
     const numericItemId = Number(item.id);
     const mappedDetail = rfq.details?.find((detail) => detail.id === mappedRow?.optionId);
     const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === mappedRow?.tierId);
+    const mappedShippingMethod = mappedRow?.shippingMethod || 'LAND';
+    const shippingDisplayLabel = getShippingDisplayLabel(mappedShippingMethod, mappedTier?.isFcl);
+    const normalizedItemName = item.name || productFamily || 'PRE-ORDER';
+    const itemNameWithShippingLabel =
+      normalizedItemName.includes(shippingDisplayLabel)
+        ? normalizedItemName
+        : `${normalizedItemName} - ${shippingDisplayLabel}`;
 
     return {
       id: Number.isFinite(numericItemId) ? numericItemId : mappedRow?.fallbackId || Date.now() + index,
@@ -442,29 +506,33 @@ function createSaleOrderItemsFromQuotation(
       tierId: mappedRow?.tierId,
       quotationDetailId: item.id,
       supplierQuoteTierId: mappedTier?.supplierQuoteTierId || undefined,
-      shippingMethod: mappedRow?.shippingMethod || 'LAND',
+      shippingMethod: mappedShippingMethod,
+      isFcl: Boolean(mappedTier?.isFcl),
       supplierCurrency: mappedTier?.currency || null,
       supplierUnitPrice: Number(mappedTier?.productPrice || 0),
       exchangeRate: Number(mappedTier?.exchangeRate || 0),
       supplierShippingCost: Number(
-        (mappedRow?.shippingMethod || 'LAND') === 'SEA'
+        mappedShippingMethod === 'SEA'
           ? mappedTier?.seaFreightCost || 0
           : mappedTier?.landFreightCost || 0
       ),
       supplierTotalUnitCost:
         Number(mappedTier?.productPrice || 0) +
         Number(
-          (mappedRow?.shippingMethod || 'LAND') === 'SEA'
+          mappedShippingMethod === 'SEA'
             ? mappedTier?.seaFreightCost || 0
             : mappedTier?.landFreightCost || 0
         ),
-      name: item.name || productFamily || 'PRE-ORDER',
+      name: itemNameWithShippingLabel,
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
       unitPrice: Number(item.unitPrice || 0),
       amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
-      totalFreight: getTotalFreight(mappedTier, mappedRow?.shippingMethod || 'LAND'),
-      remark: `RFQ: ${rfq.id}`
+      totalFreight: getTotalFreight(mappedTier, mappedShippingMethod),
+      remark: [
+        `RFQ: ${rfq.id}`,
+        `Shipping: ${shippingDisplayLabel}`
+      ].join('\n')
     };
   });
 }
@@ -523,18 +591,44 @@ export default function SalesOrderRFQ(): JSX.Element {
     }
   });
   const classes = useStyles();
-  const selectedRFQParams = useMemo(() => {
+  const selectedRFQParams = useMemo<SelectedRFQQueryItem[]>(() => {
     const params = new URLSearchParams(location.search);
+    const serializedItems = params.get('selectedItems');
 
-    return {
-      detailId: Number(params.get('detailId') || 0),
-      quotationDetailId: params.get('quotationDetailId') || '',
-      shippingMethod: params.get('shippingMethod') === 'SEA' ? 'SEA' : 'LAND'
-    };
+    if (serializedItems) {
+      try {
+        const parsedItems = JSON.parse(decodeURIComponent(serializedItems));
+
+        if (Array.isArray(parsedItems)) {
+          return parsedItems
+            .map((item) => ({
+              detailId: Number(item?.detailId || 0),
+              quotationDetailId: String(item?.quotationDetailId || ''),
+              shippingMethod: item?.shippingMethod === 'SEA' ? 'SEA' : 'LAND'
+            }))
+            .filter((item) => item.detailId && item.quotationDetailId);
+        }
+      } catch (error) {
+        console.error('Failed to parse selected RFQ items from query string', error);
+      }
+    }
+
+    const detailId = Number(params.get('detailId') || 0);
+    const quotationDetailId = params.get('quotationDetailId') || '';
+
+    if (!detailId || !quotationDetailId) {
+      return [];
+    }
+
+    return [
+      {
+        detailId,
+        quotationDetailId,
+        shippingMethod: params.get('shippingMethod') === 'SEA' ? 'SEA' : 'LAND'
+      }
+    ];
   }, [location.search]);
-  const hasSelectedRFQParams = Boolean(
-    selectedRFQParams.detailId && selectedRFQParams.quotationDetailId
-  );
+  const hasSelectedRFQParams = selectedRFQParams.length > 0;
 
   const { data: rfq, isFetching: isRFQFetching } = useQuery(
     ['sale-order-rfq', rfqId],
@@ -552,6 +646,11 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const { data: freelanceSales = [], isFetching: isFreelanceSalesFetching } = useQuery(
+    'sale-order-rfq-freelance-sales',
+    () => getFreelanceSales(),
+    { refetchOnWindowFocus: false }
+  );
   const imageUrl = getRFQImageUrl(rfq);
 
   const formik = useFormik<SaleOrderRFQFormValues>({
@@ -560,6 +659,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       isVat: false,
       discount: 0,
       salesId: '',
+      coSaleId: '',
       docDate: today,
       effectiveDate: today.add(7, 'day'),
       urgentOrder: false,
@@ -579,12 +679,12 @@ export default function SalesOrderRFQ(): JSX.Element {
       deliveryDate: today.format(DEFAULT_DATE_FORMAT),
       sendingTime: '',
       notes: '',
-      selectedItemId: '',
+      requestCoa: false,
+      requestPo: false,
       items: []
     },
     validationSchema: Yup.object({
       customerId: Yup.string().required(),
-      selectedItemId: Yup.mixed().required(),
       deliveryDate: Yup.string().required()
     }),
     onSubmit: () => undefined
@@ -594,29 +694,30 @@ export default function SalesOrderRFQ(): JSX.Element {
     const errors = await formik.validateForm();
     formik.setTouched({
       customerId: true,
-      selectedItemId: true,
       deliveryDate: true
     });
 
     if (Object.keys(errors).length) return;
 
-    const selectedItem = formik.values.items.find(
-      (item) => item.id === Number(formik.values.selectedItemId)
-    );
+    const selectedItems = formik.values.items.filter((item) => Number(item.quantity || 0) > 0);
 
-    if (!selectedItem) {
+    if (!selectedItems.length) {
       toast.error('กรุณาเลือกรายการสินค้าจาก RFQ');
       return;
     }
 
-    const selectedDetail = rfq?.details?.find((detail) => detail.id === selectedRFQParams.detailId);
-    const supplierId =
-      getRFQDetailSupplierId(selectedDetail) ||
-      rfq?.finalSupplier?.supplierId ||
-      rfq?.finalSupplier?.id ||
-      formik.values.supplierId;
+    const fallbackSupplierId =
+      rfq?.finalSupplier?.supplierId || rfq?.finalSupplier?.id || formik.values.supplierId;
 
-    if (!supplierId) {
+    if (
+      selectedItems.some(
+        (item) =>
+          !(
+            getRFQDetailSupplierId(rfq?.details?.find((detail) => detail.id === item.optionId)) ||
+            fallbackSupplierId
+          )
+      )
+    ) {
       toast.error('ไม่พบข้อมูล Supplier สำหรับสร้าง Sales Order');
       return;
     }
@@ -630,34 +731,41 @@ export default function SalesOrderRFQ(): JSX.Element {
       customerAddressId: formik.values.customerAddressId,
       customerContactId: formik.values.customerContactId,
       salesId: formik.values.salesId,
+      coSaleId: formik.values.coSaleId || undefined,
       discount: 0,
-      freight: Number(selectedItem.totalFreight || 0),
+      freight: selectedItems.reduce((sum, item) => sum + Number(item.totalFreight || 0), 0),
       isVat: formik.values.isVat,
-      shippingType: selectedItem.shippingMethod,
+      shippingType:
+        new Set(selectedItems.map((item) => item.shippingMethod)).size > 1
+          ? 'ALL'
+          : selectedItems[0]?.shippingMethod,
+      requestCoa: formik.values.requestCoa,
+      requestPo: formik.values.requestPo,
       remark: formik.values.notes,
-      items: [
-        {
-          supplierId,
-          name: selectedItem.name,
-          capacity: rfq?.capacity || null,
-          spec: selectedItem.spec,
-          unitPrice: selectedItem.unitPrice,
-          quantity: selectedItem.quantity,
-          imageUrl,
-          rfqDetailId: selectedItem.optionId,
-          rfqTierId: selectedItem.tierId,
-          quotationDetailId: selectedItem.quotationDetailId
-            ? Number(selectedItem.quotationDetailId)
-            : null,
-          shippingMethod: selectedItem.shippingMethod,
-          supplierCurrency: selectedItem.supplierCurrency || null,
-          supplierUnitPrice: selectedItem.supplierUnitPrice ?? null,
-          exchangeRate: selectedItem.exchangeRate ?? null,
-          supplierShippingCost: selectedItem.supplierShippingCost ?? null,
-          supplierTotalUnitCost: selectedItem.supplierTotalUnitCost ?? null,
-          supplierQuoteTierId: selectedItem.supplierQuoteTierId
-        }
-      ]
+      items: selectedItems.map((selectedItem) => ({
+        supplierId:
+          getRFQDetailSupplierId(
+            rfq?.details?.find((detail) => detail.id === selectedItem.optionId)
+          ) || fallbackSupplierId,
+        name: selectedItem.name,
+        capacity: rfq?.capacity || null,
+        spec: selectedItem.spec,
+        unitPrice: selectedItem.unitPrice,
+        quantity: selectedItem.quantity,
+        imageUrl,
+        rfqDetailId: selectedItem.optionId,
+        rfqTierId: selectedItem.tierId,
+        quotationDetailId: selectedItem.quotationDetailId
+          ? Number(selectedItem.quotationDetailId)
+          : null,
+        shippingMethod: selectedItem.shippingMethod,
+        supplierCurrency: selectedItem.supplierCurrency || null,
+        supplierUnitPrice: selectedItem.supplierUnitPrice ?? null,
+        exchangeRate: selectedItem.exchangeRate ?? null,
+        supplierShippingCost: selectedItem.supplierShippingCost ?? null,
+        supplierTotalUnitCost: selectedItem.supplierTotalUnitCost ?? null,
+        supplierQuoteTierId: selectedItem.supplierQuoteTierId
+      }))
     };
 
     setIsLoading(true);
@@ -670,13 +778,23 @@ export default function SalesOrderRFQ(): JSX.Element {
       });
       const saleOrderId = getCreatedSaleOrderId(response);
 
-      if (saleOrderId && selectedItem.optionId && selectedItem.tierId) {
+      const linkSelections = selectedItems
+        .filter((item) => item.optionId && item.tierId)
+        .map((item) => ({
+          detailId: Number(item.optionId),
+          tierId: Number(item.tierId),
+          shippingMethod: item.shippingMethod,
+          price: item.unitPrice
+        }));
+
+      if (saleOrderId && linkSelections.length) {
         await linkRFQSalesOrder(rfqId, {
           saleOrderId,
-          detailId: selectedItem.optionId,
-          tierId: selectedItem.tierId,
-          shippingMethod: selectedItem.shippingMethod,
-          price: selectedItem.unitPrice
+          detailId: linkSelections[0].detailId,
+          tierId: linkSelections[0].tierId,
+          shippingMethod: linkSelections[0].shippingMethod,
+          price: linkSelections[0].price,
+          selections: linkSelections
         });
       }
 
@@ -697,19 +815,17 @@ export default function SalesOrderRFQ(): JSX.Element {
       const allItems = quotation
         ? createSaleOrderItemsFromQuotation(rfq, quotation?.data)
         : createSaleOrderItemsFromRFQ(rfq);
-      const selectedItemFromDialog =
-        allItems.find(
-          (item) =>
-            item.optionId === selectedRFQParams.detailId &&
-            String(item.quotationDetailId || '') === String(selectedRFQParams.quotationDetailId) &&
-            item.shippingMethod === selectedRFQParams.shippingMethod
-        ) || null;
+      const selectedItemFromDialog = allItems.filter((item) =>
+        selectedRFQParams.some(
+          (selectedItem) =>
+            item.optionId === selectedItem.detailId &&
+            String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId) &&
+            item.shippingMethod === selectedItem.shippingMethod
+        )
+      );
       const items = hasSelectedRFQParams
         ? selectedItemFromDialog
-          ? [selectedItemFromDialog]
-          : []
         : allItems.slice(0, 1);
-      const preselectedItem = items[0];
       let fullCustomer: Customer | null = null;
       let defaultDropOff: CustomerDropOff | null = null;
 
@@ -733,8 +849,8 @@ export default function SalesOrderRFQ(): JSX.Element {
         customerContacts.find((contact) => contact.contactName === rfq.contactName) ||
         customerContacts.find((contact) => contact.isDefault) ||
         customerContacts[0];
-      const selectedDetail = rfq.details?.find(
-        (detail) => detail.id === selectedRFQParams.detailId
+      const primarySelectedDetail = rfq.details?.find(
+        (detail) => detail.id === items[0]?.optionId
       );
 
       setCustomer(fullCustomer || (rfq.customer as Customer) || null);
@@ -742,6 +858,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         ...formik.values,
         rfqId,
         salesId: getRFQSalesEmployeeId(rfq.sales),
+        coSaleId: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount || '',
         customerId: rfq.customer?.id || '',
         customerAddressId: defaultAddress?.id || '',
         customerContactId: defaultContact?.id || '',
@@ -750,13 +867,20 @@ export default function SalesOrderRFQ(): JSX.Element {
         creditTerm: fullCustomer?.customerCreditTerm?.code || '',
         dropOffId: defaultDropOff?.id || '',
         dropOffName: defaultDropOff?.dropOffName || '',
-        supplierId: getRFQDetailSupplierId(selectedDetail) || defaultDropOff?.supplier?.supplierId || '',
+        supplierId:
+          getRFQDetailSupplierId(primarySelectedDetail) ||
+          defaultDropOff?.supplier?.supplierId ||
+          '',
         areaType: getSystemConfigLabel(defaultDropOff?.area),
         provinceId: defaultDropOff?.province?.id || '',
         amphureId: defaultDropOff?.amphure?.id || '',
         orderMakerId: getRFQSalesEmployeeId(rfq.sales),
-        notes: rfq.finalRemark || rfq.description || `สร้างจาก RFQ ${rfq.id}`,
-        selectedItemId: preselectedItem?.id || '',
+        notes: buildPaymentTermRemark(
+          rfq.finalRemark || rfq.description || `สร้างจาก RFQ ${rfq.id}`,
+          fullCustomer || (rfq.customer as Customer) || null
+        ),
+        requestCoa: false,
+        requestPo: false,
         items
       });
     };
@@ -766,34 +890,53 @@ export default function SalesOrderRFQ(): JSX.Element {
     rfq,
     quotation,
     hasSelectedRFQParams,
-    selectedRFQParams.detailId,
-    selectedRFQParams.quotationDetailId,
-    selectedRFQParams.shippingMethod,
+    selectedRFQParams,
   ]);
-
-  const selectedItem = useMemo(
-    () => formik.values.items.find((item) => item.id === Number(formik.values.selectedItemId)),
-    [formik.values.items, formik.values.selectedItemId]
-  );
   const summaryShippingOptions = useMemo(() => {
-    if (!selectedItem) return [];
-
-    return [
+    const shippingSummary = new Map<
+      string,
       {
-        shippingMethod: selectedItem.shippingMethod,
-        label: getShippingMethodLabel(selectedItem.shippingMethod),
-        icon: getShippingMethodIcon(selectedItem.shippingMethod),
-        color: getShippingMethodColor(selectedItem.shippingMethod),
-        unitPrice: selectedItem.unitPrice,
-        quantity: selectedItem.quantity,
-        amount: selectedItem.amount,
-        isSelected: true
+        key: string;
+        shippingMethod: 'LAND' | 'SEA';
+        isFcl: boolean;
+        label: string;
+        icon: JSX.Element | null;
+        color: string;
+        unitPrice: number;
+        quantity: number;
+        amount: number;
+        isSelected: boolean;
       }
-    ];
-  }, [
-    selectedItem
-  ]);
-  const subtotal = selectedItem?.amount || 0;
+    >();
+
+    formik.values.items.forEach((item) => {
+      const isFcl = hasFclShippingTag(item);
+      const summaryKey = `${item.shippingMethod}:${isFcl ? 'FCL' : 'NORMAL'}`;
+      const currentSummary = shippingSummary.get(summaryKey);
+
+      if (currentSummary) {
+        currentSummary.quantity += Number(item.quantity || 0);
+        currentSummary.amount += Number(item.amount || 0);
+        return;
+      }
+
+      shippingSummary.set(summaryKey, {
+        key: summaryKey,
+        shippingMethod: item.shippingMethod,
+        isFcl,
+        label: getShippingDisplayLabel(item.shippingMethod, isFcl),
+        icon: getShippingMethodIcon(item.shippingMethod),
+        color: getShippingMethodColor(item.shippingMethod),
+        unitPrice: Number(item.unitPrice || 0),
+        quantity: Number(item.quantity || 0),
+        amount: Number(item.amount || 0),
+        isSelected: true
+      });
+    });
+
+    return Array.from(shippingSummary.values());
+  }, [formik.values.items]);
+  const subtotal = formik.values.items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const discount = Number(formik.values.discount || 0);
   const taxableAmount = Math.max(subtotal - discount, 0);
   const vatRate = 0.07;
@@ -804,7 +947,7 @@ export default function SalesOrderRFQ(): JSX.Element {
     formik.values.deliveryDate && formik.values.orderMakerId
   );
   const isCustomerSectionCompleted = Boolean(formik.values.customerId);
-  const isItemSectionCompleted = Boolean(selectedItem && selectedItem.quantity > 0);
+  const isItemSectionCompleted = formik.values.items.some((item) => Number(item.quantity || 0) > 0);
   const isFormCompleted =
     isGeneralSectionCompleted && isCustomerSectionCompleted && isItemSectionCompleted;
 
@@ -955,6 +1098,31 @@ export default function SalesOrderRFQ(): JSX.Element {
           <GridTextField item sm={6} />
 
           <GridTextField item xs={12} sm={6}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formik.values.requestCoa}
+                    onChange={(event) => formik.setFieldValue('requestCoa', event.target.checked)}
+                  />
+                }
+                label="Request COA"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formik.values.requestPo}
+                    onChange={(event) => formik.setFieldValue('requestPo', event.target.checked)}
+                  />
+                }
+                label="Request PO"
+              />
+            </Stack>
+          </GridTextField>
+
+          <GridTextField item sm={6} />
+
+          <GridTextField item xs={12} sm={6}>
             <TextField
               fullWidth
               label="เซลล์ที่ดูแล"
@@ -962,6 +1130,25 @@ export default function SalesOrderRFQ(): JSX.Element {
               InputLabelProps={{ shrink: true }}
               InputProps={{ readOnly: true }}
             />
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
+              label="เซลล์นอก/เซลล์ฟรีแลนซ์"
+              value={formik.values.coSaleId || ''}
+              disabled={isFreelanceSalesFetching}
+              onChange={(event) => formik.setFieldValue('coSaleId', event.target.value)}
+              InputLabelProps={{ shrink: true }}
+            >
+              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+              {freelanceSales.map((option) => (
+                <MenuItem key={option.id} value={option.id}>
+                  {`${option.id} - ${option.name}`}
+                </MenuItem>
+              ))}
+            </TextField>
           </GridTextField>
         </Grid>
       </CollapsibleWrapper>
@@ -1221,7 +1408,7 @@ export default function SalesOrderRFQ(): JSX.Element {
           <Grid item xs={12}>
             <Grid container spacing={1.5}>
               {summaryShippingOptions.map((option) => (
-                <Grid item xs={12} sm={6} key={option.shippingMethod}>
+                <Grid item xs={12} sm={6} key={option.key}>
                   <Paper
                     elevation={0}
                     sx={{

@@ -5,6 +5,7 @@ import {
   FilePresent,
   Menu as MenuIcon,
   NoteAdd,
+  NotificationsActive,
   Payment
 } from '@mui/icons-material';
 import {
@@ -32,6 +33,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
+import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -51,13 +53,24 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
-import { getInvoice, receiveInvoicePayment, viewInvoice } from 'services/Invoice/invoice-api';
-import { viewReceipt } from 'services/Receipt/receipt-api';
+import {
+  getInvoice,
+  receiveInvoicePayment,
+  sendAwaitingValidationNotification,
+  viewInvoice
+} from 'services/Invoice/invoice-api';
+import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
+import { ReceiptRecord } from 'services/Receipt/receipt-type';
 import { InvoiceItem, InvoiceRecord } from 'services/Invoice/invoice-type';
+import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
+import { SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
+import Can from 'auth/Can';
+import { PERMISSIONS } from 'auth/permissions';
 
 interface InvoiceDetailParams {
   id: string;
@@ -217,6 +230,37 @@ export default function InvoiceDetail(): ReactElement {
     refetchOnWindowFocus: false
   });
 
+  const {
+    data: relatedReceiptsResponse,
+    isFetching: isReceiptFlowFetching
+  } = useQuery(
+    ['invoice-receipts', invoice?.invoiceNo],
+    () =>
+      searchReceipts(
+        {
+          keyword: invoice?.invoiceNo
+        },
+        1,
+        10
+      ),
+    {
+      enabled: Boolean(invoice?.invoiceNo),
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const {
+    data: relatedSalesOrder,
+    isFetching: isSalesOrderFlowFetching
+  } = useQuery(
+    ['invoice-sales-order', invoice?.salesOrderNo],
+    () => getSalesOrderV1(invoice?.salesOrderNo as string),
+    {
+      enabled: Boolean(invoice?.salesOrderNo),
+      refetchOnWindowFocus: false
+    }
+  );
+
   const summary = useMemo(() => {
     return {
       subTotal: Number(invoice?.subTotal || 0),
@@ -232,6 +276,51 @@ export default function InvoiceDetail(): ReactElement {
   const isReceivePaymentEnabled = Boolean(
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
   );
+  const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
+  const latestReceipt =
+    relatedReceipts.find((record) => record.invoiceNo === invoice?.invoiceNo) || relatedReceipts[0] || null;
+
+  const documentFlowItems: DocumentFlowItem[] = [
+    {
+      title: 'ใบเสนอราคา',
+      docNo: invoice?.quotationNo || null,
+      statusProfile: undefined,
+      onOpen: invoice?.quotationNo
+        ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', invoice.quotationNo as string), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบยืนยันสั่งซื้อ',
+      docNo: invoice?.salesOrderNo || null,
+      status: relatedSalesOrder?.status || null,
+      statusProfile: relatedSalesOrder?.statusProfile,
+      isLoading: isSalesOrderFlowFetching,
+      onOpen: invoice?.salesOrderNo
+        ? () => window.open(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', invoice.salesOrderNo as string), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบแจ้งหนี้',
+      docNo: invoice?.invoiceNo || null,
+      status: invoice?.status || null,
+      statusProfile: invoice?.statusProfile,
+      isCurrent: true,
+      onOpen: invoice?.invoiceNo
+        ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', invoice.invoiceNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบเสร็จรับเงิน',
+      docNo: latestReceipt?.receiptNo || null,
+      status: latestReceipt?.status || null,
+      statusProfile: latestReceipt?.statusProfile,
+      count: relatedReceipts.length > 1 ? relatedReceipts.length : undefined,
+      isLoading: isReceiptFlowFetching,
+      onOpen: latestReceipt?.receiptNo
+        ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', latestReceipt.receiptNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    }
+  ];
 
   const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history') => {
     setTab(value);
@@ -287,14 +376,13 @@ export default function InvoiceDetail(): ReactElement {
       formData.append('slipFile', paymentSlipFiles[0]);
     }
 
-    toast.promise(receiveInvoicePayment(invoice.invoiceNo, formData), {
+    void toast.promise(receiveInvoicePayment(invoice.invoiceNo, formData), {
       loading: t('toast.loading'),
-      success: async () => {
-        setReceivePaymentDialogOpen(false);
-        await Promise.all([refetchInvoice(), refetchActivityHistory()]);
-        return t('toast.success');
-      },
+      success: () => t('toast.success'),
       error: (error) => error?.response?.data?.message || t('toast.failed')
+    }).then(async () => {
+      setReceivePaymentDialogOpen(false);
+      await Promise.all([refetchInvoice(), refetchActivityHistory()]);
     });
   };
 
@@ -358,6 +446,19 @@ export default function InvoiceDetail(): ReactElement {
     });
   };
 
+  const handleSendAwaitingValidationNotification = async (paymentId: number) => {
+    if (!invoice?.invoiceNo) {
+      return;
+    }
+
+    await toast.promise(sendAwaitingValidationNotification(invoice.invoiceNo, paymentId), {
+      loading: t('toast.loading'),
+      success: () => t('toast.success'),
+      error: (error) => error?.response?.data?.message || t('toast.failed')
+    });
+    await Promise.all([refetchInvoice(), refetchActivityHistory()]);
+  };
+
   return (
     <Page>
       <LoadingDialog open={isFetching || isActivityHistoryFetching} />
@@ -367,7 +468,13 @@ export default function InvoiceDetail(): ReactElement {
             ? `ใบแจ้งหนี้เลขที่ ${invoice.invoiceNo}`
             : t('documentManagement.invoice.title')
         }>
-        {invoice?.status ? <Chip label={invoice.status} size="small" /> : null}
+        {invoice?.status ? (
+          <Chip
+            label={getDocumentStatusLabel(invoice.status, invoice.statusProfile)}
+            size="small"
+            sx={getDocumentStatusChipSx(invoice.status, invoice.statusProfile)}
+          />
+        ) : null}
       </PageTitle>
       <Wrapper>
         <Stack
@@ -411,15 +518,17 @@ export default function InvoiceDetail(): ReactElement {
               </ListItemIcon>
               <ListItemText primary="ดูใบแจ้งหนี้" />
             </MenuItem>
-            <MenuItem
-              onClick={handleOpenReceivePaymentDialog}
-              disabled={!isReceivePaymentEnabled}
-              sx={{ width: '100%' }}>
-              <ListItemIcon>
-                <Payment fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="รับชำระเงิน" />
-            </MenuItem>
+            <Can permission={PERMISSIONS.RECEIVE_PAYMENT}>
+              <MenuItem
+                onClick={handleOpenReceivePaymentDialog}
+                disabled={!isReceivePaymentEnabled}
+                sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <Payment fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="รับชำระเงิน" />
+              </MenuItem>
+            </Can>
             <MenuItem
               onClick={handleSelectEditInvoice}
               disabled={!isReceivePaymentEnabled}
@@ -439,6 +548,8 @@ export default function InvoiceDetail(): ReactElement {
             {t('button.back')}
           </Button>
         </Stack>
+
+        <DocumentFlow items={documentFlowItems} />
 
         <Box
           sx={{
@@ -526,7 +637,7 @@ export default function InvoiceDetail(): ReactElement {
                   />
                   <Info
                     label={t('documentManagement.invoice.salesSection.status')}
-                    value={invoice?.status}
+                    value={getDocumentStatusLabel(invoice?.status, invoice?.statusProfile)}
                   />
                 </Stack>
               </Grid>
@@ -753,6 +864,18 @@ export default function InvoiceDetail(): ReactElement {
                                     </Button>
                                   </Tooltip>
                                 )}
+                                {invoice.status === 'AWAITING_VALIDATION' ? (
+                                  <Tooltip title="ส่งแจ้งเตือน">
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      onClick={() => {
+                                        void handleSendAwaitingValidationNotification(payment.id);
+                                      }}>
+                                      <NotificationsActive />
+                                    </Button>
+                                  </Tooltip>
+                                ) : null}
                               </TableCell>
                             </TableRow>
                           ))}

@@ -3,6 +3,7 @@ import {
   ArrowDropDown,
   AssignmentTurnedIn,
   Cancel,
+  DeleteOutline,
   Description,
   FilePresent,
   Menu as MenuIcon,
@@ -41,6 +42,7 @@ import { makeStyles } from '@mui/styles';
 import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
+import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -62,13 +64,17 @@ import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
-import { viewReceipt } from 'services/Receipt/receipt-api';
+import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
+import { ReceiptRecord } from 'services/Receipt/receipt-type';
 import {
   getSalesOrderV1,
+  deleteSalesOrderAttachment,
   updateSalesOrderV1,
-  downloadSaleOrder
+  downloadSaleOrder,
+  uploadSalesOrderAttachments
 } from 'services/SaleOrder/sale-order-api';
 import {
+  SalesOrderAttachment,
   SalesOrderDetailV1,
   SalesOrderV1,
   UpdateSalesOrderRequestV1
@@ -76,6 +82,7 @@ import {
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 
 interface SalesOrderDetailParams {
@@ -91,7 +98,10 @@ interface SalesOrderDraft {
   freight: number;
   amount: number;
   commission: number;
+  coSaleCommission: number;
   isVat: boolean;
+  requestCoa: boolean;
+  requestPo: boolean;
   remark: string;
   items: SalesOrderDetailV1[];
 }
@@ -131,6 +141,10 @@ function getShippingTypeLabel(shippingType?: string | null): string {
 
   if (shippingType === 'SEA') {
     return 'ทางเรือ';
+  }
+
+  if (shippingType === 'FULL_CONTAINER_LOAD') {
+    return 'ทางเรือแบบปิดตู้';
   }
 
   return shippingType;
@@ -190,7 +204,12 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     shippingType: salesOrder?.shippingType || '',
     discount: Number(salesOrder?.discount || 0),
     freight: Number(salesOrder?.freight || 0),
+    amount: Number(salesOrder?.amount || 0),
+    commission: Number(salesOrder?.commission || 0),
+    coSaleCommission: Number(salesOrder?.coSaleCommission || 0),
     isVat: Number(salesOrder?.vatRate || 0) > 0,
+    requestCoa: Boolean(salesOrder?.requestCoa),
+    requestPo: Boolean(salesOrder?.requestPo),
     remark: salesOrder?.remark || '',
     items: (salesOrder?.items || []).map((item) => ({ ...item }))
   };
@@ -271,6 +290,25 @@ export default function SalesOrderDetail(): ReactElement {
     }
   );
 
+  const {
+    data: relatedReceiptsResponse,
+    isFetching: isReceiptFlowFetching
+  } = useQuery(
+    ['sales-order-receipts', salesOrder?.salesOrderNo],
+    () =>
+      searchReceipts(
+        {
+          keyword: salesOrder?.salesOrderNo
+        },
+        1,
+        10
+      ),
+    {
+      enabled: Boolean(salesOrder?.salesOrderNo),
+      refetchOnWindowFocus: false
+    }
+  );
+
   useEffect(() => {
     setDraft(createDraft(salesOrder));
     setIsEditing(false);
@@ -278,6 +316,59 @@ export default function SalesOrderDetail(): ReactElement {
 
   const displayItems = isEditing ? draft.items : salesOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
+  const canManageSalesOrderAttachments =
+    salesOrder?.status !== 'CANCELLED' && salesOrder?.status !== 'REJECTED';
+  const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
+  const latestInvoice = relatedInvoices[0] || null;
+  const latestReceipt =
+    relatedReceipts.find((record) => record.salesOrderNo === salesOrder?.salesOrderNo) ||
+    relatedReceipts[0] ||
+    null;
+  const quotationNo = latestInvoice?.quotationNo || latestReceipt?.quotationNo || null;
+
+  const documentFlowItems: DocumentFlowItem[] = [
+    {
+      title: 'ใบเสนอราคา',
+      docNo: quotationNo,
+      status: latestInvoice?.status || latestReceipt?.status || null,
+      statusProfile: latestInvoice?.statusProfile || latestReceipt?.statusProfile,
+      onOpen: quotationNo
+        ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบยืนยันสั่งซื้อ',
+      docNo: salesOrder?.salesOrderNo || null,
+      status: salesOrder?.status || null,
+      statusProfile: salesOrder?.statusProfile,
+      isCurrent: true,
+      onOpen: salesOrder?.salesOrderNo
+        ? () => window.open(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบแจ้งหนี้',
+      docNo: latestInvoice?.invoiceNo || null,
+      status: latestInvoice?.status || null,
+      statusProfile: latestInvoice?.statusProfile,
+      count: relatedInvoices.length > 1 ? relatedInvoices.length : undefined,
+      isLoading: isInvoicePaymentsFetching,
+      onOpen: latestInvoice?.invoiceNo
+        ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', latestInvoice.invoiceNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
+      title: 'ใบเสร็จรับเงิน',
+      docNo: latestReceipt?.receiptNo || null,
+      status: latestReceipt?.status || null,
+      statusProfile: latestReceipt?.statusProfile,
+      count: relatedReceipts.length > 1 ? relatedReceipts.length : undefined,
+      isLoading: isReceiptFlowFetching,
+      onOpen: latestReceipt?.receiptNo
+        ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', latestReceipt.receiptNo), '_blank', 'noopener,noreferrer')
+        : undefined
+    }
+  ];
 
   const summary = useMemo(() => {
     const subTotal = displayItems.reduce((sum, item) => {
@@ -469,8 +560,11 @@ export default function SalesOrderDetail(): ReactElement {
       freight: Number(draft.freight || 0),
       amount: Number(draft.amount || 0),
       commission: Number(draft.commission || 0),
+      coSaleCommission: draft.coSaleId ? Number(draft.coSaleCommission || 0) : null,
       isVat: draft.isVat,
       shippingType: draft.shippingType || null,
+      requestCoa: draft.requestCoa,
+      requestPo: draft.requestPo,
       remark: draft.remark,
       items: draft.items.map((item) => ({
         id: item.id,
@@ -510,6 +604,44 @@ export default function SalesOrderDetail(): ReactElement {
     }
   };
 
+  const handleUploadAttachments = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!salesOrder?.salesOrderNo || !event.target.files?.length) {
+      return;
+    }
+
+    const files = Array.from(event.target.files);
+    setIsSaving(true);
+    try {
+      await toast.promise(uploadSalesOrderAttachments(salesOrder.salesOrderNo, files), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+      await Promise.all([refetch(), refetchHistory()]);
+    } finally {
+      event.target.value = '';
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(deleteSalesOrderAttachment(salesOrder.salesOrderNo, attachmentId), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+      await Promise.all([refetch(), refetchHistory()]);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Page>
       <LoadingDialog open={isFetching || isActivityHistoryFetching || isInvoicePaymentsFetching || isSaving} />
@@ -519,7 +651,13 @@ export default function SalesOrderDetail(): ReactElement {
             ? `ใบยืนยันสั่งซื้อเลขที่ ${salesOrder.salesOrderNo}`
             : 'ใบยืนยันสั่งซื้อ'
         }>
-        {salesOrder?.status ? <Chip label={salesOrder.status} size="small" /> : null}
+        {salesOrder?.status ? (
+          <Chip
+            label={getDocumentStatusLabel(salesOrder.status, salesOrder.statusProfile)}
+            size="small"
+            sx={getDocumentStatusChipSx(salesOrder.status, salesOrder.statusProfile)}
+          />
+        ) : null}
       </PageTitle>
       <Wrapper>
         <Stack
@@ -557,29 +695,19 @@ export default function SalesOrderDetail(): ReactElement {
               }
             }}
             keepMounted>
-            {isEditing ? (
+            {
               <>
-                <MenuItem
-                  onClick={() => {
-                    handleCloseActionMenu();
-                    void handleSave();
-                  }}
-                  disabled={isSaving}
-                  sx={{ width: '100%' }}>
-                  <ListItemIcon>
-                    <Save fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={t('button.save')} />
-                </MenuItem>
-                <MenuItem onClick={handleCancel} disabled={isSaving} sx={{ width: '100%' }}>
-                  <ListItemIcon>
-                    <Cancel fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={t('button.cancel')} />
-                </MenuItem>
-              </>
-            ) : (
-              <>
+                <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
+                  <MenuItem
+                    onClick={handleSelectEdit}
+                    disabled={!salesOrder}
+                    sx={{ width: '100%' }}>
+                    <ListItemIcon>
+                      <IoPencil />
+                    </ListItemIcon>
+                    <ListItemText primary="แก้ไขใบสั่งซื้อ" />
+                  </MenuItem>
+                </Can>
                 <MenuItem
                   onClick={handleDownloadSalesOrder}
                   disabled={!salesOrder}
@@ -611,19 +739,8 @@ export default function SalesOrderDetail(): ReactElement {
                     <ListItemText primary={t('documentManagement.invoice.createPOMenu')} />
                   </MenuItem>
                 </Can>
-                <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
-                  <MenuItem
-                    onClick={handleSelectEdit}
-                    disabled={!salesOrder}
-                    sx={{ width: '100%' }}>
-                    <ListItemIcon>
-                      <IoPencil />
-                    </ListItemIcon>
-                    <ListItemText primary="แก้ไขใบสั่งซื้อ" />
-                  </MenuItem>
-                </Can>
               </>
-            )}
+            }
           </Menu>
           <Button
             fullWidth={isDownSm}
@@ -634,6 +751,8 @@ export default function SalesOrderDetail(): ReactElement {
             {t('button.back')}
           </Button>
         </Stack>
+
+        <DocumentFlow items={documentFlowItems} />
 
         <Box
           sx={{
@@ -659,6 +778,39 @@ export default function SalesOrderDetail(): ReactElement {
             <Tab value="paymentHistory" label="ประวัติการชำระเงิน" />
           </Tabs>
         </Box>
+
+        {isEditing ? (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            useFlexGap
+            sx={{
+              justifyContent: 'flex-end',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              mt: 2
+            }}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-cool-grey"
+              startIcon={<Cancel />}
+              onClick={handleCancel}
+              disabled={isSaving}>
+              {t('button.cancel')}
+            </Button>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              startIcon={<Save />}
+              onClick={() => {
+                void handleSave();
+              }}
+              disabled={isSaving}>
+              {t('button.save')}
+            </Button>
+          </Stack>
+        ) : null}
 
         <TabPanel value="detail" currentTab={tab}>
           <>
@@ -689,7 +841,10 @@ export default function SalesOrderDetail(): ReactElement {
                   ) : (
                     <Info label="วันที่หมดอายุ" value={salesOrder?.expireDate} />
                   )}
-                  <Info label="สถานะ" value={salesOrder?.status} />
+                  <Info
+                    label="สถานะ"
+                    value={getDocumentStatusLabel(salesOrder?.status, salesOrder?.statusProfile)}
+                  />
                   <Info
                     label="สถานะจัดซื้อ"
                     value={getProcurementStatusLabel(salesOrder?.procurementStatus)}
@@ -703,6 +858,7 @@ export default function SalesOrderDetail(): ReactElement {
                       onChange={(event) => updateDraftField('shippingType', event.target.value)}>
                       <MenuItem value="LAND">ทางรถ</MenuItem>
                       <MenuItem value="SEA">ทางเรือ</MenuItem>
+                      <MenuItem value="FULL_CONTAINER_LOAD">ทางเรือแบบปิดตู้</MenuItem>
                     </TextField>
                   ) : (
                     <Info
@@ -772,6 +928,38 @@ export default function SalesOrderDetail(): ReactElement {
                     <Info
                       label="VAT"
                       value={Number(salesOrder?.vatRate || 0) > 0 ? 'รวม VAT' : 'ไม่รวม VAT'}
+                    />
+                  )}
+                  {isEditing ? (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={draft.requestCoa}
+                          onChange={(event) => updateDraftField('requestCoa', event.target.checked)}
+                        />
+                      }
+                      label="Request COA"
+                    />
+                  ) : (
+                    <Info
+                      label="Request COA"
+                      value={salesOrder?.requestCoa ? 'ใช่' : 'ไม่ใช่'}
+                    />
+                  )}
+                  {isEditing ? (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={draft.requestPo}
+                          onChange={(event) => updateDraftField('requestPo', event.target.checked)}
+                        />
+                      }
+                      label="Request PO"
+                    />
+                  ) : (
+                    <Info
+                      label="Request PO"
+                      value={salesOrder?.requestPo ? 'ใช่' : 'ไม่ใช่'}
                     />
                   )}
                 </Stack>
@@ -1002,6 +1190,51 @@ export default function SalesOrderDetail(): ReactElement {
                       </Typography>
                     </Stack>
                   )}
+                  {(isEditing ? draft.coSaleId : salesOrder?.coSaleId) ? (
+                    isEditing ? (
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        spacing={2}>
+                        <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                          ค่าคอมเซลล์นอก
+                        </Typography>
+                        <TextField
+                          type="number"
+                          value={draft.coSaleCommission}
+                          onChange={(event) => {
+                            const rawValue = event.target.value;
+                            const parsedValue = Math.trunc(Number(rawValue || 0));
+                            const safeValue = Number.isNaN(parsedValue) ? 0 : parsedValue;
+                            updateDraftField('coSaleCommission', safeValue);
+                          }}
+                          inputProps={{
+                            step: 1
+                          }}
+                          sx={{
+                            width: { xs: '100%', sm: 180 },
+                            '& .MuiInputBase-input': {
+                              textAlign: 'right'
+                            }
+                          }}
+                        />
+                      </Stack>
+                    ) : (
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        spacing={2}>
+                        <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                          ค่าคอมเซลล์นอก
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {salesOrder?.coSaleCommission || 0}
+                        </Typography>
+                      </Stack>
+                    )
+                  ) : null}
                 </Stack>
               </Grid>
               <Grid item xs={12} md={4}>
@@ -1052,6 +1285,89 @@ export default function SalesOrderDetail(): ReactElement {
                 </Stack>
               </Grid>
             </GridSearchSection>
+
+            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+              <Grid item xs={12}>
+                <Stack spacing={2} className={classes.section}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                    <Typography variant="h6">ไฟล์แนบ</Typography>
+                    <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
+                      {canManageSalesOrderAttachments ? (
+                        <Button
+                          variant="contained"
+                          className="btn-baby-blue"
+                          component="label"
+                          startIcon={<FilePresent />}
+                          disabled={isSaving}>
+                          อัปโหลดไฟล์
+                          <input hidden type="file" multiple onChange={handleUploadAttachments} />
+                        </Button>
+                      ) : null}
+                    </Can>
+                  </Stack>
+                  {salesOrder?.attachments?.length ? (
+                    <Stack spacing={1.25}>
+                      {salesOrder.attachments.map((attachment: SalesOrderAttachment) => (
+                        <Stack
+                          key={attachment.id}
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          alignItems={{ xs: 'flex-start', sm: 'center' }}
+                          justifyContent="space-between"
+                          sx={{
+                            px: 1.5,
+                            py: 1.25,
+                            border: '1px solid #dce4ee',
+                            borderRadius: 2,
+                            backgroundColor: '#fff'
+                          }}>
+                          <Stack spacing={0.25}>
+                            <Typography sx={{ fontWeight: 600 }}>
+                              {attachment.originalFileName || attachment.fileName || `attachment-${attachment.id}`}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {attachment.contentType || '-'}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Description />}
+                              onClick={() => {
+                                if (attachment.fileUrl) {
+                                  window.open(attachment.fileUrl, '_blank', 'noopener,noreferrer');
+                                }
+                              }}>
+                              ดูไฟล์
+                            </Button>
+                            <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
+                              {canManageSalesOrderAttachments ? (
+                                <Button
+                                  variant="outlined"
+                                  color="error"
+                                  size="small"
+                                  startIcon={<DeleteOutline />}
+                                  onClick={() => {
+                                    void handleDeleteAttachment(attachment.id);
+                                  }}
+                                  disabled={isSaving}>
+                                  ลบ
+                                </Button>
+                              ) : null}
+                            </Can>
+                          </Stack>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      ยังไม่มีไฟล์แนบ
+                    </Typography>
+                  )}
+                </Stack>
+              </Grid>
+            </Grid>
           </>
         </TabPanel>
 

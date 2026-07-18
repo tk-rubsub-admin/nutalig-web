@@ -232,7 +232,29 @@
     "rememberMe": "Remember Me"
   },
   "home": {
-    "title": "Welcome to DPK Flower"
+    "title": "Welcome to DPK Flower",
+    "todo": {
+      "title": "To-Do List",
+      "pageTitle": "To-Do List",
+      "loading": "Loading your to-do items...",
+      "empty": "No to-do items",
+      "viewMore": "View More",
+      "add": "Add",
+      "createTitle": "Add To-Do",
+      "createAction": "Save To-Do",
+      "fields": {
+        "title": "Title",
+        "description": "Description",
+        "priority": "Priority",
+        "dueDate": "Due Date"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "urgent": "Urgent"
+      }
+    }
   },
   "forbidden": {
     "title": "403 - Forbidden: Access is denied"
@@ -483,6 +505,7 @@
       "purchaseChannel": "ช่องทางการสั่งซื้อที่สะดวก",
       "behavior": "ลักษณะนิสัย",
       "creditTerm": "เงื่อนไขการให้เครดิต",
+      "paymentTerm": "Payment term",
       "dropOff": {
         "no": "จุดลงของที่ ",
         "areaType": "ประเภทพื้นที่ลูกค้า",
@@ -505,6 +528,9 @@
     "phoneNumber": "เบอร์ติดต่อ",
     "gender": "เพศลูกค้า",
     "addNewCustomerButton": "สร้างลูกค้าใหม่",
+    "message": {
+      "validatePaymentTerm": "Please select payment term"
+    },
     "searchCustomerButton": "ค้นหาข้อมูลลูกค้า",
     "clearCustomerButton": "เคลียร์ข้อมูลลูกค้า",
     "placeHolder": {
@@ -749,6 +775,84 @@
       "createSuccess": "RFQ created successfully",
       "createFailed": "Failed to create RFQ "
     },
+    "detail": {
+      "tabs": {
+        "detail": "RFQ Detail",
+        "history": "History"
+      },
+      "sections": {
+        "general": "RFQ Details",
+        "options": "Price Options",
+        "additional": "Additional Details"
+      },
+      "fields": {
+        "referenceRfqId": "Reference RFQ",
+        "procurementId": "Procurement",
+        "shippingMethod": "Shipping Method",
+        "createdDate": "Created Date",
+        "updatedDate": "Updated Date",
+        "optionName": "Option Name",
+        "spec": "Spec",
+        "remark": "Remark",
+        "productPrice": "Product Price",
+        "landFreightCost": "Land Freight Cost",
+        "seaFreightCost": "Sea Freight Cost"
+      },
+      "actions": {
+        "confirmPrice": "Confirm Price",
+        "requestQuotation": "Request Quotation",
+        "requestSpecialPrice": "Request Special Price Review",
+        "downloadQuotation": "Download Quotation",
+        "downloadSalesOrder": "Download Sales Order Confirmation",
+        "close": "Close",
+        "reject": "Reject",
+        "openFile": "Open File",
+        "openReferenceRfq": "Open reference RFQ"
+      },
+      "additionalCost": {
+        "name": "Name",
+        "description": "Description",
+        "value": "Value",
+        "unit": "Unit",
+        "empty": "No additional details yet"
+      },
+      "dialogs": {
+        "saveOptionsTitle": "Confirm save price options",
+        "saveOptionsMessage": "Do you want to save all newly added price options?",
+        "deleteOptionTitle": "Confirm delete price option",
+        "deleteOptionMessage": "Do you want to delete {{optionName}}?",
+        "deleteAdditionalCostTitle": "Confirm delete additional detail",
+        "deleteAdditionalCostMessage": "Do you want to delete {{description}}?",
+        "missingCustomerTitle": "Customer data not found",
+        "missingCustomerMessage": "Customer data is not available in the system. Please create the customer before issuing a quotation.",
+        "rejectTitle": "Confirm reject RFQ",
+        "rejectMessage": "Do you want to reject RFQ {{id}}?",
+        "closeTitle": "Confirm close RFQ",
+        "closeMessage": "Do you want to close RFQ {{id}}?",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Specify the reason for closing this RFQ",
+        "confirmPriceDescription": "Select a quotation item to use for confirming the price.",
+        "loadingQuotation": "Loading quotation data...",
+        "noQuotation": "No quotation items available for price confirmation"
+      },
+      "quotationTable": {
+        "select": "Select",
+        "item": "Quotation Item",
+        "quantity": "Quantity",
+        "shippingMethod": "Shipping Method",
+        "unitPrice": "Unit Price",
+        "amount": "Amount"
+      },
+      "urgent": {
+        "title": "Urgent Request Detail",
+        "status": "Status",
+        "statusApproved": "Urgent request approved",
+        "statusRejected": "Urgent request rejected",
+        "statusPending": "Urgent request pending approval",
+        "requestReason": "Request Reason",
+        "rejectReason": "Reject Reason"
+      }
+    },
     "status": {
       "NEW": "New"
     },
@@ -780,6 +884,19 @@
       "button": "Generate Message",
       "confirmUpdateTitle": "Confirm inquiry message update",
       "confirmUpdateMsg": "Do you want to save changes to this inquiry message?"
+    },
+    "generateFinalInquiry": {
+      "title": "Final Inquiry Message",
+      "button": "Generate Message",
+      "translateButton": "Translate Message",
+      "messageLabel": "Generated Message"
+    },
+    "finalExtract": {
+      "title": "Translate Final Pricing Message",
+      "button": "Translate Message",
+      "helperText": "Supplier: {{supplierName}}",
+      "inputLabel": "Message to Translate",
+      "inputPlaceholder": "Paste the message you want AI to convert into final pricing data such as MOQ, prices, shipping cost, packaging, or additional costs"
     },
     "action": {
       "create": "Create Inquiry"

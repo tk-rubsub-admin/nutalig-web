@@ -31,3 +31,15 @@ export interface UserTodo {
   createdDate?: string | null;
   updatedDate?: string | null;
 }
+
+export interface CreateUserTodoRequest {
+  todoType?: UserTodoType;
+  title: string;
+  description?: string | null;
+  priority?: UserTodoPriority;
+  targetModule?: string | null;
+  targetId?: string | null;
+  targetPath?: string | null;
+  dueDate?: string | null;
+  sortOrder?: number | null;
+}

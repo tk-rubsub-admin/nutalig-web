@@ -119,6 +119,16 @@ export default function QuotationDetail(): JSX.Element {
             width: 1,
             whiteSpace: 'nowrap'
         },
+        mobileItemCard: {
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            padding: 14,
+            backgroundColor: '#ffffff'
+        },
+        mobileItemHeader: {
+            paddingBottom: 10,
+            borderBottom: '1px solid #eef2f7'
+        },
         itemTextField: {
             '& .MuiInputBase-input': {
                 fontSize: 13,
@@ -569,102 +579,232 @@ export default function QuotationDetail(): JSX.Element {
                         </Grid>
 
                         <GridSearchSection container>
-                            <TableContainer>
-                                <Table id="quotation_detail___table">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
-                                            <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
-                                                {t('documentManagement.quotation.itemSection.image')}
-                                            </TableCell>
-                                            <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.name')}</TableCell>
-                                            <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>{t('documentManagement.quotation.itemSection.spec')}</TableCell>
-                                            <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.unitPrice')}</TableCell>
-                                            <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.quantity')}</TableCell>
-                                            <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.totalAmount')}</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {displayItems.length ? (
-                                            displayItems.map((item, index) => (
-                                                <TableRow key={item.id || index}>
-                                                    <TableCell align="center" className={classes.fitContentCell}>{index + 1}</TableCell>
-                                                    <TableCell align="center" className={classes.fitContentCell}>
-                                                        {item.imagePreview || item.imageUrl ? (
-                                                            <Box
-                                                                component="img"
-                                                                src={item.imagePreview || item.imageUrl}
-                                                                alt={item.name || t('documentManagement.quotation.itemSection.name')}
-                                                                className={classes.productImage}
-                                                            />
-                                                        ) : (
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {t('documentManagement.quotation.itemSection.noImage')}
-                                                            </Typography>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className={classes.fitContentCell}>
+                            {isDownSm ? (
+                                <Stack spacing={1.25} sx={{ width: '100%' }}>
+                                    {displayItems.length ? (
+                                        displayItems.map((item, index) => (
+                                            <Stack key={item.id || index} spacing={1.25} className={classes.mobileItemCard}>
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={1.25}
+                                                    alignItems="flex-start"
+                                                    className={classes.mobileItemHeader}>
+                                                    {item.imagePreview || item.imageUrl ? (
+                                                        <Box
+                                                            component="img"
+                                                            src={item.imagePreview || item.imageUrl}
+                                                            alt={item.name || t('documentManagement.quotation.itemSection.name')}
+                                                            className={classes.productImage}
+                                                        />
+                                                    ) : (
+                                                        <Stack
+                                                            justifyContent="center"
+                                                            alignItems="center"
+                                                            className={classes.productImage}
+                                                            sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
+                                                            {t('documentManagement.quotation.itemSection.noImage')}
+                                                        </Stack>
+                                                    )}
+                                                    <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
+                                                        <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                                            รายการที่ {index + 1}
+                                                        </Typography>
                                                         {isEditing ? (
                                                             <TextField
                                                                 className={classes.itemTextField}
+                                                                fullWidth
                                                                 value={item.name || ''}
                                                                 onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
                                                             />
                                                         ) : (
-                                                            item.name || '-'
+                                                            <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
+                                                                {item.name || '-'}
+                                                            </Typography>
                                                         )}
-                                                    </TableCell>
-                                                    <TableCell className={classes.specCell}>
-                                                        {isEditing ? (
-                                                            <TextField
-                                                                className={classes.itemTextField}
-                                                                value={item.spec || ''}
-                                                                fullWidth
-                                                                multiline
-                                                                minRows={2}
-                                                                onChange={(event) => updateDraftItem(index, 'spec', event.target.value)}
-                                                            />
-                                                        ) : (
-                                                            item.spec || '-'
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell align="right" className={classes.fitContentCell}>
-                                                        {isEditing ? (
-                                                            <TextField
-                                                                className={classes.itemTextField}
-                                                                type="number"
-                                                                value={item.unitPrice || 0}
-                                                                onChange={(event) => updateDraftItem(index, 'unitPrice', event.target.value)}
-                                                            />
-                                                        ) : (
-                                                            formatNumber(item.unitPrice || 0)
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell align="right" className={classes.fitContentCell}>
-                                                        {isEditing ? (
-                                                            <TextField
-                                                                className={classes.itemTextField}
-                                                                type="number"
-                                                                value={item.quantity || 0}
-                                                                onChange={(event) => updateDraftItem(index, 'quantity', event.target.value)}
-                                                            />
-                                                        ) : (
-                                                            formatNumber(item.quantity || 0)
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.amount || 0)}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
+                                                    </Stack>
+                                                </Stack>
+
+                                                <Stack spacing={1}>
+                                                    <Info
+                                                        label={t('documentManagement.quotation.itemSection.spec')}
+                                                        value={isEditing ? undefined : item.spec || '-'}
+                                                    />
+                                                    {isEditing ? (
+                                                        <TextField
+                                                            className={classes.itemTextField}
+                                                            value={item.spec || ''}
+                                                            fullWidth
+                                                            multiline
+                                                            minRows={2}
+                                                            label={t('documentManagement.quotation.itemSection.spec')}
+                                                            InputLabelProps={{ shrink: true }}
+                                                            onChange={(event) => updateDraftItem(index, 'spec', event.target.value)}
+                                                        />
+                                                    ) : null}
+
+                                                    <Grid container spacing={1.25}>
+                                                        <Grid item xs={6}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    type="number"
+                                                                    fullWidth
+                                                                    label={t('documentManagement.quotation.itemSection.unitPrice')}
+                                                                    InputLabelProps={{ shrink: true }}
+                                                                    value={item.unitPrice || 0}
+                                                                    onChange={(event) => updateDraftItem(index, 'unitPrice', event.target.value)}
+                                                                />
+                                                            ) : (
+                                                                <Info
+                                                                    label={t('documentManagement.quotation.itemSection.unitPrice')}
+                                                                    value={formatNumber(item.unitPrice || 0)}
+                                                                />
+                                                            )}
+                                                        </Grid>
+                                                        <Grid item xs={6}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    type="number"
+                                                                    fullWidth
+                                                                    label={t('documentManagement.quotation.itemSection.quantity')}
+                                                                    InputLabelProps={{ shrink: true }}
+                                                                    value={item.quantity || 0}
+                                                                    onChange={(event) => updateDraftItem(index, 'quantity', event.target.value)}
+                                                                />
+                                                            ) : (
+                                                                <Info
+                                                                    label={t('documentManagement.quotation.itemSection.quantity')}
+                                                                    value={formatNumber(item.quantity || 0)}
+                                                                />
+                                                            )}
+                                                        </Grid>
+                                                        <Grid item xs={12}>
+                                                            <Stack
+                                                                direction="row"
+                                                                justifyContent="space-between"
+                                                                alignItems="center"
+                                                                sx={{
+                                                                    px: 1.25,
+                                                                    py: 1,
+                                                                    borderRadius: 2,
+                                                                    backgroundColor: '#f8fafc',
+                                                                    border: '1px solid #e2e8f0'
+                                                                }}>
+                                                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                                                    {t('documentManagement.quotation.itemSection.totalAmount')}
+                                                                </Typography>
+                                                                <Typography variant="body2" fontWeight={700}>
+                                                                    {formatNumber(item.amount || 0)}
+                                                                </Typography>
+                                                            </Stack>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Stack>
+                                            </Stack>
+                                        ))
+                                    ) : (
+                                        <Typography align="center">{t('warning.noResultList')}</Typography>
+                                    )}
+                                </Stack>
+                            ) : (
+                                <TableContainer>
+                                    <Table id="quotation_detail___table">
+                                        <TableHead>
                                             <TableRow>
-                                                <TableCell colSpan={7} align="center">
-                                                    {t('warning.noResultList')}
+                                                <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
+                                                <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                                                    {t('documentManagement.quotation.itemSection.image')}
                                                 </TableCell>
+                                                <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.name')}</TableCell>
+                                                <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>{t('documentManagement.quotation.itemSection.spec')}</TableCell>
+                                                <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.unitPrice')}</TableCell>
+                                                <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.quantity')}</TableCell>
+                                                <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.totalAmount')}</TableCell>
                                             </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
+                                        </TableHead>
+                                        <TableBody>
+                                            {displayItems.length ? (
+                                                displayItems.map((item, index) => (
+                                                    <TableRow key={item.id || index}>
+                                                        <TableCell align="center" className={classes.fitContentCell}>{index + 1}</TableCell>
+                                                        <TableCell align="center" className={classes.fitContentCell}>
+                                                            {item.imagePreview || item.imageUrl ? (
+                                                                <Box
+                                                                    component="img"
+                                                                    src={item.imagePreview || item.imageUrl}
+                                                                    alt={item.name || t('documentManagement.quotation.itemSection.name')}
+                                                                    className={classes.productImage}
+                                                                />
+                                                            ) : (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    {t('documentManagement.quotation.itemSection.noImage')}
+                                                                </Typography>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className={classes.fitContentCell}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    value={item.name || ''}
+                                                                    onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
+                                                                />
+                                                            ) : (
+                                                                item.name || '-'
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className={classes.specCell}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    value={item.spec || ''}
+                                                                    fullWidth
+                                                                    multiline
+                                                                    minRows={2}
+                                                                    onChange={(event) => updateDraftItem(index, 'spec', event.target.value)}
+                                                                />
+                                                            ) : (
+                                                                item.spec || '-'
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="right" className={classes.fitContentCell}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    type="number"
+                                                                    value={item.unitPrice || 0}
+                                                                    onChange={(event) => updateDraftItem(index, 'unitPrice', event.target.value)}
+                                                                />
+                                                            ) : (
+                                                                formatNumber(item.unitPrice || 0)
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="right" className={classes.fitContentCell}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    type="number"
+                                                                    value={item.quantity || 0}
+                                                                    onChange={(event) => updateDraftItem(index, 'quantity', event.target.value)}
+                                                                />
+                                                            ) : (
+                                                                formatNumber(item.quantity || 0)
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.amount || 0)}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={7} align="center">
+                                                        {t('warning.noResultList')}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            )}
                         </GridSearchSection>
 
                         {quotation?.isShowSummary ? (

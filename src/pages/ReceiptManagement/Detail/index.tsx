@@ -195,6 +195,16 @@ export default function ReceiptDetail(): ReactElement {
     fitContentCell: {
       width: 1,
       whiteSpace: 'nowrap'
+    },
+    mobileItemCard: {
+      border: '1px solid #e5e7eb',
+      borderRadius: 12,
+      padding: 14,
+      backgroundColor: '#ffffff'
+    },
+    mobileItemHeader: {
+      paddingBottom: 10,
+      borderBottom: '1px solid #eef2f7'
     }
   });
   const classes = useStyles();
@@ -535,60 +545,80 @@ export default function ReceiptDetail(): ReactElement {
             </Grid>
 
             <GridSearchSection container>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
-                        #
-                      </TableCell>
-                      <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>
-                        สินค้า
-                      </TableCell>
-                      <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>
-                        รายละเอียด
-                      </TableCell>
-                      <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
-                        ราคาต่อหน่วย
-                      </TableCell>
-                      <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
-                        จำนวน
-                      </TableCell>
-                      <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
-                        รวม
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {receipt?.items?.length ? (
-                      receipt.items.map((item: ReceiptItem, index: number) => (
-                        <TableRow key={item.id || index}>
-                          <TableCell align="center" className={classes.fitContentCell}>
-                            {item.lineNo || index + 1}
-                          </TableCell>
-                          <TableCell className={classes.fitContentCell}>{item.name || '-'}</TableCell>
-                          <TableCell className={classes.specCell}>{item.spec || '-'}</TableCell>
-                          <TableCell align="right" className={classes.fitContentCell}>
-                            {formatNumber(item.unitPrice || 0)}
-                          </TableCell>
-                          <TableCell align="right" className={classes.fitContentCell}>
-                            {formatNumber(item.quantity || 0)}
-                          </TableCell>
-                          <TableCell align="right" className={classes.fitContentCell}>
-                            {formatNumber(item.amount || 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
+              {isDownSm ? (
+                <Stack spacing={1.25} sx={{ width: '100%' }}>
+                  {receipt?.items?.length ? (
+                    receipt.items.map((item: ReceiptItem, index: number) => (
+                      <Stack key={item.id || index} spacing={1.25} className={classes.mobileItemCard}>
+                        <Stack spacing={0.35} className={classes.mobileItemHeader}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                            รายการที่ {item.lineNo || index + 1}
+                          </Typography>
+                          <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
+                            {item.name || '-'}
+                          </Typography>
+                        </Stack>
+                        <Stack spacing={1}>
+                          <Info label="รายละเอียด" value={item.spec || '-'} />
+                          <Grid container spacing={1.25}>
+                            <Grid item xs={6}>
+                              <Info label="ราคาต่อหน่วย" value={formatNumber(item.unitPrice || 0)} />
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Info label="จำนวน" value={formatNumber(item.quantity || 0)} />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                  รวม
+                                </Typography>
+                                <Typography variant="body2" fontWeight={700}>
+                                  {formatNumber(item.amount || 0)}
+                                </Typography>
+                              </Stack>
+                            </Grid>
+                          </Grid>
+                        </Stack>
+                      </Stack>
+                    ))
+                  ) : (
+                    <Typography align="center">{t('warning.noResultList')}</Typography>
+                  )}
+                </Stack>
+              ) : (
+                <TableContainer>
+                  <Table>
+                    <TableHead>
                       <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          {t('warning.noResultList')}
-                        </TableCell>
+                        <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>สินค้า</TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>รายละเอียด</TableCell>
+                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>ราคาต่อหน่วย</TableCell>
+                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>จำนวน</TableCell>
+                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>รวม</TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {receipt?.items?.length ? (
+                        receipt.items.map((item: ReceiptItem, index: number) => (
+                          <TableRow key={item.id || index}>
+                            <TableCell align="center" className={classes.fitContentCell}>{item.lineNo || index + 1}</TableCell>
+                            <TableCell className={classes.fitContentCell}>{item.name || '-'}</TableCell>
+                            <TableCell className={classes.specCell}>{item.spec || '-'}</TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.unitPrice || 0)}</TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.quantity || 0)}</TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.amount || 0)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} align="center">{t('warning.noResultList')}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </GridSearchSection>
 
             <GridSearchSection container spacing={2} justifyContent="flex-end">

@@ -82,6 +82,14 @@ export default function CreateRFQCustomerDialog({
     refetchOnWindowFocus: false
   });
 
+  const getSalesLabels = (salesIds: string[]) =>
+    salesIds
+      .map((salesId) => {
+        const selectedSales = salesOptions.find((option) => option.salesId === salesId);
+        return selectedSales ? `${selectedSales.salesId} - ${selectedSales.nickname || selectedSales.name}` : salesId;
+      })
+      .join(', ');
+
   const formik = useFormik({
     initialValues: {
       customerName: rfq?.contactName || '',
@@ -94,7 +102,7 @@ export default function CreateRFQCustomerDialog({
       creditTerm: 'NON',
       tier: 'TIER_4',
       segment: '',
-      salesAccount: rfq?.sales?.salesId || rfq?.sales?.employeeId || '',
+      salesAccounts: [rfq?.sales?.salesId || rfq?.sales?.employeeId || ''].filter(Boolean),
       coSalesAccount: '',
       address: {
         addressType: 'BILLING',
@@ -136,7 +144,9 @@ export default function CreateRFQCustomerDialog({
         otherwise: Yup.string().nullable()
       }),
       creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
-      salesAccount: Yup.string().required(t('customerManagement.message.validateSalesAccount')),
+      salesAccounts: Yup.array()
+        .of(Yup.string().trim())
+        .min(1, t('customerManagement.message.validateSalesAccount')),
       address: Yup.object().shape({
         addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
         subdistrict: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
@@ -167,7 +177,8 @@ export default function CreateRFQCustomerDialog({
         branchName: values.companyBranchName,
         creditTerm: values.creditTerm,
         paymentTerm: '',
-        salesAccount: values.salesAccount,
+        salesAccount: values.salesAccounts[0] || '',
+        salesAccounts: values.salesAccounts,
         coSalesAccount: values.coSalesAccount,
         address: {
           addressType: values.address.addressType,
@@ -373,12 +384,22 @@ export default function CreateRFQCustomerDialog({
                 required
                 label={t('customerManagement.column.salesAccount')}
                 disabled={isSalesFetching}
-                value={formik.values.salesAccount || ''}
-                onChange={(event) => formik.setFieldValue('salesAccount', event.target.value)}
-                error={Boolean(formik.touched.salesAccount && formik.errors.salesAccount)}
-                helperText={formik.touched.salesAccount && formik.errors.salesAccount}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                value={formik.values.salesAccounts}
+                onChange={(event) =>
+                  formik.setFieldValue(
+                    'salesAccounts',
+                    typeof event.target.value === 'string'
+                      ? event.target.value.split(',')
+                      : event.target.value
+                  )
+                }
+                error={Boolean(formik.touched.salesAccounts && formik.errors.salesAccounts)}
+                helperText={formik.touched.salesAccounts && (formik.errors.salesAccounts as string)}
+                InputLabelProps={{ shrink: true }}
+                SelectProps={{
+                  multiple: true,
+                  renderValue: (selected) => getSalesLabels(selected as string[])
+                }}>
                 {salesOptions.map((option) => (
                   <MenuItem key={option.salesId} value={option.salesId}>
                     {`${option.salesId} - ${option.nickname || option.name}`}

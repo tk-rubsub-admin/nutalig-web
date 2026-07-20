@@ -178,6 +178,14 @@ export default function CustomerDetail(): JSX.Element {
     refetchOnWindowFocus: false
   });
 
+  const getSalesLabels = (salesIds: string[]) =>
+    salesIds
+      .map((salesId) => {
+        const selectedSales = salesOptions.find((option) => option.salesId === salesId);
+        return selectedSales ? `${selectedSales.salesId} - ${selectedSales.nickname || selectedSales.name}` : salesId;
+      })
+      .join(', ');
+
   const initialValues = useMemo(
     () => ({
       customerName: customer?.customerName ?? '',
@@ -191,7 +199,11 @@ export default function CustomerDetail(): JSX.Element {
       companyBranchName: customer?.branchName ?? '',
       creditTerm: customer?.customerCreditTerm?.code ?? '',
       paymentTerm: customer?.customerPaymentTerm?.code ?? '',
-      salesAccount: customer?.salesAccount ?? '',
+      salesAccounts: customer?.salesAccounts?.length
+        ? customer.salesAccounts
+        : customer?.salesAccount
+          ? [customer.salesAccount]
+          : [],
       coSalesAccount: customer?.coSalesAccount ?? ''
     }),
     [customer]
@@ -239,7 +251,8 @@ export default function CustomerDetail(): JSX.Element {
         branchName: values.companyBranchName || null,
         creditTerm: values.creditTerm || null,
         paymentTerm: values.paymentTerm || null,
-        salesAccount: values.salesAccount || null,
+        salesAccount: values.salesAccounts[0] || null,
+        salesAccounts: values.salesAccounts,
         coSalesAccount: values.coSalesAccount || null
       };
       const updatePromise = updateCustomer(customer?.id, payload);
@@ -852,19 +865,22 @@ export default function CustomerDetail(): JSX.Element {
                 required
                 label={t('customerManagement.column.salesAccount')}
                 InputLabelProps={{ shrink: true }}
-                error={Boolean(formik.touched.salesAccount && formik.errors.salesAccount)}
-                helperText={formik.touched.salesAccount && formik.errors.salesAccount}
-                value={formik.values.salesAccount || ''}
+                error={Boolean(formik.touched.salesAccounts && formik.errors.salesAccounts)}
+                helperText={formik.touched.salesAccounts && (formik.errors.salesAccounts as string)}
+                value={formik.values.salesAccounts}
                 onChange={(event) => {
-                  const selectedCode = event.target.value;
-                  if (selectedCode === '') {
-                    formik.setFieldValue('salesAccount', selectedCode);
-                  } else {
-                    formik.setFieldValue('salesAccount', selectedCode);
-                  }
+                  formik.setFieldValue(
+                    'salesAccounts',
+                    typeof event.target.value === 'string'
+                      ? event.target.value.split(',')
+                      : event.target.value
+                  );
                 }}
-                disabled={isSalesFetching || !canEdit}>
-                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                disabled={isSalesFetching || !canEdit}
+                SelectProps={{
+                  multiple: true,
+                  renderValue: (selected) => getSalesLabels(selected as string[])
+                }}>
                 {salesOptions.map((option) => (
                   <MenuItem key={option.salesId} value={option.salesId}>
                     {`${option.salesId} - ${option.nickname || option.name}`}

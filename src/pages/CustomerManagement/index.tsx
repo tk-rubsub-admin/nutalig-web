@@ -107,6 +107,11 @@ export default function CustomerManagement(): JSX.Element {
     </>
   );
 
+  const formatCustomerSalesAccounts = (cust: Customer) => {
+    const salesAccounts = cust.salesAccounts?.length ? cust.salesAccounts : cust.salesAccount ? [cust.salesAccount] : [];
+    return salesAccounts.join(', ') || '-';
+  };
+
   const useStyles = makeStyles({
     noResultMessage: {
       textAlign: 'center',
@@ -325,7 +330,7 @@ export default function CustomerManagement(): JSX.Element {
             )}
           </TableCell>
           <TableCell>
-            {cust.salesAccount}
+            {formatCustomerSalesAccounts(cust)}
           </TableCell>
           <TableCell align="center">
             <Stack direction="row" spacing={1} justifyContent="center">

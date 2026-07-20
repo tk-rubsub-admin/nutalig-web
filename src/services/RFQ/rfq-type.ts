@@ -68,6 +68,7 @@ export interface RFQCustomer {
   branchName: string;
   email: string;
   salesAccount: string;
+  salesAccounts: string[];
   coSalesAccount: string;
   createdBy: string;
   updatedBy: string;

@@ -382,7 +382,12 @@ export default function NewQuotation() {
             customerContacts.find((contact) => contact.contactName === rfq.contactName) ||
             customerContacts.find((contact) => contact.isDefault) ||
             customerContacts[0];
-        const salesId = rfq.sales?.salesId || rfq.sales?.employeeId || rfq.customer?.salesAccount || '';
+        const salesId =
+            rfq.sales?.salesId ||
+            rfq.sales?.employeeId ||
+            rfq.customer?.salesAccounts?.[0] ||
+            rfq.customer?.salesAccount ||
+            '';
         const rfqAdditionalCostTotal = (rfq.additionalCosts || []).reduce(
             (sum, cost) => sum + Number(cost.value || 0),
             0
@@ -1453,7 +1458,7 @@ export default function NewQuotation() {
                     setCustomer(payload.customer);
                     formik.setValues({
                         ...formik.values,
-                        salesId: payload.customer.salesAccount,
+                        salesId: payload.customer.salesAccounts?.[0] || payload.customer.salesAccount,
                         customerId: payload.customer.id,
                         remark: buildPaymentTermRemark(formik.values.remark, payload.customer.customerPaymentTerm),
                         docDate: today,

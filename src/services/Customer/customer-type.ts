@@ -21,6 +21,7 @@ export interface CreateCustomerRequest {
   customerSegment: string;
   customerTier: string;
   salesAccount: string;
+  salesAccounts: string[];
   coSalesAccount: string;
   address: CreateCustomerAddressRequest;
   contacts: CreateCustomerContactRequest[];
@@ -155,6 +156,7 @@ export interface UpdateCustomerRequest {
   creditTerm: string | null;
   paymentTerm: string | null;
   salesAccount: string | null;
+  salesAccounts: string[] | null;
   coSalesAccount: string | null;
 }
 
@@ -175,6 +177,7 @@ export interface Customer {
   contacts: Contact[];
   email: string;
   salesAccount: string;
+  salesAccounts: string[];
   coSalesAccount: string;
   createdBy: string;
   createdDate: string;

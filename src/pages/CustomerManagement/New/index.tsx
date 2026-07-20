@@ -104,6 +104,13 @@ export default function NewCustomer(): JSX.Element {
   });
   const { data: subdistrict } = useQuery('subdistrict', () => getSubDistrict(), { refetchOnWindowFocus: false });
 
+  const getSalesLabels = (salesIds: string[]) =>
+    salesIds
+      .map((salesId) => {
+        const selectedSales = salesOptions.find((option) => option.salesId === salesId);
+        return selectedSales ? `${selectedSales.salesId} - ${selectedSales.nickname || selectedSales.name}` : salesId;
+      })
+      .join(', ');
 
   const formik = useFormik({
     initialValues: {
@@ -119,7 +126,7 @@ export default function NewCustomer(): JSX.Element {
       companyBranchName: '',
       creditTerm: 'NON',
       paymentTerm: '',
-      salesAccount: '',
+      salesAccounts: [] as string[],
       coSalesAccount: '',
       address: {
         addressType: 'BILLING',
@@ -158,7 +165,9 @@ export default function NewCustomer(): JSX.Element {
       }),
       creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
       paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm')),
-      salesAccount: Yup.string().required(t('customerManagement.message.validateSalesAccount')),
+      salesAccounts: Yup.array()
+        .of(Yup.string().trim())
+        .min(1, t('customerManagement.message.validateSalesAccount')),
       address: Yup.object().shape({
         addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
         subdistrict: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
@@ -189,7 +198,8 @@ export default function NewCustomer(): JSX.Element {
         branchName: values.companyBranchName,
         creditTerm: values.creditTerm,
         paymentTerm: values.paymentTerm,
-        salesAccount: values.salesAccount,
+        salesAccount: values.salesAccounts[0] || '',
+        salesAccounts: values.salesAccounts,
         coSalesAccount: values.coSalesAccount,
 
         // ✅ ส่ง address object
@@ -458,22 +468,23 @@ export default function NewCustomer(): JSX.Element {
                 required
                 label={t('customerManagement.column.salesAccount')}
                 InputLabelProps={{ shrink: true }}
-                error={Boolean(formik.touched.salesAccount && formik.errors.salesAccount)}
-                helperText={formik.touched.salesAccount && formik.errors.salesAccount}
-                value={formik.values.salesAccount || ''}
+                error={Boolean(formik.touched.salesAccounts && formik.errors.salesAccounts)}
+                helperText={formik.touched.salesAccounts && (formik.errors.salesAccounts as string)}
+                value={formik.values.salesAccounts}
                 onChange={(event) => {
-                  const selectedCode = event.target.value;
-                  if (selectedCode === '') {
-                    formik.setFieldValue('salesAccount', selectedCode);
-                  } else {
-                    formik.setFieldValue('salesAccount', selectedCode);
-                  }
+                  formik.setFieldValue(
+                    'salesAccounts',
+                    typeof event.target.value === 'string'
+                      ? event.target.value.split(',')
+                      : event.target.value
+                  );
                 }}
                 disabled={isSalesFetching}
+                SelectProps={{
+                  multiple: true,
+                  renderValue: (selected) => getSalesLabels(selected as string[])
+                }}
               >
-                <MenuItem value="">
-                  {t('general.clearSelected')}
-                </MenuItem>
                 {salesOptions.map((option) => (
                   <MenuItem key={option.salesId} value={option.salesId}>
                     {`${option.salesId} - ${option.nickname || option.name}`}

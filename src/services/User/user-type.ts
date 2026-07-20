@@ -4,6 +4,8 @@ export interface LoginRequest {
   userId: string;
 }
 
+export type AppSessionDeviceType = 'DESKTOP' | 'MOBILE';
+
 export interface LoginResponse {
   status: string;
   data: { token: string };
@@ -86,6 +88,7 @@ export interface GoogleCredentialRequest {
 export interface LineLoginRequest {
   accessToken: string;
   idToken: string;
+  deviceType: AppSessionDeviceType;
 }
 
 export interface LineRegisterRequest extends LineLoginRequest {

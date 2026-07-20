@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useAuth } from 'auth/AuthContext';
+import { getAppSessionDeviceType } from 'auth/sessionDevice';
 import { ROUTE_PATHS } from 'routes';
 
 function buildFailureSearchParams(message: string): string {
@@ -41,7 +42,8 @@ export default function LoginSuccess(): JSX.Element {
       try {
         await lineLogin({
           accessToken,
-          idToken
+          idToken,
+          deviceType: getAppSessionDeviceType()
         });
         history.replace(redirect);
       } catch (error: any) {

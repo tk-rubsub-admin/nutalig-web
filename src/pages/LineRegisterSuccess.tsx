@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useAuth } from 'auth/AuthContext';
+import { getAppSessionDeviceType } from 'auth/sessionDevice';
 import { ROUTE_PATHS } from 'routes';
 
 function buildFailureSearchParams(message: string): string {
@@ -40,7 +41,8 @@ export default function LineRegisterSuccess(): JSX.Element {
         await lineRegister({
           token: registerToken,
           accessToken,
-          idToken
+          idToken,
+          deviceType: getAppSessionDeviceType()
         });
 
         history.replace(ROUTE_PATHS.ROOT);

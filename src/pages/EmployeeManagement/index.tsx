@@ -2,6 +2,9 @@ import { Add, Chat, DisabledByDefault, Person, Search } from '@mui/icons-materia
 import {
   Button,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
   IconButton,
   Stack,
@@ -26,6 +29,7 @@ import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
+import { SiLine } from 'react-icons/si';
 import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getEmployees } from 'services/Employee/employee-api';
@@ -60,6 +64,7 @@ export default function EmployeeManagement(): JSX.Element {
   const [pageSize, setPageSize] = useState<number>(20);
   const [keyword, setKeyword] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [openLineQrDialog, setOpenLineQrDialog] = useState(false);
 
   const { data, isFetching, refetch } = useQuery(
     ['employee-list', page, pageSize, searchKeyword],
@@ -214,6 +219,20 @@ export default function EmployeeManagement(): JSX.Element {
               startIcon={<DisabledByDefault />}>
               {t('button.clear')}
             </Button>
+            &nbsp;&nbsp;
+            <Button
+              variant="contained"
+              onClick={() => setOpenLineQrDialog(true)}
+              startIcon={<SiLine />}
+              sx={{
+                backgroundColor: '#06C755',
+                color: '#FFFFFF',
+                '&:hover': {
+                  backgroundColor: '#05b44c'
+                }
+              }}>
+              Add LINE NUTALIG
+            </Button>
           </Grid>
         </Grid>
 
@@ -288,6 +307,27 @@ export default function EmployeeManagement(): JSX.Element {
             />
           </Grid>
         </GridSearchSection>
+
+        <Dialog
+          open={openLineQrDialog}
+          onClose={() => setOpenLineQrDialog(false)}
+          maxWidth="xs"
+          fullWidth>
+          <DialogTitle>Add LINE NUTALIG AGENT</DialogTitle>
+          <DialogContent>
+            <img
+              src="https://qr-official.line.me/gs/M_206ztjog_BW.png?oat_content=qr"
+              alt="LINE Official QR"
+              style={{
+                display: 'block',
+                width: '100%',
+                maxWidth: 320,
+                height: 'auto',
+                margin: '0 auto'
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </Wrapper>
     </Page>
   );

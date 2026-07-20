@@ -1813,15 +1813,51 @@ export default function RFQDetail(): ReactElement {
       ),
     [suggestSuppliersDisplay]
   );
-  const supplierQuoteBySupplierId = useMemo(() => {
-    return supplierQuotes.reduce<Record<string, RFQSupplierQuote>>((accumulator, quote) => {
+  const supplierQuotesBySupplierId = useMemo(() => {
+    return supplierQuotes.reduce<Record<string, RFQSupplierQuote[]>>((accumulator, quote) => {
       const supplierId = quote.supplier?.supplierId || quote.supplier?.id;
       if (supplierId) {
-        accumulator[supplierId] = quote;
+        accumulator[supplierId] = [...(accumulator[supplierId] || []), quote];
       }
       return accumulator;
     }, {});
   }, [supplierQuotes]);
+  const latestSupplierQuoteBySupplierId = useMemo(() => {
+    return Object.entries(supplierQuotesBySupplierId).reduce<Record<string, RFQSupplierQuote>>(
+      (accumulator, [supplierId, quotes]) => {
+        const latestQuote =
+          quotes
+            .slice()
+            .sort((left, right) => {
+              const leftRevision = left.revisionNo || 0;
+              const rightRevision = right.revisionNo || 0;
+              if (rightRevision !== leftRevision) {
+                return rightRevision - leftRevision;
+              }
+
+              return dayjs(right.updatedDate).valueOf() - dayjs(left.updatedDate).valueOf();
+            })[0] || null;
+
+        if (latestQuote) {
+          accumulator[supplierId] = latestQuote;
+        }
+
+        return accumulator;
+      },
+      {}
+    );
+  }, [supplierQuotesBySupplierId]);
+  const supplierQuoteRevisionCountBySupplierId = useMemo(
+    () =>
+      Object.entries(supplierQuotesBySupplierId).reduce<Record<string, number>>(
+        (accumulator, [supplierId, quotes]) => {
+          accumulator[supplierId] = quotes.length;
+          return accumulator;
+        },
+        {}
+      ),
+    [supplierQuotesBySupplierId]
+  );
   const respondedSupplierQuotes = useMemo(
     () => supplierQuotes.filter((quote) => quote.details?.length),
     [supplierQuotes]
@@ -2005,6 +2041,25 @@ export default function RFQDetail(): ReactElement {
     setQuoteDraftErrors({});
   };
 
+  const initializeNewSupplierQuoteDialog = (
+    supplier: Supplier,
+    templateQuote?: RFQSupplierQuote | null
+  ) => {
+    setQuoteDialogSupplier(supplier);
+    setQuoteDialogQuote(null);
+    setQuoteDraftDetails(
+      templateQuote?.details?.length
+        ? templateQuote.details.map(createSupplierQuoteDetailFromQuote)
+        : [createDraftQuoteDetail(1)]
+    );
+    setQuoteDraftAdditionalCosts(
+      templateQuote?.additionalCosts?.length
+        ? templateQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
+        : [createDraftAdditionalCost()]
+    );
+    setQuoteDraftErrors({});
+  };
+
   const handleOpenSupplierQuoteDialog = () => {
     setVisibleSupplierQuoteDialog(true);
     setQuoteDialogSupplier(null);
@@ -2026,6 +2081,18 @@ export default function RFQDetail(): ReactElement {
     initializeSupplierQuoteDialog(quote.supplier, quote);
     setVisibleSupplierQuoteDialog(false);
     setInlineEditingSupplierQuoteId(quote.id);
+    setQuoteSupplierSearchInput('');
+    setQuoteSupplierSearchKeyword('');
+  };
+
+  const handleCreateSupplierQuoteRevision = (quote: RFQSupplierQuote) => {
+    if (!quote.supplier) {
+      return;
+    }
+
+    initializeNewSupplierQuoteDialog(quote.supplier, quote);
+    setVisibleSupplierQuoteDialog(false);
+    setInlineEditingSupplierQuoteId(null);
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
   };
@@ -2885,10 +2952,10 @@ export default function RFQDetail(): ReactElement {
 
   const handleSelectQuoteSupplier = (supplier: Supplier) => {
     const supplierId = supplier.supplierId || supplier.id;
-    const existingQuote = supplierQuoteBySupplierId[supplierId] || null;
+    const existingQuote = latestSupplierQuoteBySupplierId[supplierId] || null;
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
-    initializeSupplierQuoteDialog(supplier, existingQuote);
+    initializeNewSupplierQuoteDialog(supplier, existingQuote);
   };
 
   const handleDeleteDraftAdditionalCost = (additionalCostId: number) => {
@@ -3921,6 +3988,7 @@ export default function RFQDetail(): ReactElement {
                   quoteDraftErrors={quoteDraftErrors}
                   isSubmitting={isSupplierQuoteSubmitting}
                   onEditQuote={handleOpenSupplierQuoteEditDialog}
+                  onCreateRevision={handleCreateSupplierQuoteRevision}
                   onCancelEditQuote={handleCancelInlineSupplierQuoteEdit}
                   onSaveEditQuote={handleRequestSaveSupplierQuote}
                   onDetailChange={handleQuoteDetailChange}
@@ -4201,7 +4269,8 @@ export default function RFQDetail(): ReactElement {
         onOpenNewSupplierDialog={() => setVisibleNewSupplierDialog(true)}
         onOpenExtractSupplierQuoteDialog={handleOpenExtractSupplierQuoteDialog}
         currencyOptions={currencyOptions}
-        supplierQuoteBySupplierId={supplierQuoteBySupplierId}
+        latestSupplierQuoteBySupplierId={latestSupplierQuoteBySupplierId}
+        supplierQuoteRevisionCountBySupplierId={supplierQuoteRevisionCountBySupplierId}
         onSelectSupplier={handleSelectQuoteSupplier}
         onChangeSupplier={() => {
           setQuoteDialogSupplier(null);

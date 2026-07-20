@@ -522,6 +522,7 @@ export interface RFQSupplierQuote {
   rfqId: string;
   supplier: Supplier;
   inquiryId?: string | null;
+  revisionNo?: number | null;
   status: string;
   remark?: string | null;
   details: RFQSupplierQuoteDetail[];

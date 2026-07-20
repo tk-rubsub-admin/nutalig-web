@@ -92,7 +92,8 @@ export interface SupplierQuoteDialogProps {
   onOpenNewSupplierDialog: () => void;
   onOpenExtractSupplierQuoteDialog: () => void;
   currencyOptions: SystemConfig[];
-  supplierQuoteBySupplierId: Record<string, RFQSupplierQuote | null>;
+  latestSupplierQuoteBySupplierId: Record<string, RFQSupplierQuote | null>;
+  supplierQuoteRevisionCountBySupplierId: Record<string, number>;
   onSelectSupplier: (supplier: Supplier) => void;
   onChangeSupplier: () => void;
   quoteDraftDetails: SupplierQuoteDialogDetail[];
@@ -170,7 +171,8 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     onOpenNewSupplierDialog,
     onOpenExtractSupplierQuoteDialog,
     currencyOptions,
-    supplierQuoteBySupplierId,
+    latestSupplierQuoteBySupplierId,
+    supplierQuoteRevisionCountBySupplierId,
     onSelectSupplier,
     onChangeSupplier,
     quoteDraftDetails,
@@ -246,8 +248,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                     {quoteSupplierSearchResult.map((item) => {
                       const supplierId = item.supplierId || item.id;
                       const existingQuote = supplierId
-                        ? supplierQuoteBySupplierId[supplierId]
+                        ? latestSupplierQuoteBySupplierId[supplierId]
                         : null;
+                      const revisionCount = supplierId
+                        ? supplierQuoteRevisionCountBySupplierId[supplierId] || 0
+                        : 0;
 
                       return (
                         <Box
@@ -270,12 +275,18 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                               <Typography variant="body2" color="text.secondary">
                                 {item.supplierId || item.id} | {item.supplierCode || '-'}
                               </Typography>
+                              {existingQuote ? (
+                                <Typography variant="caption" color="text.secondary">
+                                  revision ล่าสุด: #{existingQuote.revisionNo || 1}
+                                  {revisionCount > 1 ? ` (${revisionCount} revisions)` : ''}
+                                </Typography>
+                              ) : null}
                             </Box>
                             <Button
                               variant="contained"
                               sx={blueActionButtonSx}
                               onClick={() => onSelectSupplier(item)}>
-                              {existingQuote ? 'แก้ไขราคา' : 'เลือก'}
+                              {existingQuote ? 'สร้าง revision ใหม่' : 'เลือก'}
                             </Button>
                           </Stack>
                         </Box>

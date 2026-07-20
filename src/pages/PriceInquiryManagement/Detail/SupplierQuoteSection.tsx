@@ -35,6 +35,7 @@ interface SupplierQuoteSectionProps {
   quoteDraftErrors: Record<number, any>;
   isSubmitting: boolean;
   onEditQuote: (quote: RFQSupplierQuote) => void;
+  onCreateRevision: (quote: RFQSupplierQuote) => void;
   onCancelEditQuote: () => void;
   onSaveEditQuote: () => void;
   onDetailChange: (
@@ -85,6 +86,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     quoteDraftErrors,
     isSubmitting,
     onEditQuote,
+    onCreateRevision,
     onCancelEditQuote,
     onSaveEditQuote,
     onDetailChange,
@@ -132,6 +134,16 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                         <Typography variant="subtitle1" fontWeight={700}>
                           {getSupplierDisplayName(quote.supplier)}
                         </Typography>
+                        <Chip
+                          size="small"
+                          label={`Rev. ${quote.revisionNo || 1}`}
+                          sx={{
+                            backgroundColor: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                            fontWeight: 700
+                          }}
+                        />
                         {/* <Chip
                           size="small"
                           label={quote.status || 'DRAFT'}
@@ -174,15 +186,26 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          variant="contained"
-                          size="small"
-                          startIcon={<Edit />}
-                          sx={outlinedActionButtonSx}
-                          disabled={isSubmitting}
-                          onClick={() => onEditQuote(quote)}>
-                          แก้ไขราคา
-                        </Button>
+                        <>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<Add />}
+                            sx={outlinedActionButtonSx}
+                            disabled={isSubmitting}
+                            onClick={() => onCreateRevision(quote)}>
+                            สร้าง revision
+                          </Button>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<Edit />}
+                            sx={outlinedActionButtonSx}
+                            disabled={isSubmitting}
+                            onClick={() => onEditQuote(quote)}>
+                            แก้ไขราคา
+                          </Button>
+                        </>
                       )}
                     </Stack>
                   </Stack>

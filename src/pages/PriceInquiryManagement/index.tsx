@@ -1,10 +1,12 @@
-import { AddCircle } from '@mui/icons-material';
+import { DisabledByDefault, Search } from '@mui/icons-material';
 import {
+  Autocomplete,
   Box,
   Button,
   Chip,
   CircularProgress,
   Grid,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -12,6 +14,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
   useMediaQuery,
   useTheme
@@ -19,19 +22,29 @@ import {
 import { makeStyles } from '@mui/styles';
 import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
+import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
-import { GridSearchSection, TextLineClamp, Wrapper } from 'components/Styled';
+import { GridSearchSection, GridTextField, TextLineClamp, Wrapper } from 'components/Styled';
 import dayjs from 'dayjs';
+import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { ReactElement, useState } from 'react';
+import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import { searchCustomerByKeyword } from 'services/Customer/customer-api';
+import { Customer } from 'services/Customer/customer-type';
+import { getSystemConfig } from 'services/Config/config-api';
+import { SystemConfig } from 'services/Config/config-type';
+import { getProductFamilies } from 'services/Product/product-api';
+import { ProductFamily, ProductMaterial, ProductSubtype1 } from 'services/Product/product-type';
 import { getRFQList } from 'services/RFQ/rfq-api';
 import { RFQEmployee, RFQFileResource, RFQRecord } from 'services/RFQ/rfq-type';
+import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
+import { SalesRecord } from 'services/Sales/sales-type';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
   if (!productFamily) {
@@ -43,6 +56,35 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   }
 
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '-';
+}
+
+function getProductSubtype1DisplayName(productSubtype1: ProductSubtype1): string {
+  if (productSubtype1.nameTh && productSubtype1.nameEn) {
+    return `${productSubtype1.nameTh} (${productSubtype1.nameEn})`;
+  }
+
+  return productSubtype1.nameTh || productSubtype1.nameEn || productSubtype1.code;
+}
+
+function getProductMaterialDisplayName(productMaterial: ProductMaterial): string {
+  if (productMaterial.nameTh && productMaterial.nameEn) {
+    return `${productMaterial.nameTh} (${productMaterial.nameEn})`;
+  }
+
+  return productMaterial.nameTh || productMaterial.nameEn || productMaterial.code;
+}
+
+function getProductMaterialOptionLabel(
+  productMaterial: ProductMaterial,
+  isFamilySelected: boolean
+): string {
+  const label = getProductMaterialDisplayName(productMaterial);
+
+  if (isFamilySelected || !productMaterial.productFamilyCode) {
+    return label;
+  }
+
+  return `${label} [${productMaterial.productFamilyCode}]`;
 }
 
 function getEmployeeLabel(employee?: RFQEmployee | null): string {
@@ -82,6 +124,25 @@ function getCustomerTierColor(code?: string | null): { backgroundColor: string; 
       return { backgroundColor: '#CBD5E1', color: '#334155' };
   }
 }
+
+function createDefaultFilter(salesId = '', procurementId = '') {
+  return {
+    id: '',
+    customerId: '',
+    salesId,
+    procurementId,
+    rfqTypeCode: '',
+    orderTypeCode: '',
+    productFamily: '',
+    productSubtype1: '',
+    productMaterial: '',
+    keyword: '',
+    requestedDateStart: dayjs().startOf('month').format('YYYY-MM-DD'),
+    requestedDateEnd: dayjs().endOf('month').format('YYYY-MM-DD')
+  };
+}
+
+type PriceInquiryFilter = ReturnType<typeof createDefaultFilter>;
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
   return file?.pictureUrl || file?.fileUrl || '';
@@ -286,20 +347,104 @@ export default function PriceInquiryManagement(): ReactElement {
   const classes = useStyles();
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
-  const { getRole } = useAuth();
+  const { getEmployeeId, getRole, getSalesId } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+  const currentRole = getRole();
+  const currentSalesId = getSalesId() || getEmployeeId();
+  const isSalesRole = currentRole === ROLES.SALES;
+  const currentProcurementId = getEmployeeId();
+  const isProcurementRole = currentRole === ROLES.PROCUREMENT;
+  const roleDefaultFilter = useMemo(
+    () =>
+      createDefaultFilter(
+        isSalesRole ? currentSalesId : '',
+        isProcurementRole ? currentProcurementId : ''
+      ),
+    [currentProcurementId, currentSalesId, isProcurementRole, isSalesRole]
+  );
+  const [filter, setFilter] = useState(roleDefaultFilter);
+  const [customerKeyword, setCustomerKeyword] = useState('');
+  const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedCustomerKeyword(customerKeyword.trim());
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [customerKeyword]);
+
+  const searchFormik = useFormik({
+    initialValues: roleDefaultFilter,
+    enableReinitialize: true,
+    onSubmit: (values) => {
+      const nextFilter = {
+        id: values.id?.trim() || '',
+        customerId: values.customerId?.trim() || '',
+        salesId: isSalesRole ? currentSalesId : values.salesId?.trim() || '',
+        procurementId: isProcurementRole ? currentProcurementId : values.procurementId?.trim() || '',
+        rfqTypeCode: values.rfqTypeCode?.trim() || '',
+        orderTypeCode: values.orderTypeCode?.trim() || '',
+        productFamily: values.productFamily?.trim() || '',
+        productSubtype1: values.productSubtype1?.trim() || '',
+        productMaterial: values.productMaterial?.trim() || '',
+        keyword: values.keyword?.trim() || '',
+        requestedDateStart: values.requestedDateStart?.trim() || '',
+        requestedDateEnd: values.requestedDateEnd?.trim() || ''
+      };
+
+      setPage(1);
+
+      if (page === 1 && JSON.stringify(filter) === JSON.stringify(nextFilter)) {
+        rfqRefetch();
+        return;
+      }
+
+      setFilter(nextFilter);
+    }
+  });
 
   const {
     data: rfqResponse,
     refetch: rfqRefetch,
     isFetching: isRFQFetching
   } = useQuery(
-    ['price-inquiry-list', page, pageSize, 'slaDate', 'ASC'],
+    [
+      'price-inquiry-list',
+      page,
+      pageSize,
+      filter.id,
+      filter.customerId,
+      filter.salesId,
+      filter.procurementId,
+      filter.rfqTypeCode,
+      filter.orderTypeCode,
+      filter.productFamily,
+      filter.productSubtype1,
+      filter.productMaterial,
+      filter.keyword,
+      filter.requestedDateStart,
+      filter.requestedDateEnd,
+      'slaDate',
+      'ASC'
+    ],
     () =>
       getRFQList(page, pageSize, {
+        id: filter.id,
+        customerId: filter.customerId,
+        salesId: filter.salesId,
+        procurementId: filter.procurementId,
+        rfqTypeCode: filter.rfqTypeCode,
+        orderTypeCode: filter.orderTypeCode,
+        productFamily: filter.productFamily,
+        productSubtype1: filter.productSubtype1,
+        productMaterial: filter.productMaterial,
+        keyword: filter.keyword,
+        requestedDateStart: filter.requestedDateStart,
+        requestedDateEnd: filter.requestedDateEnd,
         sortBy: 'slaDate',
         sortDirection: 'ASC',
         statuses: ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED'],
@@ -316,6 +461,159 @@ export default function PriceInquiryManagement(): ReactElement {
       }
     }
   );
+
+  const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
+    ['price-inquiry-sales-options'],
+    () => getSales(1, 20),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: procurementOptions = [], isFetching: isProcurementFetching } = useQuery(
+    ['price-inquiry-procurement-options'],
+    () => getEmployeesByPosition('PROCUREMENT', 1, 20),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: orderTypeList } = useQuery(
+    'price-inquiry-order-type-list',
+    () => getSystemConfig('ORDER_TYPE'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: rfqTypeList } = useQuery(
+    'price-inquiry-rfq-type-list',
+    () => getSystemConfig('RFQ_TYPE'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
+    'price-inquiry-product-family-list',
+    () => getProductFamilies(),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: customerOptions = [], isFetching: isCustomerFetching } = useQuery(
+    ['price-inquiry-customer-options', debouncedCustomerKeyword],
+    () => searchCustomerByKeyword(debouncedCustomerKeyword, 1, 100),
+    {
+      refetchOnWindowFocus: false,
+      enabled: debouncedCustomerKeyword.length > 0
+    }
+  );
+
+  const salesDropdownOptions = useMemo(() => {
+    if (!isSalesRole || !currentSalesId) {
+      return salesOptions;
+    }
+
+    if (salesOptions.some((sales) => sales.salesId === currentSalesId)) {
+      return salesOptions;
+    }
+
+    const currentSalesOption: SalesRecord = {
+      salesId: currentSalesId,
+      type: null,
+      name: currentSalesId,
+      nickname: '',
+      mobileNo: null,
+      bankAccountNo: null,
+      bankName: null,
+      bankAccountName: null,
+      team: null
+    };
+
+    return [currentSalesOption, ...salesOptions];
+  }, [currentSalesId, isSalesRole, salesOptions]);
+
+  const selectedProductFamily = useMemo(
+    () =>
+      productFamilyList.find(
+        (productFamily: ProductFamily) => productFamily.code === searchFormik.values.productFamily
+      ) || null,
+    [productFamilyList, searchFormik.values.productFamily]
+  );
+
+  const productSubtype1Options = useMemo(() => {
+    if (selectedProductFamily) {
+      return selectedProductFamily.subtype1List || [];
+    }
+
+    return productFamilyList.flatMap(
+      (productFamily: ProductFamily) => productFamily.subtype1List || []
+    );
+  }, [productFamilyList, selectedProductFamily]);
+
+  const productMaterialOptions = useMemo(() => {
+    if (selectedProductFamily) {
+      return selectedProductFamily.materialList || selectedProductFamily.productMaterialList || [];
+    }
+
+    return productFamilyList.flatMap(
+      (productFamily: ProductFamily) =>
+        productFamily.materialList || productFamily.productMaterialList || []
+    );
+  }, [productFamilyList, selectedProductFamily]);
+
+  useEffect(() => {
+    if (!isSalesRole) {
+      return;
+    }
+
+    searchFormik.setFieldValue('salesId', currentSalesId, false);
+    setFilter((prev) => {
+      if (prev.salesId === currentSalesId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        salesId: currentSalesId
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSalesId, isSalesRole]);
+
+  useEffect(() => {
+    if (!isProcurementRole) {
+      return;
+    }
+
+    searchFormik.setFieldValue('procurementId', currentProcurementId, false);
+    setFilter((prev) => {
+      if (prev.procurementId === currentProcurementId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        procurementId: currentProcurementId
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProcurementId, isProcurementRole]);
+
+  const handleClear = () => {
+    searchFormik.resetForm();
+    setCustomerKeyword('');
+    setPage(1);
+
+    if (page === 1 && JSON.stringify(filter) === JSON.stringify(roleDefaultFilter)) {
+      rfqRefetch();
+      return;
+    }
+
+    setFilter(roleDefaultFilter);
+  };
 
   const rfqList = rfqResponse?.records || [];
 
@@ -401,7 +699,7 @@ export default function PriceInquiryManagement(): ReactElement {
         <TableRow
           hover
           key={rfq.id}
-          onClick={() => history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.id))}
+          onClick={() => history.push(ROUTE_PATHS.PRICE_INQUIRY.replace(':id', rfq.id))}
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
             <Stack spacing={0.5}>
@@ -477,10 +775,259 @@ export default function PriceInquiryManagement(): ReactElement {
     <Page>
       <PageTitle title={t('priceInquiryManagement.title')} />
       <Wrapper>
-        <GridSearchSection container spacing={1}>
-          <Grid item xs={12}>
-          </Grid>
-        </GridSearchSection>
+        <Stack
+          direction={isDownSm ? 'column' : 'row'}
+          spacing={1}
+          justifyContent="flex-end"
+          sx={{ mb: 2 }}>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-blue-green"
+            startIcon={<Search />}
+            onClick={() => searchFormik.handleSubmit()}>
+            {t('button.search')}
+          </Button>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-amber-orange"
+            startIcon={<DisabledByDefault />}
+            onClick={handleClear}>
+            {t('button.clear')}
+          </Button>
+        </Stack>
+
+        <CollapsibleWrapper title="ค้นหาสอบถามราคา" defaultExpanded={false}>
+          <GridSearchSection container spacing={1} sx={{ mt: 0 }}>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                label="เลข RFQ"
+                name="id"
+                value={searchFormik.values.id}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <Autocomplete
+                options={customerOptions}
+                loading={isCustomerFetching}
+                filterOptions={(options) => options}
+                value={
+                  customerOptions.find((customer) => customer.id === searchFormik.values.customerId) ||
+                  null
+                }
+                getOptionLabel={(option: Customer) => `(${option.id}) ${option.customerName}`}
+                onChange={(_event, value) => {
+                  searchFormik.setFieldValue('customerId', value?.id || '');
+                  setCustomerKeyword(value ? `(${value.id}) ${value.customerName}` : '');
+                }}
+                onInputChange={(_event, value, reason) => {
+                  if (reason === 'input') {
+                    setCustomerKeyword(value);
+                  }
+
+                  if (reason === 'clear') {
+                    setCustomerKeyword('');
+                    searchFormik.setFieldValue('customerId', '');
+                  }
+                }}
+                noOptionsText={
+                  debouncedCustomerKeyword ? 'ไม่พบข้อมูลลูกค้า' : 'พิมพ์เพื่อค้นหาลูกค้า'
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="รหัสลูกค้า"
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isCustomerFetching ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      )
+                    }}
+                  />
+                )}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="รหัสเซลล์"
+                name="salesId"
+                value={searchFormik.values.salesId}
+                onChange={searchFormik.handleChange}
+                disabled={isSalesRole || isSalesFetching}
+                InputLabelProps={{ shrink: true }}>
+                {!isSalesRole && <MenuItem value="">ทั้งหมด</MenuItem>}
+                {salesDropdownOptions.map((option) => (
+                  <MenuItem key={option.salesId} value={option.salesId}>
+                    {`${option.salesId} - ${option.nickname || option.name}`}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="รหัสจัดซื้อ"
+                name="procurementId"
+                value={searchFormik.values.procurementId}
+                onChange={searchFormik.handleChange}
+                disabled={isProcurementFetching}
+                InputLabelProps={{ shrink: true }}>
+                {!isProcurementRole && <MenuItem value="">ทั้งหมด</MenuItem>}
+                {procurementOptions.map((option) => (
+                  <MenuItem key={option.salesId} value={option.salesId}>
+                    {`${option.salesId} - ${option.nickname || option.name}`}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="ประเภท RFQ"
+                name="rfqTypeCode"
+                value={searchFormik.values.rfqTypeCode}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {(rfqTypeList || []).map((item: SystemConfig) => (
+                  <MenuItem key={item.code} value={item.code}>
+                    {item.nameTh || item.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="ประเภทงาน"
+                name="orderTypeCode"
+                value={searchFormik.values.orderTypeCode}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {(orderTypeList || []).map((item: SystemConfig) => (
+                  <MenuItem key={item.code} value={item.code}>
+                    {item.nameTh || item.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="Product Family"
+                name="productFamily"
+                value={searchFormik.values.productFamily}
+                onChange={(event) => {
+                  searchFormik.handleChange(event);
+                  searchFormik.setFieldValue('productSubtype1', '');
+                  searchFormik.setFieldValue('productMaterial', '');
+                }}
+                disabled={isProductFamilyFetching}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {productFamilyList.map((productFamily: ProductFamily) => (
+                  <MenuItem key={productFamily.code} value={productFamily.code}>
+                    {productFamily.nameTh && productFamily.nameEn
+                      ? `${productFamily.nameTh} (${productFamily.nameEn})`
+                      : productFamily.nameTh || productFamily.nameEn || productFamily.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="Product Subtype 1"
+                name="productSubtype1"
+                value={searchFormik.values.productSubtype1}
+                onChange={searchFormik.handleChange}
+                disabled={isProductFamilyFetching}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {productSubtype1Options.map((productSubtype1: ProductSubtype1) => (
+                  <MenuItem key={productSubtype1.code} value={productSubtype1.code}>
+                    {getProductSubtype1DisplayName(productSubtype1)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="Product Material"
+                name="productMaterial"
+                value={searchFormik.values.productMaterial}
+                onChange={searchFormik.handleChange}
+                disabled={isProductFamilyFetching}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {productMaterialOptions.map((productMaterial: ProductMaterial) => (
+                  <MenuItem
+                    key={`${productMaterial.productFamilyCode || 'ALL'}-${productMaterial.code}`}
+                    value={productMaterial.code}>
+                    {getProductMaterialOptionLabel(
+                      productMaterial,
+                      Boolean(selectedProductFamily)
+                    )}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                type="date"
+                label="วันที่ขอราคาเริ่มต้น"
+                name="requestedDateStart"
+                value={searchFormik.values.requestedDateStart}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                type="date"
+                label="วันที่ขอราคาสิ้นสุด"
+                name="requestedDateEnd"
+                value={searchFormik.values.requestedDateEnd}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={8} md={6}>
+              <TextField
+                fullWidth
+                label="คำค้นหา"
+                placeholder="เลข RFQ, ชื่อลูกค้า, ชื่อสินค้า"
+                name="keyword"
+                value={searchFormik.values.keyword}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </GridTextField>
+          </GridSearchSection>
+        </CollapsibleWrapper>
 
         {isMobileOnly ? (
           <GridSearchSection container>

@@ -16,12 +16,14 @@ import {
   useTheme
 } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import LoadingDialog from 'components/LoadingDialog';
 import { getLineLoginUrl } from 'services/Line/line-api';
 
 export default function SignInSide(): JSX.Element {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
+  const location = useLocation<{ from?: { pathname?: string; search?: string; hash?: string } }>();
   const [openDialog, setOpenDialog] = useState(false);
   const [isOpenLoading, setIsOpenLoading] = useState(false);
   const [dialogMessage, setDialogMessage] = useState<string>();
@@ -55,7 +57,12 @@ export default function SignInSide(): JSX.Element {
     setIsOpenLoading(true);
 
     try {
-      const loginUrl = await getLineLoginUrl();
+      const from = location.state?.from;
+      const redirect =
+        from?.pathname && from.pathname !== '/login'
+          ? `${from.pathname}${from.search || ''}${from.hash || ''}`
+          : undefined;
+      const loginUrl = await getLineLoginUrl(redirect);
       window.location.href = loginUrl;
     } catch (error) {
       console.error('line login init failed', error);

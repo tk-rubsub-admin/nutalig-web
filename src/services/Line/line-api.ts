@@ -39,8 +39,12 @@ export const sendTestNoti = async (userId: string) => {
   return response;
 };
 
-export const getLineLoginUrl = async (): Promise<string> => {
-  const response = await api.get('/v1/auth/line/login/url').then((response) => response.data);
+export const getLineLoginUrl = async (redirect?: string): Promise<string> => {
+  const response = await api
+    .get('/v1/auth/line/login/url', {
+      params: redirect ? { redirect } : undefined
+    })
+    .then((response) => response.data);
   return extractAuthorizeUrl(response);
 };
 

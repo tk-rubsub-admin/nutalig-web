@@ -2,6 +2,8 @@ import merge from 'deepmerge';
 import { green, grey, indigo, red } from '@mui/material/colors';
 import { THEMES } from 'theme-constants';
 
+const charcoal = '#30302F';
+
 const customBlue = {
   50: '#e9f0fb',
   100: '#c8daf4',
@@ -14,6 +16,8 @@ const customBlue = {
   800: '#2f65cb',
   900: '#2052c2 '
 };
+
+const warmSand = '#D4C5BA';
 
 const defaultVariant = {
   name: THEMES.DEFAULT,
@@ -47,9 +51,13 @@ const defaultVariant = {
       main: '#4caf50',
       contrastText: '#FFF'
     },
+    text: {
+      primary: charcoal,
+      secondary: charcoal
+    },
     background: {
       default: '#F7F9FC',
-      paper: '#FFF'
+      paper: warmSand
     }
   },
   header: {

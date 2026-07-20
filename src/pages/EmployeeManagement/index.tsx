@@ -3,6 +3,7 @@ import {
   Button,
   CircularProgress,
   Grid,
+  IconButton,
   Stack,
   Table,
   TableBody,
@@ -22,12 +23,14 @@ import Paginate from 'components/Paginate';
 import { GridSearchSection, TextLineClamp, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getEmployees } from 'services/Employee/employee-api';
 import { EmployeeRecord } from 'services/Employee/employee-type';
+import { sendTestNoti } from 'services/Line/line-api';
 
 function getEmployeeName(employee: EmployeeRecord): string {
   const name = [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ').trim();
@@ -92,6 +95,21 @@ export default function EmployeeManagement(): JSX.Element {
     setSearchKeyword('');
   };
 
+  const handleTestLineNotification = async (employee: EmployeeRecord) => {
+    const userId = employee.userDto?.id;
+
+    if (!userId) {
+      toast.error('ไม่พบ user สำหรับพนักงานคนนี้');
+      return;
+    }
+
+    await toast.promise(sendTestNoti(userId), {
+      loading: t('toast.loading'),
+      success: 'ส่งข้อความทดสอบไปที่ LINE แล้ว',
+      error: t('toast.failed')
+    });
+  };
+
   const employeeRows = useMemo(() => {
     if (!data?.data?.records?.length) {
       return (
@@ -122,8 +140,16 @@ export default function EmployeeManagement(): JSX.Element {
               <></>
             )}
             {employee.isLineConnected ? (
-              <Tooltip title={t('employeeManagement.column.lineConnected')} arrow>
-                <Chat color="success" />
+              <Tooltip title="ทดสอบส่งข้อความ LINE" arrow>
+                <IconButton
+                  size="small"
+                  color="success"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void handleTestLineNotification(employee);
+                  }}>
+                  <Chat color="success" />
+                </IconButton>
               </Tooltip>
             ) : (
               <></>

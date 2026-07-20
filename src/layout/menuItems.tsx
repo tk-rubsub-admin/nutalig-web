@@ -204,27 +204,27 @@ export function useMenuItems() {
       icon: ManageAccounts,
       allowedPermission: [PERMISSIONS.ACCOUNT_SETTING_VIEW, PERMISSIONS.MANUAL_VIEW],
       children: [
-        {
-          id: 'left_menu__change_password',
-          title: t('sidebar.accountSetting.changePassword'),
-          href: ROUTE_PATHS.CHANGE_PASSWORD,
-          allowedRoles: [
-            ROLES.ADMIN,
-            ROLES.ADMIN_BKK,
-            ROLES.ADMIN_PROVINCE,
-            ROLES.ORDER_BKK,
-            ROLES.ORDER_PROVINCE,
-            ROLES.ACCOUNT,
-            ROLES.ACCOUNT_ADMIN,
-            ROLES.PROCUREMENT,
-            ROLES.PROCUREMENT_ADMIN,
-            ROLES.RECEIVER,
-            ROLES.RECEIVER_PAK_KLONG,
-            ROLES.SALES,
-            ROLES.SALES_ADMIN,
-            ROLES.SUPER_ADMIN
-          ]
-        },
+        // {
+        //   id: 'left_menu__change_password',
+        //   title: t('sidebar.accountSetting.changePassword'),
+        //   href: ROUTE_PATHS.CHANGE_PASSWORD,
+        //   allowedRoles: [
+        //     ROLES.ADMIN,
+        //     ROLES.ADMIN_BKK,
+        //     ROLES.ADMIN_PROVINCE,
+        //     ROLES.ORDER_BKK,
+        //     ROLES.ORDER_PROVINCE,
+        //     ROLES.ACCOUNT,
+        //     ROLES.ACCOUNT_ADMIN,
+        //     ROLES.PROCUREMENT,
+        //     ROLES.PROCUREMENT_ADMIN,
+        //     ROLES.RECEIVER,
+        //     ROLES.RECEIVER_PAK_KLONG,
+        //     ROLES.SALES,
+        //     ROLES.SALES_ADMIN,
+        //     ROLES.SUPER_ADMIN
+        //   ]
+        // },
         {
           id: 'left_menu__manual',
           title: t('sidebar.accountSetting.manual'),

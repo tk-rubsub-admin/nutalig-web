@@ -17,25 +17,25 @@ export const DisabledField = styled(TextField)`
     background-color: #f5f5f5;
   }
   .MuiInputBase-input:disabled {
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
+    color: #30302f !important;
+    -webkit-text-fill-color: #30302f !important;
   }
   label.Mui-disabled {
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
+    color: #30302f !important;
+    -webkit-text-fill-color: #30302f !important;
   }
 `;
 export const EnabledTextField = styled(TextField)`
   .MuiInputBase-input {
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
+    color: #30302f !important;
+    -webkit-text-fill-color: #30302f !important;
   }
   fieldset.MuiOutlinedInput-notchedOutline {
-    border-color: #000000;
+    border-color: #30302f;
   }
   label {
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
+    color: #30302f !important;
+    -webkit-text-fill-color: #30302f !important;
   }
 `;
 export const GridSearchSection = styled(Grid)`

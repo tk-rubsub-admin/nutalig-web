@@ -19,7 +19,7 @@ const ChipRed = styled(Chip)`
 
 const ChipLightGrey = styled(Chip)`
   background-color: #e0e0e0 !important;
-  color: #000000 !important;
+  color: #30302f !important;
   border-radius: 64px !important;
 `;
 

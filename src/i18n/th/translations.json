@@ -397,7 +397,8 @@
       "phoneNumber": "เบอร์ติดต่อ",
       "addNewCustomerButton": "สร้างลูกค้าใหม่",
       "salesAccount": "เซลล์ที่ดูแล",
-      "coSalesAccount": "เซลล์นอก/เซลล์ฟรีแลนซ์"
+      "coSalesAccount": "เซลล์นอก/เซลล์ฟรีแลนซ์",
+      "totalSalesOrderAmount": "ยอดสั่งซื้อสะสม"
     },
     "searchCustomerButton": "ค้นหาข้อมูลลูกค้า",
     "clearCustomerButton": "เคลียร์ข้อมูลลูกค้า",

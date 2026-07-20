@@ -179,6 +179,7 @@ export interface Customer {
   salesAccount: string;
   salesAccounts: string[];
   coSalesAccount: string;
+  totalSalesOrderAmount: number;
   createdBy: string;
   createdDate: string;
   updatedBy: string;

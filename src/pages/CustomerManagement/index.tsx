@@ -52,8 +52,14 @@ import { deleteCustomer, searchCustomer } from 'services/Customer/customer-api';
 import { Customer, SearchCustomerRequest } from 'services/Customer/customer-type';
 import { getSales } from 'services/Sales/sales-api';
 import UploadDialog from './UploadDialog';
+import { formatNumber } from 'utils/utils';
 
 export default function CustomerManagement(): JSX.Element {
+  const formatOrderTotalDisplay = (value?: number | null) => {
+    const numericValue = Number(value || 0);
+    return numericValue === 0 ? '' : formatNumber(numericValue);
+  };
+
   const getChipSx = (code?: string | null) => {
     const normalizedCode = code?.toUpperCase();
     const chipStyleMap: Record<string, { bgcolor: string; color: string; borderColor: string }> = {
@@ -234,6 +240,9 @@ export default function CustomerManagement(): JSX.Element {
                   )}
                   &nbsp;{cust.id}
                 </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t('customerManagement.column.totalSalesOrderAmount')}: {formatOrderTotalDisplay(cust.totalSalesOrderAmount)}
+                </Typography>
 
                 {cust.contacts?.length > 0 ? (
                   <Stack spacing={0.25} sx={{ mt: 0.5 }}>
@@ -332,6 +341,7 @@ export default function CustomerManagement(): JSX.Element {
           <TableCell>
             {formatCustomerSalesAccounts(cust)}
           </TableCell>
+          <TableCell align="right">{formatOrderTotalDisplay(cust.totalSalesOrderAmount)}</TableCell>
           <TableCell align="center">
             <Stack direction="row" spacing={1} justifyContent="center">
               <IconButton
@@ -358,7 +368,7 @@ export default function CustomerManagement(): JSX.Element {
       );
     })) || (
       <TableRow>
-        <TableCell colSpan={5}>
+        <TableCell colSpan={6}>
           <div className={classes.noResultMessage}>{t('warning.noResultList')}</div>
         </TableCell>
       </TableRow>
@@ -619,6 +629,9 @@ export default function CustomerManagement(): JSX.Element {
                       <TableCell align="center" key="updatedDate" className={classes.tableHeader}>
                         {t('customerManagement.column.salesAccount')}
                       </TableCell>
+                      <TableCell align="center" key="totalSalesOrderAmount" className={classes.tableHeader}>
+                        {t('customerManagement.column.totalSalesOrderAmount')}
+                      </TableCell>
                       <TableCell align="center" key="action" className={classes.tableHeader}>
                         {t('customerManagement.column.action')}
                       </TableCell>
@@ -627,7 +640,7 @@ export default function CustomerManagement(): JSX.Element {
                   {isCustomerFetching ? (
                     <TableBody>
                       <TableRow>
-                        <TableCell colSpan={5} align="center">
+                        <TableCell colSpan={6} align="center">
                           <CircularProgress />
                         </TableCell>
                       </TableRow>

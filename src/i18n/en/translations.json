@@ -506,6 +506,9 @@
       "behavior": "ลักษณะนิสัย",
       "creditTerm": "เงื่อนไขการให้เครดิต",
       "paymentTerm": "Payment term",
+      "salesAccount": "Sales Account",
+      "coSalesAccount": "External / Freelance Sales",
+      "totalSalesOrderAmount": "Total Sales Order Amount",
       "dropOff": {
         "no": "จุดลงของที่ ",
         "areaType": "ประเภทพื้นที่ลูกค้า",

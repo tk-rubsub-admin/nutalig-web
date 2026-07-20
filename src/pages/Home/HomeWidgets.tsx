@@ -2,6 +2,8 @@ import {
   Business,
   Add,
   CalendarMonth,
+  DeleteOutline,
+  Edit,
   FlightTakeoff,
   LocalShipping,
   EventAvailable,
@@ -38,9 +40,20 @@ import { darken, getLuminance, lighten, readableColor } from 'polished';
 import dayjs from 'dayjs';
 import 'temporal-polyfill/global';
 import '@schedule-x/theme-default';
+import ConfirmDialog from 'components/ConfirmDialog';
 import UserTodoPanel from 'components/UserTodoPanel';
-import { createMyCalendarEvent, getCalendarEvents } from 'services/Calendar/calendar-api';
-import { CalendarEventDto, CreateMyCalendarEventRequest } from 'services/Calendar/calendar-type';
+import {
+  createMyCalendarEvent,
+  deleteMyCalendarEvent,
+  getCalendarEvents,
+  getMyCalendarEvents,
+  updateMyCalendarEvent
+} from 'services/Calendar/calendar-api';
+import {
+  CalendarEventDto,
+  CreateMyCalendarEventRequest,
+  UpdateMyCalendarEventRequest
+} from 'services/Calendar/calendar-type';
 import { ROUTE_PATHS } from 'routes';
 
 const Temporal = (
@@ -83,6 +96,7 @@ interface CalendarMonthGridEventProps {
   calendarEvent: {
     title?: string;
     start?: unknown;
+    calendarEventId?: number;
     calendarId?: string;
     eventType?: string | null;
     status?: string | null;
@@ -92,6 +106,7 @@ interface CalendarMonthGridEventProps {
 }
 
 interface CalendarDialogEvent {
+  id?: number;
   title?: string;
   description?: string | null;
   location?: string | null;
@@ -99,6 +114,7 @@ interface CalendarDialogEvent {
   end?: string | { year: number; month: number; day: number; hour?: number; minute?: number };
   eventType?: string | null;
   status?: string | null;
+  remark?: string | null;
 }
 
 function getCalendarEventIcon(calendarEvent: CalendarMonthGridEventProps['calendarEvent']) {
@@ -238,6 +254,8 @@ export default function HomeWidgets(): JSX.Element {
     null
   );
   const [isCreateCalendarDialogOpen, setIsCreateCalendarDialogOpen] = useState(false);
+  const [isDeleteCalendarConfirmOpen, setIsDeleteCalendarConfirmOpen] = useState(false);
+  const [editingCalendarEventId, setEditingCalendarEventId] = useState<number | null>(null);
   const [createCalendarForm, setCreateCalendarForm] = useState<CreateMyCalendarEventRequest>({
     title: '',
     description: '',
@@ -246,9 +264,16 @@ export default function HomeWidgets(): JSX.Element {
     allDay: false,
     remark: ''
   });
-  const { data: calendarEventsData } = useQuery<CalendarEventDto[]>(
+  const { data: sharedCalendarEventsData } = useQuery<CalendarEventDto[]>(
     ['calendar-events'],
     () => getCalendarEvents(),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: myCalendarEventsData } = useQuery<CalendarEventDto[]>(
+    ['my-calendar-events'],
+    () => getMyCalendarEvents(),
     {
       refetchOnWindowFocus: false
     }
@@ -257,8 +282,8 @@ export default function HomeWidgets(): JSX.Element {
     (payload: CreateMyCalendarEventRequest) => createMyCalendarEvent(payload),
     {
       onSuccess: async () => {
-        await queryClient.invalidateQueries(['calendar-events']);
-        await queryClient.refetchQueries(['calendar-events'], { active: true });
+        await queryClient.invalidateQueries(['my-calendar-events']);
+        await queryClient.refetchQueries(['my-calendar-events'], { active: true });
         setIsCreateCalendarDialogOpen(false);
         setCreateCalendarForm({
           title: '',
@@ -270,6 +295,38 @@ export default function HomeWidgets(): JSX.Element {
         });
       }
     }
+  );
+  const updateCalendarMutation = useMutation(
+    ({ eventId, payload }: { eventId: number; payload: UpdateMyCalendarEventRequest }) =>
+      updateMyCalendarEvent(eventId, payload),
+    {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries(['my-calendar-events']);
+        await queryClient.refetchQueries(['my-calendar-events'], { active: true });
+        setIsCreateCalendarDialogOpen(false);
+        setEditingCalendarEventId(null);
+        setSelectedCalendarEvent(null);
+        setCreateCalendarForm({
+          title: '',
+          description: '',
+          start: getDefaultCalendarStart(),
+          end: getDefaultCalendarEnd(),
+          allDay: false,
+          remark: ''
+        });
+      }
+    }
+  );
+  const deleteCalendarMutation = useMutation((eventId: number) => deleteMyCalendarEvent(eventId), {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['my-calendar-events']);
+      await queryClient.refetchQueries(['my-calendar-events'], { active: true });
+      setSelectedCalendarEvent(null);
+    }
+  });
+  const calendarEventsData = useMemo(
+    () => [...(sharedCalendarEventsData || []), ...(myCalendarEventsData || [])],
+    [myCalendarEventsData, sharedCalendarEventsData]
   );
 
   const calendarDefinitions = useMemo(() => {
@@ -313,14 +370,23 @@ export default function HomeWidgets(): JSX.Element {
       },
       callbacks: {
         onEventClick: (event) => {
+          const resolvedCalendarEventId =
+            typeof event.calendarEventId === 'number' && Number.isFinite(event.calendarEventId)
+              ? event.calendarEventId
+              : typeof event.id === 'string' || typeof event.id === 'number'
+                ? Number(String(event.id).split('-')[0])
+                : undefined;
+
           setSelectedCalendarEvent({
+            id: Number.isFinite(resolvedCalendarEventId) ? resolvedCalendarEventId : undefined,
             title: event.title,
             description: event.description,
             location: event.location,
             start: event.start,
             end: event.end,
             eventType: event.eventType,
-            status: event.status
+            status: event.status,
+            remark: event.remark
           });
         }
       },
@@ -338,6 +404,7 @@ export default function HomeWidgets(): JSX.Element {
       return [
         {
           id: String(event.id),
+          calendarEventId: event.id,
           title: event.title,
           start: toCalendarDateTime(event.start),
           end: toCalendarDateTime(event.end),
@@ -346,6 +413,7 @@ export default function HomeWidgets(): JSX.Element {
           calendarId: buildCalendarColorName(normalizeCalendarColor(event.colorCode)),
           eventType: event.eventType,
           status: event.status,
+          remark: event.remark ?? undefined,
           sourceModule: event.sourceModule ?? undefined,
           sourceId: event.sourceId ?? undefined
         }
@@ -365,6 +433,7 @@ export default function HomeWidgets(): JSX.Element {
       const fragmentKey = currentDate.format('YYYY-MM-DD');
       items.push({
         id: `${event.id}-${fragmentKey}`,
+        calendarEventId: event.id,
         title: event.title,
         start: plainDate,
         end: plainDate,
@@ -373,6 +442,7 @@ export default function HomeWidgets(): JSX.Element {
         calendarId,
         eventType: event.eventType,
         status: event.status,
+        remark: event.remark ?? undefined,
         sourceModule: event.sourceModule ?? undefined,
         sourceId: event.sourceId ?? undefined
       });
@@ -435,14 +505,92 @@ export default function HomeWidgets(): JSX.Element {
     if (!createCalendarForm.title?.trim()) {
       return;
     }
-
-    createCalendarMutation.mutate({
+    const payload: CreateMyCalendarEventRequest = {
       title: createCalendarForm.title.trim(),
       description: createCalendarForm.description?.trim() || null,
       start: createCalendarForm.start,
       end: createCalendarForm.end,
       allDay: Boolean(createCalendarForm.allDay),
       remark: createCalendarForm.remark?.trim() || null
+    };
+
+    if (editingCalendarEventId) {
+      updateCalendarMutation.mutate({
+        eventId: editingCalendarEventId,
+        payload
+      });
+      return;
+    }
+
+    createCalendarMutation.mutate(payload);
+  };
+
+  const isPrivateCalendarEvent =
+    selectedCalendarEvent?.eventType?.trim().toUpperCase() === 'PRIVATE' &&
+    typeof selectedCalendarEvent?.id === 'number' &&
+    Number.isFinite(selectedCalendarEvent.id);
+
+  const isSavingCalendarEvent =
+    createCalendarMutation.isLoading || updateCalendarMutation.isLoading;
+
+  const handleOpenCreateCalendarDialog = () => {
+    setEditingCalendarEventId(null);
+    setCreateCalendarForm({
+      title: '',
+      description: '',
+      start: getDefaultCalendarStart(),
+      end: getDefaultCalendarEnd(),
+      allDay: false,
+      remark: ''
+    });
+    setIsCreateCalendarDialogOpen(true);
+  };
+
+  const handleEditCalendarEvent = () => {
+    if (!selectedCalendarEvent?.id || !isPrivateCalendarEvent) {
+      return;
+    }
+
+    setEditingCalendarEventId(selectedCalendarEvent.id);
+    setCreateCalendarForm({
+      title: selectedCalendarEvent.title || '',
+      description: selectedCalendarEvent.description || '',
+      start:
+        typeof selectedCalendarEvent.start === 'string'
+          ? dayjs(selectedCalendarEvent.start).toISOString()
+          : getDefaultCalendarStart(),
+      end:
+        typeof selectedCalendarEvent.end === 'string'
+          ? dayjs(selectedCalendarEvent.end).toISOString()
+          : getDefaultCalendarEnd(),
+      allDay: Boolean(
+        typeof selectedCalendarEvent.start !== 'string' || typeof selectedCalendarEvent.end !== 'string'
+          ? false
+          : myCalendarEventsData?.find((event) => event.id === selectedCalendarEvent.id)?.allDay
+      ),
+      remark: selectedCalendarEvent.remark || ''
+    });
+    setSelectedCalendarEvent(null);
+    setIsCreateCalendarDialogOpen(true);
+  };
+
+  const handleDeleteCalendarEvent = () => {
+    if (!selectedCalendarEvent?.id || !isPrivateCalendarEvent) {
+      return;
+    }
+    setIsDeleteCalendarConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteCalendarEvent = () => {
+    if (!selectedCalendarEvent?.id || !isPrivateCalendarEvent) {
+      setIsDeleteCalendarConfirmOpen(false);
+      return;
+    }
+
+    deleteCalendarMutation.mutate(selectedCalendarEvent.id, {
+      onSettled: () => {
+        setIsDeleteCalendarConfirmOpen(false);
+      }
     });
   };
 
@@ -468,7 +616,7 @@ export default function HomeWidgets(): JSX.Element {
             size="small"
             variant="contained"
             startIcon={<Add />}
-            onClick={() => setIsCreateCalendarDialogOpen(true)}>
+            onClick={handleOpenCreateCalendarDialog}>
             เพิ่มปฏิทิน
           </Button>
         </Stack>
@@ -603,7 +751,11 @@ export default function HomeWidgets(): JSX.Element {
         </Box>
         <Dialog
           open={Boolean(selectedCalendarEvent)}
-          onClose={() => setSelectedCalendarEvent(null)}
+          onClose={() => {
+            if (!deleteCalendarMutation.isLoading) {
+              setSelectedCalendarEvent(null);
+            }
+          }}
           fullWidth
           maxWidth="xs">
           <DialogTitle>{selectedCalendarEvent?.title || 'รายละเอียดกิจกรรม'}</DialogTitle>
@@ -659,19 +811,69 @@ export default function HomeWidgets(): JSX.Element {
                   </Typography>
                 </Box>
               ) : null}
+              {selectedCalendarEvent?.remark ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    หมายเหตุ
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedCalendarEvent.remark}
+                  </Typography>
+                </Box>
+              ) : null}
             </Stack>
           </DialogContent>
+          <DialogActions>
+            {isPrivateCalendarEvent ? (
+              <>
+                <Button
+                  color="error"
+                  startIcon={
+                    deleteCalendarMutation.isLoading ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <DeleteOutline />
+                    )
+                  }
+                  onClick={handleDeleteCalendarEvent}
+                  disabled={deleteCalendarMutation.isLoading}>
+                  ลบ
+                </Button>
+                <Button
+                  startIcon={<Edit />}
+                  onClick={handleEditCalendarEvent}
+                  disabled={deleteCalendarMutation.isLoading}>
+                  แก้ไข
+                </Button>
+              </>
+            ) : null}
+            <Button onClick={() => setSelectedCalendarEvent(null)} disabled={deleteCalendarMutation.isLoading}>
+              ปิด
+            </Button>
+          </DialogActions>
         </Dialog>
+        <ConfirmDialog
+          open={isDeleteCalendarConfirmOpen}
+          title="ยืนยันการลบรายการปฏิทิน"
+          message={`ต้องการลบรายการปฏิทิน "${selectedCalendarEvent?.title || '-'}" ใช่หรือไม่?`}
+          confirmText="ยืนยัน"
+          cancelText="ยกเลิก"
+          isShowCancelButton={true}
+          isShowConfirmButton={true}
+          onCancel={() => setIsDeleteCalendarConfirmOpen(false)}
+          onConfirm={handleConfirmDeleteCalendarEvent}
+        />
         <Dialog
           open={isCreateCalendarDialogOpen}
           onClose={() => {
-            if (!createCalendarMutation.isLoading) {
+            if (!isSavingCalendarEvent) {
               setIsCreateCalendarDialogOpen(false);
+              setEditingCalendarEventId(null);
             }
           }}
           fullWidth
           maxWidth="sm">
-          <DialogTitle>เพิ่มรายการปฏิทิน</DialogTitle>
+          <DialogTitle>{editingCalendarEventId ? 'แก้ไขรายการปฏิทิน' : 'เพิ่มรายการปฏิทิน'}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
               <TextField
@@ -777,22 +979,25 @@ export default function HomeWidgets(): JSX.Element {
             <Button
               className="btn-crimson-red"
               variant="contained"
-              onClick={() => setIsCreateCalendarDialogOpen(false)}
-              disabled={createCalendarMutation.isLoading}>
+              onClick={() => {
+                setIsCreateCalendarDialogOpen(false);
+                setEditingCalendarEventId(null);
+              }}
+              disabled={isSavingCalendarEvent}>
               ยกเลิก
             </Button>
             <Button
               variant="contained"
               onClick={handleCreateCalendarEvent}
-              disabled={createCalendarMutation.isLoading || !createCalendarForm.title?.trim()}
+              disabled={isSavingCalendarEvent || !createCalendarForm.title?.trim()}
               startIcon={
-                createCalendarMutation.isLoading ? (
+                isSavingCalendarEvent ? (
                   <CircularProgress size={16} color="inherit" />
                 ) : (
-                  <Add />
+                  editingCalendarEventId ? <Edit /> : <Add />
                 )
               }>
-              บันทึกรายการ
+              {editingCalendarEventId ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}
             </Button>
           </DialogActions>
         </Dialog>

@@ -56,12 +56,18 @@ import toast from 'react-hot-toast';
 import LoadingDialog from 'components/LoadingDialog';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
+import { formatNumber } from 'utils/utils';
 
 export interface CustomerParam {
   id: string;
 }
 
 export default function CustomerDetail(): JSX.Element {
+  const formatOrderTotalDisplay = (value?: number | null) => {
+    const numericValue = Number(value || 0);
+    return numericValue === 0 ? '' : formatNumber(numericValue);
+  };
+
   const TabPanel = ({
     children,
     currentTab,
@@ -901,6 +907,17 @@ export default function CustomerDetail(): JSX.Element {
                 value={formik.values.coSalesAccount}
                 InputLabelProps={{ shrink: true }}
                 InputProps={{ readOnly: !canEdit }}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                type="text"
+                label={t('customerManagement.column.totalSalesOrderAmount')}
+                fullWidth
+                variant="outlined"
+                value={formatOrderTotalDisplay(customer?.totalSalesOrderAmount)}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: true }}
               />
             </GridTextField>
           </Grid>

@@ -866,7 +866,6 @@ export default function PriceInquiryManagement(): ReactElement {
                 name="salesId"
                 value={searchFormik.values.salesId}
                 onChange={searchFormik.handleChange}
-                disabled={isSalesRole || isSalesFetching}
                 InputLabelProps={{ shrink: true }}>
                 {!isSalesRole && <MenuItem value="">ทั้งหมด</MenuItem>}
                 {salesDropdownOptions.map((option) => (
@@ -886,7 +885,7 @@ export default function PriceInquiryManagement(): ReactElement {
                 onChange={searchFormik.handleChange}
                 disabled={isProcurementFetching}
                 InputLabelProps={{ shrink: true }}>
-                {!isProcurementRole && <MenuItem value="">ทั้งหมด</MenuItem>}
+                {<MenuItem value="">ทั้งหมด</MenuItem>}
                 {procurementOptions.map((option) => (
                   <MenuItem key={option.salesId} value={option.salesId}>
                     {`${option.salesId} - ${option.nickname || option.name}`}

@@ -91,6 +91,8 @@ import {
   ProductSubtype2
 } from 'services/Product/product-type';
 import { downloadSaleOrder } from 'services/SaleOrder/sale-order-api';
+import { getProcurementEmployees, getSales } from 'services/Sales/sales-api';
+import { SalesRecord } from 'services/Sales/sales-type';
 import {
   createRFQAdditionalCosts,
   addRFQAttachments,
@@ -128,13 +130,21 @@ interface RFQDetailParam {
 }
 
 interface RFQEditableFormValues {
+  contactName: string;
+  contactPhone: string;
+  salesId: string;
+  procurementId: string;
   referenceRfqId?: string;
+  rfqTypeCode: string;
   orderTypeCode: string;
+  shippingMethod: 'ALL' | 'LAND' | 'SEA' | string;
   productFamily: string;
   productUsage: string;
   systemMechanic: string;
   material: string;
   capacity: string;
+  targetPrice: string;
+  requestedMoqs: string[];
   description: string;
 }
 
@@ -501,8 +511,14 @@ function getSLAStatusPresentation(
 
 function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
+    contactName: rfq?.contactName || '',
+    contactPhone: rfq?.contactPhone || '',
+    salesId: rfq?.sales?.employeeId || rfq?.sales?.salesId || '',
+    procurementId: rfq?.procurement?.employeeId || rfq?.procurement?.salesId || '',
     referenceRfqId: rfq?.referenceRfqId || rfq?.referenceRfq?.id || '',
+    rfqTypeCode: rfq?.rfqType?.code || '',
     orderTypeCode: rfq?.orderType?.code || '',
+    shippingMethod: rfq?.shippingMethod || 'ALL',
     productFamily: getProductFamilyCode(rfq?.productFamily),
     productUsage:
       getNamedCodeValueCode<RFQProductSubtype1>(rfq?.productSubtype1) || rfq?.productUsage || '',
@@ -510,6 +526,9 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
       getNamedCodeValueCode<RFQProductSubtype2>(rfq?.productSubType2) || rfq?.systemMechanic || '',
     material: getNamedCodeValueCode<RFQProductMaterial>(rfq?.material),
     capacity: rfq?.capacity || '',
+    targetPrice:
+      rfq?.targetPrice === null || rfq?.targetPrice === undefined ? '' : String(rfq.targetPrice),
+    requestedMoqs: rfq?.requestedMoqs?.length ? rfq.requestedMoqs.map((item) => `${item}`) : [''],
     description: rfq?.description || ''
   };
 }
@@ -989,6 +1008,14 @@ export default function RFQDetail(): ReactElement {
     }
   );
 
+  const { data: rfqTypeList = [] } = useQuery(
+    'rfq-detail-rfq-type-list',
+    () => getSystemConfig('RFQ_TYPE'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
   const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
     'rfq-detail-product-family-list',
     () => getProductFamilies(),
@@ -996,16 +1023,45 @@ export default function RFQDetail(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+
+  const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
+    'rfq-detail-sales-options',
+    () => getSales(1, 100),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
   const formik = useFormik<RFQEditableFormValues>({
     initialValues: getInitialValues(rfq),
     enableReinitialize: true,
     validationSchema: Yup.object().shape({
+      contactName: Yup.string().max(255).required(t('rfqManagement.validation.contactName')),
+      contactPhone: Yup.string().max(255),
+      salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
+      procurementId: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
+      rfqTypeCode: Yup.string().required(t('rfqManagement.validation.rfqTypeCode')),
       orderTypeCode: Yup.string().required(t('rfqManagement.validation.orderTypeCode')),
+      shippingMethod: Yup.string().oneOf(['ALL', 'LAND', 'SEA']).required(),
       productFamily: Yup.string().required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
       systemMechanic: Yup.string().max(255),
       material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
+      targetPrice: Yup.string().test(
+        'is-valid-target-price',
+        t('rfqManagement.validation.targetPrice'),
+        (value) => !value || !Number.isNaN(Number(value))
+      ),
+      requestedMoqs: Yup.array()
+        .of(
+          Yup.string().test(
+            'is-valid-requested-moq',
+            t('rfqManagement.validation.requestedMoqs'),
+            (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+          )
+        )
+        .min(1, t('rfqManagement.validation.requestedMoqsRequired')),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
     }),
     onSubmit: async (values, actions) => {
@@ -1014,11 +1070,34 @@ export default function RFQDetail(): ReactElement {
       }
 
       try {
-        await toast.promise(updateRFQ(params.id, values), {
+        await toast.promise(
+          updateRFQ(params.id, {
+            contactName: values.contactName,
+            contactPhone: values.contactPhone,
+            salesId: values.salesId,
+            procurementId: values.procurementId || undefined,
+            referenceRfqId: values.referenceRfqId || undefined,
+            rfqTypeCode: values.rfqTypeCode,
+            orderTypeCode: values.orderTypeCode,
+            shippingMethod: values.shippingMethod as 'ALL' | 'LAND' | 'SEA',
+            productFamily: values.productFamily,
+            productUsage: values.productUsage,
+            systemMechanic: values.systemMechanic,
+            material: values.material,
+            capacity: values.capacity,
+            targetPrice: values.targetPrice ? Number(values.targetPrice) : undefined,
+            requestedMoqs: values.requestedMoqs
+              .map((value) => value.trim())
+              .filter((value) => value.length > 0)
+              .map((value) => Number(value)),
+            description: values.description
+          }),
+          {
           loading: t('toast.loading'),
           success: t('toast.success'),
           error: t('toast.failed')
-        });
+          }
+        );
 
         await refetchRFQ();
       } finally {
@@ -1027,14 +1106,23 @@ export default function RFQDetail(): ReactElement {
     }
   });
 
+  const { data: procurementOptions = [], isFetching: isProcurementFetching } = useQuery(
+    ['rfq-detail-procurement-options', formik.values.salesId],
+    () => getProcurementEmployees(formik.values.salesId),
+    {
+      refetchOnWindowFocus: false,
+      enabled: Boolean(formik.values.salesId)
+    }
+  );
+
   const orderTypeLabel = useMemo(() => {
     return orderTypeList.find((item: SystemConfig) => item.code === formik.values.orderTypeCode)
       ?.nameTh;
   }, [formik.values.orderTypeCode, orderTypeList]);
 
   const requestedMoqDisplayValues = useMemo(() => {
-    return (rfq?.requestedMoqs || []).map((item) => `${item}`);
-  }, [rfq?.requestedMoqs]);
+    return formik.values.requestedMoqs.length ? formik.values.requestedMoqs : [''];
+  }, [formik.values.requestedMoqs]);
 
   const selectedProductFamily = useMemo(
     () =>
@@ -2344,24 +2432,55 @@ export default function RFQDetail(): ReactElement {
                     />
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={12}>
+                  <GridTextField item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label={t('rfqManagement.column.contact')}
-                      value={rfq ? `${rfq.contactName || '-'}` : ''}
+                      label={t('rfqManagement.form.contactName')}
+                      name="contactName"
+                      value={formik.values.contactName}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.contactName && formik.errors.contactName)}
+                      helperText={formik.touched.contactName && formik.errors.contactName}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
+                      InputProps={{ readOnly: !isSalesPermission }}
+                    />
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('rfqManagement.form.contactPhone')}
+                      name="contactPhone"
+                      value={formik.values.contactPhone}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.contactPhone && formik.errors.contactPhone)}
+                      helperText={formik.touched.contactPhone && formik.errors.contactPhone}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: !isSalesPermission }}
                     />
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={4}>
                     <TextField
+                      select
                       fullWidth
                       label={t('rfqManagement.form.rfqTypeCode')}
-                      value={getNamedCodeValueLabel(rfq?.rfqType)}
+                      name="rfqTypeCode"
+                      value={formik.values.rfqTypeCode}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.rfqTypeCode && formik.errors.rfqTypeCode)}
+                      helperText={formik.touched.rfqTypeCode && formik.errors.rfqTypeCode}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
+                      disabled={!isSalesPermission}>
+                      {(rfqTypeList || []).map((item: SystemConfig) => (
+                        <MenuItem key={item.code} value={item.code}>
+                          {item.nameTh || item.code}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={2}>
@@ -2394,10 +2513,13 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       fullWidth
                       label={t('rfqManagement.detail.fields.referenceRfqId')}
-                      value={rfq?.referenceRfqId || ''}
+                      name="referenceRfqId"
+                      value={formik.values.referenceRfqId || ''}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{
-                        readOnly: true,
+                        readOnly: !isSalesPermission,
                         endAdornment: rfq?.referenceRfqId ? (
                           <InputAdornment position="end">
                             <IconButton
@@ -2421,22 +2543,52 @@ export default function RFQDetail(): ReactElement {
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField
+                      select
                       fullWidth
                       label={t('rfqManagement.form.salesId')}
-                      value={getEmployeeLabel(rfq?.sales)}
+                      name="salesId"
+                      value={formik.values.salesId}
+                      onChange={(event) => {
+                        formik.handleChange(event);
+                        formik.setFieldValue('procurementId', '');
+                      }}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.salesId && formik.errors.salesId)}
+                      helperText={formik.touched.salesId && formik.errors.salesId}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
+                      disabled={!isSalesPermission || isSalesFetching}>
+                      {(salesOptions as SalesRecord[]).map((sales) => (
+                        <MenuItem key={sales.salesId} value={sales.salesId}>
+                          {`${sales.salesId} - ${sales.nickname || sales.name}`}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>
                     <TextField
+                      select
                       fullWidth
                       label={t('rfqManagement.detail.fields.procurementId')}
-                      value={getEmployeeLabel(rfq?.procurement)}
+                      name="procurementId"
+                      value={formik.values.procurementId}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.procurementId && formik.errors.procurementId)}
+                      helperText={formik.touched.procurementId && formik.errors.procurementId}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
+                      disabled={!isSalesPermission || !formik.values.salesId || isProcurementFetching}>
+                      {!formik.values.salesId ? (
+                        <MenuItem disabled value="">
+                          กรุณาเลือกเซลล์ที่ดูแลก่อน
+                        </MenuItem>
+                      ) : null}
+                      {procurementOptions.map((procurement: SalesRecord) => (
+                        <MenuItem key={procurement.salesId} value={procurement.salesId}>
+                          {`${procurement.salesId} - ${procurement.nickname || procurement.name}`}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>
@@ -2601,19 +2753,33 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       fullWidth
                       label={t('rfqManagement.form.targetPrice')}
-                      value={rfq?.targetPrice != null ? rfq.targetPrice.toLocaleString() : ''}
+                      name="targetPrice"
+                      value={formik.values.targetPrice}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.targetPrice && formik.errors.targetPrice)}
+                      helperText={formik.touched.targetPrice && formik.errors.targetPrice}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
+                      InputProps={{ readOnly: !isSalesPermission }}
                     />
                   </GridTextField>
                   <Grid item xs={12} sm={3}>
                     <TextField
+                      select
                       fullWidth
                       label={t('rfqManagement.detail.fields.shippingMethod')}
-                      value={getShippingMethodLabel(rfq?.shippingMethod)}
+                      name="shippingMethod"
+                      value={formik.values.shippingMethod}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.shippingMethod && formik.errors.shippingMethod)}
+                      helperText={formik.touched.shippingMethod && formik.errors.shippingMethod}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
+                      disabled={!isSalesPermission}>
+                      <MenuItem value="ALL">ทางรถ, ทางเรือ</MenuItem>
+                      <MenuItem value="LAND">ทางรถ</MenuItem>
+                      <MenuItem value="SEA">ทางเรือ</MenuItem>
+                    </TextField>
                   </Grid>
                   <Grid item xs={12} md={3}>
                     <Stack spacing={1.25}>
@@ -2632,23 +2798,76 @@ export default function RFQDetail(): ReactElement {
                           backgroundColor: 'background.paper'
                         }}>
                         <Stack spacing={1.25}>
-                          {(requestedMoqDisplayValues.length ? requestedMoqDisplayValues : ['-']).map(
-                            (requestedMoq, index) => (
-                              <TextField
-                                key={`requested-moq-display-${index}`}
-                                fullWidth
-                                size={isDownSm ? 'small' : 'medium'}
-                                label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
-                                value={requestedMoq}
-                                InputLabelProps={{ shrink: true }}
-                                InputProps={{ readOnly: true }}
-                                sx={{
-                                  '& .MuiInputBase-root': {
-                                    backgroundColor: 'common.white'
-                                  }
-                                }}
-                              />
-                            )
+                          {(requestedMoqDisplayValues.length ? requestedMoqDisplayValues : ['']).map(
+                            (requestedMoq, index) => {
+                              const requestedMoqErrors = formik.errors.requestedMoqs;
+                              const requestedMoqTouched = formik.touched.requestedMoqs;
+                              const itemError =
+                                Array.isArray(requestedMoqTouched) &&
+                                Array.isArray(requestedMoqErrors) &&
+                                requestedMoqTouched[index]
+                                  ? requestedMoqErrors[index]
+                                  : undefined;
+
+                              return (
+                                <Stack
+                                  key={`requested-moq-display-${index}`}
+                                  direction={{ xs: 'column', sm: 'row' }}
+                                  spacing={1}
+                                  alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
+                                  <TextField
+                                    fullWidth
+                                    size={isDownSm ? 'small' : 'medium'}
+                                    label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                                    value={requestedMoq}
+                                    onChange={(event) => {
+                                      const nextValues = [...formik.values.requestedMoqs];
+                                      nextValues[index] = event.target.value;
+                                      formik.setFieldValue('requestedMoqs', nextValues);
+                                    }}
+                                    onBlur={() =>
+                                      formik.setFieldTouched(`requestedMoqs.${index}`, true)
+                                    }
+                                    error={Boolean(itemError)}
+                                    helperText={itemError}
+                                    InputLabelProps={{ shrink: true }}
+                                    InputProps={{ readOnly: !isSalesPermission }}
+                                    sx={{
+                                      '& .MuiInputBase-root': {
+                                        backgroundColor: 'common.white'
+                                      }
+                                    }}
+                                  />
+                                  {isSalesPermission ? (
+                                    <Stack direction="row" spacing={1}>
+                                      <IconButton
+                                        color="primary"
+                                        onClick={() =>
+                                          formik.setFieldValue('requestedMoqs', [
+                                            ...formik.values.requestedMoqs,
+                                            ''
+                                          ])
+                                        }>
+                                        <Add />
+                                      </IconButton>
+                                      <IconButton
+                                        color="error"
+                                        disabled={formik.values.requestedMoqs.length === 1}
+                                        onClick={() =>
+                                          formik.setFieldValue(
+                                            'requestedMoqs',
+                                            formik.values.requestedMoqs.filter(
+                                              (_, itemIndex) => itemIndex !== index
+                                            )
+                                          )
+                                        }>
+                                        <DeleteOutline />
+                                      </IconButton>
+                                    </Stack>
+                                  ) : null}
+                                </Stack>
+                              );
+                            }
                           )}
                         </Stack>
                       </Box>

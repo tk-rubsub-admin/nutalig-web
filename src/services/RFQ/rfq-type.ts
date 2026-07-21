@@ -308,8 +308,13 @@ export interface CreateRFQResponse {
 }
 
 export interface UpdateRFQRequest {
+  contactName: string;
+  contactPhone: string;
+  salesId: string;
+  procurementId?: string;
   referenceRfqId?: string | null;
   rfqTypeCode?: string;
+  shippingMethod?: 'ALL' | 'LAND' | 'SEA';
   orderTypeCode: string;
   productFamily: string;
   productUsage: string;

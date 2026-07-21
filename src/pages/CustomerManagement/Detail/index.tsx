@@ -205,6 +205,8 @@ export default function CustomerDetail(): JSX.Element {
       companyBranchName: customer?.branchName ?? '',
       creditTerm: customer?.customerCreditTerm?.code ?? '',
       paymentTerm: customer?.customerPaymentTerm?.code ?? '',
+      billingCondition: customer?.customerBillingCondition ?? '',
+      paymentCycle: customer?.customerPaymentCycle ?? '',
       salesAccounts: customer?.salesAccounts?.length
         ? customer.salesAccounts
         : customer?.salesAccount
@@ -257,6 +259,8 @@ export default function CustomerDetail(): JSX.Element {
         branchName: values.companyBranchName || null,
         creditTerm: values.creditTerm || null,
         paymentTerm: values.paymentTerm || null,
+        billingCondition: values.billingCondition || null,
+        paymentCycle: values.paymentCycle || null,
         salesAccount: values.salesAccounts[0] || null,
         salesAccounts: values.salesAccounts,
         coSalesAccount: values.coSalesAccount || null
@@ -816,6 +820,32 @@ export default function CustomerDetail(): JSX.Element {
                   </MenuItem>
                 )) || []}
               </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="billingCondition"
+                type="text"
+                fullWidth
+                label={t('customerManagement.column.billingCondition')}
+                InputLabelProps={{ shrink: true }}
+                value={formik.values.billingCondition ?? ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                InputProps={{ readOnly: !canEdit }}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                name="paymentCycle"
+                type="text"
+                fullWidth
+                label={t('customerManagement.column.paymentCycle')}
+                InputLabelProps={{ shrink: true }}
+                value={formik.values.paymentCycle ?? ''}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                InputProps={{ readOnly: !canEdit }}
+              />
             </GridTextField>
 
             {/* tier */}

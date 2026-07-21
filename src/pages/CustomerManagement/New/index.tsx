@@ -125,7 +125,9 @@ export default function NewCustomer(): JSX.Element {
       companyBranchCode: '',
       companyBranchName: '',
       creditTerm: 'NON',
-      paymentTerm: '',
+      paymentTerm: 'DEP50',
+      billingCondition: '',
+      paymentCycle: '',
       salesAccounts: [] as string[],
       coSalesAccount: '',
       address: {
@@ -198,6 +200,8 @@ export default function NewCustomer(): JSX.Element {
         branchName: values.companyBranchName,
         creditTerm: values.creditTerm,
         paymentTerm: values.paymentTerm,
+        billingCondition: values.billingCondition,
+        paymentCycle: values.paymentCycle,
         salesAccount: values.salesAccounts[0] || '',
         salesAccounts: values.salesAccounts,
         coSalesAccount: values.coSalesAccount,
@@ -430,6 +434,26 @@ export default function NewCustomer(): JSX.Element {
                   </MenuItem>
                 )) || []}
               </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                type="text"
+                fullWidth
+                label={t('customerManagement.column.billingCondition')}
+                InputLabelProps={{ shrink: true }}
+                value={formik.values.billingCondition || ''}
+                onChange={({ target }) => formik.setFieldValue('billingCondition', target.value)}
+              />
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                type="text"
+                fullWidth
+                label={t('customerManagement.column.paymentCycle')}
+                InputLabelProps={{ shrink: true }}
+                value={formik.values.paymentCycle || ''}
+                onChange={({ target }) => formik.setFieldValue('paymentCycle', target.value)}
+              />
             </GridTextField>
             <GridTextField item xs={12} sm={6}>
               <TextField

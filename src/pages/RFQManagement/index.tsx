@@ -929,9 +929,9 @@ export default function RFQManagement(): ReactElement {
                   name="salesId"
                   value={searchFormik.values.salesId}
                   onChange={searchFormik.handleChange}
-                  disabled={isSalesRole || isSalesFetching}
+                  disabled={isSalesFetching}
                   InputLabelProps={{ shrink: true }}>
-                  {!isSalesRole && <MenuItem value="">ทั้งหมด</MenuItem>}
+                  {<MenuItem value="">ทั้งหมด</MenuItem>}
                   {isSalesFetching ? (
                     <MenuItem disabled value="">
                       Loading...

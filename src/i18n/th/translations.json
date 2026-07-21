@@ -389,6 +389,8 @@
       },
       "creditTerm": "เงื่อนไขการให้เครดิต",
       "paymentTerm": "เงื่อนไขการชำระเงิน",
+      "billingCondition": "เงื่อนไขการวางบิล",
+      "paymentCycle": "รอบชำระเงิน",
       "searchPanel": "ค้นหาข้อมูลลูกค้า",
       "customerName": "ชื่อ-นามสกุลลูกค้า",
       "customerFirstName": "ชื่อลูกค้า",

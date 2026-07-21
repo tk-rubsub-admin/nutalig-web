@@ -506,6 +506,8 @@
       "behavior": "ลักษณะนิสัย",
       "creditTerm": "เงื่อนไขการให้เครดิต",
       "paymentTerm": "Payment term",
+      "billingCondition": "Billing condition",
+      "paymentCycle": "Payment cycle",
       "salesAccount": "Sales Account",
       "coSalesAccount": "External / Freelance Sales",
       "totalSalesOrderAmount": "Total Sales Order Amount",

@@ -243,6 +243,12 @@ export default function CustomerManagement(): JSX.Element {
                 <Typography variant="body2" color="text.secondary">
                   {t('customerManagement.column.totalSalesOrderAmount')}: {formatOrderTotalDisplay(cust.totalSalesOrderAmount)}
                 </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t('customerManagement.column.billingCondition')}: {cust.customerBillingCondition || ''}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t('customerManagement.column.paymentCycle')}: {cust.customerPaymentCycle || ''}
+                </Typography>
 
                 {cust.contacts?.length > 0 ? (
                   <Stack spacing={0.25} sx={{ mt: 0.5 }}>
@@ -341,6 +347,8 @@ export default function CustomerManagement(): JSX.Element {
           <TableCell>
             {formatCustomerSalesAccounts(cust)}
           </TableCell>
+          <TableCell>{cust.customerBillingCondition || ''}</TableCell>
+          <TableCell>{cust.customerPaymentCycle || ''}</TableCell>
           <TableCell align="right">{formatOrderTotalDisplay(cust.totalSalesOrderAmount)}</TableCell>
           <TableCell align="center">
             <Stack direction="row" spacing={1} justifyContent="center">
@@ -368,7 +376,7 @@ export default function CustomerManagement(): JSX.Element {
       );
     })) || (
       <TableRow>
-        <TableCell colSpan={6}>
+        <TableCell colSpan={8}>
           <div className={classes.noResultMessage}>{t('warning.noResultList')}</div>
         </TableCell>
       </TableRow>

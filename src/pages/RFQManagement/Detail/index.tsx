@@ -84,7 +84,12 @@ import { getQuotation, viewQuotation } from 'services/Document/document-api';
 import { QuotationItem } from 'services/Document/document-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { getProductFamilies } from 'services/Product/product-api';
-import { ProductFamily, ProductSubtype1, ProductSubtype2 } from 'services/Product/product-type';
+import {
+  ProductFamily,
+  ProductMaterial,
+  ProductSubtype1,
+  ProductSubtype2
+} from 'services/Product/product-type';
 import { downloadSaleOrder } from 'services/SaleOrder/sale-order-api';
 import {
   createRFQAdditionalCosts,
@@ -277,6 +282,14 @@ function getProductSubtype2DisplayName(productSubtype2: ProductSubtype2): string
   }
 
   return productSubtype2.nameTh || productSubtype2.nameEn || productSubtype2.code;
+}
+
+function getProductMaterialDisplayName(productMaterial: ProductMaterial): string {
+  if (productMaterial.nameTh && productMaterial.nameEn) {
+    return `${productMaterial.nameTh} (${productMaterial.nameEn})`;
+  }
+
+  return productMaterial.nameTh || productMaterial.nameEn || productMaterial.code;
 }
 
 function getEmployeeLabel(employee?: RFQEmployee | null): string {
@@ -1038,6 +1051,8 @@ export default function RFQDetail(): ReactElement {
   );
 
   const systemMechanicOptions = selectedProductUsage?.subtype2List || [];
+  const materialOptions =
+    selectedProductFamily?.materialList || selectedProductFamily?.productMaterialList || [];
 
   const productFamilyLabel = useMemo(() => {
     if (selectedProductFamily) {
@@ -1078,20 +1093,22 @@ export default function RFQDetail(): ReactElement {
   }, [formik.values.systemMechanic, systemMechanicOptions, rfq?.productSubType2]);
 
   const materialLabel = useMemo(() => {
-    return getNamedCodeValueLabel<RFQProductMaterial>(rfq?.material);
-  }, [rfq?.material]);
+    const selectedMaterial = materialOptions.find(
+      (item: ProductMaterial) => item.code === formik.values.material
+    );
 
-  const materialCode = useMemo(() => {
-    return getNamedCodeValueCode<RFQProductMaterial>(rfq?.material);
-  }, [rfq?.material]);
-
-  const materialDisplayValue = useMemo(() => {
-    if (materialLabel && formik.values.material === materialCode) {
-      return materialLabel;
+    if (selectedMaterial) {
+      return getProductMaterialDisplayName(selectedMaterial);
     }
 
-    return formik.values.material;
-  }, [formik.values.material, materialCode, materialLabel]);
+    return getNamedCodeValueLabel<RFQProductMaterial>(rfq?.material) || undefined;
+  }, [formik.values.material, materialOptions, rfq?.material]);
+
+  const hasMaterialOption = useMemo(() => {
+    return materialOptions.some(
+      (productMaterial: ProductMaterial) => productMaterial.code === formik.values.material
+    );
+  }, [formik.values.material, materialOptions]);
 
   const handleProductFamilyChange = (event: ChangeEvent<HTMLInputElement>) => {
     formik.handleChange(event);
@@ -2530,17 +2547,40 @@ export default function RFQDetail(): ReactElement {
                   </GridTextField>
                   <GridTextField item xs={12} sm={6}>
                     <TextField
+                      select
                       fullWidth
                       label={t('rfqManagement.form.material')}
                       name="material"
-                      value={materialDisplayValue}
+                      value={formik.values.material}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.material && formik.errors.material)}
                       helperText={formik.touched.material && formik.errors.material}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: !isSalesPermission }}
-                    />
+                      disabled={
+                        !isSalesPermission || !formik.values.productFamily || isProductFamilyFetching
+                      }>
+                      {!formik.values.productFamily ? (
+                        <MenuItem disabled value="">
+                          กรุณาเลือก Product Family ก่อน
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.material && !hasMaterialOption ? (
+                        <MenuItem value={formik.values.material}>
+                          {materialLabel || formik.values.material}
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productFamily && materialOptions.length === 0 ? (
+                        <MenuItem disabled value="">
+                          ไม่พบข้อมูลวัสดุ
+                        </MenuItem>
+                      ) : null}
+                      {materialOptions.map((productMaterial: ProductMaterial) => (
+                        <MenuItem key={productMaterial.code} value={productMaterial.code}>
+                          {getProductMaterialDisplayName(productMaterial)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>

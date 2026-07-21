@@ -18,6 +18,8 @@ export interface CreateCustomerRequest {
   branchName: string;
   creditTerm: string;
   paymentTerm: string;
+  billingCondition?: string;
+  paymentCycle?: string;
   customerSegment: string;
   customerTier: string;
   salesAccount: string;
@@ -155,6 +157,8 @@ export interface UpdateCustomerRequest {
   branchName: string | null;
   creditTerm: string | null;
   paymentTerm: string | null;
+  billingCondition?: string | null;
+  paymentCycle?: string | null;
   salesAccount: string | null;
   salesAccounts: string[] | null;
   coSalesAccount: string | null;
@@ -167,6 +171,8 @@ export interface Customer {
   customerType: SystemConfig;
   customerCreditTerm: SystemConfig;
   customerPaymentTerm: SystemConfig | null;
+  customerBillingCondition?: string | null;
+  customerPaymentCycle?: string | null;
   customerTier: SystemConfig | null;
   customerSegment: SystemConfig | null;
   companyName: string;

@@ -4,6 +4,11 @@ import {
     Box,
     Button,
     Chip,
+    Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Grid,
     ListItemIcon,
     ListItemText,
@@ -45,6 +50,8 @@ import { getQuotation, updateQuotation, viewQuotation } from 'services/Document/
 import { Quotation, QuotationItem } from 'services/Document/document-type';
 import { searchInvoices } from 'services/Invoice/invoice-api';
 import { searchReceipts } from 'services/Receipt/receipt-api';
+import { getRFQ } from 'services/RFQ/rfq-api';
+import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
@@ -58,6 +65,117 @@ const getEmployeeName = (quotation?: Quotation) => {
     }
 
     return [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ').trim() || '-';
+};
+
+type ConfirmQuotationRow = {
+    key: string;
+    quotationItem: QuotationItem;
+    detailId: number | null;
+    tierId: string | null;
+    shippingMethod: 'LAND' | 'SEA';
+    optionName: string;
+    quantity: number;
+    unitPrice: number;
+    isFcl: boolean;
+};
+
+const inferQuotationItemShippingMethod = (name?: string | null): 'LAND' | 'SEA' | null => {
+    const normalizedName = (name || '').toLowerCase();
+
+    if (normalizedName.includes('ทางเรือ')) return 'SEA';
+    if (normalizedName.includes('sea')) return 'SEA';
+    if (normalizedName.includes('ทางรถ')) return 'LAND';
+    if (normalizedName.includes('land')) return 'LAND';
+
+    return null;
+};
+
+const getShippingMethodLabel = (shippingMethod: 'LAND' | 'SEA', isFcl = false): string => {
+    if (shippingMethod === 'SEA') {
+        return isFcl ? 'ส่งทางเรือ แบบปิดตู้' : 'ส่งทางเรือ';
+    }
+
+    return 'ส่งทางรถ';
+};
+
+const findMatchingTier = (
+    detailOptions: RFQDetailOption[],
+    quotationItem: QuotationItem
+): { detail: RFQDetailOption | null; tier: RFQDetailTier | null; shippingMethod: 'LAND' | 'SEA' } => {
+    const tierId = quotationItem.tierId ? String(quotationItem.tierId) : '';
+    const inferredShippingMethod = inferQuotationItemShippingMethod(quotationItem.name);
+    const quantity = Number(quotationItem.quantity || 0);
+    const unitPrice = Number(quotationItem.unitPrice || 0);
+
+    const allRows = detailOptions.flatMap((detail) =>
+        (detail.tiers || []).flatMap((tier) => {
+            const shippingOptions: ('LAND' | 'SEA')[] = [];
+
+            if (Number(tier.landTotalPrice || 0) > 0) {
+                shippingOptions.push('LAND');
+            }
+            if (Number(tier.seaTotalPrice || 0) > 0) {
+                shippingOptions.push('SEA');
+            }
+            if (!shippingOptions.length) {
+                shippingOptions.push('LAND');
+            }
+
+            return shippingOptions.map((shippingMethod) => ({
+                detail,
+                tier,
+                shippingMethod,
+                price: Number(
+                    shippingMethod === 'SEA' ? tier.seaTotalPrice || 0 : tier.landTotalPrice || 0
+                )
+            }));
+        })
+    );
+
+    const exactTierMatch = allRows.find((row) => {
+        if (tierId && String(row.tier.id) !== tierId) {
+            return false;
+        }
+        if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+            return false;
+        }
+        return Number(row.tier.quantity || 0) === quantity && Math.abs(row.price - unitPrice) < 0.0001;
+    });
+
+    if (exactTierMatch) {
+        return exactTierMatch;
+    }
+
+    const quantityTierMatch = allRows.find((row) => {
+        if (tierId && String(row.tier.id) !== tierId) {
+            return false;
+        }
+        if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+            return false;
+        }
+        return Number(row.tier.quantity || 0) === quantity;
+    });
+
+    if (quantityTierMatch) {
+        return quantityTierMatch;
+    }
+
+    const tierOnlyMatch = allRows.find((row) => {
+        if (tierId && String(row.tier.id) !== tierId) {
+            return false;
+        }
+        return inferredShippingMethod ? row.shippingMethod === inferredShippingMethod : true;
+    });
+
+    if (tierOnlyMatch) {
+        return tierOnlyMatch;
+    }
+
+    return {
+        detail: null,
+        tier: null,
+        shippingMethod: inferredShippingMethod || 'LAND'
+    };
 };
 
 function TabPanel({
@@ -149,6 +267,8 @@ export default function QuotationDetail(): JSX.Element {
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
     const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
+    const [visibleConfirmPriceDialog, setVisibleConfirmPriceDialog] = useState(false);
+    const [selectedConfirmQuotationRowKeys, setSelectedConfirmQuotationRowKeys] = useState<string[]>([]);
 
     const { data: quotationResponse, isFetching, refetch: refetchQuotation } = useQuery(
         ['quotation-detail', quotationNo],
@@ -219,8 +339,31 @@ export default function QuotationDetail(): JSX.Element {
             refetchOnWindowFocus: false
         }
     );
+    const { data: rfqResponse, isFetching: isRfqFetching } = useQuery(
+        ['quotation-detail-rfq', quotation?.rfqId],
+        () => getRFQ(quotation?.rfqId || ''),
+        {
+            enabled: Boolean(quotation?.rfqId),
+            refetchOnWindowFocus: false
+        }
+    );
 
+    const rfq = rfqResponse as RFQRecord | undefined;
     const documentFlowItems: DocumentFlowItem[] = [
+        {
+            title: 'คำขอราคา',
+            docNo: quotation?.rfqId || quotation?.referenceRfqId || null,
+            status: '',
+            statusProfile: undefined,
+            onOpen: quotation?.rfqId || quotation?.referenceRfqId
+                ? () =>
+                    window.open(
+                        ROUTE_PATHS.RFQ_DETAIL.replace(':id', String(quotation?.rfqId || quotation?.referenceRfqId)),
+                        '_blank',
+                        'noopener,noreferrer'
+                    )
+                : undefined
+        },
         {
             title: 'ใบเสนอราคา',
             docNo: quotation?.quotationNo || null,
@@ -264,6 +407,22 @@ export default function QuotationDetail(): JSX.Element {
                 : undefined
         }
     ];
+    const confirmQuotationRows: ConfirmQuotationRow[] = (quotation?.items || []).map((item, index) => {
+        const matched = findMatchingTier(rfq?.details || [], item);
+
+        return {
+            key: `${item.id || index}:${matched.shippingMethod}`,
+            quotationItem: item,
+            detailId: matched.detail?.id || null,
+            tierId: matched.tier ? String(matched.tier.id) : item.tierId || null,
+            shippingMethod: matched.shippingMethod,
+            optionName: matched.detail?.optionName || item.name || `รายการที่ ${index + 1}`,
+            quantity: Number(item.quantity || 0),
+            unitPrice: Number(item.unitPrice || 0),
+            isFcl: Boolean(matched.tier?.isFcl)
+        };
+    });
+    const canConfirmPriceAction = Boolean(quotation?.rfqId && quotation?.quotationNo && !salesOrder?.salesOrderNo);
 
     useEffect(() => {
         if (!quotation) {
@@ -360,6 +519,85 @@ export default function QuotationDetail(): JSX.Element {
     const handleSelectEditQuotation = () => {
         handleCloseActionMenu();
         handleEditQuotation();
+    };
+
+    const handleOpenConfirmPriceDialog = () => {
+        handleCloseActionMenu();
+
+        if (salesOrder?.salesOrderNo) {
+            history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
+            return;
+        }
+
+        if (!quotation?.rfqId) {
+            toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
+            return;
+        }
+
+        if (!confirmQuotationRows.length) {
+            toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
+            return;
+        }
+
+        setSelectedConfirmQuotationRowKeys([]);
+        setVisibleConfirmPriceDialog(true);
+    };
+
+    const toggleConfirmQuotationRow = (rowKey: string) => {
+        setSelectedConfirmQuotationRowKeys((currentKeys) =>
+            currentKeys.includes(rowKey)
+                ? currentKeys.filter((key) => key !== rowKey)
+                : [...currentKeys, rowKey]
+        );
+    };
+
+    const handleConfirmQuotationPrice = () => {
+        if (!quotation?.rfqId) {
+            toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
+            return;
+        }
+
+        if (!selectedConfirmQuotationRowKeys.length) {
+            toast.error('กรุณาเลือกรายการใบเสนอราคาที่ต้องการใช้สำหรับคอนเฟิร์มราคา');
+            return;
+        }
+
+        const selectedRows = selectedConfirmQuotationRowKeys
+            .map((rowKey) => confirmQuotationRows.find((row) => row.key === rowKey))
+            .filter((row): row is ConfirmQuotationRow => Boolean(row));
+
+        if (!selectedRows.length) {
+            toast.error('ไม่พบข้อมูลรายการใบเสนอราคาที่เลือก');
+            return;
+        }
+
+        if (selectedRows.some((row) => !row.detailId)) {
+            toast.error('ไม่สามารถจับคู่รายการใบเสนอราคากับ RFQ เดิมได้ครบทุกแถว');
+            return;
+        }
+
+        const serializedSelections = encodeURIComponent(
+            JSON.stringify(
+                selectedRows.map((row) => ({
+                    detailId: row.detailId,
+                    quotationDetailId: String(row.quotationItem.id || ''),
+                    shippingMethod: row.shippingMethod
+                }))
+            )
+        );
+
+        setVisibleConfirmPriceDialog(false);
+        toast.success(
+            selectedRows.length === 1
+                ? `เลือก ${selectedRows[0].optionName} จำนวน ${formatNumber(selectedRows[0].quantity)} ${getShippingMethodLabel(
+                    selectedRows[0].shippingMethod,
+                    selectedRows[0].isFcl
+                )}`
+                : `เลือกรายการสำหรับคอนเฟิร์มราคาแล้ว ${selectedRows.length} รายการ`
+        );
+        history.push(
+            `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', quotation.rfqId)}?selectedItems=${serializedSelections}`
+        );
     };
 
     const handleSaveQuotation = async () => {
@@ -474,6 +712,17 @@ export default function QuotationDetail(): JSX.Element {
                                     </ListItemIcon>
                                     <ListItemText primary={t('documentManagement.quotation.viewQuotation')} />
                                 </MenuItem>
+                                {canConfirmPriceAction ? (
+                                    <MenuItem
+                                        onClick={handleOpenConfirmPriceDialog}
+                                        disabled={!quotation || quotation.status === 'CANCELLED'}
+                                        sx={{ width: '100%' }}>
+                                        <ListItemIcon>
+                                            <Save fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText primary="คอนเฟิร์มราคา" />
+                                    </MenuItem>
+                                ) : null}
                                 <Can permission={PERMISSIONS.QUOTATION_EDIT}>
                                     <MenuItem
                                         onClick={handleSelectEditQuotation}
@@ -537,7 +786,8 @@ export default function QuotationDetail(): JSX.Element {
                                         label={t('documentManagement.quotation.status')}
                                         value={getDocumentStatusLabel(quotation?.status, quotation?.statusProfile)}
                                     />
-                                    <Info label={"Revision : "} value={quotation?.revNo ?? '-'} />
+                                    <Info label={"Revision "} value={quotation?.revNo ?? '-'} />
+                                    <Info label="อ้างอิง RFQ " value={quotation?.rfqId} />
                                 </Stack>
                             </Grid>
                             <Grid item xs={12} md={4}>
@@ -843,6 +1093,79 @@ export default function QuotationDetail(): JSX.Element {
                 }}
                 onCancel={() => setConfirmUpdateOpen(false)}
             />
+            <Dialog
+                open={visibleConfirmPriceDialog}
+                onClose={() => setVisibleConfirmPriceDialog(false)}
+                fullWidth
+                maxWidth="lg">
+                <DialogTitle>คอนเฟิร์มราคา</DialogTitle>
+                <DialogContent dividers>
+                    <TableContainer>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow
+                                    sx={{
+                                        '& th': {
+                                            fontWeight: 700,
+                                            backgroundColor: '#f8fafc',
+                                            whiteSpace: 'nowrap'
+                                        }
+                                    }}>
+                                    <TableCell padding="checkbox" />
+                                    <TableCell>รายการ</TableCell>
+                                    <TableCell>วิธีขนส่ง</TableCell>
+                                    <TableCell align="right">จำนวน</TableCell>
+                                    <TableCell align="right">ราคา</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {confirmQuotationRows.length ? (
+                                    confirmQuotationRows.map((row) => (
+                                        <TableRow key={row.key} hover>
+                                            <TableCell padding="checkbox">
+                                                <Checkbox
+                                                    checked={selectedConfirmQuotationRowKeys.includes(row.key)}
+                                                    onChange={() => toggleConfirmQuotationRow(row.key)}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Stack spacing={0.25}>
+                                                    <Typography variant="body2" fontWeight={700}>
+                                                        {row.quotationItem.name || row.optionName}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {row.quotationItem.spec || '-'}
+                                                    </Typography>
+                                                </Stack>
+                                            </TableCell>
+                                            <TableCell>
+                                                {getShippingMethodLabel(row.shippingMethod, row.isFcl)}
+                                            </TableCell>
+                                            <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
+                                            <TableCell align="right">{formatNumber(row.unitPrice)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                            {isRfqFetching ? 'กำลังโหลดข้อมูล...' : 'ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา'}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setVisibleConfirmPriceDialog(false)}>ยกเลิก</Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleConfirmQuotationPrice}
+                        disabled={!confirmQuotationRows.length}>
+                        ยืนยัน
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Page>
     );
 }

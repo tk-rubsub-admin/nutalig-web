@@ -261,6 +261,18 @@ export default function ReceiptDetail(): ReactElement {
   const isVoidReceiptEnabled = Boolean(receipt && receipt.status !== 'VOID');
   const documentFlowItems: DocumentFlowItem[] = [
     {
+      title: 'คำขอราคา',
+      docNo: relatedSalesOrder?.rfqId || null,
+      onOpen: relatedSalesOrder?.rfqId
+        ? () =>
+            window.open(
+              ROUTE_PATHS.RFQ_DETAIL.replace(':id', String(relatedSalesOrder.rfqId)),
+              '_blank',
+              'noopener,noreferrer'
+            )
+        : undefined
+    },
+    {
       title: 'ใบเสนอราคา',
       docNo: receipt?.quotationNo || relatedInvoice?.quotationNo || null,
       onOpen: receipt?.quotationNo || relatedInvoice?.quotationNo

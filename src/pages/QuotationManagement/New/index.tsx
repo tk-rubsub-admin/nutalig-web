@@ -47,6 +47,7 @@ const createEmptyRow = (): CreateQuotationItem => ({
     amount: 0,
     imageFile: null,
     imagePreview: '',
+    imageUrl: ''
 });
 
 const fieldSx = {
@@ -146,7 +147,7 @@ const buildPaymentTermRemark = (baseRemark?: string | null, paymentTerm?: Custom
 };
 
 const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
-    const imagePreview = (rfq.pictures || [])?.[0]?.pictureUrl || '';
+    const defaultImageUrl = (rfq.pictures || [])?.[0]?.pictureUrl || '';
     const type = getConfigLabel(rfq.orderType);
     const capacity = rfq.capacity || '';
     const productFamily = getProductFamilyLabel(rfq.productFamily);
@@ -159,7 +160,8 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
             type,
             capacity,
             spec: [material, rfq.description].filter(Boolean).join('\n'),
-            imagePreview
+            imagePreview: defaultImageUrl,
+            imageUrl: defaultImageUrl
         }];
     }
 
@@ -187,7 +189,8 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                 unitPrice,
                 unitPriceInput: String(unitPrice),
                 amount: quantity * unitPrice,
-                imagePreview
+                imagePreview: defaultImageUrl,
+                imageUrl: defaultImageUrl
             });
 
             if (hasLandTotalPrice && hasSeaTotalPrice) {
@@ -324,7 +327,8 @@ export default function NewQuotation() {
                     unitPrice: 0,
                     amount: 0,
                     imageFile: null,
-                    imagePreview: ''
+                    imagePreview: '',
+                    imageUrl: ''
                 }
             ]
         },
@@ -500,7 +504,8 @@ export default function NewQuotation() {
             unitPrice: 0,
             amount: 0,
             imageFile: null,
-            imagePreview: ''
+            imagePreview: '',
+            imageUrl: ''
         });
 
         formik.setFieldValue('items', items);
@@ -585,6 +590,20 @@ export default function NewQuotation() {
 
         items[index].imageFile = null;
         items[index].imagePreview = '';
+        items[index].imageUrl = '';
+
+        formik.setFieldValue('items', items);
+    };
+
+    const handleSelectRfqPicture = (index: number, pictureUrl: string) => {
+        const items = [...formik.values.items];
+
+        items[index] = {
+            ...items[index],
+            imageFile: null,
+            imagePreview: pictureUrl,
+            imageUrl: pictureUrl
+        };
 
         formik.setFieldValue('items', items);
     };
@@ -858,6 +877,23 @@ export default function NewQuotation() {
                         </> :
                         <> </>
                     }
+                    <GridTextField item xs={12} sm={6}>
+                        <TextField
+                            name="customerPaymentTerm"
+                            type="text"
+                            label={t('customerManagement.column.paymentTerm')}
+                            fullWidth
+                            variant="outlined"
+                            value={
+                                customer?.customerPaymentTerm?.nameTh ||
+                                customer?.customerPaymentTerm?.nameEn ||
+                                customer?.customerPaymentTerm?.code ||
+                                ''
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            InputProps={{ readOnly: true }}
+                        />
+                    </GridTextField>
                     <GridTextField item xs={12} sm={12}>
                         <TextField
                             select
@@ -1127,6 +1163,62 @@ export default function NewQuotation() {
                                                     }
                                                 }}
                                             />
+
+                                            {isCreateFromRFQ && (rfq?.pictures || []).length > 1 ? (
+                                                <Stack spacing={0.75}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {t('documentManagement.quotation.itemSection.image')}
+                                                    </Typography>
+                                                    <Stack
+                                                        direction="row"
+                                                        spacing={0.75}
+                                                        sx={{
+                                                            overflowX: 'auto',
+                                                            pb: 0.5
+                                                        }}
+                                                    >
+                                                        {(rfq?.pictures || []).map((picture, pictureIndex) => {
+                                                            const isSelected = row.imagePreview === picture.pictureUrl;
+
+                                                            return (
+                                                                <Box
+                                                                    key={picture.id || picture.pictureUrl || pictureIndex}
+                                                                    onClick={() => handleSelectRfqPicture(index, picture.pictureUrl)}
+                                                                    sx={{
+                                                                        width: 56,
+                                                                        minWidth: 56,
+                                                                        height: 56,
+                                                                        borderRadius: '10px',
+                                                                        overflow: 'hidden',
+                                                                        cursor: 'pointer',
+                                                                        border: isSelected
+                                                                            ? '2px solid #1F3F37'
+                                                                            : '1px solid #C8D0DB',
+                                                                        boxShadow: isSelected
+                                                                            ? '0 0 0 2px rgba(31, 63, 55, 0.16)'
+                                                                            : 'none',
+                                                                        opacity: isSelected ? 1 : 0.82,
+                                                                        transition: 'all 0.2s ease',
+                                                                        flexShrink: 0
+                                                                    }}
+                                                                >
+                                                                    <Box
+                                                                        component="img"
+                                                                        src={picture.pictureUrl}
+                                                                        alt={`rfq-picture-${pictureIndex + 1}`}
+                                                                        sx={{
+                                                                            width: '100%',
+                                                                            height: '100%',
+                                                                            objectFit: 'cover',
+                                                                            display: 'block'
+                                                                        }}
+                                                                    />
+                                                                </Box>
+                                                            );
+                                                        })}
+                                                    </Stack>
+                                                </Stack>
+                                            ) : null}
                                         </Stack>
                                     </TableCell>
 

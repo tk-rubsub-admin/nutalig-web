@@ -42,7 +42,7 @@ export function getDocumentStatusLabel(
     case 'OPEN':
       return 'เปิดอยู่';
     default:
-      return rawStatus || '-';
+      return rawStatus || '';
   }
 }
 

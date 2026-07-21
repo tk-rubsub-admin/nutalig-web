@@ -2,6 +2,7 @@
 
 import { Address, Contact, Customer } from "services/Customer/customer-type";
 import { EmployeeDetailResponse, EmployeeRecord } from "services/Employee/employee-type";
+import { RFQReference } from "services/RFQ/rfq-type";
 import { Pagination } from "services/general-type";
 import { DocumentStatusProfile } from "services/document-status-type";
 
@@ -35,10 +36,14 @@ export interface CreateQuotationItem {
     amount: number;
     imageFile: null;
     imagePreview: string;
+    imageUrl?: string;
 };
 
 export interface Quotation {
     quotationNo: string;
+    rfqId?: string | null;
+    referenceRfqId?: string | null;
+    referenceRfq?: RFQReference | null;
     docDate: string;
     effectiveDate: string;
     customer: Customer;

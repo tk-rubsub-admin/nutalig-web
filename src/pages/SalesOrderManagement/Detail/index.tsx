@@ -338,6 +338,13 @@ export default function SalesOrderDetail(): ReactElement {
 
   const documentFlowItems: DocumentFlowItem[] = [
     {
+      title: 'คำขอราคา',
+      docNo: salesOrder?.rfqId || null,
+      onOpen: salesOrder?.rfqId
+        ? () => window.open(ROUTE_PATHS.RFQ_DETAIL.replace(':id', salesOrder.rfqId), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
       title: 'ใบเสนอราคา',
       docNo: quotationNo,
       status: latestInvoice?.status || latestReceipt?.status || null,

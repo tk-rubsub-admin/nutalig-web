@@ -292,6 +292,13 @@ export default function InvoiceDetail(): ReactElement {
 
   const documentFlowItems: DocumentFlowItem[] = [
     {
+      title: 'คำขอราคา',
+      docNo: relatedSalesOrder?.rfqId || null,
+      onOpen: relatedSalesOrder?.rfqId
+        ? () => window.open(ROUTE_PATHS.RFQ_DETAIL.replace(':id', relatedSalesOrder.rfqId), '_blank', 'noopener,noreferrer')
+        : undefined
+    },
+    {
       title: 'ใบเสนอราคา',
       docNo: invoice?.quotationNo || null,
       statusProfile: undefined,

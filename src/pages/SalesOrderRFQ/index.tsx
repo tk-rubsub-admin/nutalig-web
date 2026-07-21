@@ -1,4 +1,11 @@
-import { ArrowBackIos, DirectionsBoat, LocalShipping, Save } from '@mui/icons-material';
+import {
+  AddCircle,
+  ArrowBackIos,
+  DeleteOutline,
+  DirectionsBoat,
+  LocalShipping,
+  Save
+} from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -62,11 +69,12 @@ interface SaleOrderRFQParams {
 
 interface SaleOrderRFQItem {
   id: number;
+  imageUrl?: string | null;
   optionId?: number;
   tierId?: number;
   supplierQuoteTierId?: number;
   quotationDetailId?: number | string;
-  shippingMethod: 'LAND' | 'SEA';
+  shippingMethod: 'LAND' | 'SEA' | null;
   isFcl?: boolean;
   supplierCurrency?: string | null;
   supplierUnitPrice?: number | null;
@@ -118,6 +126,21 @@ interface SelectedRFQQueryItem {
   shippingMethod: 'LAND' | 'SEA';
 }
 
+function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
+  return {
+    id,
+    imageUrl: null,
+    shippingMethod: null,
+    name: '',
+    spec: '',
+    quantity: 1,
+    unitPrice: 0,
+    amount: 0,
+    totalFreight: 0,
+    remark: ''
+  };
+}
+
 const fieldSx = {
   '& .MuiOutlinedInput-root': {
     borderRadius: '12px',
@@ -132,10 +155,15 @@ const fieldSx = {
 
 function getCreatedSaleOrderId(response: any): string {
   return (
+    response?.data?.data?.id ||
+    response?.data?.data?.salesOrderNo ||
+    response?.data?.data?.saleOrderId ||
     response?.data?.id ||
+    response?.data?.salesOrderNo ||
     response?.data?.orderId ||
     response?.data?.saleOrderId ||
     response?.id ||
+    response?.salesOrderNo ||
     response?.orderId ||
     response?.saleOrderId ||
     ''
@@ -174,13 +202,13 @@ function getRFQSalesDisplayValue(sales?: RFQRecord['sales']): string {
   return [employeeId, nickname].filter(Boolean).join(' - ');
 }
 
-function getShippingMethodLabel(shippingMethod?: string): string {
+function getShippingMethodLabel(shippingMethod?: string | null): string {
   if (shippingMethod === 'SEA') return 'ส่งทางเรือ';
   if (shippingMethod === 'LAND') return 'ส่งทางรถ';
   return '';
 }
 
-function getShippingMethodIcon(shippingMethod?: string): JSX.Element | null {
+function getShippingMethodIcon(shippingMethod?: string | null): JSX.Element | null {
   if (shippingMethod === 'SEA') {
     return <DirectionsBoat sx={{ color: '#00897b', fontSize: 30 }} />;
   }
@@ -192,7 +220,7 @@ function getShippingMethodIcon(shippingMethod?: string): JSX.Element | null {
   return null;
 }
 
-function getShippingMethodColor(shippingMethod?: string): string {
+function getShippingMethodColor(shippingMethod?: string | null): string {
   if (shippingMethod === 'SEA') return '#00897b';
   if (shippingMethod === 'LAND') return '#1565c0';
   return '#64748b';
@@ -244,9 +272,13 @@ function formatApiDate(value: dayjs.Dayjs | string): string | undefined {
 }
 
 function getShippingDisplayLabel(
-  shippingMethod: 'LAND' | 'SEA',
+  shippingMethod: 'LAND' | 'SEA' | null,
   isFcl?: boolean | null
 ): string {
+  if (!shippingMethod) {
+    return '';
+  }
+
   const shippingLabel = shippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
 
   return shippingMethod === 'SEA' && Boolean(isFcl)
@@ -548,6 +580,7 @@ export default function SalesOrderRFQ(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<CreateSalesOrderStatus | 'back'>('CREATED');
+  const [nextManualItemId, setNextManualItemId] = useState(-1);
   const useStyles = makeStyles({
     hideObject: {
       display: 'none'
@@ -735,10 +768,21 @@ export default function SalesOrderRFQ(): JSX.Element {
       discount: 0,
       freight: selectedItems.reduce((sum, item) => sum + Number(item.totalFreight || 0), 0),
       isVat: formik.values.isVat,
-      shippingType:
-        new Set(selectedItems.map((item) => item.shippingMethod)).size > 1
-          ? 'ALL'
-          : selectedItems[0]?.shippingMethod,
+      shippingType: (() => {
+        const shippingMethods = Array.from(
+          new Set(
+            selectedItems
+              .map((item) => item.shippingMethod)
+              .filter((shippingMethod): shippingMethod is 'LAND' | 'SEA' => Boolean(shippingMethod))
+          )
+        );
+
+        if (!shippingMethods.length) {
+          return null;
+        }
+
+        return shippingMethods.length > 1 ? 'ALL' : shippingMethods[0];
+      })(),
       requestCoa: formik.values.requestCoa,
       requestPo: formik.values.requestPo,
       remark: formik.values.notes,
@@ -752,7 +796,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         spec: selectedItem.spec,
         unitPrice: selectedItem.unitPrice,
         quantity: selectedItem.quantity,
-        imageUrl,
+        imageUrl: selectedItem.imageUrl || null,
         rfqDetailId: selectedItem.optionId,
         rfqTierId: selectedItem.tierId,
         quotationDetailId: selectedItem.quotationDetailId
@@ -826,6 +870,10 @@ export default function SalesOrderRFQ(): JSX.Element {
       const items = hasSelectedRFQParams
         ? selectedItemFromDialog
         : allItems.slice(0, 1);
+      const itemsWithImage = items.map((item) => ({
+        ...item,
+        imageUrl: getRFQImageUrl(rfq) || null
+      }));
       let fullCustomer: Customer | null = null;
       let defaultDropOff: CustomerDropOff | null = null;
 
@@ -881,7 +929,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         ),
         requestCoa: false,
         requestPo: false,
-        items
+        items: itemsWithImage
       });
     };
 
@@ -897,7 +945,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       string,
       {
         key: string;
-        shippingMethod: 'LAND' | 'SEA';
+        shippingMethod: 'LAND' | 'SEA' | null;
         isFcl: boolean;
         label: string;
         icon: JSX.Element | null;
@@ -910,6 +958,10 @@ export default function SalesOrderRFQ(): JSX.Element {
     >();
 
     formik.values.items.forEach((item) => {
+      if (!item.shippingMethod) {
+        return;
+      }
+
       const isFcl = hasFclShippingTag(item);
       const summaryKey = `${item.shippingMethod}:${isFcl ? 'FCL' : 'NORMAL'}`;
       const currentSummary = shippingSummary.get(summaryKey);
@@ -959,6 +1011,18 @@ export default function SalesOrderRFQ(): JSX.Element {
     };
     items[index].amount = Number(items[index].quantity || 0) * Number(items[index].unitPrice || 0);
     formik.setFieldValue('items', items);
+  };
+
+  const handleAddManualItem = () => {
+    formik.setFieldValue('items', [...formik.values.items, createEmptySaleOrderItem(nextManualItemId)]);
+    setNextManualItemId((currentId) => currentId - 1);
+  };
+
+  const handleDeleteItem = (index: number) => {
+    formik.setFieldValue(
+      'items',
+      formik.values.items.filter((_, itemIndex) => itemIndex !== index)
+    );
   };
 
   return (
@@ -1192,6 +1256,21 @@ export default function SalesOrderRFQ(): JSX.Element {
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              label={t('customerManagement.column.paymentTerm')}
+              value={
+                customer?.customerPaymentTerm?.nameTh ||
+                customer?.customerPaymentTerm?.nameEn ||
+                customer?.customerPaymentTerm?.code ||
+                ''
+              }
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: true }}
+            />
+          </GridTextField>
           {customer?.customerType?.code === 'COMPANY' ? (
             <GridTextField item xs={12} sm={6}>
               <TextField
@@ -1305,6 +1384,9 @@ export default function SalesOrderRFQ(): JSX.Element {
                 <TableCell width={180} align="center">
                   รวม
                 </TableCell>
+                <TableCell width={110} align="center">
+                  จัดการ
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1324,10 +1406,10 @@ export default function SalesOrderRFQ(): JSX.Element {
                         justifyContent: 'center',
                         mx: 'auto'
                       }}>
-                      {imageUrl ? (
+                      {row.imageUrl ? (
                         <Box
                           component="img"
-                          src={imageUrl}
+                          src={row.imageUrl}
                           alt="product"
                           sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -1367,9 +1449,15 @@ export default function SalesOrderRFQ(): JSX.Element {
                     </Stack>
                   </TableCell>
                   <TableCell align="center">
-                    <Typography sx={{ fontSize: 20, color: '#2F3447' }}>
-                      {formatNumberWithoutDigit(row.quantity)}
-                    </Typography>
+                    <TextField
+                      type="number"
+                      value={row.quantity}
+                      onChange={(event) =>
+                        updateItem(index, 'quantity', Number(event.target.value || 0))
+                      }
+                      inputProps={{ min: 0, style: { textAlign: 'right' } }}
+                      sx={{ maxWidth: 140, mx: 'auto' }}
+                    />
                   </TableCell>
                   <TableCell align="center">
                     <TextField
@@ -1387,13 +1475,22 @@ export default function SalesOrderRFQ(): JSX.Element {
                       {formatNumber(row.amount)}
                     </Typography>
                   </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      color="error"
+                      variant="text"
+                      startIcon={<DeleteOutline />}
+                      onClick={() => handleDeleteItem(index)}>
+                      ลบ
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {!formik.values.items.length ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Typography color="error">
-                      ไม่พบรายการสินค้าที่เลือกจาก Confirm Price Dialog
+                      ยังไม่มีรายการสินค้า กรุณาเพิ่มรายการหรือเลือกมาจาก Confirm Price Dialog
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -1401,6 +1498,26 @@ export default function SalesOrderRFQ(): JSX.Element {
             </TableBody>
           </Table>
         </Paper>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{ mt: 2.5 }}
+        >
+          <Button
+            variant="outlined"
+            startIcon={<AddCircle />}
+            onClick={handleAddManualItem}
+            sx={{
+              borderRadius: '999px',
+              px: 3,
+              py: 1.25,
+              fontWeight: 700,
+              minHeight: 48
+            }}
+          >
+            เพิ่มรายการใหม่
+          </Button>
+        </Stack>
       </CollapsibleWrapper>
 
       <CollapsibleWrapper title="สรุป" isCompleted={true} defaultExpanded>

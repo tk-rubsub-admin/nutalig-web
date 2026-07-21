@@ -115,6 +115,9 @@ interface CalendarDialogEvent {
   eventType?: string | null;
   status?: string | null;
   remark?: string | null;
+  rawStart?: string;
+  rawEnd?: string;
+  allDay?: boolean | null;
 }
 
 function getCalendarEventIcon(calendarEvent: CalendarMonthGridEventProps['calendarEvent']) {
@@ -376,6 +379,9 @@ export default function HomeWidgets(): JSX.Element {
               : typeof event.id === 'string' || typeof event.id === 'number'
                 ? Number(String(event.id).split('-')[0])
                 : undefined;
+          const sourceCalendarEvent = calendarEventsData.find(
+            (calendarEvent) => calendarEvent.id === resolvedCalendarEventId
+          );
 
           setSelectedCalendarEvent({
             id: Number.isFinite(resolvedCalendarEventId) ? resolvedCalendarEventId : undefined,
@@ -386,7 +392,10 @@ export default function HomeWidgets(): JSX.Element {
             end: event.end,
             eventType: event.eventType,
             status: event.status,
-            remark: event.remark
+            remark: event.remark,
+            rawStart: sourceCalendarEvent?.start,
+            rawEnd: sourceCalendarEvent?.end,
+            allDay: sourceCalendarEvent?.allDay
           });
         }
       },
@@ -396,7 +405,7 @@ export default function HomeWidgets(): JSX.Element {
         nEventsPerDay: isMobile ? 1 : 2
       }
     },
-    [eventsServicePlugin]
+    [calendarEventsData, eventsServicePlugin]
   );
 
   const expandAllDayCalendarEvent = (event: CalendarEventDto) => {
@@ -555,19 +564,9 @@ export default function HomeWidgets(): JSX.Element {
     setCreateCalendarForm({
       title: selectedCalendarEvent.title || '',
       description: selectedCalendarEvent.description || '',
-      start:
-        typeof selectedCalendarEvent.start === 'string'
-          ? dayjs(selectedCalendarEvent.start).toISOString()
-          : getDefaultCalendarStart(),
-      end:
-        typeof selectedCalendarEvent.end === 'string'
-          ? dayjs(selectedCalendarEvent.end).toISOString()
-          : getDefaultCalendarEnd(),
-      allDay: Boolean(
-        typeof selectedCalendarEvent.start !== 'string' || typeof selectedCalendarEvent.end !== 'string'
-          ? false
-          : myCalendarEventsData?.find((event) => event.id === selectedCalendarEvent.id)?.allDay
-      ),
+      start: selectedCalendarEvent.rawStart || getDefaultCalendarStart(),
+      end: selectedCalendarEvent.rawEnd || getDefaultCalendarEnd(),
+      allDay: Boolean(selectedCalendarEvent.allDay),
       remark: selectedCalendarEvent.remark || ''
     });
     setSelectedCalendarEvent(null);

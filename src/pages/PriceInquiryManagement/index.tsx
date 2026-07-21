@@ -384,8 +384,8 @@ export default function PriceInquiryManagement(): ReactElement {
       const nextFilter = {
         id: values.id?.trim() || '',
         customerId: values.customerId?.trim() || '',
-        salesId: isSalesRole ? currentSalesId : values.salesId?.trim() || '',
-        procurementId: isProcurementRole ? currentProcurementId : values.procurementId?.trim() || '',
+        salesId: values.salesId?.trim() || '',
+        procurementId: values.procurementId?.trim() || '',
         rfqTypeCode: values.rfqTypeCode?.trim() || '',
         orderTypeCode: values.orderTypeCode?.trim() || '',
         productFamily: values.productFamily?.trim() || '',

@@ -239,7 +239,7 @@ export default function NewInvoice(): ReactElement {
   }, [salesOrder]);
 
   const summary = useMemo(() => {
-    const paymentTerm = salesOrder?.customer?.customerPaymentTerm.code;
+    const paymentTerm = salesOrder?.customer?.customerPaymentTerm?.code;
 
     const subTotal = Number(draft.subTotal || 0);
     const discount = Number(draft.discount || 0);

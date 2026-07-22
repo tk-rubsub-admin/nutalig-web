@@ -1,4 +1,4 @@
-import { DisabledByDefault, Search, AddCircle } from '@mui/icons-material';
+import { DisabledByDefault, Search, AddCircle, Download } from '@mui/icons-material';
 import {
   Autocomplete,
   Button,
@@ -23,6 +23,7 @@ import { makeStyles } from '@mui/styles';
 import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
+import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { GridSearchSection, GridTextField, TextLineClamp, Wrapper } from 'components/Styled';
@@ -34,10 +35,11 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
+import toast from 'react-hot-toast';
 import { ROUTE_PATHS } from 'routes';
 import { searchCustomerByKeyword } from 'services/Customer/customer-api';
 import { Customer } from 'services/Customer/customer-type';
-import { getRFQList } from 'services/RFQ/rfq-api';
+import { exportRFQList, getRFQList } from 'services/RFQ/rfq-api';
 import { RFQEmployee, RFQFileResource, RFQRecord } from 'services/RFQ/rfq-type';
 import { getMySearchFields } from 'services/SearchField/search-field-api';
 import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
@@ -46,6 +48,8 @@ import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
 import { getProductFamilies } from 'services/Product/product-api';
 import { ProductFamily, ProductMaterial, ProductSubtype1 } from 'services/Product/product-type';
+import { PERMISSIONS } from 'auth/permissions';
+import Can from 'auth/Can';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
   if (!productFamily) {
@@ -443,6 +447,7 @@ export default function RFQManagement(): ReactElement {
   const location = useLocation();
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
   const canCreateRFQ = hasAnyRole([ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN]);
   const currentRole = getRole();
   const currentSalesId = getSalesId() || getEmployeeId();
@@ -714,6 +719,46 @@ export default function RFQManagement(): ReactElement {
     setFilter(roleDefaultFilter);
   };
 
+  const handleExport = async () => {
+    const exportFilter = {
+      id: filter.id,
+      customerId: filter.customerId,
+      salesId: filter.salesId,
+      procurementId: filter.procurementId,
+      rfqTypeCode: filter.rfqTypeCode,
+      orderTypeCode: filter.orderTypeCode,
+      productFamily: filter.productFamily,
+      productSubtype1: filter.productSubtype1,
+      productMaterial: filter.productMaterial,
+      status: filter.status || undefined,
+      isAccept: parseBooleanFilter(filter.isAccept),
+      keyword: filter.keyword,
+      requestedDateStart: filter.requestedDateStart,
+      requestedDateEnd: filter.requestedDateEnd
+    };
+
+    setIsExporting(true);
+    try {
+      await toast.promise(exportRFQList(exportFilter), {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const tempLink = document.createElement('a');
+          tempLink.href = url;
+          tempLink.setAttribute('download', 'rfq-export.xlsx');
+          document.body.appendChild(tempLink);
+          tempLink.click();
+          document.body.removeChild(tempLink);
+          window.URL.revokeObjectURL(url);
+          return t('toast.success');
+        },
+        error: () => t('toast.failed')
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const rfqList = rfqResponse?.records || [];
 
   const rfqRows =
@@ -889,6 +934,16 @@ export default function RFQManagement(): ReactElement {
             onClick={() => searchFormik.handleSubmit()}>
             {t('button.search')}
           </Button>
+          <Can permission={PERMISSIONS.RFQ_EXPORT}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              startIcon={<Download />}
+              onClick={handleExport}>
+              {t('button.export')}
+            </Button>
+          </Can>
           <Button
             fullWidth={isDownSm}
             variant="contained"
@@ -1317,6 +1372,7 @@ export default function RFQManagement(): ReactElement {
           </Grid>
         </GridSearchSection>
       </Wrapper>
+      <LoadingDialog open={isExporting} />
     </Page>
   );
 }

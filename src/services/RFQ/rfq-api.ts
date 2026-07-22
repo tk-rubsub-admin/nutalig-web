@@ -23,9 +23,7 @@ import {
   UpdateRFQResponse
 } from './rfq-type';
 
-export const getRFQList = async (
-  page = 1,
-  size = 10,
+const buildRFQSearchPayload = (
   options?: {
     id?: string;
     customerId?: string;
@@ -42,24 +40,11 @@ export const getRFQList = async (
     keyword?: string;
     requestedDateStart?: string;
     requestedDateEnd?: string;
-    sortBy?: string;
-    sortDirection?: string;
     statuses?: string[];
     prioritizeApprovedUrgent?: boolean;
   }
 ) => {
-  const params = new URLSearchParams();
-  params.append('page', String(page));
-  params.append('size', String(size));
   const payload: Record<string, unknown> = {};
-
-  if (options?.sortBy) {
-    params.append('sortBy', options.sortBy);
-  }
-
-  if (options?.sortDirection) {
-    params.append('sortDirection', options.sortDirection);
-  }
 
   if (options?.id) {
     payload.id = options.id;
@@ -129,11 +114,82 @@ export const getRFQList = async (
     payload.isCreatedPurchaseOrder = true;
   }
 
+  return payload;
+};
+
+export const getRFQList = async (
+  page = 1,
+  size = 10,
+  options?: {
+    id?: string;
+    customerId?: string;
+    salesId?: string;
+    procurementId?: string;
+    rfqTypeCode?: string;
+    orderTypeCode?: string;
+    productFamily?: string;
+    productSubtype1?: string;
+    productMaterial?: string;
+    isCreatedPurchaseOrder?: boolean | null;
+    isAccept?: boolean | null;
+    status?: string | null;
+    keyword?: string;
+    requestedDateStart?: string;
+    requestedDateEnd?: string;
+    sortBy?: string;
+    sortDirection?: string;
+    statuses?: string[];
+    prioritizeApprovedUrgent?: boolean;
+  }
+) => {
+  const params = new URLSearchParams();
+  params.append('page', String(page));
+  params.append('size', String(size));
+  const payload = buildRFQSearchPayload(options);
+
+  if (options?.sortBy) {
+    params.append('sortBy', options.sortBy);
+  }
+
+  if (options?.sortDirection) {
+    params.append('sortDirection', options.sortDirection);
+  }
+
   const response: SearchRFQResponse = await api
     .post('/v1/rfqs/search', payload, { params })
     .then((response) => response.data);
 
   return response.data;
+};
+
+export const exportRFQList = async (
+  options?: {
+    id?: string;
+    customerId?: string;
+    salesId?: string;
+    procurementId?: string;
+    rfqTypeCode?: string;
+    orderTypeCode?: string;
+    productFamily?: string;
+    productSubtype1?: string;
+    productMaterial?: string;
+    isCreatedPurchaseOrder?: boolean | null;
+    isAccept?: boolean | null;
+    status?: string | null;
+    keyword?: string;
+    requestedDateStart?: string;
+    requestedDateEnd?: string;
+    statuses?: string[];
+    prioritizeApprovedUrgent?: boolean;
+  }
+) => {
+  const payload = buildRFQSearchPayload(options);
+
+  const response = await api.post('/v1/rfqs/export', payload, {
+    responseType: 'blob'
+  });
+
+  return response;
 };
 
 export const getRFQSuggestSuppliers = async (id: string): Promise<Supplier[]> => {

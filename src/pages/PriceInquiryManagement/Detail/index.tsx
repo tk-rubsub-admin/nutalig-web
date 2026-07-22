@@ -79,6 +79,7 @@ import {
   getRFQSupplierQuotes,
   rejectUrgentRFQ,
   requestRFQInformation,
+  sendRFQSupplierQuoteNotification,
   updateRFQInquiry,
   updateRFQ,
   updateRFQSupplierQuote
@@ -994,15 +995,15 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
     spec: detail.spec.trim(),
     sortOrder: detail.sortOrder,
     remark: detail.remark?.trim() || null,
-      commission: detail.commission ?? null,
-      tiers: detail.tiers.map((tier, index) => ({
-        quantity: tier.quantity,
-        productPrice: tier.productPrice,
-        commission: tier.commission ?? null,
-        landFreightCost: tier.landFreightCost,
-        seaFreightCost: tier.seaFreightCost,
-        isFcl: Boolean(tier.isFcl),
-        landTotalPrice: tier.productPrice + tier.landFreightCost,
+    commission: detail.commission ?? null,
+    tiers: detail.tiers.map((tier, index) => ({
+      quantity: tier.quantity,
+      productPrice: tier.productPrice,
+      commission: tier.commission ?? null,
+      landFreightCost: tier.landFreightCost,
+      seaFreightCost: tier.seaFreightCost,
+      isFcl: Boolean(tier.isFcl),
+      landTotalPrice: tier.productPrice + tier.landFreightCost,
       seaTotalPrice: tier.productPrice + tier.seaFreightCost,
       sortOrder: index + 1
     }))
@@ -1279,22 +1280,22 @@ function mergeFinalPriceDraftFromExtractedPayload(
             ...currentTier,
             productPrice:
               matchedExtractedTier.productPrice === null ||
-              matchedExtractedTier.productPrice === undefined
+                matchedExtractedTier.productPrice === undefined
                 ? currentTier.productPrice
                 : String(Number(matchedExtractedTier.productPrice || 0)),
             commission:
               matchedExtractedTier.commission === null ||
-              matchedExtractedTier.commission === undefined
+                matchedExtractedTier.commission === undefined
                 ? currentTier.commission
                 : String(Number(matchedExtractedTier.commission || 0)),
             landTotalPrice:
               matchedExtractedTier.landTotalPrice === null ||
-              matchedExtractedTier.landTotalPrice === undefined
+                matchedExtractedTier.landTotalPrice === undefined
                 ? currentTier.landTotalPrice
                 : String(Number(matchedExtractedTier.landTotalPrice || 0)),
             seaTotalPrice:
               matchedExtractedTier.seaTotalPrice === null ||
-              matchedExtractedTier.seaTotalPrice === undefined
+                matchedExtractedTier.seaTotalPrice === undefined
                 ? currentTier.seaTotalPrice
                 : String(Number(matchedExtractedTier.seaTotalPrice || 0)),
             isFcl:
@@ -1515,6 +1516,7 @@ export default function RFQDetail(): ReactElement {
   });
   const [finalPriceErrors, setFinalPriceErrors] = useState<FinalPriceDraftErrors>({});
   const [isSupplierQuoteSubmitting, setIsSupplierQuoteSubmitting] = useState(false);
+  const [notifyingQuoteId, setNotifyingQuoteId] = useState<string | null>(null);
   const [isFinalPriceSubmitting, setIsFinalPriceSubmitting] = useState(false);
   const [isGenerateFinalInquirySubmitting, setIsGenerateFinalInquirySubmitting] = useState(false);
   const [generatedFinalInquiryMessage, setGeneratedFinalInquiryMessage] = useState('');
@@ -2636,6 +2638,24 @@ export default function RFQDetail(): ReactElement {
     });
   };
 
+  const handleSendSupplierQuoteNotification = async (quote: RFQSupplierQuote) => {
+    if (!quote?.id) {
+      return;
+    }
+
+    try {
+      setNotifyingQuoteId(quote.id);
+      await toast.promise(sendRFQSupplierQuoteNotification(params.id, quote.id), {
+        loading: t('toast.loading'),
+        success: 'ส่งแจ้งเตือนสำเร็จ',
+        error: t('toast.failed')
+      });
+      await refetchPriceInquiryData();
+    } finally {
+      setNotifyingQuoteId(null);
+    }
+  };
+
   const handleQuoteDetailChange = (
     detailId: number,
     field: 'optionName' | 'spec' | 'remark',
@@ -3466,9 +3486,7 @@ export default function RFQDetail(): ReactElement {
                 <ListItemIcon>
                   <AssignmentTurnedIn fontSize="small" />
                 </ListItemIcon>
-                <ListItemText
-                  primary={rfq?.status === 'SUPPLIER_QUOTED' ? 'แก้ไขราคา' : 'บันทึกราคา'}
-                />
+                <ListItemText primary={'บันทึกราคา'} />
               </MenuItem>
               <MenuItem
                 disabled={isGenerateInquirySubmitting || isQuoteAndInquiryActionDisabled}
@@ -3987,8 +4005,10 @@ export default function RFQDetail(): ReactElement {
                   quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
                   quoteDraftErrors={quoteDraftErrors}
                   isSubmitting={isSupplierQuoteSubmitting}
+                  notifyingQuoteId={notifyingQuoteId}
                   onEditQuote={handleOpenSupplierQuoteEditDialog}
                   onCreateRevision={handleCreateSupplierQuoteRevision}
+                  onSendNotification={handleSendSupplierQuoteNotification}
                   onCancelEditQuote={handleCancelInlineSupplierQuoteEdit}
                   onSaveEditQuote={handleRequestSaveSupplierQuote}
                   onDetailChange={handleQuoteDetailChange}

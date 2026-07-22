@@ -37,6 +37,7 @@ export const getRFQList = async (
     productSubtype1?: string;
     productMaterial?: string;
     isCreatedPurchaseOrder?: boolean | null;
+    isAccept?: boolean | null;
     status?: string | null;
     keyword?: string;
     requestedDateStart?: string;
@@ -110,6 +111,10 @@ export const getRFQList = async (
 
   if (options?.requestedDateEnd) {
     payload.requestedDateEnd = options.requestedDateEnd;
+  }
+
+  if (options?.isAccept === true || options?.isAccept === false) {
+    payload.isAccept = options.isAccept;
   }
 
   if (options?.statuses?.length) {
@@ -271,6 +276,14 @@ export const updateRFQSupplierQuote = async (
 ) => {
   const response: RFQSupplierQuoteResponse = await api
     .patch(`/v1/rfqs/${id}/supplier-quotes/${quoteId}`, payload)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
+export const sendRFQSupplierQuoteNotification = async (id: string, quoteId: string) => {
+  const response: RFQSupplierQuoteResponse = await api
+    .post(`/v1/rfqs/${id}/supplier-quotes/${quoteId}/send-notification`)
     .then((res) => res.data);
 
   return response.data;

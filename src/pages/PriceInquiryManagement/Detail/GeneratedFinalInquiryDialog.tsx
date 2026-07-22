@@ -1,4 +1,4 @@
-import { ContentCopy } from '@mui/icons-material';
+import { Close, ContentCopy } from '@mui/icons-material';
 import {
   Button,
   Dialog,
@@ -33,19 +33,28 @@ export function GeneratedFinalInquiryDialog(
             <Typography variant="subtitle1" fontWeight={700}>
               {t('priceInquiryManagement.generateFinalInquiry.messageLabel')}
             </Typography>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ContentCopy />}
-              onClick={() => copyText(message || '')}>
-              {t('button.copy')}
-            </Button>
           </Stack>
-          <TextField fullWidth multiline minRows={14} value={message} InputProps={{ readOnly: true }} />
+          <TextField
+            fullWidth
+            multiline
+            minRows={14}
+            value={message}
+            InputProps={{ readOnly: true }}
+          />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={onClose}>
+        <Button
+          variant="contained"
+          startIcon={<ContentCopy />}
+          onClick={() => copyText(message || '')}>
+          {t('button.copy')}
+        </Button>
+        <Button
+          className={'btn-crimson-red'}
+          variant="contained"
+          startIcon={<Close />}
+          onClick={onClose}>
           {t('button.close')}
         </Button>
       </DialogActions>

@@ -32,7 +32,7 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { ROUTE_PATHS } from 'routes';
 import { searchCustomerByKeyword } from 'services/Customer/customer-api';
@@ -351,6 +351,7 @@ function createDefaultFilter(salesId = '') {
     productSubtype1: '',
     productMaterial: '',
     status: '',
+    isAccept: '',
     keyword: '',
     requestedDateStart: dayjs().startOf('month').format('YYYY-MM-DD'),
     requestedDateEnd: dayjs().endOf('month').format('YYYY-MM-DD')
@@ -358,6 +359,51 @@ function createDefaultFilter(salesId = '') {
 }
 
 type RFQManagementFilter = ReturnType<typeof createDefaultFilter>;
+
+function createFilterFromRequestParams(search: string, salesId = ''): RFQManagementFilter {
+  const defaultFilter = createDefaultFilter(salesId);
+  const params = new URLSearchParams(search);
+
+  const filterKeys: (keyof RFQManagementFilter)[] = [
+    'id',
+    'customerId',
+    'salesId',
+    'procurementId',
+    'rfqTypeCode',
+    'orderTypeCode',
+    'productFamily',
+    'productSubtype1',
+    'productMaterial',
+    'status',
+    'isAccept',
+    'keyword',
+    'requestedDateStart',
+    'requestedDateEnd'
+  ];
+
+  filterKeys.forEach((key) => {
+    const value = params.get(key);
+    if (value !== null) {
+      defaultFilter[key] = value;
+    }
+  });
+
+  return defaultFilter;
+}
+
+function parseBooleanFilter(value?: string): boolean | undefined {
+  const normalized = value?.trim().toLowerCase();
+
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  return undefined;
+}
 
 const SCREEN_CODE = 'RFQ_LIST';
 const FALLBACK_RFQ_IMAGE_URL = '/no-image.jpg';
@@ -394,17 +440,20 @@ export default function RFQManagement(): ReactElement {
   const { getEmployeeId, getRole, getSalesId, hasAnyRole } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
+  const location = useLocation();
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const canCreateRFQ = hasAnyRole([ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN]);
   const currentRole = getRole();
   const currentSalesId = getSalesId() || getEmployeeId();
   const isSalesRole = currentRole === ROLES.SALES;
+  const requestParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const hasSalesIdRequestParam = requestParams.has('salesId');
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
   const roleDefaultFilter = useMemo(
-    () => createDefaultFilter(isSalesRole ? currentSalesId : ''),
-    [currentSalesId, isSalesRole]
+    () => createFilterFromRequestParams(location.search, isSalesRole ? currentSalesId : ''),
+    [currentSalesId, isSalesRole, location.search]
   );
   const [filter, setFilter] = useState(roleDefaultFilter);
 
@@ -432,6 +481,7 @@ export default function RFQManagement(): ReactElement {
 
   const canShowField = (fieldCode: keyof RFQManagementFilter) =>
     fieldCode === 'keyword' ||
+    fieldCode === 'status' ||
     fieldCode === 'rfqTypeCode' ||
     fieldCode === 'productSubtype1' ||
     fieldCode === 'productMaterial' ||
@@ -456,6 +506,7 @@ export default function RFQManagement(): ReactElement {
       filter.productSubtype1,
       filter.productMaterial,
       filter.status,
+      filter.isAccept,
       filter.keyword,
       filter.requestedDateStart,
       filter.requestedDateEnd,
@@ -474,6 +525,7 @@ export default function RFQManagement(): ReactElement {
         productSubtype1: filter.productSubtype1,
         productMaterial: filter.productMaterial,
         status: filter.status || undefined,
+        isAccept: parseBooleanFilter(filter.isAccept),
         keyword: filter.keyword,
         requestedDateStart: filter.requestedDateStart,
         requestedDateEnd: filter.requestedDateEnd,
@@ -580,6 +632,7 @@ export default function RFQManagement(): ReactElement {
           ? values.productMaterial?.trim() || ''
           : '',
         status: canShowField('status') ? values.status?.trim() || '' : '',
+        isAccept: filter.isAccept,
         keyword: values.keyword?.trim() || '',
         requestedDateStart: canShowField('requestedDateStart')
           ? values.requestedDateStart?.trim() || ''
@@ -630,7 +683,7 @@ export default function RFQManagement(): ReactElement {
   }, [productFamilyList, selectedProductFamily]);
 
   useEffect(() => {
-    if (!isSalesRole) {
+    if (!isSalesRole || hasSalesIdRequestParam) {
       return;
     }
 
@@ -646,7 +699,7 @@ export default function RFQManagement(): ReactElement {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSalesId, isSalesRole]);
+  }, [currentSalesId, hasSalesIdRequestParam, isSalesRole]);
 
   const handleClear = () => {
     searchFormik.resetForm();
@@ -999,6 +1052,25 @@ export default function RFQManagement(): ReactElement {
                 </TextField>
               </GridTextField>
             )}
+            {canShowField('status') && (
+              <GridTextField item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="สถานะ"
+                  name="status"
+                  value={searchFormik.values.status}
+                  onChange={searchFormik.handleChange}
+                  InputLabelProps={{ shrink: true }}>
+                  <MenuItem value="">ทั้งหมด</MenuItem>
+                  {RFQ_STATUS_OPTIONS.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {t(`rfqManagement.rfqsStatus.${status}`)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            )}
             {canShowField('orderTypeCode') && (
               <GridTextField item xs={12} sm={4} md={3}>
                 <TextField
@@ -1109,25 +1181,6 @@ export default function RFQManagement(): ReactElement {
                         productMaterial,
                         Boolean(selectedProductFamily)
                       )}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </GridTextField>
-            )}
-            {canShowField('status') && (
-              <GridTextField item xs={12} sm={4} md={3}>
-                <TextField
-                  fullWidth
-                  select
-                  label="สถานะ"
-                  name="status"
-                  value={searchFormik.values.status}
-                  onChange={searchFormik.handleChange}
-                  InputLabelProps={{ shrink: true }}>
-                  <MenuItem value="">ทั้งหมด</MenuItem>
-                  {RFQ_STATUS_OPTIONS.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {t(`rfqManagement.rfqsStatus.${status}`, status)}
                     </MenuItem>
                   ))}
                 </TextField>

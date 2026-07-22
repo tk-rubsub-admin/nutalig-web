@@ -568,11 +568,7 @@ export default function RFQManagement(): ReactElement {
       const nextFilter = {
         id: canShowField('id') ? values.id?.trim() || '' : '',
         customerId: canShowField('customerId') ? values.customerId?.trim() || '' : '',
-        salesId: isSalesRole
-          ? currentSalesId
-          : canShowField('salesId')
-            ? values.salesId?.trim() || ''
-            : '',
+        salesId: canShowField('salesId') ? values.salesId?.trim() || '' : '',
         procurementId: canShowField('procurementId') ? values.procurementId?.trim() || '' : '',
         rfqTypeCode: canShowField('rfqTypeCode') ? values.rfqTypeCode?.trim() || '' : '',
         orderTypeCode: canShowField('orderTypeCode') ? values.orderTypeCode?.trim() || '' : '',

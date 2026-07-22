@@ -223,6 +223,7 @@ export interface RFQRecord {
   slaDate?: string | null;
   contactName: string;
   contactPhone: string;
+  contactChannel?: string | null;
   sales: RFQEmployee | null;
   procurement?: RFQEmployee | null;
   customer: RFQCustomer | null;
@@ -282,6 +283,7 @@ export interface CreateRFQRequest {
   referenceRfqId?: string;
   contactName: string;
   contactPhone: string;
+  contactChannel?: string;
   salesId: string;
   procurementId?: string;
   rfqTypeCode: string;
@@ -310,6 +312,7 @@ export interface CreateRFQResponse {
 export interface UpdateRFQRequest {
   contactName: string;
   contactPhone: string;
+  contactChannel?: string;
   salesId: string;
   procurementId?: string;
   referenceRfqId?: string | null;

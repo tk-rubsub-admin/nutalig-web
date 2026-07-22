@@ -347,8 +347,6 @@ export default function CustomerManagement(): JSX.Element {
           <TableCell>
             {formatCustomerSalesAccounts(cust)}
           </TableCell>
-          <TableCell>{cust.customerBillingCondition || ''}</TableCell>
-          <TableCell>{cust.customerPaymentCycle || ''}</TableCell>
           <TableCell align="right">{formatOrderTotalDisplay(cust.totalSalesOrderAmount)}</TableCell>
           <TableCell align="center">
             <Stack direction="row" spacing={1} justifyContent="center">

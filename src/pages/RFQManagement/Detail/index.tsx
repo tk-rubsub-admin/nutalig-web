@@ -132,6 +132,7 @@ interface RFQDetailParam {
 interface RFQEditableFormValues {
   contactName: string;
   contactPhone: string;
+  contactChannel: string;
   salesId: string;
   procurementId: string;
   referenceRfqId?: string;
@@ -513,6 +514,7 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
     contactName: rfq?.contactName || '',
     contactPhone: rfq?.contactPhone || '',
+    contactChannel: rfq?.contactChannel || '',
     salesId: rfq?.sales?.employeeId || rfq?.sales?.salesId || '',
     procurementId: rfq?.procurement?.employeeId || rfq?.procurement?.salesId || '',
     referenceRfqId: rfq?.referenceRfqId || rfq?.referenceRfq?.id || '',
@@ -1016,6 +1018,14 @@ export default function RFQDetail(): ReactElement {
     }
   );
 
+  const { data: contactChannelOptions = [] } = useQuery(
+    'rfq-detail-contact-channel-options',
+    () => getSystemConfig('CONTACT_CHANNEL'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
   const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
     'rfq-detail-product-family-list',
     () => getProductFamilies(),
@@ -1038,6 +1048,7 @@ export default function RFQDetail(): ReactElement {
     validationSchema: Yup.object().shape({
       contactName: Yup.string().max(255).required(t('rfqManagement.validation.contactName')),
       contactPhone: Yup.string().max(255),
+      contactChannel: Yup.string().max(255),
       salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
       procurementId: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
       rfqTypeCode: Yup.string().required(t('rfqManagement.validation.rfqTypeCode')),
@@ -1074,6 +1085,7 @@ export default function RFQDetail(): ReactElement {
           updateRFQ(params.id, {
             contactName: values.contactName,
             contactPhone: values.contactPhone,
+            contactChannel: values.contactChannel || undefined,
             salesId: values.salesId,
             procurementId: values.procurementId || undefined,
             referenceRfqId: values.referenceRfqId || undefined,
@@ -1093,9 +1105,9 @@ export default function RFQDetail(): ReactElement {
             description: values.description
           }),
           {
-          loading: t('toast.loading'),
-          success: t('toast.success'),
-          error: t('toast.failed')
+            loading: t('toast.loading'),
+            success: t('toast.success'),
+            error: t('toast.failed')
           }
         );
 
@@ -2447,7 +2459,7 @@ export default function RFQDetail(): ReactElement {
                     />
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={6}>
+                  <GridTextField item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       label={t('rfqManagement.form.contactPhone')}
@@ -2460,6 +2472,37 @@ export default function RFQDetail(): ReactElement {
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: !isSalesPermission }}
                     />
+                  </GridTextField>
+
+
+                  <GridTextField item xs={12} sm={3}>
+                    <TextField
+                      select
+                      fullWidth
+                      label={t('rfqManagement.form.contactChannel')}
+                      name="contactChannel"
+                      value={formik.values.contactChannel}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.contactChannel && formik.errors.contactChannel)}
+                      helperText={formik.touched.contactChannel && formik.errors.contactChannel}
+                      InputLabelProps={{ shrink: true }}
+                      disabled={!isSalesPermission}>
+                      <MenuItem value="">-</MenuItem>
+                      {formik.values.contactChannel &&
+                        !contactChannelOptions.some(
+                          (item: SystemConfig) => item.code === formik.values.contactChannel
+                        ) ? (
+                        <MenuItem value={formik.values.contactChannel}>
+                          {formik.values.contactChannel}
+                        </MenuItem>
+                      ) : null}
+                      {contactChannelOptions.map((item: SystemConfig) => (
+                        <MenuItem key={item.code} value={item.code}>
+                          {item.nameTh || item.nameEn || item.code}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={4}>
@@ -2804,8 +2847,8 @@ export default function RFQDetail(): ReactElement {
                               const requestedMoqTouched = formik.touched.requestedMoqs;
                               const itemError =
                                 Array.isArray(requestedMoqTouched) &&
-                                Array.isArray(requestedMoqErrors) &&
-                                requestedMoqTouched[index]
+                                  Array.isArray(requestedMoqErrors) &&
+                                  requestedMoqTouched[index]
                                   ? requestedMoqErrors[index]
                                   : undefined;
 

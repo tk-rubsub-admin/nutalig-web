@@ -198,6 +198,14 @@ export default function NewRFQ(): JSX.Element {
     refetchOnWindowFocus: false
   });
 
+  const { data: contactChannelOptions = [] } = useQuery(
+    'rfq-contact-channel-options',
+    () => getSystemConfig('CONTACT_CHANNEL'),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
   const availableRfqTypeList = useMemo(
     () => rfqTypeList.filter((item: SystemConfig) => item.code !== 'SPECIAL_PRICE_REVIEW'),
     [rfqTypeList]
@@ -268,6 +276,7 @@ export default function NewRFQ(): JSX.Element {
       parentRfqId: string;
       contactName: string;
       contactPhone: string;
+      contactChannel: string;
       salesId: string;
       purchaseAccount: string;
       rfqTypeCode: string;
@@ -300,6 +309,7 @@ export default function NewRFQ(): JSX.Element {
         referenceRfqId: values.parentRfqId || undefined,
         contactName: values.contactName,
         contactPhone: values.contactPhone,
+        contactChannel: values.contactChannel || undefined,
         salesId: values.salesId,
         procurementId: values.purchaseAccount || undefined,
         rfqTypeCode: values.rfqTypeCode,
@@ -352,6 +362,7 @@ export default function NewRFQ(): JSX.Element {
       parentRfqId: '',
       contactName: '',
       contactPhone: '',
+      contactChannel: '',
       salesId: defaultSalesId,
       purchaseAccount: '',
       rfqTypeCode: '',
@@ -384,6 +395,7 @@ export default function NewRFQ(): JSX.Element {
         then: Yup.string().max(255).required(t('rfqManagement.validation.contactName')),
         otherwise: Yup.string().nullable()
       }),
+      contactChannel: Yup.string().max(255),
       salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
       purchaseAccount: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
       rfqTypeCode: Yup.string().required(t('rfqManagement.validation.rfqTypeCode')),
@@ -577,6 +589,7 @@ export default function NewRFQ(): JSX.Element {
       customerId: parentRfqDetail.customer?.id || '',
       contactName: parentRfqDetail.contactName || '',
       contactPhone: parentRfqDetail.contactPhone || '',
+      contactChannel: parentRfqDetail.contactChannel || '',
       salesId: prevValues.salesId,
       purchaseAccount: prevValues.purchaseAccount,
       orderTypeCode: parentRfqDetail.orderType?.code || '',
@@ -629,6 +642,7 @@ export default function NewRFQ(): JSX.Element {
       parentRfqId: true,
       contactName: true,
       contactPhone: true,
+      contactChannel: true,
       salesId: true,
       purchaseAccount: true,
       rfqTypeCode: true,
@@ -815,7 +829,7 @@ export default function NewRFQ(): JSX.Element {
                   helperText={formik.touched.contactName && formik.errors.contactName}
                 />
               </GridTextField>
-              <GridTextField item xs={12} sm={6}>
+              <GridTextField item xs={12} sm={3}>
                 <TextField
                   fullWidth
                   label={t('rfqManagement.form.contactPhone')}
@@ -828,71 +842,130 @@ export default function NewRFQ(): JSX.Element {
                   helperText={formik.touched.contactPhone && formik.errors.contactPhone}
                 />
               </GridTextField>
+              <GridTextField item xs={12} sm={3}>
+                <TextField
+                  select
+                  fullWidth
+                  label={t('rfqManagement.form.contactChannel')}
+                  InputLabelProps={{ shrink: true }}
+                  name="contactChannel"
+                  value={formik.values.contactChannel}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
+                  helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
+                  {formik.values.contactChannel &&
+                    !contactChannelOptions.some(
+                      (item: SystemConfig) => item.code === formik.values.contactChannel
+                    ) ? (
+                    <MenuItem value={formik.values.contactChannel}>
+                      {formik.values.contactChannel}
+                    </MenuItem>
+                  ) : null}
+                  {contactChannelOptions.map((item: SystemConfig) => (
+                    <MenuItem key={item.code} value={item.code}>
+                      {item.nameTh || item.nameEn || item.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
             </>
           ) : (
-            <GridTextField item xs={12}>
-              <Autocomplete
-                options={customerOptions}
-                loading={isCustomerFetching}
-                filterOptions={(options) => options}
-                value={
-                  customerOptions.find((customer) => customer.id === formik.values.customerId) ||
-                  null
-                }
-                getOptionLabel={(option: Customer) => '(' + option.id + ') ' + option.customerName}
-                onChange={(_event, value) => {
-                  const defaultContact =
-                    value?.contacts?.find((contact: Contact) => contact.isDefault) ||
-                    value?.contacts?.[0];
-
-                  formik.setFieldValue('customerId', value?.id || '');
-                  formik.setFieldValue('contactName', defaultContact?.contactName || '');
-                  formik.setFieldValue('contactPhone', defaultContact?.contactNumber || '');
-                }}
-                onInputChange={(_event, value, reason) => {
-                  if (reason === 'input') {
-                    setCustomerKeyword(value);
+            <>
+              <GridTextField item xs={12} sm={9}>
+                <Autocomplete
+                  options={customerOptions}
+                  loading={isCustomerFetching}
+                  filterOptions={(options) => options}
+                  value={
+                    customerOptions.find((customer) => customer.id === formik.values.customerId) ||
+                    null
                   }
+                  getOptionLabel={(option: Customer) => '(' + option.id + ') ' + option.customerName}
+                  onChange={(_event, value) => {
+                    const defaultContact =
+                      value?.contacts?.find((contact: Contact) => contact.isDefault) ||
+                      value?.contacts?.[0];
 
-                  if (reason === 'clear') {
-                    setCustomerKeyword('');
-                    formik.setFieldValue('customerId', '');
-                    formik.setFieldValue('contactName', '');
-                    formik.setFieldValue('contactPhone', '');
-                  }
-                }}
-                noOptionsText={
-                  debouncedCustomerKeyword
-                    ? t('rfqManagement.form.noCustomerOptions')
-                    : t('rfqManagement.form.customerSearchHelper')
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    fullWidth
-                    label={t('rfqManagement.form.customerId')}
-                    InputLabelProps={{ shrink: true }}
-                    onBlur={() => formik.setFieldTouched('customerId', true)}
-                    error={formik.touched.customerId && Boolean(formik.errors.customerId)}
-                    helperText={
-                      (formik.touched.customerId && formik.errors.customerId) ||
-                      t('rfqManagement.form.customerSearchHelper')
+                    formik.setFieldValue('customerId', value?.id || '');
+                    formik.setFieldValue('contactName', defaultContact?.contactName || '');
+                    formik.setFieldValue('contactPhone', defaultContact?.contactNumber || '');
+                    formik.setFieldValue('contactChannel', '');
+                  }}
+                  onInputChange={(_event, value, reason) => {
+                    if (reason === 'input') {
+                      setCustomerKeyword(value);
                     }
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {isCustomerFetching ? (
-                            <CircularProgress color="inherit" size={20} />
-                          ) : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      )
-                    }}
-                  />
-                )}
-              />
-            </GridTextField>
+
+                    if (reason === 'clear') {
+                      setCustomerKeyword('');
+                      formik.setFieldValue('customerId', '');
+                      formik.setFieldValue('contactName', '');
+                      formik.setFieldValue('contactPhone', '');
+                      formik.setFieldValue('contactChannel', '');
+                    }
+                  }}
+                  noOptionsText={
+                    debouncedCustomerKeyword
+                      ? t('rfqManagement.form.noCustomerOptions')
+                      : t('rfqManagement.form.customerSearchHelper')
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      fullWidth
+                      label={t('rfqManagement.form.customerId')}
+                      InputLabelProps={{ shrink: true }}
+                      onBlur={() => formik.setFieldTouched('customerId', true)}
+                      error={formik.touched.customerId && Boolean(formik.errors.customerId)}
+                      helperText={
+                        (formik.touched.customerId && formik.errors.customerId) ||
+                        t('rfqManagement.form.customerSearchHelper')
+                      }
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isCustomerFetching ? (
+                              <CircularProgress color="inherit" size={20} />
+                            ) : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        )
+                      }}
+                    />
+                  )}
+                />
+              </GridTextField>
+
+              <GridTextField item xs={12} sm={3}>
+                <TextField
+                  select
+                  fullWidth
+                  label={t('rfqManagement.form.contactChannel')}
+                  InputLabelProps={{ shrink: true }}
+                  name="contactChannel"
+                  value={formik.values.contactChannel}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
+                  helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
+                  {formik.values.contactChannel &&
+                    !contactChannelOptions.some(
+                      (item: SystemConfig) => item.code === formik.values.contactChannel
+                    ) ? (
+                    <MenuItem value={formik.values.contactChannel}>
+                      {formik.values.contactChannel}
+                    </MenuItem>
+                  ) : null}
+                  {contactChannelOptions.map((item: SystemConfig) => (
+                    <MenuItem key={item.code} value={item.code}>
+                      {item.nameTh || item.nameEn || item.code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            </>
           )}
 
           <GridTextField item xs={12} sm={4}>

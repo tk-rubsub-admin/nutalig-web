@@ -263,6 +263,11 @@ interface DraftSupplierQuoteLeadTime {
   sortOrder: number;
 }
 
+interface SelectedSupplierQuoteDetailToDelete {
+  id: number;
+  optionName?: string | null;
+}
+
 function TabPanel({
   value,
   currentTab,
@@ -1629,6 +1634,8 @@ export default function RFQDetail(): ReactElement {
   const [quoteDraftLeadTimeErrors, setQuoteDraftLeadTimeErrors] = useState<
     Record<number, DraftSupplierQuoteLeadTimeError>
   >({});
+  const [selectedSupplierQuoteDetailToDelete, setSelectedSupplierQuoteDetailToDelete] =
+    useState<SelectedSupplierQuoteDetailToDelete | null>(null);
   const [finalPriceQuote, setFinalPriceQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleFinalPriceConfirmationDialog, setVisibleFinalPriceConfirmationDialog] =
     useState(false);
@@ -2245,7 +2252,7 @@ export default function RFQDetail(): ReactElement {
     }
 
     initializeNewSupplierQuoteDialog(quote.supplier, quote);
-    setVisibleSupplierQuoteDialog(false);
+    setVisibleSupplierQuoteDialog(true);
     setInlineEditingSupplierQuoteId(null);
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
@@ -2264,6 +2271,7 @@ export default function RFQDetail(): ReactElement {
     setVisibleSupplierQuoteDialog(false);
     setInlineEditingSupplierQuoteId(null);
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
+    setSelectedSupplierQuoteDetailToDelete(null);
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
     setQuoteSupplierSearchPage(1);
@@ -2366,6 +2374,7 @@ export default function RFQDetail(): ReactElement {
     setQuoteDraftErrors({});
     setQuoteDraftLeadTimeErrors({});
     setQuoteDraftPackageError(null);
+    setSelectedSupplierQuoteDetailToDelete(null);
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
   };
 
@@ -2792,7 +2801,51 @@ export default function RFQDetail(): ReactElement {
     setQuoteDraftDetails((prev) => [...prev, nextDetail]);
   };
 
-  const handleDeleteQuoteDetail = (detailId: number) => {
+  const handleCopyQuoteDetail = (detailId: number) => {
+    setQuoteDraftDetails((prev) => {
+      const sourceDetail = prev.find((detail) => detail.id === detailId);
+      if (!sourceDetail) {
+        return prev;
+      }
+
+      const copiedDetail: DraftSupplierQuoteDetail = {
+        ...sourceDetail,
+        id: -(Date.now() + prev.length + 1),
+        rfqDetailId: null,
+        optionName: sourceDetail.optionName || `Option ${prev.length + 1}`,
+        sortOrder: prev.length + 1,
+        tiers: sourceDetail.tiers.map((tier, index) => ({
+          ...tier,
+          id: -(Date.now() + prev.length * 100 + index + 1),
+          sortOrder: index + 1
+        }))
+      };
+
+      return [...prev, copiedDetail].map((detail, index) => ({
+        ...detail,
+        sortOrder: index + 1
+      }));
+    });
+  };
+
+  const handleRequestDeleteQuoteDetail = (detailId: number) => {
+    const targetDetail = quoteDraftDetails.find((detail) => detail.id === detailId);
+    if (!targetDetail || quoteDraftDetails.length <= 1) {
+      return;
+    }
+
+    setSelectedSupplierQuoteDetailToDelete({
+      id: detailId,
+      optionName: targetDetail.optionName
+    });
+  };
+
+  const handleConfirmDeleteQuoteDetail = () => {
+    if (!selectedSupplierQuoteDetailToDelete) {
+      return;
+    }
+
+    const detailId = selectedSupplierQuoteDetailToDelete.id;
     setQuoteDraftDetails((prev) => {
       const nextDetails = prev
         .filter((detail) => detail.id !== detailId)
@@ -2808,6 +2861,7 @@ export default function RFQDetail(): ReactElement {
       delete nextErrors[detailId];
       return nextErrors;
     });
+    setSelectedSupplierQuoteDetailToDelete(null);
   };
 
   const handleSendSupplierQuoteNotification = async (quote: RFQSupplierQuote) => {
@@ -4178,7 +4232,9 @@ export default function RFQDetail(): ReactElement {
                   onSendNotification={handleSendSupplierQuoteNotification}
                   onCancelEditQuote={handleCancelInlineSupplierQuoteEdit}
                   onSaveEditQuote={handleRequestSaveSupplierQuote}
+                  onCopyDetail={handleCopyQuoteDetail}
                   onDetailChange={handleQuoteDetailChange}
+                  onDeleteDetail={handleRequestDeleteQuoteDetail}
                   onAddPackage={handleAddQuotePackage}
                   onPackageChange={handleQuotePackageChange}
                   onDeletePackage={handleDeleteQuotePackage}
@@ -4484,7 +4540,8 @@ export default function RFQDetail(): ReactElement {
         quoteDraftErrors={quoteDraftErrors}
         quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}
         onAddDetail={handleAddQuoteDetail}
-        onDeleteDetail={handleDeleteQuoteDetail}
+        onCopyDetail={handleCopyQuoteDetail}
+        onDeleteDetail={handleRequestDeleteQuoteDetail}
         onDetailChange={handleQuoteDetailChange}
         onAddPackage={handleAddQuotePackage}
         onPackageChange={handleQuotePackageChange}
@@ -4539,6 +4596,17 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleConfirmSaveSupplierQuote}
         onCancel={() => setVisibleSupplierQuoteSaveConfirmationDialog(false)}
+      />
+      <ConfirmDialog
+        open={Boolean(selectedSupplierQuoteDetailToDelete)}
+        title="ยืนยันลบ option"
+        message={`คุณยืนยันลบ ${selectedSupplierQuoteDetailToDelete?.optionName || 'option นี้'} ใช่หรือไม่`}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmDeleteQuoteDetail}
+        onCancel={() => setSelectedSupplierQuoteDetailToDelete(null)}
       />
       <GeneratedInquiryMessageDialog
         open={Boolean(generatedInquiryMessage)}

@@ -1,4 +1,4 @@
-import { Add, DeleteOutline } from '@mui/icons-material';
+import { Add, ContentCopy, DeleteOutline } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -116,6 +116,7 @@ export interface SupplierQuoteDialogProps {
   quoteDraftErrors: Record<number, any>;
   quoteDraftLeadTimeErrors: Record<number, any>;
   onAddDetail: () => void;
+  onCopyDetail: (detailId: number) => void;
   onDeleteDetail: (detailId: number) => void;
   onDetailChange: (
     detailId: number,
@@ -201,6 +202,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     quoteDraftErrors,
     quoteDraftLeadTimeErrors,
     onAddDetail,
+    onCopyDetail,
     onDeleteDetail,
     onDetailChange,
     onAddPackage,
@@ -425,14 +427,22 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                           <Typography variant="subtitle1" fontWeight={700}>
                             Option {detail.sortOrder}
                           </Typography>
-                          {quoteDraftDetails.length > 1 ? (
+                          <Stack direction="row" spacing={0.5}>
                             <IconButton
                               size="small"
-                              onClick={() => onDeleteDetail(detail.id)}
-                              sx={{ color: '#c62828' }}>
-                              <DeleteOutline fontSize="small" />
+                              onClick={() => onCopyDetail(detail.id)}
+                              sx={{ color: '#1565c0' }}>
+                              <ContentCopy fontSize="small" />
                             </IconButton>
-                          ) : null}
+                            {quoteDraftDetails.length > 1 ? (
+                              <IconButton
+                                size="small"
+                                onClick={() => onDeleteDetail(detail.id)}
+                                sx={{ color: '#c62828' }}>
+                                <DeleteOutline fontSize="small" />
+                              </IconButton>
+                            ) : null}
+                          </Stack>
                         </Stack>
                         <Grid container spacing={1.5}>
                           <Grid item xs={12} md={4}>

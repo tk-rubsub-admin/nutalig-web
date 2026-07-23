@@ -1,5 +1,6 @@
 import {
   Add,
+  ContentCopy,
   DeleteOutline,
   Edit,
   ExpandLess,
@@ -79,6 +80,8 @@ interface SupplierQuoteSectionProps {
   onSendNotification: (quote: RFQSupplierQuote) => void;
   onCancelEditQuote: () => void;
   onSaveEditQuote: () => void;
+  onCopyDetail: (detailId: number) => void;
+  onDeleteDetail: (detailId: number) => void;
   onDetailChange: (
     detailId: number,
     field:
@@ -144,6 +147,8 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     onSendNotification,
     onCancelEditQuote,
     onSaveEditQuote,
+    onCopyDetail,
+    onDeleteDetail,
     onDetailChange,
     onAddPackage,
     onPackageChange,
@@ -330,6 +335,32 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                 <Box>
                                   {isEditing ? (
                                     <Grid container spacing={1.5}>
+                                      <Grid item xs={12}>
+                                        <Stack
+                                          direction="row"
+                                          justifyContent="space-between"
+                                          alignItems="center">
+                                          <Typography variant="subtitle2" fontWeight={700}>
+                                            Option {detail.sortOrder || detailIndex + 1}
+                                          </Typography>
+                                          <Stack direction="row" spacing={0.5}>
+                                            <IconButton
+                                              size="small"
+                                              onClick={() => onCopyDetail(detail.id)}
+                                              sx={{ color: '#1565c0' }}>
+                                              <ContentCopy fontSize="small" />
+                                            </IconButton>
+                                            {quoteDraftDetails.length > 1 ? (
+                                              <IconButton
+                                                size="small"
+                                                onClick={() => onDeleteDetail(detail.id)}
+                                                sx={{ color: '#c62828' }}>
+                                                <DeleteOutline fontSize="small" />
+                                              </IconButton>
+                                            ) : null}
+                                          </Stack>
+                                        </Stack>
+                                      </Grid>
                                       <Grid item xs={12} md={4}>
                                         <TextField
                                           fullWidth

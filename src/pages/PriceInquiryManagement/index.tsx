@@ -132,6 +132,7 @@ function createDefaultFilter(salesId = '', procurementId = '') {
     salesId,
     procurementId,
     rfqTypeCode: '',
+    status: '',
     orderTypeCode: '',
     productFamily: '',
     productSubtype1: '',
@@ -143,6 +144,8 @@ function createDefaultFilter(salesId = '', procurementId = '') {
 }
 
 type PriceInquiryFilter = ReturnType<typeof createDefaultFilter>;
+
+const PRICE_INQUIRY_STATUS_OPTIONS = ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED'];
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
   return file?.pictureUrl || file?.fileUrl || '';
@@ -387,6 +390,7 @@ export default function PriceInquiryManagement(): ReactElement {
         salesId: values.salesId?.trim() || '',
         procurementId: values.procurementId?.trim() || '',
         rfqTypeCode: values.rfqTypeCode?.trim() || '',
+        status: values.status?.trim() || '',
         orderTypeCode: values.orderTypeCode?.trim() || '',
         productFamily: values.productFamily?.trim() || '',
         productSubtype1: values.productSubtype1?.trim() || '',
@@ -421,6 +425,7 @@ export default function PriceInquiryManagement(): ReactElement {
       filter.salesId,
       filter.procurementId,
       filter.rfqTypeCode,
+      filter.status,
       filter.orderTypeCode,
       filter.productFamily,
       filter.productSubtype1,
@@ -438,6 +443,7 @@ export default function PriceInquiryManagement(): ReactElement {
         salesId: filter.salesId,
         procurementId: filter.procurementId,
         rfqTypeCode: filter.rfqTypeCode,
+        status: filter.status,
         orderTypeCode: filter.orderTypeCode,
         productFamily: filter.productFamily,
         productSubtype1: filter.productSubtype1,
@@ -906,6 +912,23 @@ export default function PriceInquiryManagement(): ReactElement {
                 {(rfqTypeList || []).map((item: SystemConfig) => (
                   <MenuItem key={item.code} value={item.code}>
                     {item.nameTh || item.code}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                label="สถานะ"
+                name="status"
+                value={searchFormik.values.status}
+                onChange={searchFormik.handleChange}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                {PRICE_INQUIRY_STATUS_OPTIONS.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {t(`rfqManagement.rfqsStatus.${status}`)}
                   </MenuItem>
                 ))}
               </TextField>

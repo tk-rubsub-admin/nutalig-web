@@ -512,7 +512,7 @@ function getSLAStatusPresentation(
 
 function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
-    contactName: rfq?.contactName || '',
+    contactName: rfq?.contactName || rfq?.customer?.customerName || '',
     contactPhone: rfq?.contactPhone || '',
     contactChannel: rfq?.contactChannel || '',
     salesId: rfq?.sales?.employeeId || rfq?.sales?.salesId || '',

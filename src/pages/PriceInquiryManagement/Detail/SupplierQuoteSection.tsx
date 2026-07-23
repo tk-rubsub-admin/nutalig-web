@@ -15,6 +15,7 @@ import {
   Divider,
   IconButton,
   InputAdornment,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -25,7 +26,12 @@ import {
   Typography
 } from '@mui/material';
 import { ReactElement, useEffect, useState } from 'react';
-import { RFQSupplierQuote, RFQSupplierQuoteAdditionalCost } from 'services/RFQ/rfq-type';
+import {
+  RFQSupplierQuote,
+  RFQSupplierQuoteAdditionalCost,
+  RFQSupplierQuoteLeadTime
+} from 'services/RFQ/rfq-type';
+import { LeadTimeConfig } from 'services/Supplier/supplier-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 import { SupplierQuoteDialogDetail } from './SupplierQuoteDialog';
 
@@ -36,12 +42,22 @@ interface SupplierQuoteDraftAdditionalCost {
   unit: string;
 }
 
+interface SupplierQuoteDraftLeadTime {
+  id: number;
+  leadTimeCode: string;
+  leadTimeDayMin: string;
+  leadTimeDayMax: string;
+  remark: string;
+}
+
 interface SupplierQuoteSectionProps {
   quotes: RFQSupplierQuote[];
   editingQuoteId: string | null;
   quoteDraftDetails: SupplierQuoteDialogDetail[];
   quoteDraftAdditionalCosts: SupplierQuoteDraftAdditionalCost[];
+  quoteDraftLeadTimes: SupplierQuoteDraftLeadTime[];
   quoteDraftErrors: Record<number, any>;
+  quoteDraftLeadTimeErrors: Record<number, any>;
   isSubmitting: boolean;
   notifyingQuoteId: string | null;
   onEditQuote: (quote: RFQSupplierQuote) => void;
@@ -82,9 +98,18 @@ interface SupplierQuoteSectionProps {
     field: 'description' | 'value' | 'unit',
     value: string
   ) => void;
+  onAddLeadTime: () => void;
+  onLeadTimeChange: (
+    leadTimeId: number,
+    field: 'leadTimeCode' | 'leadTimeDayMin' | 'leadTimeDayMax' | 'remark',
+    value: string
+  ) => void;
+  onDeleteLeadTime: (leadTimeId: number) => void;
+  leadTimeOptions: LeadTimeConfig[];
   formatQuantity: (value?: number | null) => string;
   formatPrice: (value?: number | null, currency?: string | null) => string;
   formatSupplierQuoteAdditionalCost: (additionalCost: RFQSupplierQuoteAdditionalCost) => string;
+  formatSupplierQuoteLeadTime: (leadTime: RFQSupplierQuoteLeadTime) => string;
   getSupplierDisplayName: (supplier?: RFQSupplierQuote['supplier'] | null) => string;
 }
 
@@ -94,7 +119,9 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     editingQuoteId,
     quoteDraftDetails,
     quoteDraftAdditionalCosts,
+    quoteDraftLeadTimes,
     quoteDraftErrors,
+    quoteDraftLeadTimeErrors,
     isSubmitting,
     notifyingQuoteId,
     onEditQuote,
@@ -108,12 +135,23 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     onDeletePackage,
     onTierChange,
     onAdditionalCostChange,
+    onAddLeadTime,
+    onLeadTimeChange,
+    onDeleteLeadTime,
+    leadTimeOptions,
     formatQuantity,
     formatPrice,
     formatSupplierQuoteAdditionalCost,
+    formatSupplierQuoteLeadTime,
     getSupplierDisplayName
   } = props;
   const [expandedQuoteIds, setExpandedQuoteIds] = useState<Record<string, boolean>>({});
+  const getLeadTimeOptionLabel = (option: LeadTimeConfig) =>
+    option.nameTh || option.nameEn || option.code;
+  const isLeadTimeOptionDisabled = (optionCode: string, currentLeadTimeId: number) =>
+    quoteDraftLeadTimes.some(
+      (leadTime) => leadTime.id !== currentLeadTimeId && leadTime.leadTimeCode === optionCode
+    );
 
   useEffect(() => {
     setExpandedQuoteIds((prev) => {
@@ -311,6 +349,8 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                           size="small"
                                           label="Remark"
                                           value={detail.remark || ''}
+                                          multiline
+                                          minRows={3}
                                           InputLabelProps={{ shrink: true }}
                                           onChange={(event) =>
                                             onDetailChange(detail.id, 'remark', event.target.value)
@@ -691,7 +731,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
 
                       <Box>
                         <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-                          Additional Cost
+                          รายละเอียดเพิ่มเติม
                         </Typography>
                         {(isEditing ? quoteDraftAdditionalCosts : quote.additionalCosts)?.length ? (
                           <Stack spacing={0.75}>
@@ -759,7 +799,165 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                           </Stack>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
-                            ไม่มี Additional Cost
+                            ไม่มีรายละเอียดเพิ่มเติม
+                          </Typography>
+                        )}
+                      </Box>
+
+                      <Box>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ mb: 1 }}>
+                          <Typography variant="subtitle2" fontWeight={700}>
+                            Lead Time
+                          </Typography>
+                          {isEditing ? (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<Add />}
+                              sx={outlinedActionButtonSx}
+                              onClick={onAddLeadTime}>
+                              เพิ่ม Lead Time
+                            </Button>
+                          ) : null}
+                        </Stack>
+                        {(isEditing ? quoteDraftLeadTimes : quote.leadTimes)?.length ? (
+                          <Stack spacing={0.75}>
+                            {(isEditing ? quoteDraftLeadTimes : quote.leadTimes || []).map(
+                              (leadTime, index) =>
+                                isEditing ? (
+                                  <Grid
+                                    container
+                                    spacing={1}
+                                    key={leadTime.id || `${leadTime.leadTimeCode}-${index}`}>
+                                    <Grid item xs={12} md={3}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        select
+                                        label="Lead Time Code"
+                                        value={leadTime.leadTimeCode}
+                                        InputLabelProps={{ shrink: true }}
+                                        error={Boolean(
+                                          quoteDraftLeadTimeErrors[leadTime.id || -(index + 1)]
+                                            ?.leadTimeCode
+                                        )}
+                                        helperText={
+                                          quoteDraftLeadTimeErrors[leadTime.id || -(index + 1)]
+                                            ?.leadTimeCode
+                                        }
+                                        onChange={(event) =>
+                                          onLeadTimeChange(
+                                            leadTime.id || -(index + 1),
+                                            'leadTimeCode',
+                                            event.target.value
+                                          )
+                                        }>
+                                        {leadTimeOptions.map((option) => (
+                                          <MenuItem
+                                            key={option.code}
+                                            value={option.code}
+                                            disabled={isLeadTimeOptionDisabled(
+                                              option.code,
+                                              leadTime.id || -(index + 1)
+                                            )}>
+                                            {getLeadTimeOptionLabel(option)}
+                                          </MenuItem>
+                                        ))}
+                                      </TextField>
+                                    </Grid>
+                                    <Grid item xs={12} md={2}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        type="number"
+                                        label="วันเริ่มต้น"
+                                        InputLabelProps={{ shrink: true }}
+                                        value={leadTime.leadTimeDayMin || ''}
+                                        error={Boolean(
+                                          quoteDraftLeadTimeErrors[leadTime.id || -(index + 1)]
+                                            ?.leadTimeDayMin
+                                        )}
+                                        helperText={
+                                          quoteDraftLeadTimeErrors[leadTime.id || -(index + 1)]
+                                            ?.leadTimeDayMin
+                                        }
+                                        onChange={(event) =>
+                                          onLeadTimeChange(
+                                            leadTime.id || -(index + 1),
+                                            'leadTimeDayMin',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={2}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        type="number"
+                                        label="วันสิ้นสุด"
+                                        InputLabelProps={{ shrink: true }}
+                                        value={leadTime.leadTimeDayMax || ''}
+                                        error={Boolean(
+                                          quoteDraftLeadTimeErrors[leadTime.id || -(index + 1)]
+                                            ?.leadTimeDayMax
+                                        )}
+                                        helperText={
+                                          quoteDraftLeadTimeErrors[leadTime.id || -(index + 1)]
+                                            ?.leadTimeDayMax
+                                        }
+                                        onChange={(event) =>
+                                          onLeadTimeChange(
+                                            leadTime.id || -(index + 1),
+                                            'leadTimeDayMax',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Remark"
+                                        InputLabelProps={{ shrink: true }}
+                                        value={leadTime.remark || ''}
+                                        onChange={(event) =>
+                                          onLeadTimeChange(
+                                            leadTime.id || -(index + 1),
+                                            'remark',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={1}>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          onDeleteLeadTime(leadTime.id || -(index + 1))
+                                        }
+                                        sx={{ color: '#c62828' }}>
+                                        <DeleteOutline fontSize="small" />
+                                      </IconButton>
+                                    </Grid>
+                                  </Grid>
+                                ) : (
+                                  <Typography
+                                    key={leadTime.id || `${leadTime.leadTimeCode}-${index}`}
+                                    variant="body2">
+                                    {formatSupplierQuoteLeadTime(leadTime) || '-'}
+                                  </Typography>
+                                )
+                            )}
+                          </Stack>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            ไม่มี Lead Time
                           </Typography>
                         )}
                       </Box>

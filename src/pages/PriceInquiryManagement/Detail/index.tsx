@@ -84,7 +84,7 @@ import {
   updateRFQ,
   updateRFQSupplierQuote
 } from 'services/RFQ/rfq-api';
-import { searchSupplier } from 'services/Supplier/supplier-api';
+import { getLeadTimeConfigs, searchSupplier } from 'services/Supplier/supplier-api';
 import {
   RFQAdditionalCost,
   CreateRFQAdditionalCostRequest,
@@ -100,9 +100,11 @@ import {
   RFQSupplierQuote,
   RFQSupplierQuoteAdditionalCost,
   RFQSupplierQuoteDetail,
+  RFQSupplierQuoteLeadTime,
   UpsertRFQSupplierQuoteRequest
 } from 'services/RFQ/rfq-type';
 import {
+  LeadTimeConfig,
   Supplier,
   SupplierCapability,
   SupplierCapabilityMaterial,
@@ -157,6 +159,12 @@ interface DraftAdditionalCost {
   description: string;
   value: string;
   unit: string;
+}
+
+interface DraftSupplierQuoteLeadTimeError {
+  leadTimeCode?: string;
+  leadTimeDayMin?: string;
+  leadTimeDayMax?: string;
 }
 
 interface FinalPriceDraftTier {
@@ -241,6 +249,15 @@ interface DraftSupplierQuotePackage {
   packageHeight?: string;
   packageWeight?: string;
   packageCapacity?: string;
+  sortOrder: number;
+}
+
+interface DraftSupplierQuoteLeadTime {
+  id: number;
+  leadTimeCode: string;
+  leadTimeDayMin: string;
+  leadTimeDayMax: string;
+  remark: string;
   sortOrder: number;
 }
 
@@ -833,12 +850,38 @@ function formatSupplierQuoteAdditionalCost(additionalCost: RFQSupplierQuoteAddit
     .join(' ');
 }
 
+function formatSupplierQuoteLeadTime(leadTime: RFQSupplierQuoteLeadTime): string {
+  const codeLabel =
+    leadTime.leadTimeConfig?.nameTh ||
+    leadTime.leadTimeConfig?.nameEn ||
+    leadTime.leadTimeCode ||
+    '';
+
+  const dayLabel =
+    leadTime.leadTimeDayMin === leadTime.leadTimeDayMax
+      ? `${leadTime.leadTimeDayMin} วัน`
+      : `${leadTime.leadTimeDayMin}-${leadTime.leadTimeDayMax} วัน`;
+
+  return [codeLabel, dayLabel, leadTime.remark].filter(Boolean).join(' | ');
+}
+
 function createDraftAdditionalCost(): DraftAdditionalCost {
   return {
     id: -Date.now(),
     description: '',
     value: '',
     unit: ''
+  };
+}
+
+function createDraftLeadTime(sortOrder: number): DraftSupplierQuoteLeadTime {
+  return {
+    id: -(Date.now() + sortOrder),
+    leadTimeCode: '',
+    leadTimeDayMin: '',
+    leadTimeDayMax: '',
+    remark: '',
+    sortOrder
   };
 }
 
@@ -1090,10 +1133,31 @@ function createSupplierQuoteAdditionalCostFromQuote(
   };
 }
 
+function createSupplierQuoteLeadTimeFromQuote(
+  leadTime: RFQSupplierQuoteLeadTime,
+  index: number
+): DraftSupplierQuoteLeadTime {
+  return {
+    id: leadTime.id || -(Date.now() + index + 1),
+    leadTimeCode: leadTime.leadTimeCode || leadTime.leadTimeConfig?.code || '',
+    leadTimeDayMin:
+      leadTime.leadTimeDayMin === null || leadTime.leadTimeDayMin === undefined
+        ? ''
+        : String(leadTime.leadTimeDayMin),
+    leadTimeDayMax:
+      leadTime.leadTimeDayMax === null || leadTime.leadTimeDayMax === undefined
+        ? ''
+        : String(leadTime.leadTimeDayMax),
+    remark: leadTime.remark || '',
+    sortOrder: leadTime.sortOrder || index + 1
+  };
+}
+
 function buildSupplierQuotePayload(
   supplier: Supplier,
   details: DraftSupplierQuoteDetail[],
   additionalCosts: DraftAdditionalCost[],
+  leadTimes: DraftSupplierQuoteLeadTime[],
   quote?: RFQSupplierQuote | null
 ): UpsertRFQSupplierQuoteRequest {
   return {
@@ -1149,6 +1213,20 @@ function buildSupplierQuotePayload(
         description: additionalCost.description.trim(),
         value: additionalCost.value,
         unit: additionalCost.unit,
+        sortOrder: index + 1
+      })),
+    leadTimes: leadTimes
+      .filter((leadTime) =>
+        leadTime.leadTimeCode.trim() ||
+        leadTime.leadTimeDayMin.trim() ||
+        leadTime.leadTimeDayMax.trim() ||
+        leadTime.remark.trim()
+      )
+      .map((leadTime, index) => ({
+        leadTimeCode: leadTime.leadTimeCode.trim(),
+        leadTimeDayMin: Number(leadTime.leadTimeDayMin),
+        leadTimeDayMax: Number(leadTime.leadTimeDayMax),
+        remark: leadTime.remark.trim() || null,
         sortOrder: index + 1
       }))
   };
@@ -1234,6 +1312,64 @@ function createDraftAdditionalCostFromExtractedPayload(
     value: additionalCost.value || '',
     unit: additionalCost.unit || ''
   };
+}
+
+function createDraftLeadTimeFromExtractedPayload(
+  leadTime: NonNullable<UpsertRFQSupplierQuoteRequest['leadTimes']>[number],
+  index: number
+): DraftSupplierQuoteLeadTime {
+  return {
+    id: -(Date.now() + index + 1),
+    leadTimeCode: leadTime.leadTimeCode || '',
+    leadTimeDayMin:
+      leadTime.leadTimeDayMin === null || leadTime.leadTimeDayMin === undefined
+        ? ''
+        : String(leadTime.leadTimeDayMin),
+    leadTimeDayMax:
+      leadTime.leadTimeDayMax === null || leadTime.leadTimeDayMax === undefined
+        ? ''
+        : String(leadTime.leadTimeDayMax),
+    remark: leadTime.remark || '',
+    sortOrder: leadTime.sortOrder || index + 1
+  };
+}
+
+function validateSupplierQuoteLeadTimeDraft(
+  leadTime: DraftSupplierQuoteLeadTime
+): DraftSupplierQuoteLeadTimeError | null {
+  const isEmpty =
+    !leadTime.leadTimeCode.trim() &&
+    !leadTime.leadTimeDayMin.trim() &&
+    !leadTime.leadTimeDayMax.trim() &&
+    !leadTime.remark.trim();
+
+  if (isEmpty) {
+    return null;
+  }
+
+  const nextError: DraftSupplierQuoteLeadTimeError = {};
+  const min = Number(leadTime.leadTimeDayMin);
+  const max = Number(leadTime.leadTimeDayMax);
+
+  if (!leadTime.leadTimeCode.trim()) {
+    nextError.leadTimeCode = 'กรุณาระบุ lead time code';
+  }
+
+  if (!leadTime.leadTimeDayMin.trim()) {
+    nextError.leadTimeDayMin = 'กรุณาระบุวันเริ่มต้น';
+  } else if (!Number.isFinite(min) || min < 0) {
+    nextError.leadTimeDayMin = 'วันเริ่มต้นต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป';
+  }
+
+  if (!leadTime.leadTimeDayMax.trim()) {
+    nextError.leadTimeDayMax = 'กรุณาระบุวันสิ้นสุด';
+  } else if (!Number.isFinite(max) || max < 0) {
+    nextError.leadTimeDayMax = 'วันสิ้นสุดต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป';
+  } else if (Number.isFinite(min) && max < min) {
+    nextError.leadTimeDayMax = 'วันสิ้นสุดต้องมากกว่าหรือเท่ากับวันเริ่มต้น';
+  }
+
+  return Object.keys(nextError).length ? nextError : null;
 }
 
 function mergeFinalPriceDraftFromExtractedPayload(
@@ -1502,8 +1638,12 @@ export default function RFQDetail(): ReactElement {
   const [quoteDraftAdditionalCosts, setQuoteDraftAdditionalCosts] = useState<DraftAdditionalCost[]>(
     []
   );
+  const [quoteDraftLeadTimes, setQuoteDraftLeadTimes] = useState<DraftSupplierQuoteLeadTime[]>([]);
   const [quoteDraftErrors, setQuoteDraftErrors] = useState<
     Record<number, DraftDetailValidationError>
+  >({});
+  const [quoteDraftLeadTimeErrors, setQuoteDraftLeadTimeErrors] = useState<
+    Record<number, DraftSupplierQuoteLeadTimeError>
   >({});
   const [finalPriceQuote, setFinalPriceQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleFinalPriceConfirmationDialog, setVisibleFinalPriceConfirmationDialog] =
@@ -1589,6 +1729,13 @@ export default function RFQDetail(): ReactElement {
   );
   const quoteSupplierSearchResult = quoteSupplierSearchResponse?.data?.suppliers || [];
   const quoteSupplierSearchPagination = quoteSupplierSearchResponse?.data?.pagination;
+  const { data: leadTimeOptions = [] } = useQuery<LeadTimeConfig[]>(
+    ['lead-time-configs'],
+    () => getLeadTimeConfigs(),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
 
   const {
     data: supplierQuotes = [],
@@ -2040,7 +2187,13 @@ export default function RFQDetail(): ReactElement {
         ? existingQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
         : [createDraftAdditionalCost()]
     );
+    setQuoteDraftLeadTimes(
+      existingQuote?.leadTimes?.length
+        ? existingQuote.leadTimes.map(createSupplierQuoteLeadTimeFromQuote)
+        : [createDraftLeadTime(1)]
+    );
     setQuoteDraftErrors({});
+    setQuoteDraftLeadTimeErrors({});
   };
 
   const initializeNewSupplierQuoteDialog = (
@@ -2059,7 +2212,13 @@ export default function RFQDetail(): ReactElement {
         ? templateQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
         : [createDraftAdditionalCost()]
     );
+    setQuoteDraftLeadTimes(
+      templateQuote?.leadTimes?.length
+        ? templateQuote.leadTimes.map(createSupplierQuoteLeadTimeFromQuote)
+        : [createDraftLeadTime(1)]
+    );
     setQuoteDraftErrors({});
+    setQuoteDraftLeadTimeErrors({});
   };
 
   const handleOpenSupplierQuoteDialog = () => {
@@ -2068,7 +2227,9 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogQuote(null);
     setQuoteDraftDetails([]);
     setQuoteDraftAdditionalCosts([]);
+    setQuoteDraftLeadTimes([]);
     setQuoteDraftErrors({});
+    setQuoteDraftLeadTimeErrors({});
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
     setQuoteSupplierSearchPage(1);
@@ -2104,7 +2265,9 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogQuote(null);
     setQuoteDraftDetails([]);
     setQuoteDraftAdditionalCosts([]);
+    setQuoteDraftLeadTimes([]);
     setQuoteDraftErrors({});
+    setQuoteDraftLeadTimeErrors({});
     setVisibleSupplierQuoteDialog(false);
     setInlineEditingSupplierQuoteId(null);
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
@@ -2175,12 +2338,17 @@ export default function RFQDetail(): ReactElement {
         (additionalCost, index) =>
           createDraftAdditionalCostFromExtractedPayload(additionalCost, index)
       );
+      const nextLeadTimes = (extractedQuote.leadTimes || []).map((leadTime, index) =>
+        createDraftLeadTimeFromExtractedPayload(leadTime, index)
+      );
 
       setQuoteDraftDetails(nextDetails.length ? nextDetails : [createDraftQuoteDetail(1)]);
       setQuoteDraftAdditionalCosts(
         nextAdditionalCosts.length ? nextAdditionalCosts : [createDraftAdditionalCost()]
       );
+      setQuoteDraftLeadTimes(nextLeadTimes.length ? nextLeadTimes : [createDraftLeadTime(1)]);
       setQuoteDraftErrors({});
+      setQuoteDraftLeadTimeErrors({});
       setVisibleExtractSupplierQuoteDialog(false);
       setExtractSupplierQuoteMessage('');
     } finally {
@@ -2194,7 +2362,9 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogQuote(null);
     setQuoteDraftDetails([]);
     setQuoteDraftAdditionalCosts([]);
+    setQuoteDraftLeadTimes([]);
     setQuoteDraftErrors({});
+    setQuoteDraftLeadTimeErrors({});
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
   };
 
@@ -2890,6 +3060,46 @@ export default function RFQDetail(): ReactElement {
     );
   };
 
+  const handleAddQuoteLeadTime = () => {
+    setQuoteDraftLeadTimes((prev) => [...prev, createDraftLeadTime(prev.length + 1)]);
+  };
+
+  const handleQuoteLeadTimeChange = (
+    leadTimeId: number,
+    field: 'leadTimeCode' | 'leadTimeDayMin' | 'leadTimeDayMax' | 'remark',
+    value: string
+  ) => {
+    setQuoteDraftLeadTimes((prev) =>
+      prev.map((item) => (item.id === leadTimeId ? { ...item, [field]: value } : item))
+    );
+    setQuoteDraftLeadTimeErrors((prev) => {
+      if (!prev[leadTimeId]) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[leadTimeId];
+      return next;
+    });
+  };
+
+  const handleDeleteQuoteLeadTime = (leadTimeId: number) => {
+    setQuoteDraftLeadTimes((prev) => {
+      const nextItems = prev.filter((item) => item.id !== leadTimeId);
+      if (!nextItems.length) {
+        return [createDraftLeadTime(1)];
+      }
+      return nextItems.map((item, index) => ({
+        ...item,
+        sortOrder: index + 1
+      }));
+    });
+    setQuoteDraftLeadTimeErrors((prev) => {
+      const next = { ...prev };
+      delete next[leadTimeId];
+      return next;
+    });
+  };
+
   const handleRequestSaveSupplierQuote = () => {
     if (!params.id || !quoteDialogSupplier) {
       return;
@@ -2910,8 +3120,18 @@ export default function RFQDetail(): ReactElement {
       },
       {}
     );
+    const nextLeadTimeErrors = quoteDraftLeadTimes.reduce<
+      Record<number, DraftSupplierQuoteLeadTimeError>
+    >((accumulator, leadTime) => {
+      const validationError = validateSupplierQuoteLeadTimeDraft(leadTime);
+      if (validationError) {
+        accumulator[leadTime.id] = validationError;
+      }
+      return accumulator;
+    }, {});
     setQuoteDraftErrors(nextErrors);
-    if (Object.keys(nextErrors).length) {
+    setQuoteDraftLeadTimeErrors(nextLeadTimeErrors);
+    if (Object.keys(nextErrors).length || Object.keys(nextLeadTimeErrors).length) {
       toast.error('กรุณาตรวจสอบข้อมูลราคาที่ supplier ตอบกลับ');
       return;
     }
@@ -2928,6 +3148,7 @@ export default function RFQDetail(): ReactElement {
       quoteDialogSupplier,
       quoteDraftDetails,
       quoteDraftAdditionalCosts,
+      quoteDraftLeadTimes,
       quoteDialogQuote
     );
 
@@ -3586,7 +3807,7 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       fullWidth
                       label="ผู้ติดต่อ"
-                      value={rfq ? `${rfq.contactName || '-'}` : ''}
+                      value={rfq ? `${rfq.contactName || rfq.customer?.customerName || '-'}` : ''}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
@@ -4003,7 +4224,9 @@ export default function RFQDetail(): ReactElement {
                   editingQuoteId={inlineEditingSupplierQuoteId}
                   quoteDraftDetails={quoteDraftDetails}
                   quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
+                  quoteDraftLeadTimes={quoteDraftLeadTimes}
                   quoteDraftErrors={quoteDraftErrors}
+                  quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}
                   isSubmitting={isSupplierQuoteSubmitting}
                   notifyingQuoteId={notifyingQuoteId}
                   onEditQuote={handleOpenSupplierQuoteEditDialog}
@@ -4017,9 +4240,14 @@ export default function RFQDetail(): ReactElement {
                   onDeletePackage={handleDeleteQuotePackage}
                   onTierChange={handleQuoteTierChange}
                   onAdditionalCostChange={handleQuoteAdditionalCostChange}
+                  onAddLeadTime={handleAddQuoteLeadTime}
+                  onLeadTimeChange={handleQuoteLeadTimeChange}
+                  onDeleteLeadTime={handleDeleteQuoteLeadTime}
+                  leadTimeOptions={leadTimeOptions}
                   formatQuantity={formatQuantity}
                   formatPrice={formatPrice}
                   formatSupplierQuoteAdditionalCost={formatSupplierQuoteAdditionalCost}
+                  formatSupplierQuoteLeadTime={formatSupplierQuoteLeadTime}
                   getSupplierDisplayName={getSupplierDisplayName}
                 />
               </CollapsibleWrapper>
@@ -4289,6 +4517,7 @@ export default function RFQDetail(): ReactElement {
         onOpenNewSupplierDialog={() => setVisibleNewSupplierDialog(true)}
         onOpenExtractSupplierQuoteDialog={handleOpenExtractSupplierQuoteDialog}
         currencyOptions={currencyOptions}
+        leadTimeOptions={leadTimeOptions}
         latestSupplierQuoteBySupplierId={latestSupplierQuoteBySupplierId}
         supplierQuoteRevisionCountBySupplierId={supplierQuoteRevisionCountBySupplierId}
         onSelectSupplier={handleSelectQuoteSupplier}
@@ -4297,11 +4526,15 @@ export default function RFQDetail(): ReactElement {
           setQuoteDialogQuote(null);
           setQuoteDraftDetails([]);
           setQuoteDraftAdditionalCosts([]);
+          setQuoteDraftLeadTimes([]);
           setQuoteDraftErrors({});
+          setQuoteDraftLeadTimeErrors({});
         }}
         quoteDraftDetails={quoteDraftDetails}
         quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
+        quoteDraftLeadTimes={quoteDraftLeadTimes}
         quoteDraftErrors={quoteDraftErrors}
+        quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}
         onAddDetail={handleAddQuoteDetail}
         onDeleteDetail={handleDeleteQuoteDetail}
         onDetailChange={handleQuoteDetailChange}
@@ -4314,6 +4547,9 @@ export default function RFQDetail(): ReactElement {
         onAddAdditionalCost={handleAddQuoteAdditionalCost}
         onAdditionalCostChange={handleQuoteAdditionalCostChange}
         onDeleteAdditionalCost={handleDeleteAdditionalCost}
+        onAddLeadTime={handleAddQuoteLeadTime}
+        onLeadTimeChange={handleQuoteLeadTimeChange}
+        onDeleteLeadTime={handleDeleteQuoteLeadTime}
         onSave={handleRequestSaveSupplierQuote}
         onClose={handleCloseSupplierQuoteDialog}
         isSubmitting={isSupplierQuoteSubmitting}

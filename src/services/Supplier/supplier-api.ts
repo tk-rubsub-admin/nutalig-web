@@ -4,6 +4,7 @@ import {
   CreateSupplierRequest,
   CreateSupplierResponse,
   GetSupplierResponse,
+  LeadTimeConfig,
   SearchSupplierRequest,
   SearchSupplierResponse,
   Supplier,
@@ -112,5 +113,10 @@ export const getSupplierById = async (supplierId: string): Promise<Supplier> => 
 
 export const getSupplierShippings = async (): Promise<SupplierShipping[]> => {
   const response = await api.get('/v1/supplier-shippings').then((res) => res.data);
+  return response?.data || [];
+};
+
+export const getLeadTimeConfigs = async (): Promise<LeadTimeConfig[]> => {
+  const response = await api.get('/v1/lead-time-configs').then((res) => res.data);
   return response?.data || [];
 };

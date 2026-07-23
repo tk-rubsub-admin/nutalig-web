@@ -109,6 +109,13 @@ export interface SupplierShipping {
   destinations: SupplierShippingDestination[];
 }
 
+export interface LeadTimeConfig {
+  code: string;
+  type?: string | null;
+  nameTh?: string | null;
+  nameEn?: string | null;
+}
+
 export interface Supplier {
   id: string;
   supplierId?: string;

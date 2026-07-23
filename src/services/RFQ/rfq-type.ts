@@ -484,6 +484,25 @@ export interface RFQSupplierQuoteAdditionalCost {
   updatedDate?: string | null;
 }
 
+export interface RFQSupplierQuoteLeadTimeConfig {
+  code: string;
+  type?: string | null;
+  nameTh?: string | null;
+  nameEn?: string | null;
+}
+
+export interface RFQSupplierQuoteLeadTime {
+  id?: number;
+  leadTimeCode: string;
+  leadTimeConfig?: RFQSupplierQuoteLeadTimeConfig | null;
+  leadTimeDayMin: number;
+  leadTimeDayMax: number;
+  remark?: string | null;
+  sortOrder: number;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
 export interface UpsertRFQSupplierQuoteTierRequest {
   quantity: number;
   productPrice: number;
@@ -526,6 +545,14 @@ export interface UpsertRFQSupplierQuoteAdditionalCostRequest {
   sortOrder: number;
 }
 
+export interface UpsertRFQSupplierQuoteLeadTimeRequest {
+  leadTimeCode: string;
+  leadTimeDayMin: number;
+  leadTimeDayMax: number;
+  remark?: string | null;
+  sortOrder: number;
+}
+
 export interface RFQSupplierQuote {
   id: string;
   rfqId: string;
@@ -536,6 +563,7 @@ export interface RFQSupplierQuote {
   remark?: string | null;
   details: RFQSupplierQuoteDetail[];
   additionalCosts: RFQSupplierQuoteAdditionalCost[];
+  leadTimes?: RFQSupplierQuoteLeadTime[];
   createdBy?: string | null;
   updatedBy?: string | null;
   createdDate?: string | null;
@@ -550,6 +578,7 @@ export interface UpsertRFQSupplierQuoteRequest {
   recommend?: string | null;
   details: UpsertRFQSupplierQuoteDetailRequest[];
   additionalCosts: UpsertRFQSupplierQuoteAdditionalCostRequest[];
+  leadTimes?: UpsertRFQSupplierQuoteLeadTimeRequest[];
 }
 
 export interface ExtractRFQSupplierQuoteRequest {

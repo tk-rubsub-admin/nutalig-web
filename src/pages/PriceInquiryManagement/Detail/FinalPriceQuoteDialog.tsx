@@ -390,7 +390,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
 
             <Stack spacing={1}>
               <Typography variant="subtitle1" fontWeight={700}>
-                Additional Cost จาก Supplier Quote
+                รายละเอียดเพิ่มเติม จาก Supplier Quote
               </Typography>
               {finalPriceQuote?.additionalCosts?.length ? (
                 <Box
@@ -412,7 +412,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 </Box>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  ไม่มี Additional Cost
+                  ไม่มีรายละเอียดเพิ่มเติม
                 </Typography>
               )}
             </Stack>
@@ -420,7 +420,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
             <Stack spacing={2}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="subtitle1" fontWeight={700}>
-                  Additional Cost เพิ่มเติม
+                  รายละเอียดเพิ่มเติม
                 </Typography>
                 <Button
                   variant="outlined"
@@ -428,7 +428,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                   startIcon={<Add />}
                   sx={outlinedActionButtonSx}
                   onClick={onAddAdditionalCost}>
-                  เพิ่มค่าใช้จ่าย
+                  เพิ่มรายละเอียด
                 </Button>
               </Stack>
               {finalPriceDraft.additionalCosts.length ? (
@@ -472,7 +472,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       />
                     </Grid>
                     <Grid item xs={12} md={1}>
-                      <Tooltip title="ลบค่าใช้จ่าย">
+                      <Tooltip title="ลบ">
                         <IconButton
                           color="error"
                           onClick={() => onDeleteAdditionalCost(additionalCost.id)}>
@@ -484,7 +484,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 ))
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  ยังไม่มี Additional Cost เพิ่มเติม
+                  ยังไม่มีรายละเอียดเพิ่มเติม
                 </Typography>
               )}
             </Stack>

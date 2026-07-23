@@ -100,7 +100,9 @@ import {
   RFQSupplierQuote,
   RFQSupplierQuoteAdditionalCost,
   RFQSupplierQuoteDetail,
+  RFQSupplierQuotePackage,
   RFQSupplierQuoteLeadTime,
+  UpsertRFQSupplierQuotePackageRequest,
   UpsertRFQSupplierQuoteRequest
 } from 'services/RFQ/rfq-type';
 import {
@@ -184,7 +186,6 @@ interface FinalPriceDraftDetail {
   spec: string;
   sortOrder: number;
   remark?: string | null;
-  packages: FinalPriceDraftPackage[];
   tiers: FinalPriceDraftTier[];
 }
 
@@ -199,6 +200,7 @@ interface FinalPriceDraftPackage {
 
 interface FinalPriceDraft {
   details: FinalPriceDraftDetail[];
+  packages: FinalPriceDraftPackage[];
   additionalCosts: DraftAdditionalCost[];
   remark: string;
   recommend: string;
@@ -781,37 +783,18 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
       remark: detail.remark || null,
-      commission: '',
-      packages: (detail.packages || []).length
-        ? (detail.packages || []).map((packageItem, packageIndex) => ({
-          id: packageItem.id || -(Date.now() + detailIndex * 1000 + packageIndex + 1),
-          packageName: packageItem.packageName || '',
-          packageDimension: packageItem.packageDimension || '',
-          packageWeight: packageItem.packageWeight || '',
-          packageCapacity: packageItem.packageCapacity || '',
-          sortOrder: packageItem.sortOrder || packageIndex + 1
-        }))
-        : [
-          {
-            id: -(Date.now() + detailIndex * 1000 + 1),
-            packageName: detail.packageName || '',
-            packageDimension: detail.packageDimension || '',
-            packageWeight: detail.packageWeight || '',
-            packageCapacity: detail.packageCapacity || '',
-            sortOrder: 1
-          }
-        ],
       tiers: detail.tiers.map((tier, tierIndex) => ({
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
         productPrice: '',
-        commission: '',
+        commission: '100',
         landTotalPrice: '',
         seaTotalPrice: '',
         isFcl: Boolean(tier.isFcl),
         sortOrder: tier.sortOrder || tierIndex + 1
       }))
     })),
+    packages: mapSupplierQuotePackages(quote.packages, quote.details),
     additionalCosts: [],
     remark: '',
     recommend: ''
@@ -899,6 +882,63 @@ function createDraftPackage(sortOrder: number): DraftSupplierQuotePackage {
   };
 }
 
+function mapSupplierQuotePackages(
+  packages?: RFQSupplierQuotePackage[] | null,
+  details?: RFQSupplierQuoteDetail[] | null
+): DraftSupplierQuotePackage[] {
+  if (packages?.length) {
+    return packages
+      .slice()
+      .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0))
+      .map((item, index) => ({
+        id: item.id || -(Date.now() + index + 1),
+        packageName: item.packageName || '',
+        packageDimension: item.packageDimension || '',
+        ...parsePackageDimension(item.packageDimension),
+        packageWeight: item.packageWeight || '',
+        packageCapacity: item.packageCapacity || '',
+        sortOrder: item.sortOrder || index + 1
+      }));
+  }
+
+  const legacyPackages = (details || []).flatMap((detail, detailIndex) => {
+    if (detail.packages?.length) {
+      return detail.packages.map((item, packageIndex) => ({
+        id: item.id || -(Date.now() + detailIndex + packageIndex + 1),
+        packageName: item.packageName || '',
+        packageDimension: item.packageDimension || '',
+        ...parsePackageDimension(item.packageDimension),
+        packageWeight: item.packageWeight || '',
+        packageCapacity: item.packageCapacity || '',
+        sortOrder: item.sortOrder || packageIndex + 1
+      }));
+    }
+
+    if (
+      !detail.packageName &&
+      !detail.packageDimension &&
+      !detail.packageWeight &&
+      !detail.packageCapacity
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: -(Date.now() + detailIndex + 1),
+        packageName: detail.packageName || '',
+        packageDimension: detail.packageDimension || '',
+        ...parsePackageDimension(detail.packageDimension),
+        packageWeight: detail.packageWeight || '',
+        packageCapacity: detail.packageCapacity || '',
+        sortOrder: detailIndex + 1
+      }
+    ];
+  });
+
+  return legacyPackages.length ? legacyPackages : [createDraftPackage(1)];
+}
+
 function parsePackageDimension(value?: string | null): {
   packageWidth: string;
   packageLength: string;
@@ -956,10 +996,6 @@ function createDraftQuoteDetail(sortOrder: number): DraftSupplierQuoteDetail {
     spec: '',
     sortOrder,
     remark: '',
-    packageDimension: '',
-    packageWeight: '',
-    packageCapacity: '',
-    packages: [createDraftPackage(1)],
     tiers: [
       {
         id: -(Date.now() + sortOrder),
@@ -1056,31 +1092,6 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
 function createSupplierQuoteDetailFromQuote(
   detail: RFQSupplierQuoteDetail
 ): DraftSupplierQuoteDetail {
-  const mappedPackages = detail.packages?.length
-    ? detail.packages
-      .slice()
-      .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0))
-      .map((item, index) => ({
-        id: item.id || -(Date.now() + index + 1),
-        packageName: item.packageName || '',
-        packageDimension: item.packageDimension || '',
-        ...parsePackageDimension(item.packageDimension),
-        packageWeight: item.packageWeight || '',
-        packageCapacity: item.packageCapacity || '',
-        sortOrder: item.sortOrder || index + 1
-      }))
-    : [
-      {
-        id: -(Date.now() + 1),
-        packageName: detail.packageName || '',
-        packageDimension: detail.packageDimension || '',
-        ...parsePackageDimension(detail.packageDimension),
-        packageWeight: detail.packageWeight || '',
-        packageCapacity: detail.packageCapacity || '',
-        sortOrder: 1
-      }
-    ];
-
   return {
     id: detail.id || -Date.now(),
     rfqDetailId: detail.rfqDetailId || null,
@@ -1088,21 +1099,6 @@ function createSupplierQuoteDetailFromQuote(
     spec: detail.spec || '',
     sortOrder: detail.sortOrder,
     remark: detail.remark || '',
-    packageName: getFirstPackageValue(mappedPackages, 'packageName') || detail.packageName || '',
-    packageDimension:
-      combinePackageDimension(
-        mappedPackages[0]?.packageWidth,
-        mappedPackages[0]?.packageLength,
-        mappedPackages[0]?.packageHeight
-      ) ||
-      getFirstPackageValue(mappedPackages, 'packageDimension') ||
-      detail.packageDimension ||
-      '',
-    packageWeight:
-      getFirstPackageValue(mappedPackages, 'packageWeight') || detail.packageWeight || '',
-    packageCapacity:
-      getFirstPackageValue(mappedPackages, 'packageCapacity') || detail.packageCapacity || '',
-    packages: mappedPackages,
     tiers: detail.tiers.map((tier, index) => ({
       id: tier.id || -(Date.now() + index + 1),
       quantity: tier.quantity ?? 0,
@@ -1156,6 +1152,7 @@ function createSupplierQuoteLeadTimeFromQuote(
 function buildSupplierQuotePayload(
   supplier: Supplier,
   details: DraftSupplierQuoteDetail[],
+  packages: DraftSupplierQuotePackage[],
   additionalCosts: DraftAdditionalCost[],
   leadTimes: DraftSupplierQuoteLeadTime[],
   quote?: RFQSupplierQuote | null
@@ -1171,19 +1168,27 @@ function buildSupplierQuotePayload(
       spec: detail.spec.trim(),
       sortOrder: index + 1,
       remark: detail.remark?.trim() || null,
-      packageName:
-        getFirstPackageValue(detail.packages, 'packageName') || detail.packageName?.trim() || null,
-      packageDimension:
-        combinePackageDimension(
-          detail.packages[0]?.packageWidth,
-          detail.packages[0]?.packageLength,
-          detail.packages[0]?.packageHeight
-        ) ||
-        getFirstPackageValue(detail.packages, 'packageDimension') ||
-        null,
-      packageWeight: getFirstPackageValue(detail.packages, 'packageWeight') || null,
-      packageCapacity: getFirstPackageValue(detail.packages, 'packageCapacity') || null,
-      packages: detail.packages.map((packageItem, packageIndex) => ({
+      tiers: detail.tiers.map((tier, tierIndex) => ({
+        quantity: tier.quantity,
+        productPrice: tier.productPrice,
+        shippingCost: tier.shippingCost,
+        productPriceCurrency: tier.productPriceCurrency || tier.currency || 'CNY',
+        shippingCostCurrency: tier.shippingCostCurrency || tier.currency || 'CNY',
+        currency: tier.productPriceCurrency || tier.currency || 'CNY',
+        sortOrder: tierIndex + 1
+      }))
+    })),
+    packages: packages
+      .filter(
+        (packageItem) =>
+          packageItem.packageName?.trim() ||
+          packageItem.packageWidth?.trim() ||
+          packageItem.packageLength?.trim() ||
+          packageItem.packageHeight?.trim() ||
+          packageItem.packageWeight?.trim() ||
+          packageItem.packageCapacity?.trim()
+      )
+      .map((packageItem, index) => ({
         packageName: packageItem.packageName?.trim() || null,
         packageDimension:
           combinePackageDimension(
@@ -1195,18 +1200,8 @@ function buildSupplierQuotePayload(
           null,
         packageWeight: packageItem.packageWeight?.trim() || null,
         packageCapacity: packageItem.packageCapacity?.trim() || null,
-        sortOrder: packageIndex + 1
+        sortOrder: index + 1
       })),
-      tiers: detail.tiers.map((tier, tierIndex) => ({
-        quantity: tier.quantity,
-        productPrice: tier.productPrice,
-        shippingCost: tier.shippingCost,
-        productPriceCurrency: tier.productPriceCurrency || tier.currency || 'CNY',
-        shippingCostCurrency: tier.shippingCostCurrency || tier.currency || 'CNY',
-        currency: tier.productPriceCurrency || tier.currency || 'CNY',
-        sortOrder: tierIndex + 1
-      }))
-    })),
     additionalCosts: additionalCosts
       .filter((additionalCost) => additionalCost.description.trim())
       .map((additionalCost, index) => ({
@@ -1236,31 +1231,6 @@ function createDraftQuoteDetailFromExtractedPayload(
   detail: UpsertRFQSupplierQuoteRequest['details'][number],
   index: number
 ): DraftSupplierQuoteDetail {
-  const mappedPackages = detail.packages?.length
-    ? detail.packages
-      .slice()
-      .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0))
-      .map((item, packageIndex) => ({
-        id: -(Date.now() + index + packageIndex + 1),
-        packageName: item.packageName || '',
-        packageDimension: item.packageDimension || '',
-        ...parsePackageDimension(item.packageDimension),
-        packageWeight: item.packageWeight || '',
-        packageCapacity: item.packageCapacity || '',
-        sortOrder: item.sortOrder || packageIndex + 1
-      }))
-    : [
-      {
-        id: -(Date.now() + index + 1),
-        packageName: detail.packageName || '',
-        packageDimension: detail.packageDimension || '',
-        ...parsePackageDimension(detail.packageDimension),
-        packageWeight: detail.packageWeight || '',
-        packageCapacity: detail.packageCapacity || '',
-        sortOrder: 1
-      }
-    ];
-
   return {
     id: -(Date.now() + index + 1),
     rfqDetailId: detail.rfqDetailId || null,
@@ -1268,21 +1238,6 @@ function createDraftQuoteDetailFromExtractedPayload(
     spec: detail.spec || '',
     sortOrder: detail.sortOrder || index + 1,
     remark: detail.remark || '',
-    packageName: getFirstPackageValue(mappedPackages, 'packageName') || detail.packageName || '',
-    packageDimension:
-      combinePackageDimension(
-        mappedPackages[0]?.packageWidth,
-        mappedPackages[0]?.packageLength,
-        mappedPackages[0]?.packageHeight
-      ) ||
-      getFirstPackageValue(mappedPackages, 'packageDimension') ||
-      detail.packageDimension ||
-      '',
-    packageWeight:
-      getFirstPackageValue(mappedPackages, 'packageWeight') || detail.packageWeight || '',
-    packageCapacity:
-      getFirstPackageValue(mappedPackages, 'packageCapacity') || detail.packageCapacity || '',
-    packages: mappedPackages,
     tiers: (detail.tiers || []).map((tier, tierIndex) => ({
       id: -(Date.now() + index + tierIndex + 1),
       quantity: Number(tier.quantity || 0),
@@ -1311,6 +1266,21 @@ function createDraftAdditionalCostFromExtractedPayload(
     description: additionalCost.description || '',
     value: additionalCost.value || '',
     unit: additionalCost.unit || ''
+  };
+}
+
+function createDraftPackageFromExtractedPayload(
+  packageItem: UpsertRFQSupplierQuotePackageRequest,
+  index: number
+): DraftSupplierQuotePackage {
+  return {
+    id: -(Date.now() + index + 1),
+    packageName: packageItem.packageName || '',
+    packageDimension: packageItem.packageDimension || '',
+    ...parsePackageDimension(packageItem.packageDimension),
+    packageWeight: packageItem.packageWeight || '',
+    packageCapacity: packageItem.packageCapacity || '',
+    sortOrder: packageItem.sortOrder || index + 1
   };
 }
 
@@ -1377,6 +1347,10 @@ function mergeFinalPriceDraftFromExtractedPayload(
   payload: UpsertRFQSupplierQuoteRequest
 ): FinalPriceDraft {
   const extractedDetails = payload.details || [];
+  const extractedPackages =
+    payload.packages?.length
+      ? payload.packages.map(createDraftPackageFromExtractedPayload)
+      : mapSupplierQuotePackages(undefined, payload.details);
 
   return {
     ...currentDraft,
@@ -1450,6 +1424,7 @@ function mergeFinalPriceDraftFromExtractedPayload(
         unit: additionalCost.unit || ''
       }))
       : currentDraft.additionalCosts,
+    packages: extractedPackages.length ? extractedPackages : currentDraft.packages,
     remark: payload.remark || currentDraft.remark,
     recommend: payload.recommend || currentDraft.recommend
   };
@@ -1531,13 +1506,6 @@ function validateSupplierQuoteDraftDetail(
     nextErrors.tiers = 'กรุณาเพิ่ม tier อย่างน้อย 1 tier';
   }
 
-  if (
-    (detail.packages || []).length &&
-    !(detail.packages || []).every(isPackageDimensionComplete)
-  ) {
-    nextErrors.package = 'กรุณากรอก กว้าง, ยาว, สูง ให้ครบทุก Package';
-  }
-
   const nextTierErrors: Record<number, DraftDetailTierError> = {};
 
   for (const [index, tier] of detail.tiers.entries()) {
@@ -1565,6 +1533,20 @@ function validateSupplierQuoteDraftDetail(
   }
 
   return nextErrors;
+}
+
+function validateSupplierQuotePackagesDraft(
+  packages: DraftSupplierQuotePackage[]
+): string | null {
+  if (!packages.length) {
+    return 'กรุณาเพิ่ม Packing List อย่างน้อย 1 รายการ';
+  }
+
+  if (!packages.every(isPackageDimensionComplete)) {
+    return 'กรุณากรอก กว้าง, ยาว, สูง ให้ครบทุก Packing List';
+  }
+
+  return null;
 }
 
 export default function RFQDetail(): ReactElement {
@@ -1635,10 +1617,12 @@ export default function RFQDetail(): ReactElement {
     []
   );
   const [quoteDraftDetails, setQuoteDraftDetails] = useState<DraftSupplierQuoteDetail[]>([]);
+  const [quoteDraftPackages, setQuoteDraftPackages] = useState<DraftSupplierQuotePackage[]>([]);
   const [quoteDraftAdditionalCosts, setQuoteDraftAdditionalCosts] = useState<DraftAdditionalCost[]>(
     []
   );
   const [quoteDraftLeadTimes, setQuoteDraftLeadTimes] = useState<DraftSupplierQuoteLeadTime[]>([]);
+  const [quoteDraftPackageError, setQuoteDraftPackageError] = useState<string | null>(null);
   const [quoteDraftErrors, setQuoteDraftErrors] = useState<
     Record<number, DraftDetailValidationError>
   >({});
@@ -1650,6 +1634,7 @@ export default function RFQDetail(): ReactElement {
     useState(false);
   const [finalPriceDraft, setFinalPriceDraft] = useState<FinalPriceDraft>({
     details: [],
+    packages: [],
     additionalCosts: [],
     remark: '',
     recommend: ''
@@ -2182,6 +2167,7 @@ export default function RFQDetail(): ReactElement {
         ? existingQuote.details.map(createSupplierQuoteDetailFromQuote)
         : [createDraftQuoteDetail(1)]
     );
+    setQuoteDraftPackages(mapSupplierQuotePackages(existingQuote?.packages, existingQuote?.details));
     setQuoteDraftAdditionalCosts(
       existingQuote?.additionalCosts?.length
         ? existingQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
@@ -2194,6 +2180,7 @@ export default function RFQDetail(): ReactElement {
     );
     setQuoteDraftErrors({});
     setQuoteDraftLeadTimeErrors({});
+    setQuoteDraftPackageError(null);
   };
 
   const initializeNewSupplierQuoteDialog = (
@@ -2207,6 +2194,7 @@ export default function RFQDetail(): ReactElement {
         ? templateQuote.details.map(createSupplierQuoteDetailFromQuote)
         : [createDraftQuoteDetail(1)]
     );
+    setQuoteDraftPackages(mapSupplierQuotePackages(templateQuote?.packages, templateQuote?.details));
     setQuoteDraftAdditionalCosts(
       templateQuote?.additionalCosts?.length
         ? templateQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
@@ -2219,6 +2207,7 @@ export default function RFQDetail(): ReactElement {
     );
     setQuoteDraftErrors({});
     setQuoteDraftLeadTimeErrors({});
+    setQuoteDraftPackageError(null);
   };
 
   const handleOpenSupplierQuoteDialog = () => {
@@ -2226,10 +2215,12 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogSupplier(null);
     setQuoteDialogQuote(null);
     setQuoteDraftDetails([]);
+    setQuoteDraftPackages([]);
     setQuoteDraftAdditionalCosts([]);
     setQuoteDraftLeadTimes([]);
     setQuoteDraftErrors({});
     setQuoteDraftLeadTimeErrors({});
+    setQuoteDraftPackageError(null);
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
     setQuoteSupplierSearchPage(1);
@@ -2264,10 +2255,12 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogSupplier(null);
     setQuoteDialogQuote(null);
     setQuoteDraftDetails([]);
+    setQuoteDraftPackages([]);
     setQuoteDraftAdditionalCosts([]);
     setQuoteDraftLeadTimes([]);
     setQuoteDraftErrors({});
     setQuoteDraftLeadTimeErrors({});
+    setQuoteDraftPackageError(null);
     setVisibleSupplierQuoteDialog(false);
     setInlineEditingSupplierQuoteId(null);
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
@@ -2334,6 +2327,10 @@ export default function RFQDetail(): ReactElement {
       const nextDetails = (extractedQuote.details || []).map((detail, index) =>
         createDraftQuoteDetailFromExtractedPayload(detail, index)
       );
+      const nextPackages =
+        extractedQuote.packages?.length
+          ? extractedQuote.packages.map(createDraftPackageFromExtractedPayload)
+          : mapSupplierQuotePackages(undefined, extractedQuote.details);
       const nextAdditionalCosts = (extractedQuote.additionalCosts || []).map(
         (additionalCost, index) =>
           createDraftAdditionalCostFromExtractedPayload(additionalCost, index)
@@ -2343,12 +2340,14 @@ export default function RFQDetail(): ReactElement {
       );
 
       setQuoteDraftDetails(nextDetails.length ? nextDetails : [createDraftQuoteDetail(1)]);
+      setQuoteDraftPackages(nextPackages.length ? nextPackages : [createDraftPackage(1)]);
       setQuoteDraftAdditionalCosts(
         nextAdditionalCosts.length ? nextAdditionalCosts : [createDraftAdditionalCost()]
       );
       setQuoteDraftLeadTimes(nextLeadTimes.length ? nextLeadTimes : [createDraftLeadTime(1)]);
       setQuoteDraftErrors({});
       setQuoteDraftLeadTimeErrors({});
+      setQuoteDraftPackageError(null);
       setVisibleExtractSupplierQuoteDialog(false);
       setExtractSupplierQuoteMessage('');
     } finally {
@@ -2361,10 +2360,12 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogSupplier(null);
     setQuoteDialogQuote(null);
     setQuoteDraftDetails([]);
+    setQuoteDraftPackages([]);
     setQuoteDraftAdditionalCosts([]);
     setQuoteDraftLeadTimes([]);
     setQuoteDraftErrors({});
     setQuoteDraftLeadTimeErrors({});
+    setQuoteDraftPackageError(null);
     setVisibleSupplierQuoteSaveConfirmationDialog(false);
   };
 
@@ -2460,6 +2461,7 @@ export default function RFQDetail(): ReactElement {
     setFinalExtractMessage('');
     setFinalPriceDraft({
       details: [],
+      packages: [],
       additionalCosts: [],
       remark: '',
       recommend: ''
@@ -2852,31 +2854,12 @@ export default function RFQDetail(): ReactElement {
     }));
   };
 
-  const handleAddQuotePackage = (detailId: number) => {
-    setQuoteDraftDetails((prev) =>
-      prev.map((detail) =>
-        detail.id === detailId
-          ? {
-            ...detail,
-            packages: [
-              ...(detail.packages || []),
-              createDraftPackage((detail.packages || []).length + 1)
-            ]
-          }
-          : detail
-      )
-    );
-    setQuoteDraftErrors((prev) => ({
-      ...prev,
-      [detailId]: {
-        ...prev[detailId],
-        package: undefined
-      }
-    }));
+  const handleAddQuotePackage = () => {
+    setQuoteDraftPackages((prev) => [...prev, createDraftPackage(prev.length + 1)]);
+    setQuoteDraftPackageError(null);
   };
 
   const handleQuotePackageChange = (
-    detailId: number,
     packageId: number,
     field:
       | 'packageName'
@@ -2887,68 +2870,20 @@ export default function RFQDetail(): ReactElement {
       | 'packageCapacity',
     value: string
   ) => {
-    setQuoteDraftDetails((prev) =>
-      prev.map((detail) => {
-        if (detail.id !== detailId) {
-          return detail;
-        }
-
-        const packages = (detail.packages || []).map((item) =>
-          item.id === packageId ? { ...item, [field]: value } : item
-        );
-
-        return {
-          ...detail,
-          packageName: getFirstPackageValue(packages, 'packageName') || '',
-          packageDimension:
-            combinePackageDimension(
-              packages[0]?.packageWidth,
-              packages[0]?.packageLength,
-              packages[0]?.packageHeight
-            ) || '',
-          packages,
-          packageWeight: getFirstPackageValue(packages, 'packageWeight') || '',
-          packageCapacity: getFirstPackageValue(packages, 'packageCapacity') || ''
-        };
-      })
+    setQuoteDraftPackages((prev) =>
+      prev.map((item) => (item.id === packageId ? { ...item, [field]: value } : item))
     );
-    setQuoteDraftErrors((prev) => ({
-      ...prev,
-      [detailId]: {
-        ...prev[detailId],
-        package: undefined
-      }
-    }));
+    setQuoteDraftPackageError(null);
   };
 
-  const handleDeleteQuotePackage = (detailId: number, packageId: number) => {
-    setQuoteDraftDetails((prev) =>
-      prev.map((detail) => {
-        if (detail.id !== detailId) {
-          return detail;
-        }
-
-        const packages = (detail.packages || [])
-          .filter((item) => item.id !== packageId)
-          .map((item, index) => ({ ...item, sortOrder: index + 1 }));
-
-        const nextPackages = packages.length ? packages : [createDraftPackage(1)];
-
-        return {
-          ...detail,
-          packages: nextPackages,
-          packageName: getFirstPackageValue(nextPackages, 'packageName') || '',
-          packageDimension:
-            combinePackageDimension(
-              nextPackages[0]?.packageWidth,
-              nextPackages[0]?.packageLength,
-              nextPackages[0]?.packageHeight
-            ) || '',
-          packageWeight: getFirstPackageValue(nextPackages, 'packageWeight') || '',
-          packageCapacity: getFirstPackageValue(nextPackages, 'packageCapacity') || ''
-        };
-      })
-    );
+  const handleDeleteQuotePackage = (packageId: number) => {
+    setQuoteDraftPackages((prev) => {
+      const nextPackages = prev
+        .filter((item) => item.id !== packageId)
+        .map((item, index) => ({ ...item, sortOrder: index + 1 }));
+      return nextPackages.length ? nextPackages : [createDraftPackage(1)];
+    });
+    setQuoteDraftPackageError(null);
   };
 
   const handleAddQuoteTier = (detailId: number) => {
@@ -3129,9 +3064,15 @@ export default function RFQDetail(): ReactElement {
       }
       return accumulator;
     }, {});
+    const nextPackageError = validateSupplierQuotePackagesDraft(quoteDraftPackages);
     setQuoteDraftErrors(nextErrors);
     setQuoteDraftLeadTimeErrors(nextLeadTimeErrors);
-    if (Object.keys(nextErrors).length || Object.keys(nextLeadTimeErrors).length) {
+    setQuoteDraftPackageError(nextPackageError);
+    if (
+      Object.keys(nextErrors).length ||
+      Object.keys(nextLeadTimeErrors).length ||
+      nextPackageError
+    ) {
       toast.error('กรุณาตรวจสอบข้อมูลราคาที่ supplier ตอบกลับ');
       return;
     }
@@ -3147,6 +3088,7 @@ export default function RFQDetail(): ReactElement {
     const payload = buildSupplierQuotePayload(
       quoteDialogSupplier,
       quoteDraftDetails,
+      quoteDraftPackages,
       quoteDraftAdditionalCosts,
       quoteDraftLeadTimes,
       quoteDialogQuote
@@ -4223,8 +4165,10 @@ export default function RFQDetail(): ReactElement {
                   quotes={supplierQuotes}
                   editingQuoteId={inlineEditingSupplierQuoteId}
                   quoteDraftDetails={quoteDraftDetails}
+                  quoteDraftPackages={quoteDraftPackages}
                   quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
                   quoteDraftLeadTimes={quoteDraftLeadTimes}
+                  quoteDraftPackageError={quoteDraftPackageError}
                   quoteDraftErrors={quoteDraftErrors}
                   quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}
                   isSubmitting={isSupplierQuoteSubmitting}
@@ -4525,14 +4469,18 @@ export default function RFQDetail(): ReactElement {
           setQuoteDialogSupplier(null);
           setQuoteDialogQuote(null);
           setQuoteDraftDetails([]);
+          setQuoteDraftPackages([]);
           setQuoteDraftAdditionalCosts([]);
           setQuoteDraftLeadTimes([]);
           setQuoteDraftErrors({});
           setQuoteDraftLeadTimeErrors({});
+          setQuoteDraftPackageError(null);
         }}
         quoteDraftDetails={quoteDraftDetails}
+        quoteDraftPackages={quoteDraftPackages}
         quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
         quoteDraftLeadTimes={quoteDraftLeadTimes}
+        quoteDraftPackageError={quoteDraftPackageError}
         quoteDraftErrors={quoteDraftErrors}
         quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}
         onAddDetail={handleAddQuoteDetail}

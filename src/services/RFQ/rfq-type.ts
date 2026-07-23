@@ -563,6 +563,7 @@ export interface RFQSupplierQuote {
   remark?: string | null;
   details: RFQSupplierQuoteDetail[];
   additionalCosts: RFQSupplierQuoteAdditionalCost[];
+  packages?: RFQSupplierQuotePackage[];
   leadTimes?: RFQSupplierQuoteLeadTime[];
   createdBy?: string | null;
   updatedBy?: string | null;
@@ -578,6 +579,7 @@ export interface UpsertRFQSupplierQuoteRequest {
   recommend?: string | null;
   details: UpsertRFQSupplierQuoteDetailRequest[];
   additionalCosts: UpsertRFQSupplierQuoteAdditionalCostRequest[];
+  packages?: UpsertRFQSupplierQuotePackageRequest[];
   leadTimes?: UpsertRFQSupplierQuoteLeadTimeRequest[];
 }
 

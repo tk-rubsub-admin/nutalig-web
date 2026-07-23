@@ -43,7 +43,6 @@ interface FinalPriceDraftDetail {
   id: number;
   optionName: string;
   spec: string;
-  packages?: FinalPriceDraftPackage[];
   tiers: FinalPriceDraftTier[];
 }
 
@@ -65,6 +64,7 @@ interface FinalPriceQuoteDialogProps {
   finalPriceQuote: RFQSupplierQuote | null;
   finalPriceDraft: {
     details: FinalPriceDraftDetail[];
+    packages: FinalPriceDraftPackage[];
     additionalCosts: {
       id: number;
       description: string;
@@ -355,30 +355,6 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       </TableBody>
                     </Table>
 
-                    {detail.packages?.length ? (
-                      <Box
-                        sx={{
-                          border: '1px solid #dce4ee',
-                          borderRadius: 2,
-                          px: 1.5,
-                          py: 1,
-                          backgroundColor: '#f8fafc'
-                        }}>
-                        <Stack spacing={0.75}>
-                          <Typography variant="caption" fontWeight={700} color="text.secondary">
-                            Packing List
-                          </Typography>
-                          {detail.packages
-                            .slice()
-                            .sort((left, right) => left.sortOrder - right.sortOrder)
-                            .map((packageItem, packageIndex) => (
-                              <Typography key={packageItem.id || packageIndex} variant="body2">
-                                {renderPackageSummary(packageItem)}
-                              </Typography>
-                            ))}
-                        </Stack>
-                      </Box>
-                    ) : null}
                   </Stack>
                 </Box>
               ))
@@ -387,6 +363,31 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 ยังไม่มีรายละเอียดราคาจาก supplier quote
               </Typography>
             )}
+
+            {finalPriceDraft.packages.length ? (
+              <Box
+                sx={{
+                  border: '1px solid #dce4ee',
+                  borderRadius: 2,
+                  px: 1.5,
+                  py: 1,
+                  backgroundColor: '#f8fafc'
+                }}>
+                <Stack spacing={0.75}>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    Packing List
+                  </Typography>
+                  {finalPriceDraft.packages
+                    .slice()
+                    .sort((left, right) => left.sortOrder - right.sortOrder)
+                    .map((packageItem, packageIndex) => (
+                      <Typography key={packageItem.id || packageIndex} variant="body2">
+                        {renderPackageSummary(packageItem)}
+                      </Typography>
+                    ))}
+                </Stack>
+              </Box>
+            ) : null}
 
             <Stack spacing={1}>
               <Typography variant="subtitle1" fontWeight={700}>

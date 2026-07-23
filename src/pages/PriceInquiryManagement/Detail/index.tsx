@@ -2663,12 +2663,12 @@ export default function RFQDetail(): ReactElement {
         if (productPrice === null || productPrice <= 0) {
           nextTierError.productPrice = 'กรุณาระบุราคาสินค้า(บาท)มากกว่า 0';
         }
-        if (landTotalPrice === null || landTotalPrice < minimumTotalPrice) {
-          nextTierError.landTotalPrice = 'กรุณาระบุรวมส่งทางรถให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
-        }
-        if (seaTotalPrice === null || seaTotalPrice < minimumTotalPrice) {
-          nextTierError.seaTotalPrice = 'กรุณาระบุรวมส่งทางเรือให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
-        }
+        // if (landTotalPrice === null || landTotalPrice < minimumTotalPrice) {
+        //   nextTierError.landTotalPrice = 'กรุณาระบุรวมส่งทางรถให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
+        // }
+        // if (seaTotalPrice === null || seaTotalPrice < minimumTotalPrice) {
+        //   nextTierError.seaTotalPrice = 'กรุณาระบุรวมส่งทางเรือให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
+        // }
 
         if (Object.keys(nextTierError).length) {
           tierErrors[tier.id] = nextTierError;

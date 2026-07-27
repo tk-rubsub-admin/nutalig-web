@@ -1,6 +1,7 @@
 import { api } from 'api/api';
 import { Supplier } from 'services/Supplier/supplier-type';
 import {
+  AddRFQNoteRequest,
   CreateRFQAdditionalCostRequest,
   CreateRFQDetailRequest,
   CreateRFQRequest,
@@ -16,6 +17,7 @@ import {
   LinkRFQSalesOrderRequest,
   RejectUrgentRFQRequest,
   RequestRFQInformationRequest,
+  RequestSpecialPriceRFQRequest,
   UpdateRFQInquiryRequest,
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
@@ -102,7 +104,7 @@ const buildRFQSearchPayload = (
     payload.isAccept = options.isAccept;
   }
 
-  if (options?.statuses?.length) {
+  if (!options?.status && options?.statuses?.length) {
     payload.statuses = options.statuses;
   }
 
@@ -226,6 +228,14 @@ export const requestRFQInformation = async (payload: RequestRFQInformationReques
   return response.data;
 };
 
+export const addRFQNote = async (id: string, payload: AddRFQNoteRequest) => {
+  const response: UpdateRFQResponse = await api
+    .patch(`/v1/rfqs/${id}/note`, payload)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
 export const rejectRFQ = async (id: string) => {
   const response = await api.patch(`/v1/rfqs/${id}/reject`).then((res) => res.data);
 
@@ -258,8 +268,10 @@ export const closeRFQ = async (rfqId: string, remark: string) => {
   return response.data;
 };
 
-export const requestSpecialPriceRFQ = async (id: string) => {
-  const response = await api.patch(`/v1/rfqs/${id}/request-special-price`).then((res) => res.data);
+export const requestSpecialPriceRFQ = async (id: string, payload: RequestSpecialPriceRFQRequest) => {
+  const response = await api
+    .patch(`/v1/rfqs/${id}/request-special-price`, payload)
+    .then((res) => res.data);
 
   return response.data;
 };

@@ -7,11 +7,11 @@ import {
   LocalShipping,
   MonetizationOn,
   ReceiptLong,
-  Search,
   TrendingUp
 } from '@mui/icons-material';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -31,7 +31,7 @@ import { Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
 import { Page } from 'layout/LayoutRoute';
 import dayjs from 'dayjs';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-google-charts';
 import { useQuery } from 'react-query';
@@ -47,34 +47,61 @@ import {
   DashboardTrendChart,
   DashboardWorkQueue
 } from 'services/Dashboard/dashboard-type';
+import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
+import { SalesRecord } from 'services/Sales/sales-type';
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
 import 'rsuite/dist/rsuite.min.css';
 
 export default function Dashboard(): JSX.Element {
   const theme = useTheme();
   const { t } = useTranslation();
-  const { getRole, getRoleDisplayName } = useAuth();
+  const { getRole } = useAuth();
   const role = getRole();
-  const roleLabel = getRoleDisplayName();
   const defaultDateRange = useMemo<DashboardDateRange>(
     () => ({
-      dateFrom: dayjs().subtract(7, 'day').startOf('day').format(DEFAULT_DATE_FORMAT_BFF),
-      dateTo: dayjs().startOf('day').format(DEFAULT_DATE_FORMAT_BFF)
+      dateFrom: dayjs().startOf('month').format(DEFAULT_DATE_FORMAT_BFF),
+      dateTo: dayjs().endOf('month').format(DEFAULT_DATE_FORMAT_BFF),
+      salesId: '',
+      procurementId: ''
     }),
     []
   );
   const [dateRange, setDateRange] = useState<DashboardDateRange>(defaultDateRange);
-  const [appliedDateRange, setAppliedDateRange] = useState<DashboardDateRange>(defaultDateRange);
+
+  const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
+    ['dashboard-sales-options'],
+    () => getSales(1, 100),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: procurementOptions = [], isFetching: isProcurementFetching } = useQuery(
+    ['dashboard-procurement-options'],
+    () => getEmployeesByPosition('PROCUREMENT', 1, 100),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
 
   const { data, isFetching, isError, refetch } = useQuery<DashboardData>(
-    ['dashboard', role, appliedDateRange.dateFrom, appliedDateRange.dateTo],
-    () => getDashboard(appliedDateRange),
+    [
+      'dashboard',
+      role,
+      dateRange.dateFrom,
+      dateRange.dateTo,
+      dateRange.salesId,
+      dateRange.procurementId
+    ],
+    () => getDashboard(dateRange),
     {
       refetchOnWindowFocus: false
     }
   );
 
   const canSee = (visibleTo?: string[]) => !visibleTo?.length || visibleTo.includes(role);
+  const translateLabel = (value?: string) =>
+    value && value.startsWith('dashboard.') ? t(value) : value || '';
 
   const metrics = useMemo(
     () => (data?.metrics || []).filter((item) => canSee(item.visibleTo)),
@@ -133,38 +160,25 @@ export default function Dashboard(): JSX.Element {
     </Box>
   );
 
-  const handleSearch = () => {
-    if (
-      appliedDateRange.dateFrom === dateRange.dateFrom &&
-      appliedDateRange.dateTo === dateRange.dateTo
-    ) {
-      refetch();
-      return;
-    }
-
-    setAppliedDateRange(dateRange);
-  };
-
   const handleClear = () => {
     setDateRange(defaultDateRange);
     if (
-      appliedDateRange.dateFrom === defaultDateRange.dateFrom &&
-      appliedDateRange.dateTo === defaultDateRange.dateTo
+      dateRange.dateFrom === defaultDateRange.dateFrom &&
+      dateRange.dateTo === defaultDateRange.dateTo &&
+      dateRange.salesId === defaultDateRange.salesId &&
+      dateRange.procurementId === defaultDateRange.procurementId
     ) {
       refetch();
-      return;
     }
-
-    setAppliedDateRange(defaultDateRange);
   };
 
   return (
     <Page>
-      <PageTitle title={t('dashboard.title')} />
-      {/* {/* <Wrapper
+      <PageTitle title={t('dashboard.rfq.title')} />
+      <Wrapper
         sx={{
-          background: 'rgba(80, 157, 62, 0.18)',
-          border: '1px solid rgba(77, 138, 63, 0.12)'
+          background: '#f8f4e8',
+          border: '1px solid #e7deca'
         }}>
         <Stack spacing={2}>
           <Stack
@@ -174,13 +188,13 @@ export default function Dashboard(): JSX.Element {
             justifyContent="flex-end"
             sx={{ width: '100%' }}>
             <Chip
-              label={`${t('dashboard.lastUpdated')}: ${formatTimestamp(data?.generatedAt)}`}
+              label={`${t('dashboard.rfq.lastUpdated')}: ${formatTimestamp(data?.generatedAt)}`}
               size="small"
               variant="outlined"
               sx={{ ml: { sm: 'auto' } }}
             />
           </Stack>
-          <Grid container spacing={2} alignItems="flex-end">
+          <Grid container spacing={1}>
             <Grid item xs={12} md={3}>
               <DatePicker
                 fullWidth
@@ -229,11 +243,81 @@ export default function Dashboard(): JSX.Element {
                 }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={3}>
+              <Autocomplete
+                options={salesOptions}
+                loading={isSalesFetching}
+                value={salesOptions.find((option) => option.salesId === dateRange.salesId) || null}
+                getOptionLabel={(option: SalesRecord) =>
+                  `${option.salesId} - ${option.nickname || option.name}`
+                }
+                isOptionEqualToValue={(option, value) => option.salesId === value.salesId}
+                onChange={(_event, value) => {
+                  setDateRange((prev) => ({
+                    ...prev,
+                    salesId: value?.salesId || ''
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label={t('dashboard.filters.sales')}
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isSalesFetching ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      )
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Autocomplete
+                options={procurementOptions}
+                loading={isProcurementFetching}
+                value={
+                  procurementOptions.find((option) => option.salesId === dateRange.procurementId) ||
+                  null
+                }
+                getOptionLabel={(option: SalesRecord) =>
+                  `${option.salesId} - ${option.nickname || option.name}`
+                }
+                isOptionEqualToValue={(option, value) => option.salesId === value.salesId}
+                onChange={(_event, value) => {
+                  setDateRange((prev) => ({
+                    ...prev,
+                    procurementId: value?.salesId || ''
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label={t('dashboard.filters.procurement')}
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isProcurementFetching ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      )
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} md={12}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button variant="contained" startIcon={<Search />} onClick={handleSearch}>
-                  {t('button.search')}
-                </Button>
                 <Button
                   variant="contained"
                   className="btn-amber-orange"
@@ -246,10 +330,15 @@ export default function Dashboard(): JSX.Element {
           </Grid>
         </Stack>
       </Wrapper>
+      {data?.source === 'fallback' || isError ? (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          {t('dashboard.fallbackNotice')}
+        </Alert>
+      ) : null}
 
       <Wrapper>
         <Typography variant="h6" sx={{ mb: 2 }}>
-          {t('dashboard.sections.metrics')}
+          {t('dashboard.rfq.sections.metrics')}
         </Typography>
         {isFetching ? (
           chartLoader
@@ -263,25 +352,36 @@ export default function Dashboard(): JSX.Element {
                 xl={Math.max(3, Math.floor(12 / Math.max(metrics.length, 1)))}
                 key={metric.id}>
                 <Box
+                  component={metric.href ? RouterLink : 'div'}
+                  to={metric.href || undefined}
                   sx={{
                     p: 2.5,
                     minHeight: 160,
                     borderRadius: 3,
                     background: '#fff',
                     border: '1px solid rgba(31,42,28,0.08)',
-                    boxShadow: '0 10px 30px rgba(31, 42, 28, 0.06)'
+                    boxShadow: '0 10px 30px rgba(31, 42, 28, 0.06)',
+                    textDecoration: 'none',
+                    display: 'block',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    '&:hover': metric.href
+                      ? {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 16px 36px rgba(31, 42, 28, 0.1)'
+                      }
+                      : undefined
                   }}>
                   <Stack spacing={1.25}>
                     <Typography
                       variant="overline"
                       sx={{ color: toneColorMap[metric.tone], fontWeight: 700 }}>
-                      {t(metric.title)}
+                      {translateLabel(metric.title)}
                     </Typography>
                     <Typography variant="h2" sx={{ color: '#21301e', fontWeight: 700 }}>
                       {metric.value}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#5f695e' }}>
-                      {t(metric.subtitle)}
+                      {translateLabel(metric.subtitle)}
                     </Typography>
                     {metric.trend ? (
                       <Chip
@@ -306,9 +406,9 @@ export default function Dashboard(): JSX.Element {
         {trendCharts.map((chart) => (
           <Grid item xs={12} lg={6} key={chart.id}>
             <Wrapper>
-              <Typography variant="h6">{t(chart.title)}</Typography>
+              <Typography variant="h6">{translateLabel(chart.title)}</Typography>
               <Typography variant="body2" sx={{ color: '#677268', mb: 2 }}>
-                {t(chart.subtitle)}
+                {translateLabel(chart.subtitle)}
               </Typography>
               <Chart
                 chartType="LineChart"
@@ -344,9 +444,9 @@ export default function Dashboard(): JSX.Element {
         {distributionCharts.map((chart) => (
           <Grid item xs={12} lg={6} key={chart.id}>
             <Wrapper>
-              <Typography variant="h6">{t(chart.title)}</Typography>
+              <Typography variant="h6">{translateLabel(chart.title)}</Typography>
               <Typography variant="body2" sx={{ color: '#677268', mb: 2 }}>
-                {t(chart.subtitle)}
+                {translateLabel(chart.subtitle)}
               </Typography>
               <Chart
                 chartType="PieChart"
@@ -375,77 +475,10 @@ export default function Dashboard(): JSX.Element {
       </Grid>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} xl={8}>
-          <Wrapper>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              {t('dashboard.sections.workQueues')}
-            </Typography>
-            <Grid container spacing={2}>
-              {workQueues.map((queue: DashboardWorkQueue) => (
-                <Grid item xs={12} md={6} key={queue.id}>
-                  <Box
-                    sx={{
-                      borderRadius: 3,
-                      border: '1px solid rgba(31,42,28,0.08)',
-                      background: '#fff',
-                      overflow: 'hidden'
-                    }}>
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{ px: 2, py: 1.5, borderBottom: '1px solid rgba(31,42,28,0.08)' }}>
-                      <Box>
-                        <Typography variant="h6">{t(queue.title)}</Typography>
-                        <Typography variant="body2" sx={{ color: '#677268' }}>
-                          {t(queue.subtitle)}
-                        </Typography>
-                      </Box>
-                      <Chip label={`${queue.count}`} color="primary" />
-                    </Stack>
-                    {queue.items.length ? (
-                      <List disablePadding>
-                        {queue.items.map((item) => (
-                          <ListItemButton
-                            key={item.id}
-                            component={RouterLink}
-                            to={item.href}
-                            sx={{ borderBottom: '1px solid rgba(31,42,28,0.06)' }}>
-                            <ListItemText
-                              primary={item.title}
-                              secondary={`${item.meta} • ${item.status}`}
-                              primaryTypographyProps={{ fontWeight: 600 }}
-                            />
-                            <ArrowOutward sx={{ fontSize: 18, color: '#7a867b' }} />
-                          </ListItemButton>
-                        ))}
-                      </List>
-                    ) : (
-                      <Box sx={{ p: 2 }}>
-                        <Typography variant="body2" sx={{ color: '#677268' }}>
-                          {t('dashboard.noPendingItems')}
-                        </Typography>
-                      </Box>
-                    )}
-                    <Box sx={{ p: 1.5 }}>
-                      <Button
-                        component={RouterLink}
-                        to={queue.href}
-                        endIcon={<ArrowOutward />}
-                        size="small">
-                        {t('dashboard.viewAll')}
-                      </Button>
-                    </Box>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Wrapper>
-        </Grid>
         <Grid item xs={12} xl={4}>
           <Wrapper>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              {t('dashboard.sections.quickLinks')}
+              {t('dashboard.rfq.sections.quickLinks')}
             </Typography>
             <Stack spacing={1.5}>
               {quickLinks.map((item) => (
@@ -470,17 +503,17 @@ export default function Dashboard(): JSX.Element {
                         borderRadius: 2,
                         display: 'grid',
                         placeItems: 'center',
-                        backgroundColor: 'rgba(77,138,63,0.12)',
-                        color: theme.palette.primary.main
+                        backgroundColor: '#efe6d2',
+                        color: '#8b6f47'
                       }}>
                       {quickLinkIconMap[item.icon]}
                     </Box>
                     <Box sx={{ textAlign: 'left', flex: 1 }}>
                       <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                        {t(item.title)}
+                        {translateLabel(item.title)}
                       </Typography>
                       <Typography variant="caption" sx={{ color: '#677268' }}>
-                        {t(item.description)}
+                        {translateLabel(item.description)}
                       </Typography>
                     </Box>
                     <ArrowOutward sx={{ fontSize: 18 }} />
@@ -490,7 +523,7 @@ export default function Dashboard(): JSX.Element {
             </Stack>
           </Wrapper>
         </Grid>
-      </Grid> */}
+      </Grid>
     </Page>
   );
 }

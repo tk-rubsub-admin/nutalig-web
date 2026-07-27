@@ -254,6 +254,123 @@
   "dashboard": {
     "title": "แดชบอร์ดงาน",
     "subtitle": "ภาพรวมร่วมสำหรับฝ่ายขาย จัดซื้อ และทีมปฏิบัติการ โดยแสดงข้อมูลตามบทบาทการใช้งาน",
+    "rfq": {
+      "title": "แดชบอร์ด RFQ",
+      "lastUpdated": "อัปเดตล่าสุด",
+      "sections": {
+        "metrics": "ภาพรวม RFQ",
+        "workQueues": "คิวงาน RFQ",
+        "quickLinks": "ลิงก์ลัด"
+      },
+      "metrics": {
+        "total": {
+          "title": "RFQ ทั้งหมด",
+          "subtitle": "จำนวนคำขอราคาในช่วงวันที่เลือก"
+        },
+        "new": {
+          "title": "รอรับงาน",
+          "subtitle": "คำขอราคาที่ยังรอจัดซื้อกดรับงาน"
+        },
+        "inProgress": {
+          "title": "กำลังดำเนินการ",
+          "subtitle": "รายการที่จัดซื้อกำลังติดตามราคา"
+        },
+        "supplierQuoted": {
+          "title": "ซัพตอบแล้ว",
+          "subtitle": "รอสรุปราคาและเปรียบเทียบราคา"
+        },
+        "quoted": {
+          "title": "เสนอราคาแล้ว",
+          "subtitle": "รอออกใบเสนอราคาหรือดำเนินการต่อ"
+        },
+        "specialPrice": {
+          "title": "รอทบทวนราคาพิเศษ",
+          "subtitle": "รายการที่ขอทบทวนราคาพิเศษ"
+        },
+        "overdueSla": {
+          "title": "เกิน SLA",
+          "subtitle": "เฉพาะสถานะ NEW และ IN_PROGRESS"
+        }
+      },
+      "charts": {
+        "volume": {
+          "title": "จำนวน RFQ ตามวันที่ขอราคา",
+          "subtitle": "เปรียบเทียบจำนวนรายการใหม่ งานเร่งด่วน และรายการทบทวนราคาพิเศษ"
+        },
+        "procurementFlow": {
+          "title": "ความคืบหน้างานจัดซื้อ",
+          "subtitle": "เปรียบเทียบงานใหม่ งานที่กำลังติดตามราคา งานที่ซัพตอบแล้ว และงานที่เสนอราคาแล้ว"
+        },
+        "salesFlow": {
+          "title": "ความคืบหน้างานขาย",
+          "subtitle": "ภาพรวมงานที่เข้าสู่แต่ละขั้นของ RFQ ในช่วงวันที่เลือก"
+        },
+        "status": {
+          "title": "สัดส่วนตามสถานะ",
+          "subtitle": "ภาพรวมสถานะ RFQ ในช่วงวันที่เลือก"
+        },
+        "family": {
+          "title": "สัดส่วนตาม Product Family",
+          "subtitle": "กลุ่มสินค้าที่ถูกสอบถามบ่อยที่สุด"
+        },
+        "channel": {
+          "title": "สัดส่วนตามช่องทางติดต่อ",
+          "subtitle": "จำนวน RFQ แยกตาม contact channel"
+        },
+        "bySales": {
+          "title": "สัดส่วนตามเซลล์",
+          "subtitle": "งานที่แต่ละเซลล์ส่งเข้ามา"
+        },
+        "byProcurement": {
+          "title": "สัดส่วนตามจัดซื้อ",
+          "subtitle": "งานที่กระจายตามผู้ดูแลจัดซื้อ"
+        },
+        "sla": {
+          "title": "สถานะ SLA",
+          "subtitle": "เฉพาะงานที่ยังต้องติดตามและมี SLA"
+        }
+      },
+      "queues": {
+        "awaitingAccept": {
+          "title": "RFQ รอรับงาน",
+          "subtitle": "รายการใหม่ที่ยังรอจัดซื้อกดรับงาน"
+        },
+        "inProgress": {
+          "title": "RFQ กำลังดำเนินการ",
+          "subtitle": "รายการที่จัดซื้อกำลังตามราคา"
+        },
+        "requestedInfo": {
+          "title": "RFQ ขอข้อมูลเพิ่มเติม",
+          "subtitle": "รายการที่มีคำขอข้อมูลเพิ่มเติมและรออัปเดต"
+        },
+        "supplierQuoted": {
+          "title": "RFQ ซัพตอบแล้ว",
+          "subtitle": "รายการที่มี supplier quote พร้อมให้สรุปราคา"
+        },
+        "awaitingQuotation": {
+          "title": "RFQ รอออกใบเสนอราคา",
+          "subtitle": "รายการที่ได้ราคาแล้วแต่ยังไม่มีเลขใบเสนอราคา"
+        },
+        "specialPrice": {
+          "title": "RFQ รอทบทวนราคาพิเศษ",
+          "subtitle": "รายการที่ขอปรับ target price เพื่อทบทวนราคา"
+        }
+      },
+      "quickLinks": {
+        "create": {
+          "title": "สร้าง RFQ",
+          "subtitle": "เปิดฟอร์มสร้างคำขอราคาใหม่"
+        },
+        "rfqList": {
+          "title": "รายการ RFQ",
+          "subtitle": "ดูรายการคำขอราคาทั้งหมด"
+        },
+        "priceInquiry": {
+          "title": "รายการสอบถามราคา",
+          "subtitle": "ดูงานฝั่งจัดซื้อและ supplier quote"
+        }
+      }
+    },
     "lastUpdated": "อัปเดตล่าสุด",
     "fallbackNotice": "ยังไม่มี Dashboard API จาก backend จึงแสดงข้อมูลตัวอย่างเพื่อใช้ดู layout ชั่วคราว",
     "loadFailed": "ไม่สามารถโหลดข้อมูลแดชบอร์ดได้",
@@ -265,6 +382,8 @@
     "filters": {
       "dateFrom": "วันที่เริ่มต้น",
       "dateTo": "วันที่สิ้นสุด",
+      "sales": "เซลล์ผู้ดูแล",
+      "procurement": "จัดซื้อที่ดูแล",
       "appliedRange": "ช่วงวันที่ที่ใช้"
     },
     "sections": {

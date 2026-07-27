@@ -33,7 +33,7 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { searchCustomerByKeyword } from 'services/Customer/customer-api';
 import { Customer } from 'services/Customer/customer-type';
@@ -145,7 +145,55 @@ function createDefaultFilter(salesId = '', procurementId = '') {
 
 type PriceInquiryFilter = ReturnType<typeof createDefaultFilter>;
 
-const PRICE_INQUIRY_STATUS_OPTIONS = ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED'];
+function createFilterFromRequestParams(
+  search: string,
+  salesId = '',
+  procurementId = ''
+): PriceInquiryFilter {
+  const defaultFilter = createDefaultFilter(salesId, procurementId);
+  const params = new URLSearchParams(search);
+
+  const filterKeys: (keyof PriceInquiryFilter)[] = [
+    'id',
+    'customerId',
+    'salesId',
+    'procurementId',
+    'rfqTypeCode',
+    'status',
+    'orderTypeCode',
+    'productFamily',
+    'productSubtype1',
+    'productMaterial',
+    'keyword',
+    'requestedDateStart',
+    'requestedDateEnd'
+  ];
+
+  filterKeys.forEach((key) => {
+    const value = params.get(key);
+    if (value !== null) {
+      defaultFilter[key] = value;
+    }
+  });
+
+  return defaultFilter;
+}
+
+interface PriceInquiryListNavigationState {
+  restoreListState?: {
+    page: number;
+    pageSize: number;
+    filter: PriceInquiryFilter;
+  };
+}
+
+const PRICE_INQUIRY_STATUS_OPTIONS = [
+  'NEW',
+  'IN_PROGRESS',
+  'REQUESTED_INFO',
+  'SUPPLIER_QUOTED',
+  'SPECIAL_PRICE_REVIEW'
+];
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
   return file?.pictureUrl || file?.fileUrl || '';
@@ -353,24 +401,52 @@ export default function PriceInquiryManagement(): ReactElement {
   const { getEmployeeId, getRole, getSalesId } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const location = useLocation<PriceInquiryListNavigationState | undefined>();
   const currentRole = getRole();
   const currentSalesId = getSalesId() || getEmployeeId();
   const isSalesRole = currentRole === ROLES.SALES;
   const currentProcurementId = getEmployeeId();
   const isProcurementRole = currentRole === ROLES.PROCUREMENT;
+  const requestParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const roleDefaultFilter = useMemo(
     () =>
-      createDefaultFilter(
+      createFilterFromRequestParams(
+        location.search,
         isSalesRole ? currentSalesId : '',
         isProcurementRole ? currentProcurementId : ''
       ),
-    [currentProcurementId, currentSalesId, isProcurementRole, isSalesRole]
+    [currentProcurementId, currentSalesId, isProcurementRole, isSalesRole, location.search]
   );
-  const [filter, setFilter] = useState(roleDefaultFilter);
+  const restoredListState = location.state?.restoreListState;
+  const initialFilter = useMemo(
+    () => restoredListState?.filter || roleDefaultFilter,
+    [restoredListState?.filter, roleDefaultFilter]
+  );
+  const [page, setPage] = useState<number>(restoredListState?.page || 1);
+  const [pageSize, setPageSize] = useState<number>(restoredListState?.pageSize || 10);
+  const [filter, setFilter] = useState(initialFilter);
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
+
+  useEffect(() => {
+    if (!restoredListState) {
+      return;
+    }
+
+    history.replace({
+      pathname: location.pathname
+    });
+  }, [history, location.pathname, restoredListState]);
+
+  useEffect(() => {
+    if (restoredListState || !location.search) {
+      return;
+    }
+
+    setFilter(roleDefaultFilter);
+    setPage(Number(requestParams.get('page') || 1));
+    setPageSize(Number(requestParams.get('pageSize') || 10));
+  }, [location.search, requestParams, restoredListState, roleDefaultFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -381,7 +457,7 @@ export default function PriceInquiryManagement(): ReactElement {
   }, [customerKeyword]);
 
   const searchFormik = useFormik({
-    initialValues: roleDefaultFilter,
+    initialValues: initialFilter,
     enableReinitialize: true,
     onSubmit: (values) => {
       const nextFilter = {
@@ -623,13 +699,26 @@ export default function PriceInquiryManagement(): ReactElement {
 
   const rfqList = rfqResponse?.records || [];
 
+  const handleOpenPriceInquiryDetail = (rfqId: string) => {
+    history.push({
+      pathname: ROUTE_PATHS.PRICE_INQUIRY.replace(':id', rfqId),
+      state: {
+        returnToList: {
+          page,
+          pageSize,
+          filter
+        }
+      }
+    });
+  };
+
   const rfqRows =
     rfqList.length > 0 ? (
       rfqList.map((rfq: RFQRecord) => (
         <TableRow
           hover
           key={rfq.id}
-          onClick={() => history.push(ROUTE_PATHS.PRICE_INQUIRY.replace(':id', rfq.id))}
+          onClick={() => handleOpenPriceInquiryDetail(rfq.id)}
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
             <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1.5 }}>
@@ -705,7 +794,7 @@ export default function PriceInquiryManagement(): ReactElement {
         <TableRow
           hover
           key={rfq.id}
-          onClick={() => history.push(ROUTE_PATHS.PRICE_INQUIRY.replace(':id', rfq.id))}
+          onClick={() => handleOpenPriceInquiryDetail(rfq.id)}
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
             <Stack spacing={0.5}>
@@ -714,7 +803,7 @@ export default function PriceInquiryManagement(): ReactElement {
                   {rfq.id}
                 </Typography>
                 <Chip
-                  label={t(`rfqManagement.status.${rfq.status}`)}
+                  label={t(`rfqManagement.rfqsStatus.${rfq.status}`, rfq.status)}
                   size="small"
                   sx={{
                     backgroundColor: '#e8f5e9',

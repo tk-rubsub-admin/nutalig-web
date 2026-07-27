@@ -588,6 +588,123 @@
   "dashboard": {
     "title": "Operations Dashboard",
     "subtitle": "Shared overview for sales, procurement, and operations with role-based focus areas.",
+    "rfq": {
+      "title": "RFQ Dashboard",
+      "lastUpdated": "Last updated",
+      "sections": {
+        "metrics": "RFQ Overview",
+        "workQueues": "RFQ Work Queues",
+        "quickLinks": "Quick Links"
+      },
+      "metrics": {
+        "total": {
+          "title": "Total RFQs",
+          "subtitle": "Quotation requests within the selected date range"
+        },
+        "new": {
+          "title": "Awaiting Acceptance",
+          "subtitle": "RFQs waiting for procurement to accept"
+        },
+        "inProgress": {
+          "title": "In Progress",
+          "subtitle": "RFQs currently being sourced by procurement"
+        },
+        "supplierQuoted": {
+          "title": "Supplier Quoted",
+          "subtitle": "RFQs ready for price comparison and summary"
+        },
+        "quoted": {
+          "title": "Quoted",
+          "subtitle": "RFQs ready for quotation or next action"
+        },
+        "specialPrice": {
+          "title": "Special Price Review",
+          "subtitle": "RFQs waiting for special price review"
+        },
+        "overdueSla": {
+          "title": "Overdue SLA",
+          "subtitle": "Applies to NEW and IN_PROGRESS only"
+        }
+      },
+      "charts": {
+        "volume": {
+          "title": "RFQ Volume by Requested Date",
+          "subtitle": "Compare new RFQs, urgent requests, and special price reviews"
+        },
+        "procurementFlow": {
+          "title": "Procurement Flow",
+          "subtitle": "Compare new, sourcing, supplier-quoted, and quoted RFQs"
+        },
+        "salesFlow": {
+          "title": "Sales Flow",
+          "subtitle": "Overview of RFQs across each stage in the selected range"
+        },
+        "status": {
+          "title": "Status Distribution",
+          "subtitle": "RFQ status mix within the selected date range"
+        },
+        "family": {
+          "title": "Product Family Distribution",
+          "subtitle": "Most frequently requested product groups"
+        },
+        "channel": {
+          "title": "Contact Channel Distribution",
+          "subtitle": "RFQs grouped by contact channel"
+        },
+        "bySales": {
+          "title": "By Sales Owner",
+          "subtitle": "RFQs coming from each sales owner"
+        },
+        "byProcurement": {
+          "title": "By Procurement Owner",
+          "subtitle": "RFQs distributed across procurement owners"
+        },
+        "sla": {
+          "title": "SLA Status",
+          "subtitle": "Only tracked jobs with active SLA"
+        }
+      },
+      "queues": {
+        "awaitingAccept": {
+          "title": "RFQs Awaiting Acceptance",
+          "subtitle": "New RFQs waiting for procurement acceptance"
+        },
+        "inProgress": {
+          "title": "RFQs In Progress",
+          "subtitle": "RFQs currently under procurement follow-up"
+        },
+        "requestedInfo": {
+          "title": "RFQs Requesting More Information",
+          "subtitle": "RFQs waiting for additional information update"
+        },
+        "supplierQuoted": {
+          "title": "RFQs Supplier Quoted",
+          "subtitle": "RFQs with supplier quotes ready for summary"
+        },
+        "awaitingQuotation": {
+          "title": "RFQs Awaiting Quotation",
+          "subtitle": "Quoted RFQs without quotation number yet"
+        },
+        "specialPrice": {
+          "title": "RFQs Special Price Review",
+          "subtitle": "RFQs waiting for target price review"
+        }
+      },
+      "quickLinks": {
+        "create": {
+          "title": "Create RFQ",
+          "subtitle": "Open a new quotation request form"
+        },
+        "rfqList": {
+          "title": "RFQ List",
+          "subtitle": "Browse all quotation requests"
+        },
+        "priceInquiry": {
+          "title": "Price Inquiry List",
+          "subtitle": "Review procurement work and supplier quotes"
+        }
+      }
+    },
     "orderToday": "Today's Order",
     "more": "More >",
     "businessAnalytics": "Business Analytics",
@@ -605,6 +722,8 @@
     "filters": {
       "dateFrom": "Date from",
       "dateTo": "Date to",
+      "sales": "Sales owner",
+      "procurement": "Procurement owner",
       "appliedRange": "Applied range"
     },
     "sections": {

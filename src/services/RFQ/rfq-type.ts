@@ -212,6 +212,7 @@ export interface RFQRecord {
   saleOrderId?: string | null;
   shippingMethod?: 'ALL' | 'LAND' | 'SEA' | null;
   requestInformation?: string | null;
+  note?: string | null;
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
   confirmedShippingMethod?: string | null;
@@ -299,6 +300,7 @@ export interface CreateRFQRequest {
   urgentRequest?: boolean;
   urgentRequestReason?: string;
   description: string;
+  note?: string;
   pictures: File[];
 }
 
@@ -328,6 +330,7 @@ export interface UpdateRFQRequest {
   requestedMoqs?: number[];
   description: string;
   requestInformation?: string;
+  note?: string;
 }
 
 export interface RequestRFQInformationRequest {
@@ -335,8 +338,16 @@ export interface RequestRFQInformationRequest {
   requestInformation: string;
 }
 
+export interface AddRFQNoteRequest {
+  note: string;
+}
+
 export interface RejectUrgentRFQRequest {
   reason: string;
+}
+
+export interface RequestSpecialPriceRFQRequest {
+  targetPrice: number;
 }
 
 export interface LinkRFQSalesOrderRequest {

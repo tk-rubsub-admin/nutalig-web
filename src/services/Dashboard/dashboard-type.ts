@@ -3,6 +3,8 @@ export type DashboardRange = 'LAST_7_DAYS' | 'CUSTOM';
 export interface DashboardDateRange {
   dateFrom: string;
   dateTo: string;
+  salesId?: string;
+  procurementId?: string;
 }
 
 export interface DashboardMetric {
@@ -12,6 +14,7 @@ export interface DashboardMetric {
   subtitle: string;
   trend?: string;
   tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+  href?: string;
   visibleTo?: string[];
 }
 

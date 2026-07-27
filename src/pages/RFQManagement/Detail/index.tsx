@@ -1,8 +1,10 @@
 import {
   Add,
+  AddComment,
   ArrowDropDown,
   ArrowBackIos,
   CheckCircle,
+  CommentOutlined,
   InfoOutlined,
   DeleteOutline,
   DirectionsBoat,
@@ -52,6 +54,7 @@ import { useAuth } from 'auth/AuthContext';
 import { PERMISSIONS } from 'auth/permissions';
 import { useFormik } from 'formik';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
+import AddNoteDialog from 'components/AddNoteDialog';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import ConfirmDialog from 'components/ConfirmDialog';
 import FileUploader from 'components/FileUploader';
@@ -59,6 +62,7 @@ import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
 import { GridTextField, Wrapper } from 'components/Styled';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import ViewNoteDialog from 'components/ViewNoteDialog';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
 import {
@@ -103,6 +107,7 @@ import {
   deleteRFQPicture,
   closeRFQ,
   getRFQ,
+  addRFQNote,
   requestSpecialPriceRFQ,
   rejectRFQ,
   updateRFQCustomer,
@@ -860,6 +865,14 @@ export default function RFQDetail(): ReactElement {
   const [visibleRejectRfqDialog, setVisibleRejectRfqDialog] = useState(false);
   const [visibleCloseRfqConfirmDialog, setVisibleCloseRfqConfirmDialog] = useState(false);
   const [visibleCloseRfqDialog, setVisibleCloseRfqDialog] = useState(false);
+  const [visibleRequestSpecialPriceDialog, setVisibleRequestSpecialPriceDialog] = useState(false);
+  const [visibleAddNoteDialog, setVisibleAddNoteDialog] = useState(false);
+  const [visibleViewNoteDialog, setVisibleViewNoteDialog] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [isAddNoteSubmitting, setIsAddNoteSubmitting] = useState(false);
+  const [requestSpecialPriceTargetPrice, setRequestSpecialPriceTargetPrice] = useState('');
+  const [requestSpecialPriceTargetPriceError, setRequestSpecialPriceTargetPriceError] =
+    useState('');
   const [closeRfqRemark, setCloseRfqRemark] = useState('');
   const [lastShownRequestedInformationKey, setLastShownRequestedInformationKey] = useState<
     string | null
@@ -889,6 +902,38 @@ export default function RFQDetail(): ReactElement {
 
   const handleOpenRequestedInformationDialog = () => {
     setVisibleRequestedInformationDialog(true);
+  };
+
+  const handleOpenRequestSpecialPriceDialog = () => {
+    setRequestSpecialPriceTargetPrice(
+      rfq?.targetPrice === null || rfq?.targetPrice === undefined ? '' : String(rfq.targetPrice)
+    );
+    setRequestSpecialPriceTargetPriceError('');
+    setVisibleRequestSpecialPriceDialog(true);
+  };
+
+  const handleCloseRequestSpecialPriceDialog = () => {
+    setVisibleRequestSpecialPriceDialog(false);
+    setRequestSpecialPriceTargetPriceError('');
+  };
+
+  const handleOpenAddNoteDialog = () => {
+    handleCloseDownloadMenu();
+    setNoteText('');
+    setVisibleAddNoteDialog(true);
+  };
+
+  const handleCloseAddNoteDialog = () => {
+    setNoteText('');
+    setVisibleAddNoteDialog(false);
+  };
+
+  const handleOpenViewNoteDialog = () => {
+    setVisibleViewNoteDialog(true);
+  };
+
+  const handleCloseViewNoteDialog = () => {
+    setVisibleViewNoteDialog(false);
   };
 
   const handleRejectRfq = async () => {
@@ -960,14 +1005,14 @@ export default function RFQDetail(): ReactElement {
     rfq?.status || ''
   );
 
-  const { data: activityHistory = [], isFetching: isActivityHistoryFetching } = useQuery(
-    ['rfq-activity-history', params.id],
-    () => getActivityHistory('RFQ', params.id),
-    {
-      refetchOnWindowFocus: false,
-      enabled: !!params.id
-    }
-  );
+  const {
+    data: activityHistory = [],
+    isFetching: isActivityHistoryFetching,
+    refetch: refetchActivityHistory
+  } = useQuery(['rfq-activity-history', params.id], () => getActivityHistory('RFQ', params.id), {
+    refetchOnWindowFocus: false,
+    enabled: !!params.id
+  });
 
   const requestedInformationAlertKey = useMemo(() => {
     if (!rfq?.id || !rfq?.requestInformation) {
@@ -1331,6 +1376,32 @@ export default function RFQDetail(): ReactElement {
 
   const handleCloseDownloadMenu = () => {
     setDownloadMenuAnchorEl(null);
+  };
+
+  const handleConfirmAddNote = async () => {
+    if (!params.id || !noteText.trim()) {
+      return;
+    }
+
+    setIsAddNoteSubmitting(true);
+    try {
+      await toast.promise(
+        addRFQNote(params.id, {
+          note: noteText.trim()
+        }),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
+
+      await refetchRFQ();
+      await refetchActivityHistory();
+      handleCloseAddNoteDialog();
+    } finally {
+      setIsAddNoteSubmitting(false);
+    }
   };
 
   const downloadDocumentFiles = (data: DownloadDocumentResponse, emptyMessage: string) => {
@@ -1764,14 +1835,33 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
+    const normalizedTargetPrice = requestSpecialPriceTargetPrice.trim();
+
+    if (!normalizedTargetPrice) {
+      setRequestSpecialPriceTargetPriceError('กรุณากรอกราคาที่ต้องการ');
+      return;
+    }
+
+    if (Number.isNaN(Number(normalizedTargetPrice))) {
+      setRequestSpecialPriceTargetPriceError(t('rfqManagement.validation.targetPrice'));
+      return;
+    }
+
     try {
       setIsPictureSubmitting(true);
-      await toast.promise(requestSpecialPriceRFQ(params.id), {
+      await toast.promise(
+        requestSpecialPriceRFQ(params.id, {
+          targetPrice: Number(normalizedTargetPrice)
+        }),
+        {
         loading: t('toast.loading'),
         success: t('toast.success'),
         error: t('toast.failed')
-      });
+      }
+      );
       await refetchRFQ();
+      setVisibleRequestSpecialPriceDialog(false);
+      setRequestSpecialPriceTargetPriceError('');
     } finally {
       setIsPictureSubmitting(false);
     }
@@ -2026,6 +2116,23 @@ export default function RFQDetail(): ReactElement {
                   }
                 }}
               />
+              {rfq.note ? (
+                <IconButton
+                  size="small"
+                  onClick={handleOpenViewNoteDialog}
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    border: '1px solid #94a3b833',
+                    color: '#475569',
+                    backgroundColor: '#ffffff',
+                    '&:hover': {
+                      backgroundColor: '#f8fafc'
+                    }
+                  }}>
+                  <CommentOutlined fontSize="small" />
+                </IconButton>
+              ) : null}
               {rfq.status === 'REQUESTED_INFO' ? (
                 <Chip
                   icon={<InfoOutlined />}
@@ -2111,6 +2218,7 @@ export default function RFQDetail(): ReactElement {
         requestInformation={rfq?.requestInformation}
         onClose={handleCloseRequestedInformationDialog}
       />
+      <ViewNoteDialog open={visibleViewNoteDialog} note={rfq?.note} onClose={handleCloseViewNoteDialog} />
       <Wrapper>
         <Stack spacing={{ xs: 1.5, sm: 2 }}>
           <Stack
@@ -2177,7 +2285,7 @@ export default function RFQDetail(): ReactElement {
                     <MenuItem
                       onClick={() => {
                         handleCloseDownloadMenu();
-                        handleRequestSpecialPrice();
+                        handleOpenRequestSpecialPriceDialog();
                       }}
                       sx={{ width: '100%' }}>
                       <ListItemIcon>
@@ -2188,6 +2296,12 @@ export default function RFQDetail(): ReactElement {
                       />
                     </MenuItem>
                   ) : null}
+                  <MenuItem onClick={handleOpenAddNoteDialog} disabled={isAddNoteSubmitting}>
+                    <ListItemIcon>
+                      <AddComment fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="เพิ่มโน้ต" />
+                  </MenuItem>
                   {canDownloadQuotationAction ? (
                     <MenuItem onClick={handleViewQuotation} sx={{ width: '100%' }}>
                       <ListItemIcon>
@@ -4047,6 +4161,58 @@ export default function RFQDetail(): ReactElement {
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog
+        open={visibleRequestSpecialPriceDialog}
+        fullWidth
+        maxWidth="sm"
+        disableEnforceFocus
+        onClose={handleCloseRequestSpecialPriceDialog}>
+        <DialogTitle>{t('rfqManagement.detail.actions.requestSpecialPrice')}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              กรุณาระบุราคาที่ต้องการก่อนส่งคำขอทบทวนราคาพิเศษ
+            </Typography>
+            <TextField
+              fullWidth
+              label={t('rfqManagement.form.targetPrice')}
+              value={requestSpecialPriceTargetPrice}
+              onChange={(event) => {
+                setRequestSpecialPriceTargetPrice(event.target.value);
+                if (requestSpecialPriceTargetPriceError) {
+                  setRequestSpecialPriceTargetPriceError('');
+                }
+              }}
+              error={Boolean(requestSpecialPriceTargetPriceError)}
+              helperText={requestSpecialPriceTargetPriceError}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseRequestSpecialPriceDialog}
+            className="btn-crimson-red"
+            variant="contained">
+            {t('button.cancel')}
+          </Button>
+          <Button
+            onClick={handleRequestSpecialPrice}
+            className="btn-emerald-green"
+            variant="contained"
+            disabled={isPictureSubmitting}>
+            {t('button.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <AddNoteDialog
+        open={visibleAddNoteDialog}
+        note={noteText}
+        onNoteChange={setNoteText}
+        onClose={handleCloseAddNoteDialog}
+        onConfirm={handleConfirmAddNote}
+        isSubmitting={isAddNoteSubmitting}
+      />
       <Dialog
         open={visibleConfirmRfqDialog}
         fullWidth

@@ -1,7 +1,9 @@
 import {
+  AddComment,
   ArrowBackIos,
   ArrowDropDown,
   AssignmentTurnedIn,
+  CommentOutlined,
   ContentCopy,
   DoneAll,
   FilePresent,
@@ -18,6 +20,7 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
+  IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -32,6 +35,7 @@ import { useFormik } from 'formik';
 import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
+import AddNoteDialog from 'components/AddNoteDialog';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import ConfirmDialog from 'components/ConfirmDialog';
 import FileUploader from 'components/FileUploader';
@@ -39,6 +43,7 @@ import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
 import { GridTextField, Wrapper } from 'components/Styled';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import ViewNoteDialog from 'components/ViewNoteDialog';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
 import {
@@ -52,8 +57,9 @@ import {
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
+import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
@@ -77,6 +83,7 @@ import {
   getRFQ,
   getRFQSuggestSuppliers,
   getRFQSupplierQuotes,
+  addRFQNote,
   rejectUrgentRFQ,
   requestRFQInformation,
   sendRFQSupplierQuoteNotification,
@@ -126,6 +133,28 @@ import Can from 'auth/Can';
 
 interface RFQDetailParam {
   id: string;
+}
+
+interface PriceInquiryDetailLocationState {
+  returnToList?: {
+    page: number;
+    pageSize: number;
+    filter: {
+      id: string;
+      customerId: string;
+      salesId: string;
+      procurementId: string;
+      rfqTypeCode: string;
+      status: string;
+      orderTypeCode: string;
+      productFamily: string;
+      productSubtype1: string;
+      productMaterial: string;
+      keyword: string;
+      requestedDateStart: string;
+      requestedDateEnd: string;
+    };
+  };
 }
 
 interface RFQEditableFormValues {
@@ -1559,6 +1588,7 @@ export default function RFQDetail(): ReactElement {
   const { hasPermission, hasRole } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
+  const location = useLocation<PriceInquiryDetailLocationState | undefined>();
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [visibleAcceptWorkConfirmationDialog, setVisibleAcceptWorkConfirmationDialog] =
@@ -1585,6 +1615,10 @@ export default function RFQDetail(): ReactElement {
   const [requestInformationText, setRequestInformationText] = useState('');
   const [visibleRequestInformationDialog, setVisibleRequestInformationDialog] = useState(false);
   const [isRequestInformationSubmitting, setIsRequestInformationSubmitting] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [visibleAddNoteDialog, setVisibleAddNoteDialog] = useState(false);
+  const [isAddNoteSubmitting, setIsAddNoteSubmitting] = useState(false);
+  const [visibleViewNoteDialog, setVisibleViewNoteDialog] = useState(false);
   const [editableInquiryMessage, setEditableInquiryMessage] = useState({
     thaiMessage: '',
     chineseMessage: ''
@@ -1636,6 +1670,22 @@ export default function RFQDetail(): ReactElement {
   >({});
   const [selectedSupplierQuoteDetailToDelete, setSelectedSupplierQuoteDetailToDelete] =
     useState<SelectedSupplierQuoteDetailToDelete | null>(null);
+
+  const handleBackToPriceInquiryList = () => {
+    const returnToList = location.state?.returnToList;
+
+    if (returnToList) {
+      history.push({
+        pathname: ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT,
+        state: {
+          restoreListState: returnToList
+        }
+      });
+      return;
+    }
+
+    history.push(ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT);
+  };
   const [finalPriceQuote, setFinalPriceQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleFinalPriceConfirmationDialog, setVisibleFinalPriceConfirmationDialog] =
     useState(false);
@@ -2054,6 +2104,25 @@ export default function RFQDetail(): ReactElement {
     setVisibleRequestInformationDialog(false);
   };
 
+  const handleOpenAddNoteDialog = () => {
+    handleCloseActionMenu();
+    setNoteText('');
+    setVisibleAddNoteDialog(true);
+  };
+
+  const handleCloseAddNoteDialog = () => {
+    setNoteText('');
+    setVisibleAddNoteDialog(false);
+  };
+
+  const handleOpenViewNoteDialog = () => {
+    setVisibleViewNoteDialog(true);
+  };
+
+  const handleCloseViewNoteDialog = () => {
+    setVisibleViewNoteDialog(false);
+  };
+
   const handleConfirmAcceptWork = async () => {
     if (!params.id) {
       return;
@@ -2129,6 +2198,30 @@ export default function RFQDetail(): ReactElement {
       handleCloseRequestInformationDialog();
     } finally {
       setIsRequestInformationSubmitting(false);
+    }
+  };
+
+  const handleConfirmAddNote = async () => {
+    if (!params.id || !noteText.trim()) {
+      return;
+    }
+
+    setIsAddNoteSubmitting(true);
+    try {
+      await toast.promise(
+        addRFQNote(params.id, {
+          note: noteText.trim()
+        }),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
+      await refetchPriceInquiryData();
+      handleCloseAddNoteDialog();
+    } finally {
+      setIsAddNoteSubmitting(false);
     }
   };
 
@@ -3577,6 +3670,23 @@ export default function RFQDetail(): ReactElement {
                   }
                 }}
               />
+              {rfq.note ? (
+                <IconButton
+                  size="small"
+                  onClick={handleOpenViewNoteDialog}
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    border: '1px solid #94a3b833',
+                    color: '#475569',
+                    backgroundColor: '#ffffff',
+                    '&:hover': {
+                      backgroundColor: '#f8fafc'
+                    }
+                  }}>
+                  <CommentOutlined fontSize="small" />
+                </IconButton>
+              ) : null}
             </Stack>
           ) : null}
           {rfq?.urgentRequest && ['NEW', 'REQUESTED_INFO'].includes(rfq.status) ? (
@@ -3697,6 +3807,12 @@ export default function RFQDetail(): ReactElement {
                   <ListItemText primary="ขอข้อมูลเพิ่มเติม" />
                 </MenuItem>
               )}
+              <MenuItem disabled={isAddNoteSubmitting} onClick={handleOpenAddNoteDialog}>
+                <ListItemIcon>
+                  <AddComment fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="เพิ่มโน้ต" />
+              </MenuItem>
               <MenuItem
                 disabled={isSupplierQuoteSubmitting || isQuoteAndInquiryActionDisabled}
                 onClick={handleSupplierQuoteFromMenu}>
@@ -3740,7 +3856,7 @@ export default function RFQDetail(): ReactElement {
               variant="contained"
               className="btn-cool-grey"
               startIcon={<ArrowBackIos />}
-              onClick={() => history.push('/price-inquiry-management')}>
+              onClick={handleBackToPriceInquiryList}>
               {t('button.back')}
             </Button>
           </Stack>
@@ -4460,6 +4576,19 @@ export default function RFQDetail(): ReactElement {
         onClose={handleCloseRequestInformationDialog}
         onConfirm={handleConfirmRequestInformation}
         isSubmitting={isRequestInformationSubmitting}
+      />
+      <AddNoteDialog
+        open={visibleAddNoteDialog}
+        note={noteText}
+        onNoteChange={setNoteText}
+        onClose={handleCloseAddNoteDialog}
+        onConfirm={handleConfirmAddNote}
+        isSubmitting={isAddNoteSubmitting}
+      />
+      <ViewNoteDialog
+        open={visibleViewNoteDialog}
+        note={rfq?.note}
+        onClose={handleCloseViewNoteDialog}
       />
       <AddSupplierDialog
         open={visibleAddSupplierDialog}

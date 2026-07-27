@@ -335,10 +335,13 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                                 />
                               </TableCell>
                               <TableCell align="right" sx={{ minWidth: 50 }}>
+                                {/*
+                                  Keep the displayed default at 100% when the draft has no value yet.
+                                */}
                                 <TextField
                                   size="small"
                                   type="number"
-                                  value={tier.commission}
+                                  value={tier.commission?.trim() ? tier.commission : '100'}
                                   onChange={(event) =>
                                     onCommissionChange(detail.id, tier.id, event.target.value)
                                   }

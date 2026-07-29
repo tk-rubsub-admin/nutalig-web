@@ -803,12 +803,13 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                   </Button>
                 </Stack>
                 {quoteDraftAdditionalCosts.map((additionalCost) => (
-                  <Grid container spacing={1} key={additionalCost.id}>
-                    <Grid item xs={12} md={5}>
+                  <Grid container spacing={1} key={additionalCost.id} alignItems="center">
+                    <Grid item xs={12} md={4}>
                       <TextField
                         fullWidth
                         size="small"
                         label="Name"
+                        InputLabelProps={{ shrink: true }}
                         value={additionalCost.description}
                         onChange={(event) =>
                           onAdditionalCostChange(
@@ -817,13 +818,14 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                             event.target.value
                           )
                         }
-                      />
+                        />
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <TextField
                         fullWidth
                         size="small"
                         label="Value"
+                        InputLabelProps={{ shrink: true }}
                         value={additionalCost.value}
                         onChange={(event) =>
                           onAdditionalCostChange(additionalCost.id, 'value', event.target.value)
@@ -835,11 +837,20 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         fullWidth
                         size="small"
                         label="Unit"
+                        InputLabelProps={{ shrink: true }}
                         value={additionalCost.unit}
                         onChange={(event) =>
                           onAdditionalCostChange(additionalCost.id, 'unit', event.target.value)
                         }
                       />
+                    </Grid>
+                    <Grid item xs={12} md="auto">
+                      <IconButton
+                        color="error"
+                        onClick={() => onDeleteAdditionalCost(additionalCost.id)}
+                        aria-label="delete additional cost">
+                        <DeleteOutline />
+                      </IconButton>
                     </Grid>
                   </Grid>
                 ))}

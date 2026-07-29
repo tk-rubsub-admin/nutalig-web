@@ -21,6 +21,7 @@ import {
   UpdateRFQInquiryRequest,
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
+  GetCustomerQuotedResponse,
   UpsertRFQSupplierQuoteRequest,
   UpdateRFQResponse
 } from './rfq-type';
@@ -276,6 +277,14 @@ export const requestSpecialPriceRFQ = async (id: string, payload: RequestSpecial
   return response.data;
 };
 
+export const getCustomerQuoted = async (rfqId: string) => {
+  const response: GetCustomerQuotedResponse = await api
+    .get(`/v1/rfqs/${rfqId}/customer-quoted`)
+    .then((res) => res.data);
+
+  return response.data || '';
+};
+
 export const updateRFQInquiry = async (
   id: string,
   inquiryId: string,
@@ -349,6 +358,14 @@ export const updateRFQSupplierQuote = async (
   return response.data;
 };
 
+export const deleteRFQSupplierQuote = async (id: string, quoteId: string) => {
+  const response: RFQSupplierQuoteResponse = await api
+    .delete(`/v1/rfqs/${id}/supplier-quotes/${quoteId}`)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
 export const sendRFQSupplierQuoteNotification = async (id: string, quoteId: string) => {
   const response: RFQSupplierQuoteResponse = await api
     .post(`/v1/rfqs/${id}/supplier-quotes/${quoteId}/send-notification`)
@@ -394,6 +411,9 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
   formData.append('capacity', payload.capacity);
   if (payload.targetPrice !== undefined && payload.targetPrice !== null) {
     formData.append('targetPrice', String(payload.targetPrice));
+  }
+  if (payload.requestSample !== undefined) {
+    formData.append('requestSample', String(payload.requestSample));
   }
   payload.requestedMoqs?.forEach((requestedMoq) => {
     formData.append('requestedMoqs', String(requestedMoq));

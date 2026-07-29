@@ -14,6 +14,10 @@ import {
   Divider,
   FormControlLabel,
   Grid,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Radio,
@@ -45,13 +49,15 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
+import { useQueryClient } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getCustomer } from 'services/Customer/customer-api';
 import { Address, Contact, Customer, CustomerDropOff } from 'services/Customer/customer-type';
 import { getQuotation } from 'services/Document/document-api';
 import { Quotation } from 'services/Document/document-type';
-import { getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
+import { createFreelanceSale, getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
+import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
 import { createSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
@@ -233,6 +239,39 @@ function inferQuotationItemShippingMethod(name?: string | null): 'LAND' | 'SEA' 
   return null;
 }
 
+const ADD_NEW_FREELANCE_SALE_VALUE = '__ADD_NEW_FREELANCE_SALE__';
+const CO_SALE_MODE_NONE = 'NONE';
+const CO_SALE_MODE_FREELANCE = 'FREELANCE';
+const CO_SALE_MODE_EXTERNAL = 'EXTERNAL';
+
+const matchesFreelanceSaleCoverage = (saleCoverage?: string | null, salesId?: string | null): boolean => {
+  const normalizedSaleCoverage = (saleCoverage || '').trim();
+  const normalizedSalesId = (salesId || '').trim();
+
+  if (!normalizedSaleCoverage || !normalizedSalesId) {
+    return false;
+  }
+
+  return normalizedSaleCoverage === normalizedSalesId;
+};
+
+function detectCoSaleMode(
+  coSaleId?: string | null,
+  freelanceSales: FreelanceSaleRecord[] = []
+): string {
+  const normalizedCoSaleId = (coSaleId || '').trim();
+
+  if (!normalizedCoSaleId) {
+    return CO_SALE_MODE_NONE;
+  }
+
+  if (freelanceSales.some((option) => option.id === normalizedCoSaleId)) {
+    return CO_SALE_MODE_FREELANCE;
+  }
+
+  return CO_SALE_MODE_NONE;
+}
+
 function getShippingPrice(tier: RFQDetailTier, shippingMethod: 'LAND' | 'SEA'): number {
   return Number(
     shippingMethod === 'SEA'
@@ -298,8 +337,7 @@ function hasFclShippingTag(item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFc
   return [item.name, item.remark].some((value) => String(value || '').includes('แบบปิดตู้'));
 }
 
-function buildPaymentTermRemark(baseRemark: string | null | undefined, customer?: Customer | null): string {
-  const normalizedBaseRemark = (baseRemark || '').trim();
+function buildPaymentTermRemark(customer?: Customer | null): string {
   const paymentTermLabel =
     customer?.customerPaymentTerm?.nameTh ||
     customer?.customerPaymentTerm?.nameEn ||
@@ -307,17 +345,13 @@ function buildPaymentTermRemark(baseRemark: string | null | undefined, customer?
     '';
 
   if (!paymentTermLabel) {
-    return normalizedBaseRemark;
+    return '';
   }
 
   const paymentTermPrefix = 'เงื่อนไขการชำระเงิน :';
   const paymentTermLine = `${paymentTermPrefix} ${paymentTermLabel}`;
 
-  if (normalizedBaseRemark.includes(paymentTermPrefix)) {
-    return normalizedBaseRemark;
-  }
-
-  return [paymentTermLine, normalizedBaseRemark].filter(Boolean).join('\n');
+  return paymentTermLine;
 }
 
 function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
@@ -573,6 +607,7 @@ export default function SalesOrderRFQ(): JSX.Element {
   const { t } = useTranslation();
   const history = useHistory();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { rfqId } = useParams<SaleOrderRFQParams>();
   const isDownSm = useMediaQuery('(max-width:600px)');
   const today = dayjs();
@@ -581,6 +616,20 @@ export default function SalesOrderRFQ(): JSX.Element {
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<CreateSalesOrderStatus | 'back'>('CREATED');
   const [nextManualItemId, setNextManualItemId] = useState(-1);
+  const [coSaleMode, setCoSaleMode] = useState(CO_SALE_MODE_NONE);
+  const [hasInitializedCoSale, setHasInitializedCoSale] = useState(false);
+  const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
+  const [newFreelanceSale, setNewFreelanceSale] = useState<{
+    name: string;
+    contactNumber: string;
+    saleCoverage: string;
+    additional: string;
+  }>({
+    name: '',
+    contactNumber: '',
+    saleCoverage: '',
+    additional: ''
+  });
   const useStyles = makeStyles({
     hideObject: {
       display: 'none'
@@ -679,10 +728,14 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const shouldLoadFreelanceSales = coSaleMode === CO_SALE_MODE_FREELANCE;
   const { data: freelanceSales = [], isFetching: isFreelanceSalesFetching } = useQuery(
     'sale-order-rfq-freelance-sales',
     () => getFreelanceSales(),
-    { refetchOnWindowFocus: false }
+    {
+      enabled: shouldLoadFreelanceSales,
+      refetchOnWindowFocus: false
+    }
   );
   const imageUrl = getRFQImageUrl(rfq);
 
@@ -722,6 +775,107 @@ export default function SalesOrderRFQ(): JSX.Element {
     }),
     onSubmit: () => undefined
   });
+
+  useEffect(() => {
+    if (!formik.values.coSaleId) {
+      if (hasInitializedCoSale && coSaleMode !== CO_SALE_MODE_NONE) {
+        setCoSaleMode(CO_SALE_MODE_NONE);
+      }
+      return;
+    }
+
+    const detectedMode = detectCoSaleMode(formik.values.coSaleId, freelanceSales);
+    if (detectedMode !== CO_SALE_MODE_NONE) {
+      setHasInitializedCoSale(true);
+      if (coSaleMode !== detectedMode) {
+        setCoSaleMode(detectedMode);
+      }
+    }
+  }, [
+    coSaleMode,
+    freelanceSales,
+    formik.values.coSaleId,
+    hasInitializedCoSale
+  ]);
+
+  useEffect(() => {
+    if (!hasInitializedCoSale || !formik.values.coSaleId) {
+      return;
+    }
+
+    if (coSaleMode === CO_SALE_MODE_NONE) {
+      formik.setFieldValue('coSaleId', '');
+      return;
+    }
+
+    if (
+      coSaleMode === CO_SALE_MODE_FREELANCE &&
+      !freelanceSales.some((option) => option.id === formik.values.coSaleId)
+    ) {
+      formik.setFieldValue('coSaleId', '');
+      return;
+    }
+
+    // external mode intentionally keeps the current value, matching quotation flow
+  }, [
+    coSaleMode,
+    freelanceSales,
+    formik.values.coSaleId,
+    hasInitializedCoSale
+  ]);
+
+  useEffect(() => {
+    if (!openCreateFreelanceSaleDialog) {
+      return;
+    }
+
+    setNewFreelanceSale((prev) => ({
+      ...prev,
+      saleCoverage: formik.values.salesId || ''
+    }));
+  }, [formik.values.salesId, openCreateFreelanceSaleDialog]);
+
+  const handleOpenCreateFreelanceSaleDialog = () => {
+    setNewFreelanceSale({
+      name: '',
+      contactNumber: '',
+      saleCoverage: formik.values.salesId || '',
+      additional: ''
+    });
+    setOpenCreateFreelanceSaleDialog(true);
+  };
+
+  const handleCreateFreelanceSale = async () => {
+    if (!newFreelanceSale.name.trim()) {
+      toast.error(t('toast.failed'));
+      return;
+    }
+
+    setIsLoading(true);
+    const request = createFreelanceSale({
+      name: newFreelanceSale.name.trim(),
+      contactNumber: newFreelanceSale.contactNumber?.trim() || '',
+      saleCoverage: newFreelanceSale.saleCoverage?.trim() || '',
+      additional: newFreelanceSale.additional?.trim() || ''
+    });
+
+    toast.promise(request, {
+      loading: t('toast.loading'),
+      success: () => t('toast.success'),
+      error: () => t('toast.failed')
+    });
+
+    try {
+      const createdFreelanceSale = await request;
+      await queryClient.invalidateQueries('sale-order-rfq-freelance-sales');
+
+      setCoSaleMode(CO_SALE_MODE_FREELANCE);
+      formik.setFieldValue('coSaleId', createdFreelanceSale?.id || '');
+      setOpenCreateFreelanceSaleDialog(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const submitSalesOrder = async (status: CreateSalesOrderStatus) => {
     const errors = await formik.validateForm();
@@ -907,6 +1061,9 @@ export default function SalesOrderRFQ(): JSX.Element {
         rfqId,
         salesId: getRFQSalesEmployeeId(rfq.sales),
         coSaleId: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount || '',
+        coSaleMode: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount
+          ? CO_SALE_MODE_FREELANCE
+          : CO_SALE_MODE_NONE,
         customerId: rfq.customer?.id || '',
         customerAddressId: defaultAddress?.id || '',
         customerContactId: defaultContact?.id || '',
@@ -923,10 +1080,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         provinceId: defaultDropOff?.province?.id || '',
         amphureId: defaultDropOff?.amphure?.id || '',
         orderMakerId: getRFQSalesEmployeeId(rfq.sales),
-        notes: buildPaymentTermRemark(
-          rfq.finalRemark || rfq.description || `สร้างจาก RFQ ${rfq.id}`,
-          fullCustomer || (rfq.customer as Customer) || null
-        ),
+        notes: buildPaymentTermRemark(fullCustomer || (rfq.customer as Customer) || null),
         requestCoa: false,
         requestPo: false,
         items: itemsWithImage
@@ -1162,7 +1316,7 @@ export default function SalesOrderRFQ(): JSX.Element {
           <GridTextField item sm={6} />
 
           <GridTextField item xs={12} sm={6}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
               <FormControlLabel
                 control={
                   <Checkbox
@@ -1184,7 +1338,17 @@ export default function SalesOrderRFQ(): JSX.Element {
             </Stack>
           </GridTextField>
 
-          <GridTextField item sm={6} />
+          <GridTextField item xs={12} sm={6}>
+            <RadioGroup
+              row
+              value={coSaleMode}
+              onChange={(event) => setCoSaleMode(event.target.value)}
+            >
+              <FormControlLabel value={CO_SALE_MODE_NONE} control={<Radio />} label="ไม่มีเซลล์นอก/เซลล์ฟรีแลนซ์" />
+              <FormControlLabel value={CO_SALE_MODE_FREELANCE} control={<Radio />} label="เซลล์ฟรีแลนซ์" />
+              <FormControlLabel value={CO_SALE_MODE_EXTERNAL} control={<Radio />} label="เซลล์นอก" />
+            </RadioGroup>
+          </GridTextField>
 
           <GridTextField item xs={12} sm={6}>
             <TextField
@@ -1196,24 +1360,41 @@ export default function SalesOrderRFQ(): JSX.Element {
             />
           </GridTextField>
 
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              select
-              fullWidth
-              label="เซลล์นอก/เซลล์ฟรีแลนซ์"
-              value={formik.values.coSaleId || ''}
-              disabled={isFreelanceSalesFetching}
-              onChange={(event) => formik.setFieldValue('coSaleId', event.target.value)}
-              InputLabelProps={{ shrink: true }}
-            >
-              <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-              {freelanceSales.map((option) => (
-                <MenuItem key={option.id} value={option.id}>
-                  {`${option.id} - ${option.name}`}
-                </MenuItem>
-              ))}
-            </TextField>
-          </GridTextField>
+          {coSaleMode !== CO_SALE_MODE_NONE ? (
+            <GridTextField item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label={coSaleMode === CO_SALE_MODE_EXTERNAL ? 'เซลล์นอก' : 'เซลล์ฟรีแลนซ์'}
+                value={formik.values.coSaleId || ''}
+                disabled={isFreelanceSalesFetching}
+                onChange={(event) => {
+                  if (event.target.value === ADD_NEW_FREELANCE_SALE_VALUE) {
+                    handleOpenCreateFreelanceSaleDialog();
+                    return;
+                  }
+
+                    formik.setFieldValue('coSaleId', event.target.value);
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                >
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {coSaleMode === CO_SALE_MODE_FREELANCE &&
+                  freelanceSales.map((option) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {`${option.id} - ${option.name}`}
+                    </MenuItem>
+                  ))}
+                {coSaleMode === CO_SALE_MODE_FREELANCE && (
+                  <MenuItem value={ADD_NEW_FREELANCE_SALE_VALUE}>
+                    {`=== เพิ่ม${t('customerManagement.column.coSalesAccount')} ===`}
+                  </MenuItem>
+                )}
+              </TextField>
+            </GridTextField>
+          ) : (
+            <GridTextField item xs={12} sm={6} />
+          )}
         </Grid>
       </CollapsibleWrapper>
 
@@ -1647,6 +1828,88 @@ export default function SalesOrderRFQ(): JSX.Element {
         isShowCancelButton
         isShowConfirmButton
       />
+      <Dialog
+        open={openCreateFreelanceSaleDialog}
+        onClose={() => setOpenCreateFreelanceSaleDialog(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{`เพิ่ม${t('customerManagement.column.coSalesAccount')}`}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                disabled
+                label="ID"
+                placeholder="ระบบจะทำการ Generate ให้อัตโนมัติ"
+                value=""
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                label="ชื่อ-นามสกุล"
+                value={newFreelanceSale.name}
+                onChange={(event) =>
+                  setNewFreelanceSale((prev) => ({ ...prev, name: event.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label={t('customerManagement.column.contactNumber')}
+                value={newFreelanceSale.contactNumber}
+                onChange={(event) =>
+                  setNewFreelanceSale((prev) => ({ ...prev, contactNumber: event.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="ดูแลโดย Sales"
+                value={formik.values.salesId || ''}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Sale Coverage"
+                value={newFreelanceSale.saleCoverage}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                label="Additional"
+                value={newFreelanceSale.additional}
+                onChange={(event) =>
+                  setNewFreelanceSale((prev) => ({ ...prev, additional: event.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCreateFreelanceSaleDialog(false)}>{t('button.cancel')}</Button>
+          <Button variant="contained" onClick={handleCreateFreelanceSale}>
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <LoadingDialog open={isLoading || isRFQFetching} />
     </Page>
   );

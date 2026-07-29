@@ -477,13 +477,13 @@ export default function CustomerManagement(): JSX.Element {
           <Grid item xs={12} sm={2} style={{ paddingTop: '30px', paddingLeft: '10px' }}>
             <TextField
               type="text"
-              name="firstName"
+              name="nameContain"
               label={t('customerManagement.customerFirstName')}
               fullWidth
               variant="outlined"
-              value={searchFormik.values.firstNameContain}
+              value={searchFormik.values.nameContain}
               onChange={({ target }) => {
-                searchFormik.setFieldValue('firstNameContain', target.value);
+                searchFormik.setFieldValue('nameContain', target.value);
               }}
               onBlur={() => searchFormik.handleSubmit()}
               InputLabelProps={{ shrink: true }}

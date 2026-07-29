@@ -75,6 +75,7 @@ import {
   deleteRFQAdditionalCost,
   deleteRFQDetail,
   deleteRFQPicture,
+  deleteRFQSupplierQuote,
   acceptRFQ,
   approveUrgentRFQ,
   finalExtractRFQSupplierQuote,
@@ -726,7 +727,7 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
 
 const quantityFormatter = new Intl.NumberFormat('th-TH');
 const priceFormatter = new Intl.NumberFormat('th-TH', {
-  minimumFractionDigits: 2,
+  minimumFractionDigits: 0,
   maximumFractionDigits: 4
 });
 
@@ -797,6 +798,14 @@ function formatPrice(value?: number | null, currency?: string | null): string {
   }
 
   return `${priceFormatter.format(value)} บาท`;
+}
+
+function formatTargetPrice(value?: number | null): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return priceFormatter.format(value);
 }
 
 function parsePriceInput(value: string): number | null {
@@ -1630,10 +1639,13 @@ export default function RFQDetail(): ReactElement {
   const [quoteDialogSupplier, setQuoteDialogSupplier] = useState<Supplier | null>(null);
   const [quoteDialogQuote, setQuoteDialogQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleSupplierQuoteDialog, setVisibleSupplierQuoteDialog] = useState(false);
+  const [selectedSupplierQuoteToDelete, setSelectedSupplierQuoteToDelete] =
+    useState<RFQSupplierQuote | null>(null);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [inlineEditingSupplierQuoteId, setInlineEditingSupplierQuoteId] = useState<string | null>(
     null
   );
+  const [isDeletingSupplierQuote, setIsDeletingSupplierQuote] = useState(false);
   const [
     visibleSupplierQuoteSaveConfirmationDialog,
     setVisibleSupplierQuoteSaveConfirmationDialog
@@ -1718,7 +1730,6 @@ export default function RFQDetail(): ReactElement {
   const isAttachmentUploadVisible = !['QUOTED', 'CANCELED', 'CLOSED', 'COMPLETED'].includes(
     rfq?.status || ''
   );
-
   const { data: suggestSuppliers = [], isFetching: isSuggestSuppliersFetching } = useQuery(
     ['rfq-suggest-suppliers', params.id],
     () => getRFQSuggestSuppliers(params.id),
@@ -2975,6 +2986,34 @@ export default function RFQDetail(): ReactElement {
     }
   };
 
+  const handleRequestDeleteSupplierQuote = (quote: RFQSupplierQuote) => {
+    if (!quote?.id) {
+      return;
+    }
+
+    setSelectedSupplierQuoteToDelete(quote);
+  };
+
+  const handleConfirmDeleteSupplierQuote = async () => {
+    if (!params.id || !selectedSupplierQuoteToDelete?.id) {
+      return;
+    }
+
+    try {
+      setIsDeletingSupplierQuote(true);
+      const quoteId = selectedSupplierQuoteToDelete.id;
+      setSelectedSupplierQuoteToDelete(null);
+      await toast.promise(deleteRFQSupplierQuote(params.id, quoteId), {
+        loading: t('toast.loading'),
+        success: 'ลบราคาเรียบร้อย',
+        error: t('toast.failed')
+      });
+      await refetchPriceInquiryData();
+    } finally {
+      setIsDeletingSupplierQuote(false);
+    }
+  };
+
   const handleQuoteDetailChange = (
     detailId: number,
     field: 'optionName' | 'spec' | 'remark',
@@ -4125,7 +4164,9 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       fullWidth
                       label={t('rfqManagement.form.targetPrice')}
-                      value={rfq?.targetPrice != null ? rfq.targetPrice.toLocaleString() : ''}
+                      value={
+                        rfq?.targetPrice != null ? formatTargetPrice(rfq.targetPrice) : ''
+                      }
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
@@ -4209,6 +4250,15 @@ export default function RFQDetail(): ReactElement {
                     />
                   </GridTextField>
 
+                  <GridTextField item xs={12} sm={2}>
+                    <TextField
+                      fullWidth
+                      label={'ตีตัวอย่าง'}
+                      name="description"
+                      value={rfq?.requestSample ? 'ขอราคาตีตัวอย่าง' : '-'}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </GridTextField>
                   <GridTextField item xs={12}>
                     <TextField
                       fullWidth
@@ -4341,11 +4391,12 @@ export default function RFQDetail(): ReactElement {
                   quoteDraftPackageError={quoteDraftPackageError}
                   quoteDraftErrors={quoteDraftErrors}
                   quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}
-                  isSubmitting={isSupplierQuoteSubmitting}
+                  isSubmitting={isSupplierQuoteSubmitting || isDeletingSupplierQuote}
                   notifyingQuoteId={notifyingQuoteId}
                   onEditQuote={handleOpenSupplierQuoteEditDialog}
                   onCreateRevision={handleCreateSupplierQuoteRevision}
                   onSendNotification={handleSendSupplierQuoteNotification}
+                  onDeleteQuote={handleRequestDeleteSupplierQuote}
                   onCancelEditQuote={handleCancelInlineSupplierQuoteEdit}
                   onSaveEditQuote={handleRequestSaveSupplierQuote}
                   onCopyDetail={handleCopyQuoteDetail}
@@ -4736,6 +4787,19 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleConfirmDeleteQuoteDetail}
         onCancel={() => setSelectedSupplierQuoteDetailToDelete(null)}
+      />
+      <ConfirmDialog
+        open={Boolean(selectedSupplierQuoteToDelete)}
+        title="ยืนยันลบราคา"
+        message={`คุณยืนยันลบราคาของ ${getSupplierDisplayName(
+          selectedSupplierQuoteToDelete?.supplier
+        )} ใช่หรือไม่`}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmDeleteSupplierQuote}
+        onCancel={() => setSelectedSupplierQuoteToDelete(null)}
       />
       <GeneratedInquiryMessageDialog
         open={Boolean(generatedInquiryMessage)}

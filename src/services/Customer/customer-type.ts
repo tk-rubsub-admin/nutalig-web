@@ -101,6 +101,7 @@ export interface SearchCustomerRequest {
   segmentEqual: string;
   rankEqual: string;
   areaEqual: string;
+  saleAccountEqual?: string;
 }
 
 export interface SearchCustomerResponse {

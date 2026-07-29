@@ -66,6 +66,8 @@ import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
 import { ReceiptRecord } from 'services/Receipt/receipt-type';
+import { getRFQ } from 'services/RFQ/rfq-api';
+import { RFQRecord } from 'services/RFQ/rfq-type';
 import {
   getSalesOrderV1,
   deleteSalesOrderAttachment,
@@ -246,6 +248,14 @@ export default function SalesOrderDetail(): ReactElement {
       whiteSpace: 'normal',
       wordBreak: 'break-word'
     },
+    productImage: {
+      width: 64,
+      height: 64,
+      objectFit: 'cover',
+      borderRadius: 8,
+      border: '1px solid #e6ebf1',
+      backgroundColor: '#f8fafc'
+    },
     fitContentCell: {
       width: 1,
       whiteSpace: 'nowrap'
@@ -319,6 +329,15 @@ export default function SalesOrderDetail(): ReactElement {
     }
   );
 
+  const { data: rfqResponse, isFetching: isRfqFlowFetching } = useQuery(
+    ['sales-order-document-flow-rfq', salesOrder?.rfqId],
+    () => getRFQ(salesOrder?.rfqId || ''),
+    {
+      enabled: Boolean(salesOrder?.rfqId),
+      refetchOnWindowFocus: false
+    }
+  );
+
   useEffect(() => {
     setDraft(createDraft(salesOrder));
     setIsEditing(false);
@@ -334,7 +353,8 @@ export default function SalesOrderDetail(): ReactElement {
     relatedReceipts.find((record) => record.salesOrderNo === salesOrder?.salesOrderNo) ||
     relatedReceipts[0] ||
     null;
-  const quotationNo = latestInvoice?.quotationNo || latestReceipt?.quotationNo || null;
+  const rfq = rfqResponse as RFQRecord | undefined;
+  const quotationNo = latestInvoice?.quotationNo || latestReceipt?.quotationNo || rfq?.quotationNo || null;
 
   const documentFlowItems: DocumentFlowItem[] = [
     {
@@ -349,6 +369,7 @@ export default function SalesOrderDetail(): ReactElement {
       docNo: quotationNo,
       status: latestInvoice?.status || latestReceipt?.status || null,
       statusProfile: latestInvoice?.statusProfile || latestReceipt?.statusProfile,
+      isLoading: isRfqFlowFetching,
       onOpen: quotationNo
         ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo), '_blank', 'noopener,noreferrer')
         : undefined
@@ -521,15 +542,12 @@ export default function SalesOrderDetail(): ReactElement {
           throw new Error('No file');
         }
 
-        files.forEach((file) => {
-          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement('a');
-          anchor.href = url;
-          anchor.download = file.fileName || `${salesOrder.salesOrderNo}.pdf`;
-          anchor.click();
-          URL.revokeObjectURL(url);
-        });
+        const file = files[0];
+        const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+        const url = URL.createObjectURL(blob);
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
         return t('toast.success');
       },
@@ -1009,22 +1027,40 @@ export default function SalesOrderDetail(): ReactElement {
                   {displayItems.length ? (
                     displayItems.map((item, index) => (
                       <Stack key={item.id || item.lineNo || index} spacing={1.25} className={classes.mobileItemCard}>
-                        <Stack spacing={0.35} className={classes.mobileItemHeader}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                            รายการที่ {item.lineNo || index + 1}
-                          </Typography>
-                          {isEditing ? (
-                            <TextField
-                              className={classes.itemTextField}
-                              fullWidth
-                              value={item.name || ''}
-                              onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
+                        <Stack direction="row" spacing={1.25} alignItems="flex-start" className={classes.mobileItemHeader}>
+                          {item.imageUrl ? (
+                            <Box
+                              component="img"
+                              src={item.imageUrl}
+                              alt={item.name || 'รูปภาพสินค้า'}
+                              className={classes.productImage}
                             />
                           ) : (
-                            <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
-                              {item.name || '-'}
-                            </Typography>
+                            <Stack
+                              justifyContent="center"
+                              alignItems="center"
+                              className={classes.productImage}
+                              sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
+                              ไม่มีรูป
+                            </Stack>
                           )}
+                          <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                              รายการที่ {item.lineNo || index + 1}
+                            </Typography>
+                            {isEditing ? (
+                              <TextField
+                                className={classes.itemTextField}
+                                fullWidth
+                                value={item.name || ''}
+                                onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
+                              />
+                            ) : (
+                              <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
+                                {item.name || '-'}
+                              </Typography>
+                            )}
+                          </Stack>
                         </Stack>
                         <Stack spacing={1}>
                           <Info label="รายละเอียด" value={isEditing ? undefined : item.spec || '-'} />
@@ -1099,6 +1135,7 @@ export default function SalesOrderDetail(): ReactElement {
                     <TableHead>
                       <TableRow>
                         <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
+                        <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>รูปภาพสินค้า</TableCell>
                         <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>สินค้า</TableCell>
                         <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>รายละเอียด</TableCell>
                         <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>ราคาต่อหน่วย</TableCell>
@@ -1111,6 +1148,20 @@ export default function SalesOrderDetail(): ReactElement {
                         displayItems.map((item, index) => (
                           <TableRow key={item.id || item.lineNo || index}>
                             <TableCell align="center" className={classes.fitContentCell}>{item.lineNo || index + 1}</TableCell>
+                            <TableCell align="center" className={classes.fitContentCell}>
+                              {item.imageUrl ? (
+                                <Box
+                                  component="img"
+                                  src={item.imageUrl}
+                                  alt={item.name || 'รูปภาพสินค้า'}
+                                  className={classes.productImage}
+                                />
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">
+                                  ไม่มีรูป
+                                </Typography>
+                              )}
+                            </TableCell>
                             <TableCell className={classes.fitContentCell}>
                               {isEditing ? (
                                 <TextField className={classes.itemTextField} value={item.name || ''} onChange={(event) => updateDraftItem(index, 'name', event.target.value)} />
@@ -1144,7 +1195,7 @@ export default function SalesOrderDetail(): ReactElement {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} align="center">{t('warning.noResultList')}</TableCell>
+                          <TableCell colSpan={7} align="center">{t('warning.noResultList')}</TableCell>
                         </TableRow>
                       )}
                     </TableBody>

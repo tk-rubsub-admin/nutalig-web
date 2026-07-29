@@ -986,6 +986,7 @@
       "NEW": "New Request",
       "IN_PROGRESS": "In Progress",
       "SUPPLIER_QUOTED": "Supplier Quoted",
+      "SPECIAL_PRICE_REVIEW": "Special Price Review",
       "QUOTED": "Quoted",
       "CANCELED": "Canceled",
       "COMPLETED": "Completed"

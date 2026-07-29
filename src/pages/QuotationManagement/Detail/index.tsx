@@ -329,7 +329,19 @@ export default function QuotationDetail(): JSX.Element {
         invoiceRecords.find((record) => record.quotationNo === quotationNo) || invoiceRecords[0] || null;
     const latestReceipt =
         receiptRecords.find((record) => record.quotationNo === quotationNo) || receiptRecords[0] || null;
-    const salesOrderNo = latestInvoice?.salesOrderNo || latestReceipt?.salesOrderNo || null;
+    const rfqId = quotation?.rfqId || quotation?.referenceRfqId || '';
+
+    const { data: rfqResponse, isFetching: isRfqFetching } = useQuery(
+        ['quotation-detail-rfq', rfqId],
+        () => getRFQ(rfqId),
+        {
+            enabled: Boolean(rfqId),
+            refetchOnWindowFocus: false
+        }
+    );
+
+    const rfq = rfqResponse as RFQRecord | undefined;
+    const salesOrderNo = latestInvoice?.salesOrderNo || latestReceipt?.salesOrderNo || rfq?.saleOrderId || null;
 
     const { data: salesOrder, isFetching: isSalesOrderFlowFetching } = useQuery(
         ['quotation-document-flow-sales-order', salesOrderNo],
@@ -339,16 +351,6 @@ export default function QuotationDetail(): JSX.Element {
             refetchOnWindowFocus: false
         }
     );
-    const { data: rfqResponse, isFetching: isRfqFetching } = useQuery(
-        ['quotation-detail-rfq', quotation?.rfqId],
-        () => getRFQ(quotation?.rfqId || ''),
-        {
-            enabled: Boolean(quotation?.rfqId),
-            refetchOnWindowFocus: false
-        }
-    );
-
-    const rfq = rfqResponse as RFQRecord | undefined;
     const documentFlowItems: DocumentFlowItem[] = [
         {
             title: 'คำขอราคา',

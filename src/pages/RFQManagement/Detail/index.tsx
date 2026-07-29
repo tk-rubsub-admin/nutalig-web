@@ -6,6 +6,7 @@ import {
   CheckCircle,
   CommentOutlined,
   InfoOutlined,
+  ContentCopy,
   DeleteOutline,
   DirectionsBoat,
   Download,
@@ -108,6 +109,7 @@ import {
   closeRFQ,
   getRFQ,
   addRFQNote,
+  getCustomerQuoted,
   requestSpecialPriceRFQ,
   rejectRFQ,
   updateRFQCustomer,
@@ -534,7 +536,9 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
     material: getNamedCodeValueCode<RFQProductMaterial>(rfq?.material),
     capacity: rfq?.capacity || '',
     targetPrice:
-      rfq?.targetPrice === null || rfq?.targetPrice === undefined ? '' : String(rfq.targetPrice),
+      rfq?.targetPrice === null || rfq?.targetPrice === undefined
+        ? ''
+        : formatTargetPrice(rfq.targetPrice),
     requestedMoqs: rfq?.requestedMoqs?.length ? rfq.requestedMoqs.map((item) => `${item}`) : [''],
     description: rfq?.description || ''
   };
@@ -542,8 +546,8 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
 
 const quantityFormatter = new Intl.NumberFormat('th-TH');
 const priceFormatter = new Intl.NumberFormat('th-TH', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 4
 });
 const rfqStatusTimelineSteps = [
   'NEW',
@@ -674,6 +678,14 @@ function formatPrice(value?: number | null, currency?: string | null): string {
   }
 
   return `${priceFormatter.format(value)} บาท`;
+}
+
+function formatTargetPrice(value?: number | null): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return priceFormatter.format(value);
 }
 
 function formatAdditionalCostValue(value?: string | null, unit?: string | null): string {
@@ -863,6 +875,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleRequestedInformationDialog, setVisibleRequestedInformationDialog] = useState(false);
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
   const [visibleRejectRfqDialog, setVisibleRejectRfqDialog] = useState(false);
+  const [visibleCopyRfqConfirmDialog, setVisibleCopyRfqConfirmDialog] = useState(false);
   const [visibleCloseRfqConfirmDialog, setVisibleCloseRfqConfirmDialog] = useState(false);
   const [visibleCloseRfqDialog, setVisibleCloseRfqDialog] = useState(false);
   const [visibleRequestSpecialPriceDialog, setVisibleRequestSpecialPriceDialog] = useState(false);
@@ -891,6 +904,7 @@ export default function RFQDetail(): ReactElement {
     useState<RFQAdditionalCost | null>(null);
   const [isPictureSubmitting, setIsPictureSubmitting] = useState(false);
   const [isQuotationDocumentLoading, setIsQuotationDocumentLoading] = useState(false);
+  const [isCustomerQuotedCopying, setIsCustomerQuotedCopying] = useState(false);
   const [downloadMenuAnchorEl, setDownloadMenuAnchorEl] = useState<null | HTMLElement>(null);
   const isSalesPermission = hasPermission(PERMISSIONS.RFQ_EDIT);
   const isAllowUploadAttachment = hasPermission(PERMISSIONS.RFQ_UPLOAD_FILE);
@@ -906,7 +920,9 @@ export default function RFQDetail(): ReactElement {
 
   const handleOpenRequestSpecialPriceDialog = () => {
     setRequestSpecialPriceTargetPrice(
-      rfq?.targetPrice === null || rfq?.targetPrice === undefined ? '' : String(rfq.targetPrice)
+      rfq?.targetPrice === null || rfq?.targetPrice === undefined
+        ? ''
+        : formatTargetPrice(rfq.targetPrice)
     );
     setRequestSpecialPriceTargetPriceError('');
     setVisibleRequestSpecialPriceDialog(true);
@@ -915,6 +931,36 @@ export default function RFQDetail(): ReactElement {
   const handleCloseRequestSpecialPriceDialog = () => {
     setVisibleRequestSpecialPriceDialog(false);
     setRequestSpecialPriceTargetPriceError('');
+  };
+
+  const handleCopyCustomerQuoted = async () => {
+    if (!params.id) {
+      return;
+    }
+
+    try {
+      setIsCustomerQuotedCopying(true);
+      await toast.promise(
+        (async () => {
+          const quotedText = await getCustomerQuoted(params.id);
+
+          if (!quotedText) {
+            throw new Error('ไม่พบข้อความคัดลอกราคา');
+          }
+
+          await navigator.clipboard.writeText(quotedText);
+        })(),
+        {
+          loading: t('toast.loading'),
+          success: 'คัดลอกราคาแล้ว',
+          error: 'คัดลอกราคาไม่สำเร็จ'
+        }
+      );
+    } catch (error) {
+      toast.error('คัดลอกราคาไม่สำเร็จ');
+    } finally {
+      setIsCustomerQuotedCopying(false);
+    }
   };
 
   const handleOpenAddNoteDialog = () => {
@@ -934,6 +980,20 @@ export default function RFQDetail(): ReactElement {
 
   const handleCloseViewNoteDialog = () => {
     setVisibleViewNoteDialog(false);
+  };
+
+  const handleOpenCopyRfqConfirmDialog = () => {
+    setVisibleCopyRfqConfirmDialog(true);
+  };
+
+  const handleCopyRfq = () => {
+    if (!rfq) {
+      setVisibleCopyRfqConfirmDialog(false);
+      return;
+    }
+
+    setVisibleCopyRfqConfirmDialog(false);
+    history.push(ROUTE_PATHS.RFQ_CREATE, { copiedRfq: rfq });
   };
 
   const handleRejectRfq = async () => {
@@ -1004,6 +1064,7 @@ export default function RFQDetail(): ReactElement {
   const isRejectRfqVisible = !['CANCELED', 'CLOSED', 'COMPLETED', 'ACCEPTED', 'REJECTED'].includes(
     rfq?.status || ''
   );
+  const canCopyCustomerQuoted = ['QUOTED', 'COMPLETED'].includes(rfq?.status || '');
 
   const {
     data: activityHistory = [],
@@ -1628,13 +1689,12 @@ export default function RFQDetail(): ReactElement {
   const canEditPictures = isAllowUploadAttachment && pictureResources.length < 5;
   const attachmentResources = useMemo(() => getRFQAttachmentResources(rfq), [rfq]);
   const canRejectAction = isRejectRfqVisible && hasPermission(PERMISSIONS.RFQ_EDIT);
+  const canCopyRfqAction = hasPermission(PERMISSIONS.RFQ_CREATE);
   const canCloseRfqAction =
     !['CLOSED', 'COMPLETED', 'REJECTED', 'CANCELED'].includes(rfq?.status || '') &&
     hasPermission(PERMISSIONS.RFQ_EDIT);
   const canRequestSpecialPriceAction =
-    hasPermission(PERMISSIONS.RFQ_EDIT) &&
-    rfq?.status === 'QUOTED' &&
-    rfq?.rfqType?.code !== 'SPECIAL_PRICE_REVIEW';
+    hasPermission(PERMISSIONS.RFQ_EDIT) && rfq?.status === 'NEW';
   const canConfirmPriceAction = rfq?.status === 'QUOTED' && hasPermission(PERMISSIONS.RFQ_CONFIRM);
   const canRequestQuotationAction =
     rfq?.status === 'QUOTED' && !rfq?.saleOrderId && !rfq?.quotationNo;
@@ -1644,7 +1704,7 @@ export default function RFQDetail(): ReactElement {
   const hasActionMenu =
     canCloseRfqAction ||
     canRejectAction ||
-    canRequestSpecialPriceAction ||
+    canCopyRfqAction ||
     canConfirmPriceAction ||
     canRequestQuotationAction ||
     canViewQuotationAction ||
@@ -1854,10 +1914,10 @@ export default function RFQDetail(): ReactElement {
           targetPrice: Number(normalizedTargetPrice)
         }),
         {
-        loading: t('toast.loading'),
-        success: t('toast.success'),
-        error: t('toast.failed')
-      }
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
       );
       await refetchRFQ();
       setVisibleRequestSpecialPriceDialog(false);
@@ -2227,6 +2287,16 @@ export default function RFQDetail(): ReactElement {
             spacing={1}
             flexWrap="wrap"
             useFlexGap>
+            {canRequestSpecialPriceAction ? (
+              <Button
+                variant="contained"
+                className="btn-amber-orange"
+                startIcon={<InfoOutlined />}
+                fullWidth={isDownSm}
+                onClick={handleOpenRequestSpecialPriceDialog}>
+                ขอราคาแบบเร่งด่วน
+              </Button>
+            ) : null}
             {hasActionMenu ? (
               <>
                 <Button
@@ -2281,19 +2351,17 @@ export default function RFQDetail(): ReactElement {
                       <ListItemText primary={t('rfqManagement.detail.actions.requestQuotation')} />
                     </MenuItem>
                   ) : null}
-                  {canRequestSpecialPriceAction ? (
+                  {canCopyRfqAction ? (
                     <MenuItem
                       onClick={() => {
                         handleCloseDownloadMenu();
-                        handleOpenRequestSpecialPriceDialog();
+                        handleOpenCopyRfqConfirmDialog();
                       }}
                       sx={{ width: '100%' }}>
                       <ListItemIcon>
-                        <InfoOutlined fontSize="small" />
+                        <ContentCopy fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText
-                        primary={t('rfqManagement.detail.actions.requestSpecialPrice')}
-                      />
+                      <ListItemText primary="คัดลอก RFQ" />
                     </MenuItem>
                   ) : null}
                   <MenuItem onClick={handleOpenAddNoteDialog} disabled={isAddNoteSubmitting}>
@@ -2665,8 +2733,17 @@ export default function RFQDetail(): ReactElement {
                       ))}
                     </TextField>
                   </GridTextField>
-
-                  <GridTextField item xs={12} sm={6}>
+                  <GridTextField item xs={12} sm={2}>
+                    <TextField
+                      fullWidth
+                      label={'ตีตัวอย่าง'}
+                      name="description"
+                      value={rfq?.requestSample ? 'ขอราคาตีตัวอย่าง' : '-'}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: !isSalesPermission }}
+                    />
+                  </GridTextField>
+                  <GridTextField item xs={12} sm={4}>
                     <TextField
                       fullWidth
                       label={t('rfqManagement.detail.fields.referenceRfqId')}
@@ -3185,7 +3262,22 @@ export default function RFQDetail(): ReactElement {
               <CollapsibleWrapper
                 title={t('rfqManagement.detail.sections.options')}
                 defaultExpanded
-                action={null}>
+                action={
+                  canCopyCustomerQuoted ? (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<ContentCopy fontSize="small" />}
+                      sx={outlinedActionButtonSx}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleCopyCustomerQuoted();
+                      }}
+                      disabled={isCustomerQuotedCopying}>
+                      คัดลอกราคา
+                    </Button>
+                  ) : null
+                }>
                 <Stack spacing={2}>
                   {detailOptions.length ? (
                     detailOptions.map((detail, index) => {
@@ -4089,6 +4181,17 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleDeleteAdditionalCost}
         onCancel={() => setSelectedAdditionalCostToDelete(null)}
+      />
+      <ConfirmDialog
+        open={visibleCopyRfqConfirmDialog}
+        title="ยืนยันการคัดลอก RFQ"
+        message="คุณต้องการคัดลอกข้อมูล RFQ นี้เพื่อสร้าง RFQ ใหม่ใช่หรือไม่"
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleCopyRfq}
+        onCancel={() => setVisibleCopyRfqConfirmDialog(false)}
       />
       <ConfirmDialog
         open={visibleMissingCustomerConfirmationDialog}

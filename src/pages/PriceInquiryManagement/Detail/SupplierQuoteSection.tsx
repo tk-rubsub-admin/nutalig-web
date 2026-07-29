@@ -35,6 +35,8 @@ import {
 import { LeadTimeConfig } from 'services/Supplier/supplier-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 import { SupplierQuoteDialogDetail } from './SupplierQuoteDialog';
+import Can from 'auth/Can';
+import { PERMISSIONS } from 'auth/permissions';
 
 interface SupplierQuoteDraftAdditionalCost {
   id: number;
@@ -78,6 +80,7 @@ interface SupplierQuoteSectionProps {
   onEditQuote: (quote: RFQSupplierQuote) => void;
   onCreateRevision: (quote: RFQSupplierQuote) => void;
   onSendNotification: (quote: RFQSupplierQuote) => void;
+  onDeleteQuote: (quote: RFQSupplierQuote) => void;
   onCancelEditQuote: () => void;
   onSaveEditQuote: () => void;
   onCopyDetail: (detailId: number) => void;
@@ -145,6 +148,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     onEditQuote,
     onCreateRevision,
     onSendNotification,
+    onDeleteQuote,
     onCancelEditQuote,
     onSaveEditQuote,
     onCopyDetail,
@@ -301,6 +305,18 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                             onClick={() => onEditQuote(quote)}>
                             แก้ไขราคา
                           </Button>
+                          <Can permission={PERMISSIONS.RFQ_DELETE_SUPPLIER_QUOTE}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={<DeleteOutline />}
+                              className="btn-crimson-red"
+                              sx={outlinedActionButtonSx}
+                              disabled={isSubmitting}
+                              onClick={() => onDeleteQuote(quote)}>
+                              ลบราคา
+                            </Button>
+                          </Can>
                         </>
                       )}
                       <Button

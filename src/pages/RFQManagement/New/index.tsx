@@ -11,6 +11,7 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -42,7 +43,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { createSystemConfig, getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
@@ -154,10 +155,15 @@ function parseCapacityValue(
   };
 }
 
+interface RFQCreateLocationState {
+  copiedRfq?: RFQRecord | null;
+}
+
 export default function NewRFQ(): JSX.Element {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const history = useHistory();
+  const location = useLocation<RFQCreateLocationState | undefined>();
   const { hasRole, getEmployeeId } = useAuth();
   const { t } = useTranslation();
   const [actionType, setActionType] = useState('');
@@ -178,6 +184,7 @@ export default function NewRFQ(): JSX.Element {
   const defaultSalesId = isSalesRole ? getEmployeeId() : '';
   const submitModeRef = useRef<'NORMAL' | 'URGENT'>('NORMAL');
   const appliedParentRfqIdRef = useRef('');
+  const appliedCopiedRfqIdRef = useRef('');
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedCustomerKeyword(customerKeyword.trim());
@@ -274,6 +281,7 @@ export default function NewRFQ(): JSX.Element {
       customerMode: string;
       customerId: string;
       parentRfqId: string;
+      requestSample: boolean;
       contactName: string;
       contactPhone: string;
       contactChannel: string;
@@ -290,6 +298,7 @@ export default function NewRFQ(): JSX.Element {
       capacityUnit: string;
       targetPrice: string;
       requestedMoqs: string[];
+      requestSample: boolean;
       description: string;
     },
     actions: { setSubmitting: (isSubmitting: boolean) => void }
@@ -307,6 +316,7 @@ export default function NewRFQ(): JSX.Element {
       const response = await createRFQ({
         customerId: values.customerMode === 'EXISTING' ? values.customerId : undefined,
         referenceRfqId: values.parentRfqId || undefined,
+        requestSample: values.requestSample,
         contactName: values.contactName,
         contactPhone: values.contactPhone,
         contactChannel: values.contactChannel || undefined,
@@ -360,6 +370,7 @@ export default function NewRFQ(): JSX.Element {
       customerMode: 'NEW',
       customerId: '',
       parentRfqId: '',
+      requestSample: false,
       contactName: '',
       contactPhone: '',
       contactChannel: '',
@@ -434,6 +445,58 @@ export default function NewRFQ(): JSX.Element {
     }),
     onSubmit: submitCreateRFQ
   });
+
+  useEffect(() => {
+    const copiedRfq = location.state?.copiedRfq;
+
+    if (!copiedRfq || appliedCopiedRfqIdRef.current === copiedRfq.id) {
+      return;
+    }
+
+    appliedCopiedRfqIdRef.current = copiedRfq.id;
+    const parsedCapacity = parseCapacityValue(copiedRfq.capacity, unitOptions);
+    const requestedMoqs = copiedRfq.requestedMoqs?.length
+      ? copiedRfq.requestedMoqs.map((value) => `${value}`)
+      : [''];
+    const customerId = copiedRfq.customer?.id || '';
+    const customerName = copiedRfq.customer?.customerName || '';
+    const copiedSalesId =
+      copiedRfq.sales?.employeeId || copiedRfq.sales?.salesId || defaultSalesId;
+    const copiedProcurementId =
+      copiedRfq.procurement?.employeeId || copiedRfq.procurement?.salesId || '';
+
+    appliedParentRfqIdRef.current = copiedRfq.referenceRfqId || '';
+
+    formik.setValues({
+      ...formik.initialValues,
+      customerMode: copiedRfq.customer ? 'EXISTING' : 'NEW',
+      customerId,
+      parentRfqId: copiedRfq.referenceRfqId || '',
+      requestSample: copiedRfq.requestSample ?? false,
+      contactName: copiedRfq.contactName || '',
+      contactPhone: copiedRfq.contactPhone || '',
+      contactChannel: copiedRfq.contactChannel || '',
+      salesId: copiedSalesId,
+      purchaseAccount: copiedProcurementId,
+      rfqTypeCode: copiedRfq.rfqType?.code || '',
+      orderTypeCode: copiedRfq.orderType?.code || '',
+      shippingMethod: copiedRfq.shippingMethod || 'ALL',
+      productFamily: getNamedCode(copiedRfq.productFamily),
+      productUsage: getNamedCode(copiedRfq.productUsage || copiedRfq.productSubtype1),
+      systemMechanic: getNamedCode(copiedRfq.systemMechanic || copiedRfq.productSubType2),
+      material: getNamedCode(copiedRfq.material),
+      capacity: parsedCapacity.capacity,
+      capacityUnit: parsedCapacity.capacityUnit,
+      targetPrice:
+        copiedRfq.targetPrice === null || copiedRfq.targetPrice === undefined
+          ? ''
+          : String(copiedRfq.targetPrice),
+      requestedMoqs,
+      description: copiedRfq.description || ''
+    });
+
+    setCustomerKeyword(customerId ? `(${customerId}) ${customerName}` : '');
+  }, [defaultSalesId, formik, location.state, unitOptions]);
 
   const { data: parentRfqOptions = [], isFetching: isParentRfqFetching } = useQuery(
     ['rfq-parent-options', formik.values.rfqTypeCode],
@@ -587,6 +650,7 @@ export default function NewRFQ(): JSX.Element {
       ...prevValues,
       customerMode: parentRfqDetail.customer ? 'EXISTING' : prevValues.customerMode,
       customerId: parentRfqDetail.customer?.id || '',
+      requestSample: prevValues.requestSample,
       contactName: parentRfqDetail.contactName || '',
       contactPhone: parentRfqDetail.contactPhone || '',
       contactChannel: parentRfqDetail.contactChannel || '',
@@ -614,6 +678,10 @@ export default function NewRFQ(): JSX.Element {
       return;
     }
 
+    if (isProductFamilyFetching) {
+      return;
+    }
+
     const matchedProductFamily = activeProductFamilyList.find(
       (productFamily: ProductFamily) => productFamily.code === formik.values.productFamily
     );
@@ -626,7 +694,7 @@ export default function NewRFQ(): JSX.Element {
     formik.setFieldValue('productUsage', '');
     formik.setFieldValue('systemMechanic', '');
     formik.setFieldValue('material', '');
-  }, [activeProductFamilyList, formik, formik.values.productFamily]);
+  }, [activeProductFamilyList, formik, formik.values.productFamily, isProductFamilyFetching]);
 
   const handleOpenConfirm = (type: string, title: string, message: string) => {
     setActionType(type);
@@ -640,6 +708,7 @@ export default function NewRFQ(): JSX.Element {
       customerMode: true,
       customerId: true,
       parentRfqId: true,
+      requestSample: true,
       contactName: true,
       contactPhone: true,
       contactChannel: true,
@@ -977,6 +1046,7 @@ export default function NewRFQ(): JSX.Element {
               name="rfqTypeCode"
               value={formik.values.rfqTypeCode}
               onChange={(event) => {
+                appliedParentRfqIdRef.current = '';
                 formik.handleChange(event);
               }}
               onBlur={() => formik.setFieldTouched('rfqTypeCode', true)}
@@ -1010,8 +1080,25 @@ export default function NewRFQ(): JSX.Element {
             </TextField>
           </GridTextField>
 
+          <GridTextField item xs={12} sm={2}>
+            <Box>
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Checkbox
+                    name="requestSample"
+                    checked={Boolean(formik.values.requestSample)}
+                    onChange={(event) =>
+                      formik.setFieldValue('requestSample', event.target.checked)
+                    }
+                  />
+                }
+                label="ขอราคาค่าตีตัวอย่าง"
+              />
+            </Box>
+          </GridTextField>
           {PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ? (
-            <GridTextField item xs={12} sm={6}>
+            <GridTextField item xs={12} sm={4}>
               <Autocomplete
                 options={parentRfqOptions}
                 loading={isParentRfqFetching}
@@ -1028,6 +1115,7 @@ export default function NewRFQ(): JSX.Element {
                 value={selectedParentRfq}
                 getOptionLabel={(option: RFQRecord) => getRfqDisplayLabel(option)}
                 onChange={(_event, value) => {
+                  appliedParentRfqIdRef.current = '';
                   formik.setFieldValue('parentRfqId', value?.id || '');
                 }}
                 noOptionsText="ไม่พบข้อมูล RFQ"
@@ -1059,7 +1147,7 @@ export default function NewRFQ(): JSX.Element {
               />
             </GridTextField>
           ) : (
-            <GridTextField item sm={6} />
+            <GridTextField item xs={12} sm={4} />
           )}
 
           <GridTextField item xs={12} sm={6}>

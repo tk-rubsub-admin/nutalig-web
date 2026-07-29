@@ -1010,6 +1010,7 @@
       "NEW": "คำขอใหม่",
       "IN_PROGRESS": "กำลังดำเนินการ",
       "SUPPLIER_QUOTED": "ซัพพลายเออร์ให้ราคาแล้ว",
+      "SPECIAL_PRICE_REVIEW": "ขอทบทวนราคาพิเศษ",
       "REQUESTED_INFO": "สอบถามข้อมูลเพิ่มเติม",
       "QUOTED": "ได้ราคาแล้ว",
       "CANCELED": "ยกเลิก",

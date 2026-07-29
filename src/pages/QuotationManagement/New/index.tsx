@@ -61,16 +61,6 @@ const fieldSx = {
         py: 1.8
     }
 };
-
-const parseNumericInput = (value: string): number => {
-    const normalizedValue = value.replace(/,/g, '').trim();
-    if (!normalizedValue) {
-        return 0;
-    }
-
-    return Number(normalizedValue) || 0;
-};
-
 interface QuotationFromRFQParams {
     rfqId?: string;
 }
@@ -128,22 +118,8 @@ const matchesFreelanceSaleCoverage = (saleCoverage?: string | null, salesId?: st
     return normalizedSaleCoverage === normalizedSalesId;
 };
 
-const buildPaymentTermRemark = (baseRemark?: string | null, paymentTerm?: Customer['customerPaymentTerm'] | null): string => {
-    const normalizedBaseRemark = (baseRemark || '').trim();
-    const paymentTermLabel = paymentTerm?.nameTh || paymentTerm?.nameEn || paymentTerm?.code || '';
-
-    if (!paymentTermLabel) {
-        return normalizedBaseRemark;
-    }
-
-    const paymentTermPrefix = 'เงื่อนไขการชำระเงิน :';
-    const paymentTermLine = `${paymentTermPrefix} ${paymentTermLabel}`;
-
-    if (normalizedBaseRemark.includes(paymentTermPrefix)) {
-        return normalizedBaseRemark;
-    }
-
-    return [paymentTermLine, normalizedBaseRemark].filter(Boolean).join('\n');
+const buildPaymentTermRemark = (paymentTerm?: Customer['customerPaymentTerm'] | null): string => {
+    return paymentTerm?.nameTh || paymentTerm?.nameEn || paymentTerm?.code || '';
 };
 
 const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
@@ -171,7 +147,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
         return tiers.flatMap((tier, tierIndex) => {
             const quantity = Number(tier?.quantity || 1);
             const baseName = `${detail.optionName || productFamily}`;
-            const spec = [detail.spec, material, rfq.description].filter(Boolean).join('\n');
+            const spec = detail.spec;
             const hasLandTotalPrice = hasTierPrice(tier?.landTotalPrice);
             const hasSeaTotalPrice = hasTierPrice(tier?.seaTotalPrice);
 
@@ -413,7 +389,7 @@ export default function NewQuotation() {
             salesId,
             coSaleId: rfq.customer?.coSalesAccount || '',
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
-            remark: buildPaymentTermRemark(rfq.finalRemark || rfq.description || '', rfq.customer?.customerPaymentTerm),
+            remark: buildPaymentTermRemark(rfq.customer?.customerPaymentTerm),
             freight: rfqAdditionalCostTotal,
             items: createQuotationItemsFromRFQ(rfq)
         });
@@ -1552,7 +1528,7 @@ export default function NewQuotation() {
                         ...formik.values,
                         salesId: payload.customer.salesAccounts?.[0] || payload.customer.salesAccount,
                         customerId: payload.customer.id,
-                        remark: buildPaymentTermRemark(formik.values.remark, payload.customer.customerPaymentTerm),
+                        remark: buildPaymentTermRemark(payload.customer.customerPaymentTerm),
                         docDate: today,
                         effectiveDate: today.add(7, 'day')
                     });

@@ -245,6 +245,7 @@ export interface RFQRecord {
   capacity: string;
   targetPrice?: number | null;
   requestedMoqs?: number[] | null;
+  requestSample?: boolean | null;
   urgentRequest?: boolean | null;
   urgentRequestReason?: string | null;
   urgentRequestStatus?: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | null;
@@ -297,6 +298,7 @@ export interface CreateRFQRequest {
   capacity: string;
   targetPrice?: number | null;
   requestedMoqs?: number[];
+  requestSample?: boolean;
   urgentRequest?: boolean;
   urgentRequestReason?: string;
   description: string;
@@ -328,6 +330,7 @@ export interface UpdateRFQRequest {
   capacity: string;
   targetPrice?: number | null;
   requestedMoqs?: number[];
+  requestSample?: boolean;
   description: string;
   requestInformation?: string;
   note?: string;
@@ -348,6 +351,11 @@ export interface RejectUrgentRFQRequest {
 
 export interface RequestSpecialPriceRFQRequest {
   targetPrice: number;
+}
+
+export interface GetCustomerQuotedResponse {
+  status: string;
+  data?: string;
 }
 
 export interface LinkRFQSalesOrderRequest {

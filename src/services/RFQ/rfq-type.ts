@@ -1,6 +1,7 @@
 import { Pagination } from 'services/general-type';
 import { SystemConfig } from 'services/Config/config-type';
 import { Supplier } from 'services/Supplier/supplier-type';
+import { DocumentStatusProfile } from 'services/document-status-type';
 
 export interface RFQProductFamily {
   code: string;
@@ -155,6 +156,19 @@ export interface RFQReference {
   material?: RFQProductMaterial | string | null;
 }
 
+export interface RFQQuotationSummary {
+  quotationNo: string;
+  rfqId?: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+  status?: string | null;
+  statusProfile?: DocumentStatusProfile | null;
+  revNo?: number | null;
+  grandTotal?: number | null;
+  docDate?: string | null;
+  isLatest?: boolean | null;
+}
+
 export interface RFQDetailTier {
   id: number;
   quantity: number;
@@ -209,6 +223,7 @@ export interface RFQRecord {
   referenceRfqId?: string | null;
   referenceRfq?: RFQReference | null;
   quotationNo?: string | null;
+  quotations?: RFQQuotationSummary[] | null;
   saleOrderId?: string | null;
   shippingMethod?: 'ALL' | 'LAND' | 'SEA' | null;
   requestInformation?: string | null;

@@ -1,9 +1,10 @@
-import { DisabledByDefault, Search } from '@mui/icons-material';
+import { Description, DisabledByDefault, OpenInNew, Search } from '@mui/icons-material';
 import {
   Button,
   Chip,
   CircularProgress,
   Grid,
+  IconButton,
   MenuItem,
   Stack,
   Table,
@@ -13,6 +14,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme
@@ -31,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import dayjs from 'dayjs';
 import { searchSalesOrdersV1 } from 'services/SaleOrder/sale-order-api';
 import { SearchSalesOrderRequestV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { getSales } from 'services/Sales/sales-api';
@@ -58,10 +61,18 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
   return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
 }
 
+function getDefaultDocDateRange() {
+  const now = dayjs();
+
+  return {
+    docDateStart: now.startOf('month').format('YYYY-MM-DD'),
+    docDateEnd: now.endOf('month').format('YYYY-MM-DD')
+  };
+}
+
 const defaultFilter: SearchSalesOrderRequestV1 = {
   salesOrderNo: '',
-  docDateStart: '',
-  docDateEnd: '',
+  ...getDefaultDocDateRange(),
   customerId: '',
   salesId: '',
   status: null,
@@ -128,6 +139,9 @@ export default function SalesOrderManagement(): ReactElement {
   );
 
   const canShowField = (fieldCode: keyof SearchSalesOrderRequestV1) => visibleFieldCodes.has(fieldCode);
+  const openSalesOrderDetail = (salesOrderNo: string) => {
+    history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrderNo));
+  };
   const salesDropdownOptions = useMemo(() => {
     if (!isSalesRole || !currentSalesId) {
       return salesOptions;
@@ -231,7 +245,7 @@ export default function SalesOrderManagement(): ReactElement {
     if (!rows.length) {
       return (
         <TableRow>
-          <TableCell colSpan={6}>
+          <TableCell colSpan={7}>
             <div className={classes.noResultMessage}>{t('warning.noResultList')}</div>
           </TableCell>
         </TableRow>
@@ -243,7 +257,7 @@ export default function SalesOrderManagement(): ReactElement {
         hover
         key={salesOrder.salesOrderNo}
         sx={{ cursor: 'pointer' }}
-        onClick={() => history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo))}>
+        onClick={() => openSalesOrderDetail(salesOrder.salesOrderNo)}>
         <TableCell align="center">
           <Stack spacing={1} alignItems="center">
             <Typography variant="body2">{salesOrder.salesOrderNo}</Typography>
@@ -259,9 +273,24 @@ export default function SalesOrderManagement(): ReactElement {
         <TableCell align="center">{getSalesLabel(salesOrder)}</TableCell>
         <TableCell align="right">{formatNumber(salesOrder.grandTotal)}</TableCell>
         <TableCell align="center">{salesOrder.shippingType || '-'}</TableCell>
+        <TableCell align="center">
+          <Tooltip title="ดูใบยืนยันสั่งซื้อ" arrow>
+            <span>
+              <IconButton
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openSalesOrderDetail(salesOrder.salesOrderNo);
+                }}
+                component="span">
+                <Description />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </TableCell>
       </TableRow>
     ));
-  }, [classes.noResultMessage, history, rows, t]);
+  }, [classes.noResultMessage, rows, t]);
 
   const salesOrderMobileRows = useMemo(() => {
     if (!rows.length) {
@@ -279,7 +308,7 @@ export default function SalesOrderManagement(): ReactElement {
         hover
         key={salesOrder.salesOrderNo}
         sx={{ cursor: 'pointer' }}
-        onClick={() => history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo))}>
+        onClick={() => openSalesOrderDetail(salesOrder.salesOrderNo)}>
         <TableCell sx={{ py: 2 }}>
           <Stack spacing={1}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
@@ -300,11 +329,26 @@ export default function SalesOrderManagement(): ReactElement {
             <Typography variant="body1" fontWeight={700}>
               {formatNumber(salesOrder.grandTotal)}
             </Typography>
+            <Stack direction="row" justifyContent="flex-end">
+              <Tooltip title="ดูใบยืนยันสั่งซื้อ" arrow>
+                <span>
+                  <IconButton
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openSalesOrderDetail(salesOrder.salesOrderNo);
+                    }}
+                    component="span">
+                    <Description />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
           </Stack>
         </TableCell>
       </TableRow>
     ));
-  }, [classes.noResultMessage, history, rows, t]);
+  }, [classes.noResultMessage, rows, t]);
 
   return (
     <Page>
@@ -506,12 +550,15 @@ export default function SalesOrderManagement(): ReactElement {
                     <TableCell align="center" className={classes.tableHeader}>
                       วิธีขนส่ง
                     </TableCell>
+                    <TableCell align="center" className={classes.tableHeader}>
+                      Action
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {isFetching ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={7} align="center">
                         <CircularProgress />
                       </TableCell>
                     </TableRow>

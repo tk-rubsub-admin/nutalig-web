@@ -87,18 +87,21 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
             idEqual: '',
             nameContain: '',
             typeEqual: '',
-            rankEqual: '',
-            areaEqual: '',
-            salesAccount: ''
+            tierEqual: '',
+            segmentEqual: '',
+            saleAccountEqual: ''
         },
         enableReinitialize: false,
         onSubmit: (value) => {
             const updateObj = {
-                idEqual: value.idEqual,
-                nameContain: value.nameContain,
-                typeEqual: value.typeEqual.code,
-                saleAccountEqual: value.salesAccount
+                idEqual: value.idEqual.trim(),
+                nameContain: value.nameContain.trim(),
+                typeEqual: value.typeEqual.trim(),
+                tierEqual: value.tierEqual.trim(),
+                segmentEqual: value.segmentEqual.trim(),
+                saleAccountEqual: value.saleAccountEqual.trim()
             };
+            setPage(1);
             setCustomerFilter(updateObj);
         }
     });
@@ -197,13 +200,13 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
                     <Grid item xs={12} sm={3}>
                         <TextField
                             type="text"
-                            name="firstName"
-                            label={t('customerManagement.customerFirstName')}
+                            name="nameContain"
+                            label={t('customerManagement.column.customerName')}
                             fullWidth
                             variant="outlined"
-                            value={searchFormik.values.firstNameContain}
+                            value={searchFormik.values.nameContain}
                             onChange={({ target }) => {
-                                searchFormik.setFieldValue('firstNameContain', target.value);
+                                searchFormik.setFieldValue('nameContain', target.value);
                             }}
                             onBlur={() => searchFormik.handleSubmit()}
                             InputLabelProps={{ shrink: true }}
@@ -240,11 +243,11 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
                             fullWidth
                             label={t('customerManagement.column.salesAccount')}
                             InputLabelProps={{ shrink: true }}
-                            value={searchFormik.values.salesAccount || ''}
+                            value={searchFormik.values.saleAccountEqual || ''}
                             disabled={isSalesFetching}
                             onChange={(event) => {
                                 const selectedCode = event.target.value;
-                                searchFormik.setFieldValue('salesAccount', selectedCode);
+                                searchFormik.setFieldValue('saleAccountEqual', selectedCode);
                                 searchFormik.handleSubmit();
                             }}
                         >

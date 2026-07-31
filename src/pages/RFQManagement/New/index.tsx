@@ -65,6 +65,7 @@ import * as Yup from 'yup';
 const CUSTOM_UNIT_OPTION = '__custom_unit__';
 const RFQ_SALES_TEAM_CODES = ['SALES_ONLINE', 'SALES_OFFLINE'];
 const PARENT_RFQ_TYPE_CODES = ['REPEAT_PRICE', 'REORDER', 'SPEC_REV', 'SPECIAL_PRICE_REVIEW'];
+const MAX_RFQ_PICTURES = 12;
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
   if (productFamily.nameTh && productFamily.nameEn) {
@@ -1610,9 +1611,9 @@ export default function NewRFQ(): JSX.Element {
             <ImageFileUploaderWrapper
               id="rfq-picture-uploader"
               inputId="rfq-pictures"
-              isDisabled={pictureFiles.length >= 5}
+              isDisabled={pictureFiles.length >= MAX_RFQ_PICTURES}
               readOnly={false}
-              maxFiles={5}
+              maxFiles={MAX_RFQ_PICTURES}
               isMultiple
               isError={false}
               files={pictureUrls}
@@ -1621,7 +1622,7 @@ export default function NewRFQ(): JSX.Element {
                 setPictureFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
               }}
               onSuccess={(files) => {
-                setPictureFiles((prev) => [...prev, ...files].slice(0, 5));
+                setPictureFiles((prev) => [...prev, ...files].slice(0, MAX_RFQ_PICTURES));
               }}
               fileUploader={FileUploader}
             />

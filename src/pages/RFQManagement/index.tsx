@@ -265,7 +265,7 @@ function RFQPictureGrid({
         gap: 0.75,
         width: 180
       }}>
-      {pictures.slice(0, 5).map((picture) => (
+      {pictures.slice(0, 12).map((picture) => (
         <Box
           key={picture.id}
           onClick={(event) => {

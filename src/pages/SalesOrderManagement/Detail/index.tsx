@@ -354,7 +354,12 @@ export default function SalesOrderDetail(): ReactElement {
     relatedReceipts[0] ||
     null;
   const rfq = rfqResponse as RFQRecord | undefined;
-  const quotationNo = latestInvoice?.quotationNo || latestReceipt?.quotationNo || rfq?.quotationNo || null;
+  const quotationNo =
+    latestInvoice?.quotationNo ||
+    latestReceipt?.quotationNo ||
+    rfq?.quotations?.find((quotation) => quotation.isLatest)?.quotationNo ||
+    rfq?.quotations?.[0]?.quotationNo ||
+    null;
 
   const documentFlowItems: DocumentFlowItem[] = [
     {

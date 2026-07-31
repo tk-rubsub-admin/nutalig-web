@@ -18,6 +18,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  ListItemIcon,
   MenuItem,
   Paper,
   Radio,
@@ -60,6 +61,8 @@ import { createFreelanceSale, getFreelanceSales } from 'services/FreelanceSale/f
 import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
+import { getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
+import { District, Province, SubDistrict } from 'services/Address/address-type';
 import { createSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import {
   CreateSalesOrderRequestV1,
@@ -68,6 +71,8 @@ import {
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
 import { formatCurrency, formatNumber, formatNumberWithoutDigit } from 'utils/utils';
 import * as Yup from 'yup';
+import { addCustomerAddress, addCustomerContact } from 'services/Customer/customer-api';
+import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from 'services/Customer/customer-type';
 
 interface SaleOrderRFQParams {
   rfqId: string;
@@ -240,6 +245,8 @@ function inferQuotationItemShippingMethod(name?: string | null): 'LAND' | 'SEA' 
 }
 
 const ADD_NEW_FREELANCE_SALE_VALUE = '__ADD_NEW_FREELANCE_SALE__';
+const ADD_NEW_ADDRESS_VALUE = '__ADD_NEW_ADDRESS__';
+const ADD_NEW_CONTACT_VALUE = '__ADD_NEW_CONTACT__';
 const CO_SALE_MODE_NONE = 'NONE';
 const CO_SALE_MODE_FREELANCE = 'FREELANCE';
 const CO_SALE_MODE_EXTERNAL = 'EXTERNAL';
@@ -613,6 +620,8 @@ export default function SalesOrderRFQ(): JSX.Element {
   const today = dayjs();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddCustomerAddressDialogOpen, setIsAddCustomerAddressDialogOpen] = useState(false);
+  const [isAddCustomerContactDialogOpen, setIsAddCustomerContactDialogOpen] = useState(false);
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<CreateSalesOrderStatus | 'back'>('CREATED');
   const [nextManualItemId, setNextManualItemId] = useState(-1);
@@ -720,11 +729,25 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const quotationNo = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const explicitQuotationNo = params.get('quotationNo') || '';
+
+    if (explicitQuotationNo) {
+      return explicitQuotationNo;
+    }
+
+    return (
+      rfq?.quotations?.find((quotation) => quotation.isLatest)?.quotationNo ||
+      rfq?.quotations?.[0]?.quotationNo ||
+      ''
+    );
+  }, [location.search, rfq?.quotations]);
   const { data: quotation, isFetching: isQuotationFetching } = useQuery(
-    ['sale-order-rfq-quotation', rfq?.quotationNo],
-    () => getQuotation(rfq?.quotationNo || ''),
+    ['sale-order-rfq-quotation', quotationNo],
+    () => getQuotation(quotationNo || ''),
     {
-      enabled: Boolean(rfq?.quotationNo),
+      enabled: Boolean(quotationNo),
       refetchOnWindowFocus: false
     }
   );
@@ -737,6 +760,15 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const { data: provinces = [] } = useQuery('sale-order-rfq-province', () => getProvince(), {
+    refetchOnWindowFocus: false
+  });
+  const { data: districts = [] } = useQuery('sale-order-rfq-district', () => getDistrict(), {
+    refetchOnWindowFocus: false
+  });
+  const { data: subdistricts = [] } = useQuery('sale-order-rfq-subdistrict', () => getSubDistrict(), {
+    refetchOnWindowFocus: false
+  });
   const imageUrl = getRFQImageUrl(rfq);
 
   const formik = useFormik<SaleOrderRFQFormValues>({
@@ -772,6 +804,45 @@ export default function SalesOrderRFQ(): JSX.Element {
     validationSchema: Yup.object({
       customerId: Yup.string().required(),
       deliveryDate: Yup.string().required()
+    }),
+    onSubmit: () => undefined
+  });
+
+  const addressDialogFormik = useFormik({
+    initialValues: {
+      addressType: 'BILLING',
+      label: '',
+      addressLine1: '',
+      addressLine2: '',
+      province: '',
+      district: '',
+      subdistrict: '',
+      postcode: '',
+      country: 'TH'
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object().shape({
+      addressType: Yup.string().required(),
+      addressLine1: Yup.string().required(),
+      province: Yup.string().required(),
+      district: Yup.string().required(),
+      subdistrict: Yup.string().required(),
+      country: Yup.string().required()
+    }),
+    onSubmit: () => undefined
+  });
+
+  const contactDialogFormik = useFormik({
+    initialValues: {
+      contactName: '',
+      contactNumber: ''
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object().shape({
+      contactName: Yup.string().max(255).required(t('customerManagement.message.validateContactName')),
+      contactNumber: Yup.string()
+        .matches(/^[0-9]{9,10}$/, t('customerManagement.message.invalidPhoneNumberFormat'))
+        .required(t('customerManagement.message.validateContactNumber'))
     }),
     onSubmit: () => undefined
   });
@@ -875,6 +946,164 @@ export default function SalesOrderRFQ(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOpenAddCustomerAddressDialog = () => {
+    if (!customer?.id) {
+      toast.error('กรุณาเลือกลูกค้าก่อน');
+      return;
+    }
+
+    addressDialogFormik.resetForm({
+      values: {
+        addressType: 'BILLING',
+        label: '',
+        addressLine1: '',
+        addressLine2: '',
+        province: '',
+        district: '',
+        subdistrict: '',
+        postcode: '',
+        country: 'TH'
+      }
+    });
+    setIsAddCustomerAddressDialogOpen(true);
+  };
+
+  const getAddressPayload = (): CreateCustomerAddressRequest => {
+    const values = addressDialogFormik.values;
+    const selectedProvince = provinces.find((item: Province) => item.id === values.province);
+    const selectedDistrict = districts.find((item: District) => item.id === values.district);
+    const selectedSubdistrict = subdistricts.find((item: SubDistrict) => item.id === values.subdistrict);
+
+    return {
+      addressType: values.addressType,
+      isDefault: false,
+      label: values.label,
+      addressLine1: values.addressLine1,
+      addressLine2: values.addressLine2,
+      subdistrict: selectedSubdistrict?.nameTh,
+      district: selectedDistrict?.nameTh,
+      province: selectedProvince?.nameTh,
+      postcode: values.postcode,
+      country: values.country
+    };
+  };
+
+  const handleConfirmAddCustomerAddress = async () => {
+    if (!customer?.id) {
+      return;
+    }
+
+    const errors = await addressDialogFormik.validateForm();
+    addressDialogFormik.setTouched({
+      addressType: true,
+      label: true,
+      addressLine1: true,
+      addressLine2: true,
+      province: true,
+      district: true,
+      subdistrict: true,
+      country: true
+    });
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    addressDialogFormik.setSubmitting(true);
+    const addAddressPromise = addCustomerAddress(customer.id, getAddressPayload());
+
+    toast.promise(addAddressPromise, {
+      loading: t('toast.loading'),
+      success: (response) => {
+        const updatedCustomer = response as Customer;
+        setCustomer(updatedCustomer);
+
+        const updatedAddresses = updatedCustomer.addresses || [];
+        const selectedAddress =
+          updatedAddresses.find((address) => address.isDefault) ||
+          updatedAddresses[updatedAddresses.length - 1];
+
+        if (selectedAddress?.id) {
+          formik.setFieldValue('customerAddressId', selectedAddress.id);
+        }
+
+        addressDialogFormik.resetForm();
+        setIsAddCustomerAddressDialogOpen(false);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+
+    addAddressPromise.finally(() => {
+      addressDialogFormik.setSubmitting(false);
+    });
+  };
+
+  const handleOpenAddCustomerContactDialog = () => {
+    if (!customer?.id) {
+      toast.error('กรุณาเลือกลูกค้าก่อน');
+      return;
+    }
+
+    contactDialogFormik.resetForm({
+      values: {
+        contactName: '',
+        contactNumber: ''
+      }
+    });
+    setIsAddCustomerContactDialogOpen(true);
+  };
+
+  const getContactPayload = (): CreateCustomerContactRequest => ({
+    contactName: contactDialogFormik.values.contactName,
+    contactNumber: contactDialogFormik.values.contactNumber
+  });
+
+  const handleConfirmAddCustomerContact = async () => {
+    if (!customer?.id) {
+      return;
+    }
+
+    const errors = await contactDialogFormik.validateForm();
+    contactDialogFormik.setTouched({
+      contactName: true,
+      contactNumber: true
+    });
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    contactDialogFormik.setSubmitting(true);
+    const addContactPromise = addCustomerContact(customer.id, getContactPayload());
+
+    toast.promise(addContactPromise, {
+      loading: t('toast.loading'),
+      success: (response) => {
+        const updatedCustomer = response as Customer;
+        setCustomer(updatedCustomer);
+
+        const updatedContacts = updatedCustomer.contacts || [];
+        const selectedContact =
+          updatedContacts.find((contact) => contact.isDefault) ||
+          updatedContacts[updatedContacts.length - 1];
+
+        if (selectedContact?.id) {
+          formik.setFieldValue('customerContactId', selectedContact.id);
+        }
+
+        contactDialogFormik.resetForm();
+        setIsAddCustomerContactDialogOpen(false);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+
+    addContactPromise.finally(() => {
+      contactDialogFormik.setSubmitting(false);
+    });
   };
 
   const submitSalesOrder = async (status: CreateSalesOrderStatus) => {
@@ -1473,7 +1702,13 @@ export default function SalesOrderRFQ(): JSX.Element {
               variant="outlined"
               label={t('customerManagement.column.address.title')}
               value={formik.values.customerAddressId || ''}
-              onChange={(e) => formik.setFieldValue('customerAddressId', e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === ADD_NEW_ADDRESS_VALUE) {
+                  handleOpenAddCustomerAddressDialog();
+                  return;
+                }
+                formik.setFieldValue('customerAddressId', e.target.value);
+              }}
               InputLabelProps={{ shrink: true }}
               helperText={
                 (customer?.addresses || []).length
@@ -1494,6 +1729,12 @@ export default function SalesOrderRFQ(): JSX.Element {
                   </Stack>
                 </MenuItem>
               ))}
+              <MenuItem value={ADD_NEW_ADDRESS_VALUE}>
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  <AddCircle fontSize="small" />
+                </ListItemIcon>
+                {t('customerManagement.column.address.addNew')}
+              </MenuItem>
             </TextField>
           </GridTextField>
           <GridTextField item xs={12} sm={12}>
@@ -1504,7 +1745,13 @@ export default function SalesOrderRFQ(): JSX.Element {
               variant="outlined"
               label={t('customerManagement.column.contact')}
               value={formik.values.customerContactId || ''}
-              onChange={(e) => formik.setFieldValue('customerContactId', e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === ADD_NEW_CONTACT_VALUE) {
+                  handleOpenAddCustomerContactDialog();
+                  return;
+                }
+                formik.setFieldValue('customerContactId', e.target.value);
+              }}
               InputLabelProps={{ shrink: true }}>
               {(customer?.contacts || []).map((contact: Contact) => (
                 <MenuItem key={contact.id} value={contact.id}>
@@ -1513,6 +1760,12 @@ export default function SalesOrderRFQ(): JSX.Element {
                   </Stack>
                 </MenuItem>
               ))}
+              <MenuItem value={ADD_NEW_CONTACT_VALUE}>
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  <AddCircle fontSize="small" />
+                </ListItemIcon>
+                {t('customerManagement.addContact')}
+              </MenuItem>
             </TextField>
           </GridTextField>
           {!customer ? (
@@ -1829,6 +2082,272 @@ export default function SalesOrderRFQ(): JSX.Element {
         isShowConfirmButton
       />
       <Dialog
+        open={isAddCustomerAddressDialogOpen}
+        onClose={() => setIsAddCustomerAddressDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{t('customerManagement.column.address.addNew')}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="addressType"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.type')}
+                value={addressDialogFormik.values.addressType}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType)}
+                helperText={addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType}
+                InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value="BILLING">{t('customerManagement.column.addressType.billing')}</MenuItem>
+                <MenuItem value="SHIPPING">{t('customerManagement.column.addressType.shipping')}</MenuItem>
+                <MenuItem value="OTHER">{t('customerManagement.column.addressType.other')}</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="label"
+                type="text"
+                label={t('customerManagement.column.address.label')}
+                fullWidth
+                value={addressDialogFormik.values.label}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                name="addressLine1"
+                type="text"
+                label={t('customerManagement.column.address.addressLine1')}
+                fullWidth
+                required
+                value={addressDialogFormik.values.addressLine1}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(
+                  addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1
+                )}
+                helperText={
+                  addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                name="addressLine2"
+                type="text"
+                label={t('customerManagement.column.address.addressLine2')}
+                fullWidth
+                value={addressDialogFormik.values.addressLine2}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="province"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.province')}
+                value={addressDialogFormik.values.province}
+                onChange={(event) => {
+                  addressDialogFormik.setFieldValue('province', event.target.value);
+                  addressDialogFormik.setFieldValue('district', '');
+                  addressDialogFormik.setFieldValue('subdistrict', '');
+                  addressDialogFormik.setFieldValue('postcode', '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.province && addressDialogFormik.errors.province)}
+                helperText={addressDialogFormik.touched.province && addressDialogFormik.errors.province}
+                InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {provinces.map((option: Province) => (
+                  <MenuItem key={option.id} value={option.id}>
+                    {option.nameTh}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="district"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.amphure')}
+                value={addressDialogFormik.values.district}
+                onChange={(event) => {
+                  addressDialogFormik.setFieldValue('district', event.target.value);
+                  addressDialogFormik.setFieldValue('subdistrict', '');
+                  addressDialogFormik.setFieldValue('postcode', '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.district && addressDialogFormik.errors.district)}
+                helperText={addressDialogFormik.touched.district && addressDialogFormik.errors.district}
+                InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {districts
+                  .filter((option: District) => option.provinceId === addressDialogFormik.values.province)
+                  .map((option: District) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.nameTh}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="subdistrict"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.tumbon')}
+                value={addressDialogFormik.values.subdistrict}
+                onChange={(event) => {
+                  const selected = subdistricts.find((item: SubDistrict) => item.id === event.target.value);
+                  addressDialogFormik.setFieldValue('subdistrict', selected?.id ?? '');
+                  addressDialogFormik.setFieldValue('postcode', selected?.zipCode ?? '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(
+                  addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict
+                )}
+                helperText={
+                  addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict
+                }
+                InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {subdistricts
+                  .filter((option: SubDistrict) => option.districtId === addressDialogFormik.values.district)
+                  .map((option: SubDistrict) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.nameTh}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="postcode"
+                type="text"
+                label={t('customerManagement.column.address.postalCode')}
+                fullWidth
+                disabled
+                value={addressDialogFormik.values.postcode}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="country"
+                type="text"
+                label={t('customerManagement.column.address.country')}
+                fullWidth
+                value={addressDialogFormik.values.country}
+                onChange={addressDialogFormik.handleChange}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(addressDialogFormik.touched.country && addressDialogFormik.errors.country)}
+                helperText={addressDialogFormik.touched.country && addressDialogFormik.errors.country}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            variant="contained"
+            className="btn-crimson-red"
+            onClick={() => setIsAddCustomerAddressDialogOpen(false)}
+          >
+            {t('button.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            className="btn-emerald-green"
+            onClick={handleConfirmAddCustomerAddress}
+            disabled={addressDialogFormik.isSubmitting}
+          >
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={isAddCustomerContactDialogOpen}
+        onClose={() => setIsAddCustomerContactDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{t('customerManagement.addContact')}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="contactName"
+                type="text"
+                label={t('customerManagement.column.contactName')}
+                fullWidth
+                required
+                value={contactDialogFormik.values.contactName}
+                onChange={contactDialogFormik.handleChange}
+                onBlur={contactDialogFormik.handleBlur}
+                error={Boolean(
+                  contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName
+                )}
+                helperText={
+                  contactDialogFormik.touched.contactName && contactDialogFormik.errors.contactName
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="contactNumber"
+                type="text"
+                label={t('customerManagement.column.contactNumber')}
+                fullWidth
+                required
+                value={contactDialogFormik.values.contactNumber}
+                onChange={contactDialogFormik.handleChange}
+                onBlur={contactDialogFormik.handleBlur}
+                error={Boolean(
+                  contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber
+                )}
+                helperText={
+                  contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            variant="contained"
+            className="btn-crimson-red"
+            onClick={() => setIsAddCustomerContactDialogOpen(false)}
+          >
+            {t('button.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            className="btn-emerald-green"
+            onClick={handleConfirmAddCustomerContact}
+            disabled={contactDialogFormik.isSubmitting}
+          >
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
         open={openCreateFreelanceSaleDialog}
         onClose={() => setOpenCreateFreelanceSaleDialog(false)}
         fullWidth
@@ -1910,7 +2429,14 @@ export default function SalesOrderRFQ(): JSX.Element {
           </Button>
         </DialogActions>
       </Dialog>
-      <LoadingDialog open={isLoading || isRFQFetching} />
+      <LoadingDialog
+        open={
+          isLoading ||
+          isRFQFetching ||
+          addressDialogFormik.isSubmitting ||
+          contactDialogFormik.isSubmitting
+        }
+      />
     </Page>
   );
 }

@@ -18,7 +18,8 @@ import {
   OpenInNew,
   Save,
   DisabledByDefault,
-  Cancel
+  Cancel,
+  Calculate
 } from '@mui/icons-material';
 import {
   Box,
@@ -129,8 +130,12 @@ import {
   RFQRecord
 } from 'services/RFQ/rfq-type';
 import { base64ToBlob } from 'utils';
+import { formatNumber } from 'utils/utils';
+import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import CreateRFQCustomerDialog from './CreateRFQCustomerDialog';
 import { RequestedInformationDialog } from './RequestedInformationDialog';
+
+const MAX_RFQ_PICTURES = 12;
 
 interface RFQDetailParam {
   id: string;
@@ -881,6 +886,8 @@ export default function RFQDetail(): ReactElement {
   const [visibleRequestSpecialPriceDialog, setVisibleRequestSpecialPriceDialog] = useState(false);
   const [visibleAddNoteDialog, setVisibleAddNoteDialog] = useState(false);
   const [visibleViewNoteDialog, setVisibleViewNoteDialog] = useState(false);
+  const [urgentReasonDialogOpen, setUrgentReasonDialogOpen] = useState(false);
+  const [urgentReason, setUrgentReason] = useState('');
   const [noteText, setNoteText] = useState('');
   const [isAddNoteSubmitting, setIsAddNoteSubmitting] = useState(false);
   const [requestSpecialPriceTargetPrice, setRequestSpecialPriceTargetPrice] = useState('');
@@ -1046,16 +1053,45 @@ export default function RFQDetail(): ReactElement {
     refetchOnWindowFocus: false,
     enabled: !!params.id
   });
+  const quotationOptions = useMemo(() => rfq?.quotations || [], [rfq?.quotations]);
+  const latestQuotationNo = useMemo(() => {
+    if (!quotationOptions.length) {
+      return '';
+    }
+
+    return (
+      quotationOptions.find((quotation) => quotation.isLatest)?.quotationNo ||
+      quotationOptions[0]?.quotationNo ||
+      ''
+    );
+  }, [quotationOptions]);
+  const [selectedQuotationNo, setSelectedQuotationNo] = useState('');
+
+  useEffect(() => {
+    if (!quotationOptions.length) {
+      setSelectedQuotationNo('');
+      return;
+    }
+
+    const selectedExists = quotationOptions.some(
+      (quotation) => quotation.quotationNo === selectedQuotationNo
+    );
+
+    if (!selectedExists) {
+      setSelectedQuotationNo(latestQuotationNo);
+    }
+  }, [latestQuotationNo, quotationOptions, selectedQuotationNo]);
+
   const {
     data: quotation,
     isFetching: isQuotationFetching,
     refetch: refetchQuotation
   } = useQuery(
-    ['rfq-detail-quotation', rfq?.quotationNo],
-    () => getQuotation(rfq?.quotationNo || ''),
+    ['rfq-detail-quotation', selectedQuotationNo],
+    () => getQuotation(selectedQuotationNo || ''),
     {
       refetchOnWindowFocus: false,
-      enabled: Boolean(rfq?.quotationNo)
+      enabled: Boolean(selectedQuotationNo)
     }
   );
   const isAttachmentUploadVisible = !['QUOTED', 'CANCELED', 'CLOSED', 'COMPLETED'].includes(
@@ -1065,6 +1101,7 @@ export default function RFQDetail(): ReactElement {
     rfq?.status || ''
   );
   const canCopyCustomerQuoted = ['QUOTED', 'COMPLETED'].includes(rfq?.status || '');
+  const activeQuotationNo = selectedQuotationNo || latestQuotationNo;
 
   const {
     data: activityHistory = [],
@@ -1342,7 +1379,7 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    if (!rfq?.quotationNo) {
+    if (!activeQuotationNo) {
       toast.error('ยังไม่มีใบเสนอราคาสำหรับคอนเฟิร์มราคา');
       return;
     }
@@ -1427,7 +1464,7 @@ export default function RFQDetail(): ReactElement {
     );
     history.push(
       `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', params.id)
-      }?selectedItems=${serializedSelections}`
+      }?selectedItems=${serializedSelections}&quotationNo=${encodeURIComponent(activeQuotationNo)}`
     );
   };
 
@@ -1482,17 +1519,15 @@ export default function RFQDetail(): ReactElement {
     });
   };
 
-  const handleDownloadQuotation = async () => {
-    handleCloseDownloadMenu();
-
-    if (!rfq?.quotationNo) {
+  const handleDownloadQuotationByNo = async (quotationNo: string) => {
+    if (!quotationNo) {
       return;
     }
 
     setIsQuotationDocumentLoading(true);
 
     try {
-      await toast.promise(viewQuotation(rfq.quotationNo, true, false), {
+      await toast.promise(viewQuotation(quotationNo, true, false), {
         loading: t('toast.loading'),
         success: (response) => {
           const data = response.data as DownloadDocumentResponse;
@@ -1508,14 +1543,32 @@ export default function RFQDetail(): ReactElement {
     }
   };
 
-  const handleViewQuotation = () => {
+  const handleDownloadQuotation = async () => {
     handleCloseDownloadMenu();
 
-    if (!rfq?.quotationNo) {
+    if (!activeQuotationNo) {
       return;
     }
 
-    history.push(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', rfq.quotationNo));
+    await handleDownloadQuotationByNo(activeQuotationNo);
+  };
+
+  const handleViewQuotationByNo = (quotationNo: string) => {
+    if (!quotationNo) {
+      return;
+    }
+
+    history.push(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo));
+  };
+
+  const handleViewQuotation = () => {
+    handleCloseDownloadMenu();
+
+    if (!activeQuotationNo) {
+      return;
+    }
+
+    history.push(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', activeQuotationNo));
   };
 
   const handleDownloadSalesOrder = async () => {
@@ -1686,7 +1739,7 @@ export default function RFQDetail(): ReactElement {
     [rfq?.serviceLevelAgreement?.dayType, rfq?.status, slaDayLeft]
   );
   const pictureResources = useMemo(() => getRFQPictureResources(rfq), [rfq]);
-  const canEditPictures = isAllowUploadAttachment && pictureResources.length < 5;
+  const canEditPictures = isAllowUploadAttachment && pictureResources.length < MAX_RFQ_PICTURES;
   const attachmentResources = useMemo(() => getRFQAttachmentResources(rfq), [rfq]);
   const canRejectAction = isRejectRfqVisible && hasPermission(PERMISSIONS.RFQ_EDIT);
   const canCopyRfqAction = hasPermission(PERMISSIONS.RFQ_CREATE);
@@ -1697,9 +1750,10 @@ export default function RFQDetail(): ReactElement {
     hasPermission(PERMISSIONS.RFQ_EDIT) && rfq?.status === 'NEW';
   const canConfirmPriceAction = rfq?.status === 'QUOTED' && hasPermission(PERMISSIONS.RFQ_CONFIRM);
   const canRequestQuotationAction =
-    rfq?.status === 'QUOTED' && !rfq?.saleOrderId && !rfq?.quotationNo;
-  const canViewQuotationAction = Boolean(rfq?.quotationNo);
-  const canDownloadQuotationAction = Boolean(rfq?.quotationNo);
+    rfq?.status === 'QUOTED' && !rfq?.saleOrderId && quotationOptions.length === 0;
+  const canReviewSpecialPriceAction = rfq?.status === 'QUOTED';
+  const canViewQuotationAction = quotationOptions.length > 0;
+  const canDownloadQuotationAction = quotationOptions.length > 0;
   const canDownloadSalesOrderAction = Boolean(rfq?.saleOrderId);
   const hasActionMenu =
     canCloseRfqAction ||
@@ -1782,7 +1836,7 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    const remainingSlots = Math.max(0, 5 - pictureResources.length);
+    const remainingSlots = Math.max(0, MAX_RFQ_PICTURES - pictureResources.length);
     const filesToUpload = files.slice(0, remainingSlots);
 
     if (!filesToUpload.length) {
@@ -2033,6 +2087,41 @@ export default function RFQDetail(): ReactElement {
         }
       }
     }));
+  };
+
+  const handleOpenUrgentReasonDialog = async () => {
+    const touchedFields = {
+      customerMode: true,
+      customerId: true,
+      parentRfqId: true,
+      requestSample: true,
+      contactName: true,
+      contactPhone: true,
+      contactChannel: true,
+      salesId: true,
+      purchaseAccount: true,
+      rfqTypeCode: true,
+      orderTypeCode: true,
+      shippingMethod: true,
+      productFamily: true,
+      productUsage: true,
+      systemMechanic: true,
+      material: true,
+      capacity: true,
+      capacityUnit: true,
+      targetPrice: true,
+      requestedMoqs: formik.values.requestedMoqs.map(() => true),
+      description: true
+    } as const;
+
+    formik.setTouched(touchedFields, true);
+    const validationErrors = await formik.validateForm();
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    setUrgentReasonDialogOpen(true);
   };
 
   const handleDraftTierFclChange = (detailId: number, tierId: number, checked: boolean) => {
@@ -2293,7 +2382,7 @@ export default function RFQDetail(): ReactElement {
                 className="btn-amber-orange"
                 startIcon={<InfoOutlined />}
                 fullWidth={isDownSm}
-                onClick={handleOpenRequestSpecialPriceDialog}>
+                onClick={handleOpenUrgentReasonDialog}>
                 ขอราคาแบบเร่งด่วน
               </Button>
             ) : null}
@@ -2325,6 +2414,18 @@ export default function RFQDetail(): ReactElement {
                     }
                   }}
                   keepMounted>
+                  {canReviewSpecialPriceAction ? (
+                    <MenuItem
+                      onClick={() => setVisibleRequestSpecialPriceDialog(true)}
+                      sx={{ width: '100%' }}>
+                      <ListItemIcon>
+                        <Calculate fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={t('rfqManagement.detail.actions.requestSpecialPrice')}
+                      />
+                    </MenuItem>
+                  ) : null}
                   {canConfirmPriceAction ? (
                     <MenuItem
                       onClick={() => {
@@ -2572,6 +2673,123 @@ export default function RFQDetail(): ReactElement {
 
           <TabPanel value="detail" currentTab={tab}>
             <>
+              {quotationOptions.length > 0 ? (
+                <Box
+                  sx={{
+                    mb: 2,
+                    backgroundColor: '#fff',
+                    border: '1px solid #e6ebf1',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
+                  }}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    justifyContent="space-between"
+                    sx={{ px: 2, py: 1.5, borderBottom: '1px solid #e6ebf1' }}>
+                    <Stack spacing={0.25}>
+                      <Typography variant="h6">รายการใบเสนอราคา</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        RFQ นี้มีใบเสนอราคา {quotationOptions.length} ใบ
+                      </Typography>
+                    </Stack>
+                    {activeQuotationNo ? <Chip size="small" label={`ใช้งาน: ${activeQuotationNo}`} /> : null}
+                  </Stack>
+                  <Stack spacing={1.25} sx={{ p: 2 }}>
+                    {quotationOptions.map((quotationItem) => {
+                      const isActive = quotationItem.quotationNo === activeQuotationNo;
+                      const isLatest = Boolean(quotationItem.isLatest);
+
+                      return (
+                        <Box
+                          key={quotationItem.quotationNo}
+                          sx={{
+                            border: isActive ? '1px solid #93c5fd' : '1px solid #e2e8f0',
+                            borderRadius: 2,
+                            p: 1.5,
+                            backgroundColor: isActive ? '#eff6ff' : '#fff'
+                          }}>
+                          <Stack
+                            direction={{ xs: 'column', md: 'row' }}
+                            spacing={1}
+                            alignItems={{ xs: 'flex-start', md: 'center' }}
+                            justifyContent="space-between">
+                            <Stack spacing={0.75}>
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                <Typography variant="subtitle2" fontWeight={700}>
+                                  {quotationItem.quotationNo}
+                                </Typography>
+                                {isLatest ? <Chip size="small" color="success" label="ล่าสุด" /> : null}
+                                {isActive ? <Chip size="small" color="primary" label="ใช้งาน" /> : null}
+                              </Stack>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                {quotationItem.docDate ? (
+                                  <Typography variant="body2" color="text.secondary">
+                                    วันที่เอกสาร: {quotationItem.docDate}
+                                  </Typography>
+                                ) : null}
+                                {quotationItem.revNo !== null &&
+                                  quotationItem.revNo !== undefined ? (
+                                  <Typography variant="body2" color="text.secondary">
+                                    Rev: {quotationItem.revNo}
+                                  </Typography>
+                                ) : null}
+                                {quotationItem.grandTotal !== null &&
+                                  quotationItem.grandTotal !== undefined ? (
+                                  <Typography variant="body2" color="text.secondary">
+                                    รวมเป็นเงิน: {formatNumber(quotationItem.grandTotal)}
+                                  </Typography>
+                                ) : null}
+                              </Stack>
+                              {quotationItem.status ? (
+                                <Chip
+                                  size="small"
+                                  label={getDocumentStatusLabel(
+                                    quotationItem.status,
+                                    quotationItem.statusProfile
+                                  )}
+                                  sx={getDocumentStatusChipSx(
+                                    quotationItem.status,
+                                    quotationItem.statusProfile
+                                  )}
+                                />
+                              ) : null}
+                            </Stack>
+                            <Stack
+                              direction={{ xs: 'column', sm: 'row' }}
+                              spacing={1}
+                              useFlexGap
+                              sx={{ width: { xs: '100%', md: 'auto' } }}>
+                              <Button
+                                variant={isActive ? 'contained' : 'outlined'}
+                                onClick={() => setSelectedQuotationNo(quotationItem.quotationNo)}
+                                sx={{ minWidth: 120 }}>
+                                เลือก
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                onClick={() => handleViewQuotationByNo(quotationItem.quotationNo)}
+                                sx={{ minWidth: 120 }}>
+                                ดูรายละเอียด
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                onClick={() => {
+                                  void handleDownloadQuotationByNo(quotationItem.quotationNo);
+                                }}
+                                sx={{ minWidth: 120 }}>
+                                ดาวน์โหลด
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              ) : null}
               <CollapsibleWrapper
                 title={t('rfqManagement.detail.sections.general')}
                 defaultExpanded
@@ -3165,7 +3383,7 @@ export default function RFQDetail(): ReactElement {
                       inputId="rfq-detail-pictures"
                       isDisabled={!canEditPictures || isPictureSubmitting}
                       readOnly={!canEditPictures}
-                      maxFiles={5}
+                      maxFiles={MAX_RFQ_PICTURES}
                       isMultiple
                       isError={false}
                       files={pictureResources.map((picture) => getRFQFileUrl(picture))}
@@ -4328,6 +4546,41 @@ export default function RFQDetail(): ReactElement {
             <Typography variant="body2" color="text.secondary">
               {t('rfqManagement.detail.dialogs.confirmPriceDescription')}
             </Typography>
+            {quotationOptions.length > 0 ? (
+              <TextField
+                select
+                fullWidth
+                label="เลือกใบเสนอราคา"
+                value={selectedQuotationNo}
+                onChange={(event) => setSelectedQuotationNo(event.target.value)}
+                InputLabelProps={{ shrink: true }}>
+                {quotationOptions.map((quotationItem) => (
+                  <MenuItem key={quotationItem.quotationNo} value={quotationItem.quotationNo}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="body2">{quotationItem.quotationNo}</Typography>
+                      {quotationItem.docDate ? (
+                        <Typography variant="caption" color="text.secondary">
+                          {quotationItem.docDate}
+                        </Typography>
+                      ) : null}
+                      {quotationItem.status ? (
+                        <Chip
+                          size="small"
+                          label={getDocumentStatusLabel(
+                            quotationItem.status,
+                            quotationItem.statusProfile
+                          )}
+                          sx={getDocumentStatusChipSx(
+                            quotationItem.status,
+                            quotationItem.statusProfile
+                          )}
+                        />
+                      ) : null}
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : null}
             {isQuotationFetching ? (
               <Box
                 sx={{
@@ -4557,6 +4810,47 @@ export default function RFQDetail(): ReactElement {
           history.push(ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ.replace(':rfqId', params.id));
         }}
       />
+      <Dialog
+        open={urgentReasonDialogOpen}
+        onClose={() => {
+          setUrgentReasonDialogOpen(false);
+          setUrgentReason('');
+        }}
+        fullWidth
+        maxWidth="sm">
+        <DialogTitle>เหตุผลในการขอราคาแบบเร่งด่วน</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={4}
+            margin="dense"
+            label="เหตุผล"
+            value={urgentReason}
+            onChange={(event) => setUrgentReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => {
+              setUrgentReasonDialogOpen(false);
+              setUrgentReason('');
+            }}>
+            {t('button.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!urgentReason.trim()}
+            onClick={async () => {
+              submitModeRef.current = 'URGENT';
+              await formik.submitForm();
+            }}>
+            {t('button.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Page>
   );
 }

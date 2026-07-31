@@ -91,7 +91,9 @@ export interface SearchQuotationRequest {
     docDateStart: string;
     docDateEnd: string;
     customerIdEqual: string;
+    salesId: string;
     statusEqual: string | null;
+    keyword: string;
 }
 
 export interface SearchQuotationResponse {

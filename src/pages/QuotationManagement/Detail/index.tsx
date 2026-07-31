@@ -38,7 +38,7 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
-import { MouseEvent as ReactMouseEvent, ReactElement, SyntheticEvent, useEffect, useState } from 'react';
+import { MouseEvent as ReactMouseEvent, ReactElement, SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { IoPencil } from 'react-icons/io5';
@@ -342,6 +342,7 @@ export default function QuotationDetail(): JSX.Element {
 
     const rfq = rfqResponse as RFQRecord | undefined;
     const salesOrderNo = latestInvoice?.salesOrderNo || latestReceipt?.salesOrderNo || rfq?.saleOrderId || null;
+    const rfqQuotationOptions = useMemo(() => rfq?.quotations || [], [rfq?.quotations]);
 
     const { data: salesOrder, isFetching: isSalesOrderFlowFetching } = useQuery(
         ['quotation-document-flow-sales-order', salesOrderNo],
@@ -355,7 +356,7 @@ export default function QuotationDetail(): JSX.Element {
         {
             title: 'คำขอราคา',
             docNo: quotation?.rfqId || quotation?.referenceRfqId || null,
-            status: '',
+            status: 'ได้ราคาแล้ว',
             statusProfile: undefined,
             onOpen: quotation?.rfqId || quotation?.referenceRfqId
                 ? () =>
@@ -372,6 +373,21 @@ export default function QuotationDetail(): JSX.Element {
             status: quotation?.status || null,
             statusProfile: quotation?.statusProfile,
             isCurrent: true,
+            count: rfqQuotationOptions.length > 1 ? rfqQuotationOptions.length : undefined,
+            relatedItems: rfqQuotationOptions
+                .filter((quotationItem) => quotationItem.quotationNo !== quotation?.quotationNo)
+                .map((quotationItem) => ({
+                    title: 'ใบเสนอราคา',
+                    docNo: quotationItem.quotationNo,
+                    status: quotationItem.status,
+                    statusProfile: quotationItem.statusProfile,
+                    onOpen: () =>
+                        window.open(
+                            ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationItem.quotationNo),
+                            '_blank',
+                            'noopener,noreferrer'
+                        )
+                })),
             onOpen: quotation?.quotationNo
                 ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotation.quotationNo), '_blank', 'noopener,noreferrer')
                 : undefined

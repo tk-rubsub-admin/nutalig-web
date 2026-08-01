@@ -187,17 +187,13 @@ interface PriceInquiryListNavigationState {
   };
 }
 
-const PRICE_INQUIRY_STATUS_OPTIONS = [
-  'NEW',
-  'IN_PROGRESS',
-  'REQUESTED_INFO',
-  'SPECIAL_PRICE_REVIEW',
-  'SUPPLIER_QUOTED',
-  'QUOTED',
-  'CANCELED',
-  'CLOSED',
-  'COMPLETED'
-];
+const PRICE_INQUIRY_STATUS_OPTIONS = ['SPECIAL_PRICE_REVIEW', 'SUPPLIER_QUOTED', 'QUOTED'];
+
+const FINAL_PRICE_INQUIRY_STATUS_PRIORITY: Record<string, number> = {
+  SUPPLIER_QUOTED: 1,
+  SPECIAL_PRICE_REVIEW: 2,
+  QUOTED: 3
+};
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
   return file?.pictureUrl || file?.fileUrl || '';
@@ -383,7 +379,7 @@ function RFQPictureGrid({
   );
 }
 
-export default function PriceInquiryManagement(): ReactElement {
+export default function FinalPriceInquiryManagement(): ReactElement {
   const useStyles = makeStyles({
     noResultMessage: {
       textAlign: 'center',
@@ -427,7 +423,7 @@ export default function PriceInquiryManagement(): ReactElement {
     [restoredListState?.filter, roleDefaultFilter]
   );
   const [page, setPage] = useState<number>(restoredListState?.page || 1);
-  const [pageSize, setPageSize] = useState<number>(restoredListState?.pageSize || 10);
+  const [pageSize, setPageSize] = useState<number>(restoredListState?.pageSize || 100);
   const [filter, setFilter] = useState(initialFilter);
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
@@ -497,7 +493,7 @@ export default function PriceInquiryManagement(): ReactElement {
     isFetching: isRFQFetching
   } = useQuery(
     [
-      'price-inquiry-list',
+      'final-price-inquiry-list',
       page,
       pageSize,
       filter.id,
@@ -513,8 +509,8 @@ export default function PriceInquiryManagement(): ReactElement {
       filter.keyword,
       filter.requestedDateStart,
       filter.requestedDateEnd,
-      'slaDate',
-      'ASC'
+      'requestedDate',
+      'DESC'
     ],
     () =>
       getRFQList(page, pageSize, {
@@ -531,9 +527,9 @@ export default function PriceInquiryManagement(): ReactElement {
         keyword: filter.keyword,
         requestedDateStart: filter.requestedDateStart,
         requestedDateEnd: filter.requestedDateEnd,
-        sortBy: 'slaDate',
-        sortDirection: 'ASC',
-        statuses: ['NEW', 'IN_PROGRESS', 'SPECIAL_PRICE_REVIEW'],
+        sortBy: 'requestedDate',
+        sortDirection: 'DESC',
+        statuses: ['SPECIAL_PRICE_REVIEW', 'SUPPLIER_QUOTED', 'QUOTED'],
         prioritizeApprovedUrgent: true
       }),
     {
@@ -702,6 +698,27 @@ export default function PriceInquiryManagement(): ReactElement {
   };
 
   const rfqList = rfqResponse?.records || [];
+  const sortedRfqList = useMemo(
+    () =>
+      [...rfqList].sort((left: RFQRecord, right: RFQRecord) => {
+        const leftPriority = FINAL_PRICE_INQUIRY_STATUS_PRIORITY[left.status || ''] || Number.MAX_SAFE_INTEGER;
+        const rightPriority = FINAL_PRICE_INQUIRY_STATUS_PRIORITY[right.status || ''] || Number.MAX_SAFE_INTEGER;
+
+        if (leftPriority !== rightPriority) {
+          return leftPriority - rightPriority;
+        }
+
+        const leftRequestedDate = left.requestedDate ? dayjs(left.requestedDate).valueOf() : Number.MIN_SAFE_INTEGER;
+        const rightRequestedDate = right.requestedDate ? dayjs(right.requestedDate).valueOf() : Number.MIN_SAFE_INTEGER;
+
+        if (leftRequestedDate !== rightRequestedDate) {
+          return rightRequestedDate - leftRequestedDate;
+        }
+
+        return 0;
+      }),
+    [rfqList]
+  );
 
   const handleOpenPriceInquiryDetail = (rfqId: string) => {
     history.push({
@@ -717,8 +734,8 @@ export default function PriceInquiryManagement(): ReactElement {
   };
 
   const rfqRows =
-    rfqList.length > 0 ? (
-      rfqList.map((rfq: RFQRecord) => (
+    sortedRfqList.length > 0 ? (
+      sortedRfqList.map((rfq: RFQRecord) => (
         <TableRow
           hover
           key={rfq.id}
@@ -793,8 +810,8 @@ export default function PriceInquiryManagement(): ReactElement {
     );
 
   const rfqMobileRows =
-    rfqList.length > 0 ? (
-      rfqList.map((rfq: RFQRecord) => (
+    sortedRfqList.length > 0 ? (
+      sortedRfqList.map((rfq: RFQRecord) => (
         <TableRow
           hover
           key={rfq.id}
@@ -872,7 +889,7 @@ export default function PriceInquiryManagement(): ReactElement {
 
   return (
     <Page>
-      <PageTitle title={t('priceInquiryManagement.title')} />
+      <PageTitle title="รอสรุปราคา" />
       <Wrapper>
         <Stack
           direction={isDownSm ? 'column' : 'row'}

@@ -55,7 +55,8 @@
       "title": "ขอราคา"
     },
     "priceInquiryManagement": {
-      "title": "สอบถามราคา"
+      "title": "สอบถามราคา",
+      "final": "รอสรุปราคา"
     },
     "staffManagement": {
       "title": "พนักงาน"

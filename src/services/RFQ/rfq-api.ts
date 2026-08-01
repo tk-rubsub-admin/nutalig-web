@@ -23,7 +23,9 @@ import {
   UpdateRFQPicturesResponse,
   GetCustomerQuotedResponse,
   UpsertRFQSupplierQuoteRequest,
-  UpdateRFQResponse
+  UpdateRFQResponse,
+  UpdateRFQDetailRequest,
+  UpdateRFQDetailTierRequest
 } from './rfq-type';
 
 const buildRFQSearchPayload = (
@@ -544,6 +546,31 @@ export const deleteRFQAdditionalCost = async (
 ): Promise<UpdateRFQPicturesResponse> => {
   const response: UpdateRFQPicturesResponse = await api
     .delete(`/v1/rfqs/${id}/additional-costs/${additionalCostId}`)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const updateRFQDetail = async (
+  id: string,
+  detailId: number,
+  payload: UpdateRFQDetailRequest
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .patch(`/v1/rfqs/${id}/details/${detailId}`, payload)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const updateRFQDetailTier = async (
+  id: string,
+  detailId: number,
+  tierId: number,
+  payload: UpdateRFQDetailTierRequest
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .patch(`/v1/rfqs/${id}/detials/${detailId}/tiers/${tierId}`, payload)
     .then((response) => response.data);
 
   return response;

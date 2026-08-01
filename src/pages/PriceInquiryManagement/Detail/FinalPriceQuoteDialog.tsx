@@ -1,4 +1,4 @@
-import { Add, AutoAwesome, DeleteOutline } from '@mui/icons-material';
+import { Add, AutoAwesome, ContentCopy, DeleteOutline } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -87,6 +87,9 @@ interface FinalPriceQuoteDialogProps {
     value: string
   ) => void;
   onTierFclChange: (detailId: number, tierId: number, checked: boolean) => void;
+  onDetailChange: (detailId: number, field: 'optionName' | 'spec', value: string) => void;
+  onDuplicateDetail: (detailId: number) => void;
+  onDeleteDetail: (detailId: number) => void;
   onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
@@ -117,6 +120,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     onCommissionChange,
     onTierChange,
     onTierFclChange,
+    onDetailChange,
+    onDuplicateDetail,
+    onDeleteDetail,
     onAddAdditionalCost,
     onAdditionalCostChange,
     onDeleteAdditionalCost,
@@ -221,16 +227,55 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     backgroundColor: '#fff'
                   }}>
                   <Stack spacing={1.5}>
-                    <Box>
-                      <Typography variant="body2" fontWeight={700}>
-                        {detail.optionName || `Option ${detailIndex + 1}`}
-                      </Typography>
-                      {detail.spec ? (
-                        <Typography variant="body2" color="text.secondary">
-                          {detail.spec}
-                        </Typography>
-                      ) : null}
-                    </Box>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      spacing={2}>
+                      <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+                        <TextField
+                          size="small"
+                          label="Option Name"
+                          value={detail.optionName}
+                          onChange={(event) =>
+                            onDetailChange(detail.id, 'optionName', event.target.value)
+                          }
+                          disabled={isSubmitting}
+                          fullWidth
+                        />
+                        <TextField
+                          size="small"
+                          label="Spec"
+                          value={detail.spec}
+                          onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
+                          disabled={isSubmitting}
+                          fullWidth
+                          multiline
+                          minRows={2}
+                        />
+                      </Stack>
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<ContentCopy fontSize="small" />}
+                          onClick={() => onDuplicateDetail(detail.id)}
+                          sx={outlinedActionButtonSx}
+                          disabled={isSubmitting}>
+                          คัดลอก option
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<DeleteOutline fontSize="small" />}
+                          onClick={() => onDeleteDetail(detail.id)}
+                          sx={outlinedActionButtonSx}
+                          disabled={isSubmitting || finalPriceDraft.details.length <= 1}>
+                          ลบ option
+                        </Button>
+                      </Stack>
+                    </Stack>
 
                     <Table size="small">
                       <TableHead>

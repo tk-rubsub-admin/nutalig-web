@@ -45,7 +45,8 @@
       "title": "Request for Quotation"
     },
     "priceInquiryManagement": {
-      "title": "Price Inquiry"
+      "title": "Price Inquiry",
+      "final": "Final Price Inquiry"
     },
     "leadManagement": "Lead Management",
     "customerRelationshipManagement": {

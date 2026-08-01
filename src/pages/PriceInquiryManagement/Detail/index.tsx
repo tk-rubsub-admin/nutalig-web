@@ -6,12 +6,14 @@ import {
   CommentOutlined,
   ContentCopy,
   DoneAll,
+  EditOutlined,
   FilePresent,
   InfoOutlined,
   Menu as MenuIcon,
   Save
 } from '@mui/icons-material';
 import {
+  Checkbox,
   Box,
   Button,
   Chip,
@@ -19,6 +21,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Grid,
   IconButton,
   ListItemIcon,
@@ -28,6 +31,11 @@ import {
   Stack,
   Tab,
   Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Typography
 } from '@mui/material';
@@ -90,6 +98,8 @@ import {
   sendRFQSupplierQuoteNotification,
   updateRFQInquiry,
   updateRFQ,
+  updateRFQDetail,
+  updateRFQDetailTier,
   updateRFQSupplierQuote
 } from 'services/RFQ/rfq-api';
 import { getLeadTimeConfigs, searchSupplier } from 'services/Supplier/supplier-api';
@@ -110,6 +120,8 @@ import {
   RFQSupplierQuoteDetail,
   RFQSupplierQuotePackage,
   RFQSupplierQuoteLeadTime,
+  UpdateRFQDetailRequest,
+  UpdateRFQDetailTierRequest,
   UpsertRFQSupplierQuotePackageRequest,
   UpsertRFQSupplierQuoteRequest
 } from 'services/RFQ/rfq-type';
@@ -296,6 +308,37 @@ interface DraftSupplierQuoteLeadTime {
 interface SelectedSupplierQuoteDetailToDelete {
   id: number;
   optionName?: string | null;
+}
+
+interface DetailEditDraft {
+  optionName: string;
+  spec: string;
+  sortOrder: string;
+  remark: string;
+  recommend: string;
+  commission: string;
+  packageDimension: string;
+  packageWeight: string;
+  packageCapacity: string;
+}
+
+interface TierEditDraft {
+  quantity: string;
+  productPrice: string;
+  commission: string;
+  currency: string;
+  landFreightCost: string;
+  seaFreightCost: string;
+  isFcl: boolean;
+  landTotalPrice: string;
+  seaTotalPrice: string;
+  supplierQuoteTierId: string;
+  sortOrder: string;
+}
+
+interface SelectedDetailTierEditTarget {
+  detail: RFQDetailOption;
+  tier: RFQDetailTier;
 }
 
 function TabPanel({
@@ -816,6 +859,38 @@ function parsePriceInput(value: string): number | null {
 
   const parsedValue = Number(normalizedValue);
   return Number.isNaN(parsedValue) ? null : parsedValue;
+}
+
+function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
+  return {
+    optionName: detail.optionName || '',
+    spec: detail.spec || '',
+    sortOrder: detail.sortOrder?.toString() || '',
+    remark: detail.remark || '',
+    recommend: detail.recommend || '',
+    commission: detail.commission?.toString() || '',
+    packageDimension: detail.packageDimension || '',
+    packageWeight: detail.packageWeight || '',
+    packageCapacity: detail.packageCapacity || ''
+  };
+}
+
+function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
+  return {
+    quantity: tier.quantity !== null && tier.quantity !== undefined
+      ? quantityFormatter.format(tier.quantity)
+      : '',
+    productPrice: tier.productPrice?.toString() || '',
+    commission: tier.commission?.toString() || '',
+    currency: tier.currency || 'THB',
+    landFreightCost: tier.landFreightCost?.toString() || '',
+    seaFreightCost: tier.seaFreightCost?.toString() || '',
+    isFcl: Boolean(tier.isFcl),
+    landTotalPrice: tier.landTotalPrice?.toString() || '',
+    seaTotalPrice: tier.seaTotalPrice?.toString() || '',
+    supplierQuoteTierId: tier.supplierQuoteTierId?.toString() || '',
+    sortOrder: tier.sortOrder?.toString() || ''
+  };
 }
 
 function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraft {
@@ -1682,6 +1757,17 @@ export default function RFQDetail(): ReactElement {
   >({});
   const [selectedSupplierQuoteDetailToDelete, setSelectedSupplierQuoteDetailToDelete] =
     useState<SelectedSupplierQuoteDetailToDelete | null>(null);
+  const [visibleDetailEditDialog, setVisibleDetailEditDialog] = useState(false);
+  const [visibleDetailEditConfirmDialog, setVisibleDetailEditConfirmDialog] = useState(false);
+  const [isDetailEditSubmitting, setIsDetailEditSubmitting] = useState(false);
+  const [selectedDetailForEdit, setSelectedDetailForEdit] = useState<RFQDetailOption | null>(null);
+  const [detailEditDraft, setDetailEditDraft] = useState<DetailEditDraft | null>(null);
+  const [visibleTierEditDialog, setVisibleTierEditDialog] = useState(false);
+  const [visibleTierEditConfirmDialog, setVisibleTierEditConfirmDialog] = useState(false);
+  const [isTierEditSubmitting, setIsTierEditSubmitting] = useState(false);
+  const [selectedTierForEdit, setSelectedTierForEdit] =
+    useState<SelectedDetailTierEditTarget | null>(null);
+  const [tierEditDraft, setTierEditDraft] = useState<TierEditDraft | null>(null);
 
   const handleBackToPriceInquiryList = () => {
     const returnToList = location.state?.returnToList;
@@ -1714,6 +1800,10 @@ export default function RFQDetail(): ReactElement {
   const [isFinalPriceSubmitting, setIsFinalPriceSubmitting] = useState(false);
   const [isGenerateFinalInquirySubmitting, setIsGenerateFinalInquirySubmitting] = useState(false);
   const [generatedFinalInquiryMessage, setGeneratedFinalInquiryMessage] = useState('');
+  const [selectedFinalPriceDetailToDelete, setSelectedFinalPriceDetailToDelete] = useState<{
+    id: number;
+    optionName: string;
+  } | null>(null);
   const isReadOnly = true;
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const isAllowUploadAttachment = hasPermission(PERMISSIONS.RFQ_UPLOAD_FILE);
@@ -1944,6 +2034,7 @@ export default function RFQDetail(): ReactElement {
     () => getSortedAdditionalCosts(rfq?.additionalCosts),
     [rfq?.additionalCosts]
   );
+  const isQuotedStatus = rfq?.status === 'QUOTED';
   const slaDayLeft = useMemo(
     () => getSLADayLeft(rfq?.requestedDate, rfq?.slaDate),
     [rfq?.requestedDate, rfq?.slaDate]
@@ -2267,6 +2358,234 @@ export default function RFQDetail(): ReactElement {
     }
   };
 
+  const handleOpenDetailEditDialog = (detail: RFQDetailOption) => {
+    setSelectedDetailForEdit(detail);
+    setDetailEditDraft(createDetailEditDraft(detail));
+    setVisibleDetailEditDialog(true);
+  };
+
+  const handleCloseDetailEditDialog = () => {
+    if (isDetailEditSubmitting) {
+      return;
+    }
+
+    setVisibleDetailEditDialog(false);
+    setVisibleDetailEditConfirmDialog(false);
+    setSelectedDetailForEdit(null);
+    setDetailEditDraft(null);
+  };
+
+  const handleDetailEditDraftChange = (
+    field: keyof DetailEditDraft,
+    value: string
+  ) => {
+    setDetailEditDraft((previous) =>
+      previous
+        ? {
+          ...previous,
+          [field]: value
+        }
+        : previous
+    );
+  };
+
+  const handleRequestSaveDetailEdit = () => {
+    if (!detailEditDraft) {
+      return;
+    }
+
+    if (!detailEditDraft.spec.trim()) {
+      toast.error('กรุณากรอก spec');
+      return;
+    }
+
+    if (!selectedDetailForEdit?.tiers?.length) {
+      toast.error('ไม่พบ tier ใน option นี้');
+      return;
+    }
+
+    setVisibleDetailEditConfirmDialog(true);
+  };
+
+  const handleConfirmSaveDetailEdit = async () => {
+    if (!params.id || !selectedDetailForEdit || !detailEditDraft) {
+      return;
+    }
+
+    try {
+      setIsDetailEditSubmitting(true);
+      setVisibleDetailEditConfirmDialog(false);
+
+      const payload: UpdateRFQDetailRequest = {
+        optionName: detailEditDraft.optionName.trim() || null,
+        spec: detailEditDraft.spec.trim(),
+        sortOrder: detailEditDraft.sortOrder ? Number(detailEditDraft.sortOrder) : null,
+        remark: detailEditDraft.remark.trim() || null,
+        recommend: detailEditDraft.recommend.trim() || null,
+        commission: parsePriceInput(detailEditDraft.commission),
+        packageDimension: detailEditDraft.packageDimension.trim() || null,
+        packageWeight: detailEditDraft.packageWeight.trim() || null,
+        packageCapacity: detailEditDraft.packageCapacity.trim() || null,
+        tiers: selectedDetailForEdit.tiers.map((tier) => ({
+          quantity: tier.quantity,
+          productPrice: tier.productPrice,
+          commission: tier.commission ?? null,
+          currency: tier.currency ?? null,
+          landFreightCost: tier.landFreightCost,
+          seaFreightCost: tier.seaFreightCost,
+          isFcl: tier.isFcl ?? null,
+          landTotalPrice: tier.landTotalPrice,
+          seaTotalPrice: tier.seaTotalPrice,
+          supplierQuoteTierId: tier.supplierQuoteTierId ?? null,
+          sortOrder: tier.sortOrder
+        }))
+      };
+
+      await toast.promise(updateRFQDetail(params.id, selectedDetailForEdit.id, payload), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+
+      await refetchPriceInquiryData();
+      handleCloseDetailEditDialog();
+    } finally {
+      setIsDetailEditSubmitting(false);
+    }
+  };
+
+  const handleOpenTierEditDialog = (detail: RFQDetailOption, tier: RFQDetailTier) => {
+    setSelectedTierForEdit({ detail, tier });
+    setTierEditDraft(createTierEditDraft(tier));
+    setVisibleTierEditDialog(true);
+  };
+
+  const handleCloseTierEditDialog = () => {
+    if (isTierEditSubmitting) {
+      return;
+    }
+
+    setVisibleTierEditDialog(false);
+    setVisibleTierEditConfirmDialog(false);
+    setSelectedTierForEdit(null);
+    setTierEditDraft(null);
+  };
+
+  const handleTierEditDraftChange = (
+    field: keyof TierEditDraft,
+    value: string | boolean
+  ) => {
+    setTierEditDraft((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const nextDraft = {
+        ...previous,
+        [field]: value
+      } as TierEditDraft;
+
+      if (field === 'quantity') {
+        const quantity = parsePriceInput(String(value));
+        nextDraft.quantity = quantity === null ? '' : quantityFormatter.format(quantity);
+      }
+
+      if (field === 'productPrice' || field === 'landFreightCost') {
+        const productPrice = parsePriceInput(
+          field === 'productPrice' ? String(value) : nextDraft.productPrice
+        );
+        const landFreightCost = parsePriceInput(
+          field === 'landFreightCost' ? String(value) : nextDraft.landFreightCost
+        );
+        const total = (productPrice ?? 0) + (landFreightCost ?? 0);
+        nextDraft.landTotalPrice = String(total);
+      }
+
+      if (field === 'productPrice' || field === 'seaFreightCost') {
+        const productPrice = parsePriceInput(
+          field === 'productPrice' ? String(value) : nextDraft.productPrice
+        );
+        const seaFreightCost = parsePriceInput(
+          field === 'seaFreightCost' ? String(value) : nextDraft.seaFreightCost
+        );
+        const total = (productPrice ?? 0) + (seaFreightCost ?? 0);
+        nextDraft.seaTotalPrice = String(total);
+      }
+
+      return nextDraft;
+    });
+  };
+
+  const handleRequestSaveTierEdit = () => {
+    if (!tierEditDraft) {
+      return;
+    }
+
+    if (!tierEditDraft.quantity.trim()) {
+      toast.error('กรุณาระบุ MOQ');
+      return;
+    }
+
+    if (!tierEditDraft.productPrice.trim()) {
+      toast.error('กรุณาระบุราคาสินค้า');
+      return;
+    }
+
+    setVisibleTierEditConfirmDialog(true);
+  };
+
+  const handleConfirmSaveTierEdit = async () => {
+    if (!params.id || !selectedTierForEdit || !tierEditDraft) {
+      return;
+    }
+
+    const quantity = parsePriceInput(tierEditDraft.quantity);
+    const productPrice = parsePriceInput(tierEditDraft.productPrice);
+    const landFreightCost = parsePriceInput(tierEditDraft.landFreightCost);
+    const seaFreightCost = parsePriceInput(tierEditDraft.seaFreightCost);
+    const landTotalPrice = parsePriceInput(tierEditDraft.landTotalPrice);
+    const seaTotalPrice = parsePriceInput(tierEditDraft.seaTotalPrice);
+
+    if (quantity === null || productPrice === null) {
+      toast.error('กรุณากรอกข้อมูล tier ให้ครบ');
+      return;
+    }
+
+    try {
+      setIsTierEditSubmitting(true);
+      setVisibleTierEditConfirmDialog(false);
+
+      const payload: UpdateRFQDetailTierRequest = {
+        quantity,
+        productPrice,
+        commission: parsePriceInput(tierEditDraft.commission),
+        currency: tierEditDraft.currency || null,
+        landFreightCost,
+        seaFreightCost,
+        isFcl: tierEditDraft.isFcl,
+        landTotalPrice,
+        seaTotalPrice,
+        supplierQuoteTierId: parsePriceInput(tierEditDraft.supplierQuoteTierId) ?? null,
+        sortOrder: parsePriceInput(tierEditDraft.sortOrder),
+        supplierId: null
+      };
+
+      await toast.promise(
+        updateRFQDetailTier(params.id, selectedTierForEdit.detail.id, selectedTierForEdit.tier.id, payload),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
+
+      await refetchPriceInquiryData();
+      handleCloseTierEditDialog();
+    } finally {
+      setIsTierEditSubmitting(false);
+    }
+  };
+
   const initializeSupplierQuoteDialog = (
     supplier: Supplier,
     existingQuote?: RFQSupplierQuote | null
@@ -2572,6 +2891,7 @@ export default function RFQDetail(): ReactElement {
     setVisibleFinalPriceConfirmationDialog(false);
     setVisibleFinalExtractDialog(false);
     setFinalExtractMessage('');
+    setSelectedFinalPriceDetailToDelete(null);
     setFinalPriceDraft({
       details: [],
       packages: [],
@@ -2722,6 +3042,113 @@ export default function RFQDetail(): ReactElement {
           : detail
       )
     }));
+  };
+
+  const handleDuplicateFinalPriceDetail = (detailId: number) => {
+    setFinalPriceDraft((prev) => {
+      const sourceDetail = prev.details.find((detail) => detail.id === detailId);
+      if (!sourceDetail) {
+        return prev;
+      }
+
+      const nextDetailIndex = prev.details.length + 1;
+      const copiedDetail: FinalPriceDraftDetail = {
+        ...sourceDetail,
+        id: -(Date.now() + nextDetailIndex),
+        optionName: sourceDetail.optionName || `Option ${nextDetailIndex}`,
+        sortOrder: nextDetailIndex,
+        tiers: sourceDetail.tiers.map((tier, tierIndex) => ({
+          ...tier,
+          id: -(Date.now() + nextDetailIndex * 100 + tierIndex + 1),
+          sortOrder: tierIndex + 1
+        }))
+      };
+
+      return {
+        ...prev,
+        details: [...prev.details, copiedDetail].map((detail, index) => ({
+          ...detail,
+          sortOrder: index + 1,
+          tiers: detail.tiers.map((tier, tierIndex) => ({
+            ...tier,
+            sortOrder: tierIndex + 1
+          }))
+        }))
+      };
+    });
+  };
+
+  const handleFinalPriceDetailChange = (
+    detailId: number,
+    field: 'optionName' | 'spec',
+    value: string
+  ) => {
+    setFinalPriceDraft((prev) => ({
+      ...prev,
+      details: prev.details.map((detail) =>
+        detail.id === detailId
+          ? {
+            ...detail,
+            [field]: value
+          }
+          : detail
+      )
+    }));
+  };
+
+  const handleRequestDeleteFinalPriceDetail = (detailId: number) => {
+    const targetDetail = finalPriceDraft.details.find((detail) => detail.id === detailId);
+    if (!targetDetail || finalPriceDraft.details.length <= 1) {
+      return;
+    }
+
+    setSelectedFinalPriceDetailToDelete({
+      id: detailId,
+      optionName: targetDetail.optionName
+    });
+  };
+
+  const handleConfirmDeleteFinalPriceDetail = () => {
+    if (!selectedFinalPriceDetailToDelete) {
+      return;
+    }
+
+    const detailId = selectedFinalPriceDetailToDelete.id;
+    const detailToDelete = finalPriceDraft.details.find((detail) => detail.id === detailId);
+
+    setFinalPriceDraft((prev) => {
+      const nextDetails = prev.details
+        .filter((detail) => detail.id !== detailId)
+        .map((detail, index) => ({
+          ...detail,
+          sortOrder: index + 1,
+          tiers: detail.tiers.map((tier, tierIndex) => ({
+            ...tier,
+            sortOrder: tierIndex + 1
+          }))
+        }));
+
+      return nextDetails.length ? { ...prev, details: nextDetails } : prev;
+    });
+
+    setFinalPriceErrors((prev) => {
+      const nextErrors = {
+        ...prev,
+        details: { ...(prev.details || {}) }
+      };
+
+      detailToDelete?.tiers.forEach((tier) => {
+        delete nextErrors.details?.[tier.id];
+      });
+
+      if (nextErrors.details && Object.keys(nextErrors.details).length === 0) {
+        delete nextErrors.details;
+      }
+
+      return nextErrors;
+    });
+
+    setSelectedFinalPriceDetailToDelete(null);
   };
 
   const handleAddFinalPriceAdditionalCost = () => {
@@ -3687,7 +4114,9 @@ export default function RFQDetail(): ReactElement {
           isGenerateFinalInquirySubmitting ||
           isUpdateInquirySubmitting ||
           isFinalExtractSubmitting ||
-          isSupplierQuoteSubmitting
+          isSupplierQuoteSubmitting ||
+          isDetailEditSubmitting ||
+          isTierEditSubmitting
         }
       />
       <PageTitle title={'สอบถามราคาเลขที่ ' + rfq?.id || 'Price Inquiry Detail'}>
@@ -4380,6 +4809,244 @@ export default function RFQDetail(): ReactElement {
                   </GridTextField>
                 </Grid>
               </CollapsibleWrapper>
+              {isQuotedStatus ? (
+                <>
+                  <CollapsibleWrapper title="ตัวเลือกราคา" defaultExpanded action={null}>
+                    <Stack spacing={2}>
+                      {detailOptions.length ? (
+                        detailOptions.map((detail, index) => {
+                          const sortedTiers = [...(detail.tiers || [])].sort(
+                            (left, right) => left.sortOrder - right.sortOrder
+                          );
+
+                          return (
+                            <Box
+                              key={detail.id}
+                              sx={{
+                                border: '1px solid #dce4ee',
+                                borderRadius: 3,
+                                overflow: 'hidden',
+                                background:
+                                  'linear-gradient(180deg, rgba(248,250,252,0.95) 0%, rgba(255,255,255,1) 22%)'
+                              }}>
+                              <Box
+                                sx={{
+                                  px: { xs: 2, md: 3 },
+                                  py: 2,
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: { xs: 'flex-start', md: 'center' },
+                                  gap: 1.5,
+                                  flexDirection: { xs: 'column', md: 'row' }
+                                }}>
+                                <Box>
+                                  <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
+                                    <Chip
+                                      label={`ตัวเลือก ${detail.sortOrder || index + 1}`}
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: '#eef6ff',
+                                        color: '#185ea8',
+                                        fontWeight: 700
+                                      }}
+                                    />
+                                    <Typography fontWeight={700}>
+                                      {detail.optionName || `Option ${index + 1}`}
+                                    </Typography>
+                                  </Stack>
+                                  <Stack spacing={0.75} sx={{ mt: 1 }}>
+                                    {detail.spec ? (
+                                      <Typography variant="body2" color="text.secondary">
+                                        {detail.spec}
+                                      </Typography>
+                                    ) : null}
+                                    {detail.remark ? (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Remark: {detail.remark}
+                                      </Typography>
+                                    ) : null}
+                                  </Stack>
+                                </Box>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<EditOutlined fontSize="small" />}
+                                  onClick={() => handleOpenDetailEditDialog(detail)}
+                                  sx={outlinedBlueActionButtonSx}>
+                                  แก้ไข
+                                </Button>
+                              </Box>
+                              <Box sx={{ px: { xs: 2, md: 3 }, pb: 2 }}>
+                                {sortedTiers.length ? (
+                                  <Box sx={{ overflowX: 'auto' }}>
+                                    <Table size="small" sx={{ minWidth: 1080 }}>
+                                      <TableHead>
+                                        <TableRow
+                                          sx={{
+                                            '& th': {
+                                              fontWeight: 700,
+                                              backgroundColor: '#f8fafc',
+                                              whiteSpace: 'nowrap'
+                                            }
+                                          }}>
+                                          <TableCell>MOQ</TableCell>
+                                          <TableCell align="right">ราคาสินค้า</TableCell>
+                                          <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
+                                          <TableCell align="center">FCL</TableCell>
+                                          <TableCell align="right">รวมทางรถ</TableCell>
+                                          <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
+                                          <TableCell align="right">รวมทางเรือ</TableCell>
+                                          <TableCell align="center">Action</TableCell>
+                                        </TableRow>
+                                      </TableHead>
+                                      <TableBody>
+                                        {sortedTiers.map((tier) => (
+                                          <TableRow
+                                            key={tier.id}
+                                            sx={{
+                                              '&:last-child td': { borderBottom: 0 }
+                                            }}>
+                                            <TableCell sx={{ fontWeight: 600 }}>
+                                              {formatQuantity(tier.quantity)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(tier.productPrice, tier.currency)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(tier.landFreightCost, tier.currency)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              {tier.isFcl ? 'ใช่' : '-'}
+                                            </TableCell>
+                                            <TableCell
+                                              align="right"
+                                              sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                              {formatPrice(tier.landTotalPrice, tier.currency)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(tier.seaFreightCost, tier.currency)}
+                                            </TableCell>
+                                            <TableCell
+                                              align="right"
+                                              sx={{ fontWeight: 700, color: '#00897b' }}>
+                                              {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              <IconButton
+                                                size="small"
+                                                onClick={() => handleOpenTierEditDialog(detail, tier)}
+                                                sx={{
+                                                  border: '1px solid #cbd5e1',
+                                                  borderRadius: 2
+                                                }}>
+                                                <EditOutlined fontSize="small" />
+                                              </IconButton>
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </Box>
+                                ) : (
+                                  <Box
+                                    sx={{
+                                      border: '1px dashed #cbd5e1',
+                                      borderRadius: 3,
+                                      py: 3,
+                                      px: 2,
+                                      textAlign: 'center',
+                                      backgroundColor: '#f8fafc'
+                                    }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            </Box>
+                          );
+                        })
+                      ) : (
+                        <Box
+                          sx={{
+                            border: '1px dashed #cbd5e1',
+                            borderRadius: 3,
+                            py: 4,
+                            px: 2,
+                            textAlign: 'center',
+                            backgroundColor: '#f8fafc'
+                          }}>
+                          <Typography variant="body1" fontWeight={600}>
+                            ยังไม่มีข้อมูลตัวเลือกราคา
+                          </Typography>
+                        </Box>
+                      )}
+                    </Stack>
+                  </CollapsibleWrapper>
+                  <CollapsibleWrapper title="รายละเอียดเพิ่มเติม" defaultExpanded action={null}>
+                    {additionalCosts.length ? (
+                      <Box
+                        sx={{
+                          border: '1px solid #dce4ee',
+                          borderRadius: 3,
+                          overflow: 'hidden',
+                          backgroundColor: '#fff'
+                        }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow
+                              sx={{
+                                '& th': {
+                                  fontWeight: 700,
+                                  backgroundColor: '#f8fafc',
+                                  whiteSpace: 'nowrap'
+                                }
+                              }}>
+                              <TableCell align="center" width="40%">
+                                Name
+                              </TableCell>
+                              <TableCell>Description</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {additionalCosts.map((additionalCost) => (
+                              <TableRow
+                                key={additionalCost.id}
+                                sx={{
+                                  '&:last-child td': { borderBottom: 0 }
+                                }}>
+                                <TableCell sx={{ fontWeight: 600 }}>
+                                  {additionalCost.description || '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {formatAdditionalCostValue(
+                                    additionalCost.value,
+                                    additionalCost.unit
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          border: '1px dashed #cbd5e1',
+                          borderRadius: 3,
+                          py: 3,
+                          px: 2,
+                          textAlign: 'center',
+                          backgroundColor: '#f8fafc'
+                        }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ยังไม่มีรายละเอียดเพิ่มเติม
+                        </Typography>
+                      </Box>
+                    )}
+                  </CollapsibleWrapper>
+                </>
+              ) : null}
               <CollapsibleWrapper title="Supplier Quote" defaultExpanded action={null}>
                 <SupplierQuoteSection
                   quotes={supplierQuotes}
@@ -4428,6 +5095,210 @@ export default function RFQDetail(): ReactElement {
           </TabPanel>
         </Stack>
       </Wrapper>
+      <Dialog
+        open={visibleDetailEditDialog}
+        onClose={handleCloseDetailEditDialog}
+        fullWidth
+        maxWidth="md">
+        <DialogTitle>แก้ไข Option</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              fullWidth
+              label="Option Name"
+              value={detailEditDraft?.optionName || ''}
+              onChange={(event) => handleDetailEditDraftChange('optionName', event.target.value)}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Spec"
+              value={detailEditDraft?.spec || ''}
+              onChange={(event) => handleDetailEditDraftChange('spec', event.target.value)}
+              required
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Remark"
+              value={detailEditDraft?.remark || ''}
+              onChange={(event) => handleDetailEditDraftChange('remark', event.target.value)}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={4}
+              label="Recommend"
+              value={detailEditDraft?.recommend || ''}
+              onChange={(event) => handleDetailEditDraftChange('recommend', event.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDetailEditDialog}>{t('button.cancel')}</Button>
+          <Button className="btn-indigo-blue" onClick={handleRequestSaveDetailEdit}>
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={visibleTierEditDialog}
+        onClose={handleCloseTierEditDialog}
+        fullWidth
+        maxWidth="md">
+        <DialogTitle>แก้ไขตัวเลือกราคา</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {selectedTierForEdit?.detail.optionName || '-'}
+            </Typography>
+            <Grid container spacing={2}>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="text"
+                  label="MOQ"
+                  value={tierEditDraft?.quantity || ''}
+                  inputProps={{ inputMode: 'numeric' }}
+                  onChange={(event) => handleTierEditDraftChange('quantity', event.target.value)}
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Commission"
+                  value={tierEditDraft?.commission || ''}
+                  onChange={(event) => handleTierEditDraftChange('commission', event.target.value)}
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Currency"
+                  value={tierEditDraft?.currency || ''}
+                  onChange={(event) => handleTierEditDraftChange('currency', event.target.value)}
+                >
+                  {currencyOptions.map((option: SystemConfig) => (
+                    <MenuItem key={option.code} value={option.code}>
+                      {getNamedCodeValueLabel(option)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="ราคาสินค้า"
+                  value={tierEditDraft?.productPrice || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('productPrice', event.target.value)
+                  }
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="ค่าขนส่งทางรถ"
+                  value={tierEditDraft?.landFreightCost || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('landFreightCost', event.target.value)
+                  }
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="รวมทางรถ"
+                  value={tierEditDraft?.landTotalPrice || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('landTotalPrice', event.target.value)
+                  }
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="ราคาสินค้า"
+                  value={tierEditDraft?.productPrice || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('productPrice', event.target.value)
+                  }
+                />
+              </GridTextField>
+              <GridTextField item xs={10} sm={3}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="ค่าขนส่งทางเรือ"
+                  value={tierEditDraft?.seaFreightCost || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('seaFreightCost', event.target.value)
+                  }
+                />
+              </GridTextField>
+              <GridTextField item xs={2} sm={1}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={Boolean(tierEditDraft?.isFcl)}
+                      onChange={(_, checked) => handleTierEditDraftChange('isFcl', checked)}
+                    />
+                  }
+                  label="FCL"
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="รวมทางเรือ"
+                  value={tierEditDraft?.seaTotalPrice || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('seaTotalPrice', event.target.value)
+                  }
+                />
+              </GridTextField>
+            </Grid>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTierEditDialog}>{t('button.cancel')}</Button>
+          <Button className="btn-indigo-blue" onClick={handleRequestSaveTierEdit}>
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <ConfirmDialog
+        open={visibleDetailEditConfirmDialog}
+        title="ยืนยันแก้ไข Option"
+        message={`คุณยืนยันแก้ไข Option ${selectedDetailForEdit?.optionName || ''} ใช่หรือไม่`}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmSaveDetailEdit}
+        onCancel={() => setVisibleDetailEditConfirmDialog(false)}
+      />
+      <ConfirmDialog
+        open={visibleTierEditConfirmDialog}
+        title="ยืนยันแก้ไขตัวเลือกราคา"
+        message={`คุณยืนยันแก้ไข MOQ ${formatQuantity(selectedTierForEdit?.tier.quantity)} ของ ${selectedTierForEdit?.detail.optionName || 'option นี้'
+          } ใช่หรือไม่`}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmSaveTierEdit}
+        onCancel={() => setVisibleTierEditConfirmDialog(false)}
+      />
       <ConfirmDialog
         open={visibleAcceptWorkConfirmationDialog}
         title="ยืนยันรับงาน"
@@ -4579,6 +5450,9 @@ export default function RFQDetail(): ReactElement {
         onCommissionChange={handleFinalPriceCommissionChange}
         onTierChange={handleFinalPriceTierChange}
         onTierFclChange={handleFinalPriceTierFclChange}
+        onDetailChange={handleFinalPriceDetailChange}
+        onDuplicateDetail={handleDuplicateFinalPriceDetail}
+        onDeleteDetail={handleRequestDeleteFinalPriceDetail}
         onAddAdditionalCost={handleAddFinalPriceAdditionalCost}
         onAdditionalCostChange={handleFinalPriceAdditionalCostChange}
         onDeleteAdditionalCost={handleDeleteFinalPriceAdditionalCost}
@@ -4619,6 +5493,17 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleConfirmSaveFinalPrice}
         onCancel={() => setVisibleFinalPriceConfirmationDialog(false)}
+      />
+      <ConfirmDialog
+        open={Boolean(selectedFinalPriceDetailToDelete)}
+        title="ยืนยันลบ option"
+        message={`คุณยืนยันลบ ${selectedFinalPriceDetailToDelete?.optionName || 'option นี้'} ใช่หรือไม่`}
+        confirmText={t('button.confirm')}
+        cancelText={t('button.cancel')}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={handleConfirmDeleteFinalPriceDetail}
+        onCancel={() => setSelectedFinalPriceDetailToDelete(null)}
       />
       <RequestInformationDialog
         open={visibleRequestInformationDialog}

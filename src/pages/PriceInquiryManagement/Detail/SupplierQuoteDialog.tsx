@@ -459,9 +459,12 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                               }
                             />
                           </Grid>
-                          <Grid item xs={12} md={8}>
+                          <Grid item md={8} />
+                          <Grid item xs={12} md={12}>
                             <TextField
                               fullWidth
+                              multiline
+                              minRows={3}
                               size="small"
                               label="Spec"
                               value={detail.spec}
@@ -818,7 +821,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                             event.target.value
                           )
                         }
-                        />
+                      />
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <TextField

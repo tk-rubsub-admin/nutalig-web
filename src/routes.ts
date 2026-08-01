@@ -38,6 +38,7 @@ export const ROUTE_PATHS = Object.freeze({
   TODO_MANAGEMENT: '/to-do-management',
   PRICE_INQUIRY: '/price-inquiry/:id',
   PRICE_INQUIRY_MANAGEMENT: '/price-inquiry-management',
+  FINAL_PRICE_INQUIRY_MANAGEMENT: '/final-price-inquiry-management',
   RFQ_CREATE: '/rfq-create',
   RFQ_DETAIL: '/rfq/:id',
   CUSTOMER_NEW: '/customer-create',
@@ -221,6 +222,13 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT,
     component: lazy(() => import('./pages/PriceInquiryManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.PRICE_INQUIRY_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.FINAL_PRICE_INQUIRY_MANAGEMENT,
+    component: lazy(
+      () => import('./pages/FinalPriceInquiryManagement' /* webpackChunkName: "app" */)
+    ),
+    requiredPermissions: [PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW]
   },
   {
     path: ROUTE_PATHS.PRICE_INQUIRY,

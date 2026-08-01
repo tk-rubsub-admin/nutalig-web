@@ -85,6 +85,12 @@ export function useMenuItems() {
           allowedPermission: [PERMISSIONS.PRICE_INQUIRY_VIEW]
         },
         {
+          id: 'left_menu__final_price_inquiry_management',
+          title: t('sidebar.priceInquiryManagement.final'),
+          href: ROUTE_PATHS.FINAL_PRICE_INQUIRY_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW]
+        },
+        {
           id: 'left_menu__purchase_order',
           title: t('sidebar.procurement.purchaseOrder'),
           href: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,

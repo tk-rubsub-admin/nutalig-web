@@ -194,6 +194,10 @@ export interface RFQDetailOption {
   sortOrder: number;
   remark: string | null;
   commission?: number | null;
+  recommend?: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
   packageBoxWidth?: string;
   packageBoxLength?: string;
   packageBoxHeight?: string;
@@ -413,6 +417,35 @@ export interface CreateRFQDetailRequest {
   recommend?: string | null;
   supplierId?: string;
   tiers: CreateRFQDetailTierRequest[];
+}
+
+export interface UpdateRFQDetailRequest {
+  optionName?: string | null;
+  spec: string;
+  sortOrder?: number | null;
+  remark?: string | null;
+  recommend?: string | null;
+  commission?: number | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  supplierId?: string | null;
+  tiers: CreateRFQDetailTierRequest[];
+}
+
+export interface UpdateRFQDetailTierRequest {
+  quantity: number;
+  productPrice: number;
+  commission?: number | null;
+  currency?: string | null;
+  landFreightCost?: number | null;
+  seaFreightCost?: number | null;
+  isFcl?: boolean | null;
+  landTotalPrice?: number | null;
+  seaTotalPrice?: number | null;
+  supplierQuoteTierId?: number | null;
+  sortOrder?: number | null;
+  supplierId?: string | null;
 }
 
 export interface CreateRFQAdditionalCostRequest {

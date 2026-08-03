@@ -685,6 +685,14 @@ function formatPrice(value?: number | null, currency?: string | null): string {
   return `${priceFormatter.format(value)} บาท`;
 }
 
+function formatPercent(value?: number | null): string {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  return `${priceFormatter.format(value)}%`;
+}
+
 function formatTargetPrice(value?: number | null): string {
   if (value === null || value === undefined) {
     return '';
@@ -764,6 +772,7 @@ function createDraftTier(sortOrder: number): RFQDetailTier {
     id: -(Date.now() + sortOrder),
     quantity: 0,
     productPrice: 0,
+    commission: 0,
     currency: 'THB',
     exchangeRate: 1,
     landFreightCost: 0,
@@ -794,6 +803,7 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
     tiers: detail.tiers.map((tier, index) => ({
       quantity: tier.quantity,
       productPrice: tier.productPrice,
+      commission: tier.commission ?? null,
       currency: tier.currency || 'THB',
       exchangeRate: tier.exchangeRate ?? 1,
       landFreightCost: tier.landFreightCost,
@@ -2036,6 +2046,7 @@ export default function RFQDetail(): ReactElement {
     field:
       | 'quantity'
       | 'productPrice'
+      | 'commission'
       | 'currency'
       | 'exchangeRate'
       | 'landFreightCost'
@@ -3713,6 +3724,7 @@ export default function RFQDetail(): ReactElement {
                                         <TableCell align="right">รวมทางรถ</TableCell>
                                         <TableCell align="right">รวมทางเรือ</TableCell>
                                         <TableCell align="center">จัดการ</TableCell>
+                                        <TableCell align="right">ค่าคอม</TableCell>
                                       </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -3842,12 +3854,28 @@ export default function RFQDetail(): ReactElement {
                                                 <DeleteOutline fontSize="small" />
                                               </IconButton>
                                             </TableCell>
+                                            <TableCell align="right" sx={{ minWidth: 120 }}>
+                                              <TextField
+                                                fullWidth
+                                                size="small"
+                                                type="number"
+                                                value={tier.commission ?? ''}
+                                                onChange={(event) =>
+                                                  handleDraftTierChange(
+                                                    detail.id,
+                                                    tier.id,
+                                                    'commission',
+                                                    event.target.value
+                                                  )
+                                                }
+                                              />
+                                            </TableCell>
                                           </TableRow>
                                         ))
                                       ) : (
                                         <TableRow>
                                           <TableCell
-                                            colSpan={8}
+                                            colSpan={9}
                                             align="center"
                                             sx={{ py: 3, color: 'text.secondary' }}>
                                             ยังไม่มี tier กรุณากด "เพิ่ม Tier"
@@ -3875,6 +3903,7 @@ export default function RFQDetail(): ReactElement {
                                       <TableCell align="right">รวมทางรถ</TableCell>
                                       <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
                                       <TableCell align="right">รวมทางเรือ</TableCell>
+                                      <TableCell align="right">ค่าคอม</TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
@@ -3908,6 +3937,9 @@ export default function RFQDetail(): ReactElement {
                                           align="right"
                                           sx={{ fontWeight: 700, color: '#00897b' }}>
                                           {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          {formatPercent(tier.commission)}
                                         </TableCell>
                                       </TableRow>
                                     ))}
@@ -4054,6 +4086,23 @@ export default function RFQDetail(): ReactElement {
                                             />
                                           </Grid>
                                           <Grid item xs={12}>
+                                            <TextField
+                                              fullWidth
+                                              size="small"
+                                              type="number"
+                                              label="ค่าคอม (%)"
+                                              value={tier.commission ?? ''}
+                                              onChange={(event) =>
+                                                handleDraftTierChange(
+                                                  detail.id,
+                                                  tier.id,
+                                                  'commission',
+                                                  event.target.value
+                                                )
+                                              }
+                                            />
+                                          </Grid>
+                                          <Grid item xs={12}>
                                             <FormControlLabel
                                               control={
                                                 <Checkbox
@@ -4079,6 +4128,14 @@ export default function RFQDetail(): ReactElement {
                                               fontWeight={700}
                                               color="#1565c0">
                                               {formatPrice(tier.landTotalPrice, tier.currency)}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ค่าคอม
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatPercent(tier.commission)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={6}>
@@ -4147,6 +4204,14 @@ export default function RFQDetail(): ReactElement {
                                         </Typography>
                                         <Typography variant="body2" fontWeight={600}>
                                           {formatPrice(tier.landFreightCost, tier.currency)}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={6}>
+                                        <Typography variant="caption" color="text.secondary">
+                                          ค่าคอม
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {formatPercent(tier.commission)}
                                         </Typography>
                                       </Grid>
                                       <Grid item xs={6}>

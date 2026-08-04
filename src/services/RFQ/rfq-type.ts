@@ -179,6 +179,7 @@ export interface RFQDetailTier {
   landFreightCost: number;
   seaFreightCost: number;
   isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
   landTotalPrice: number;
   seaTotalPrice: number;
   supplierQuoteTierId?: number | null;
@@ -402,6 +403,7 @@ export interface CreateRFQDetailTierRequest {
   landFreightCost: number;
   seaFreightCost: number;
   isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
   landTotalPrice: number;
   seaTotalPrice: number;
   supplierQuoteTierId?: number | null;
@@ -441,6 +443,7 @@ export interface UpdateRFQDetailTierRequest {
   landFreightCost?: number | null;
   seaFreightCost?: number | null;
   isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
   landTotalPrice?: number | null;
   seaTotalPrice?: number | null;
   supplierQuoteTierId?: number | null;

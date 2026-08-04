@@ -15,7 +15,6 @@ import {
   Grid,
   Divider,
   IconButton,
-  InputAdornment,
   MenuItem,
   Stack,
   Table,
@@ -32,6 +31,7 @@ import {
   RFQSupplierQuoteAdditionalCost,
   RFQSupplierQuoteLeadTime
 } from 'services/RFQ/rfq-type';
+import { SystemConfig } from 'services/Config/config-type';
 import { LeadTimeConfig } from 'services/Supplier/supplier-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 import { SupplierQuoteDialogDetail } from './SupplierQuoteDialog';
@@ -109,7 +109,12 @@ interface SupplierQuoteSectionProps {
   onTierChange: (
     detailId: number,
     tierId: number,
-    field: 'quantity' | 'productPrice' | 'shippingCost',
+    field:
+      | 'quantity'
+      | 'productPrice'
+      | 'productPriceCurrency'
+      | 'shippingCost'
+      | 'shippingCostCurrency',
     value: string
   ) => void;
   onAdditionalCostChange: (
@@ -124,6 +129,7 @@ interface SupplierQuoteSectionProps {
     value: string
   ) => void;
   onDeleteLeadTime: (leadTimeId: number) => void;
+  currencyOptions: SystemConfig[];
   leadTimeOptions: LeadTimeConfig[];
   formatQuantity: (value?: number | null) => string;
   formatPrice: (value?: number | null, currency?: string | null) => string;
@@ -162,6 +168,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     onAddLeadTime,
     onLeadTimeChange,
     onDeleteLeadTime,
+    currencyOptions,
     leadTimeOptions,
     formatQuantity,
     formatPrice,
@@ -449,7 +456,9 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                       }}>
                                       <TableCell>MOQ</TableCell>
                                       <TableCell align="right">ราคาสินค้า</TableCell>
+                                      <TableCell align="center">สกุลเงิน</TableCell>
                                       <TableCell align="right">ค่าขนส่ง</TableCell>
+                                      <TableCell align="center">สกุลเงิน</TableCell>
                                       <TableCell align="right">รวม</TableCell>
                                     </TableRow>
                                   </TableHead>
@@ -512,13 +521,6 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                                 value={tier.productPrice}
                                                 error={Boolean(tierError.productPrice)}
                                                 helperText={tierError.productPrice}
-                                                InputProps={{
-                                                  endAdornment: (
-                                                    <InputAdornment position="end">
-                                                      หยวน​ (¥)
-                                                    </InputAdornment>
-                                                  )
-                                                }}
                                                 onChange={(event) =>
                                                   onTierChange(
                                                     detail.id,
@@ -532,6 +534,33 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                               formatPrice(productPrice, productPriceCurrency)
                                             )}
                                           </TableCell>
+                                          <TableCell align="center">
+                                            {isEditing ? (
+                                              <TextField
+                                                fullWidth
+                                                select
+                                                size="small"
+                                                value={tier.productPriceCurrency || tier.currency || ''}
+                                                onChange={(event) =>
+                                                  onTierChange(
+                                                    detail.id,
+                                                    tier.id || -(tierIndex + 1),
+                                                    'productPriceCurrency',
+                                                    event.target.value
+                                                  )
+                                                }>
+                                                {currencyOptions.map((currencyOption) => (
+                                                  <MenuItem
+                                                    key={`product-${currencyOption.code}`}
+                                                    value={currencyOption.code}>
+                                                    {currencyOption.code}
+                                                  </MenuItem>
+                                                ))}
+                                              </TextField>
+                                            ) : (
+                                              productPriceCurrency || '-'
+                                            )}
+                                          </TableCell>
                                           <TableCell align="right">
                                             {isEditing ? (
                                               <TextField
@@ -541,13 +570,6 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                                 value={tier.shippingCost ?? 0}
                                                 error={Boolean(tierError.shippingCost)}
                                                 helperText={tierError.shippingCost}
-                                                InputProps={{
-                                                  endAdornment: (
-                                                    <InputAdornment position="end">
-                                                      หยวน​ (¥)
-                                                    </InputAdornment>
-                                                  )
-                                                }}
                                                 onChange={(event) =>
                                                   onTierChange(
                                                     detail.id,
@@ -559,6 +581,33 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                               />
                                             ) : (
                                               formatPrice(shippingCost, shippingCostCurrency)
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            {isEditing ? (
+                                              <TextField
+                                                fullWidth
+                                                select
+                                                size="small"
+                                                value={tier.shippingCostCurrency || tier.currency || ''}
+                                                onChange={(event) =>
+                                                  onTierChange(
+                                                    detail.id,
+                                                    tier.id || -(tierIndex + 1),
+                                                    'shippingCostCurrency',
+                                                    event.target.value
+                                                  )
+                                                }>
+                                                {currencyOptions.map((currencyOption) => (
+                                                  <MenuItem
+                                                    key={`shipping-${currencyOption.code}`}
+                                                    value={currencyOption.code}>
+                                                    {currencyOption.code}
+                                                  </MenuItem>
+                                                ))}
+                                              </TextField>
+                                            ) : (
+                                              shippingCostCurrency || '-'
                                             )}
                                           </TableCell>
                                           <TableCell align="right" sx={{ fontWeight: 700 }}>

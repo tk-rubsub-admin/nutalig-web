@@ -184,6 +184,7 @@ interface DraftDetailTierError {
   quantity?: string;
   productPrice?: string;
   shippingCost?: string;
+  currency?: string;
   landFreightCost?: string;
   seaFreightCost?: string;
   landTotalPrice?: string;
@@ -216,9 +217,11 @@ interface FinalPriceDraftTier {
   quantity: number;
   productPrice: string;
   commission: string;
+  currency: string;
   landTotalPrice: string;
   seaTotalPrice: string;
   isFcl: boolean;
+  isShareFCL: boolean;
   sortOrder: number;
 }
 
@@ -901,14 +904,16 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
       remark: detail.remark || null,
-      tiers: detail.tiers.map((tier, tierIndex) => ({
+    tiers: detail.tiers.map((tier, tierIndex) => ({
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
         productPrice: '',
         commission: '100',
+        currency: tier.currency || 'THB',
         landTotalPrice: '',
         seaTotalPrice: '',
         isFcl: Boolean(tier.isFcl),
+        isShareFCL: Boolean(tier.isShareFCL),
         sortOrder: tier.sortOrder || tierIndex + 1
       }))
     })),
@@ -1158,6 +1163,7 @@ function createDraftTier(sortOrder: number): RFQDetailTier {
     landFreightCost: 0,
     seaFreightCost: 0,
     isFcl: false,
+    isShareFCL: false,
     landTotalPrice: 0,
     seaTotalPrice: 0,
     sortOrder,
@@ -1200,6 +1206,7 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
       landFreightCost: tier.landFreightCost,
       seaFreightCost: tier.seaFreightCost,
       isFcl: Boolean(tier.isFcl),
+      isShareFCL: Boolean(tier.isShareFCL),
       landTotalPrice: tier.productPrice + tier.landFreightCost,
       seaTotalPrice: tier.productPrice + tier.seaFreightCost,
       sortOrder: index + 1
@@ -1516,6 +1523,10 @@ function mergeFinalPriceDraftFromExtractedPayload(
                 matchedExtractedTier.commission === undefined
                 ? currentTier.commission
                 : String(Number(matchedExtractedTier.commission || 0)),
+            currency:
+              matchedExtractedTier.currency === null || matchedExtractedTier.currency === undefined
+                ? currentTier.currency
+                : String(matchedExtractedTier.currency || ''),
             landTotalPrice:
               matchedExtractedTier.landTotalPrice === null ||
                 matchedExtractedTier.landTotalPrice === undefined
@@ -1529,7 +1540,12 @@ function mergeFinalPriceDraftFromExtractedPayload(
             isFcl:
               matchedExtractedTier.isFcl === null || matchedExtractedTier.isFcl === undefined
                 ? currentTier.isFcl
-                : Boolean(matchedExtractedTier.isFcl)
+                : Boolean(matchedExtractedTier.isFcl),
+            isShareFCL:
+              matchedExtractedTier.isShareFCL === null ||
+                matchedExtractedTier.isShareFCL === undefined
+                ? currentTier.isShareFCL
+                : Boolean(matchedExtractedTier.isShareFCL)
           };
         })
       };
@@ -3000,7 +3016,7 @@ export default function RFQDetail(): ReactElement {
   const handleFinalPriceTierChange = (
     detailId: number,
     tierId: number,
-    field: 'productPrice' | 'landTotalPrice' | 'seaTotalPrice',
+    field: 'quantity' | 'productPrice' | 'landTotalPrice' | 'seaTotalPrice' | 'currency',
     value: string
   ) => {
     setFinalPriceDraft((prev) => ({
@@ -3008,11 +3024,21 @@ export default function RFQDetail(): ReactElement {
       details: prev.details.map((detail) =>
         detail.id === detailId
           ? {
-            ...detail,
-            tiers: detail.tiers.map((tier) =>
-              tier.id === tierId ? { ...tier, [field]: value } : tier
-            )
-          }
+              ...detail,
+              tiers: detail.tiers.map((tier) =>
+                tier.id === tierId
+                  ? {
+                      ...tier,
+                      [field]:
+                        field === 'quantity'
+                          ? Number.isNaN(Number(value))
+                            ? 0
+                            : Number(value)
+                          : value
+                    }
+                  : tier
+              )
+            }
           : detail
       )
     }));
@@ -3028,17 +3054,81 @@ export default function RFQDetail(): ReactElement {
     }));
   };
 
+  const handleDeleteFinalPriceTier = (detailId: number, tierId: number) => {
+    setFinalPriceDraft((prev) => ({
+      ...prev,
+      details: prev.details.map((detail) =>
+        detail.id === detailId
+          ? {
+              ...detail,
+              tiers: detail.tiers
+                .filter((tier) => tier.id !== tierId)
+                .map((tier, index) => ({
+                  ...tier,
+                  sortOrder: index + 1
+                }))
+            }
+          : detail
+      )
+    }));
+    setFinalPriceErrors((prev) => {
+      const nextDetails = { ...(prev.details || {}) };
+      delete nextDetails[tierId];
+
+      return {
+        ...prev,
+        details: nextDetails
+      };
+    });
+  };
+
+  const handleFinalPriceTierCurrencyChange = (detailId: number, tierId: number, value: string) => {
+    handleFinalPriceTierChange(detailId, tierId, 'currency', value);
+  };
+
   const handleFinalPriceTierFclChange = (detailId: number, tierId: number, checked: boolean) => {
     setFinalPriceDraft((prev) => ({
       ...prev,
       details: prev.details.map((detail) =>
         detail.id === detailId
           ? {
-            ...detail,
-            tiers: detail.tiers.map((tier) =>
-              tier.id === tierId ? { ...tier, isFcl: checked } : tier
-            )
-          }
+              ...detail,
+              tiers: detail.tiers.map((tier) =>
+                tier.id === tierId
+                  ? {
+                      ...tier,
+                      isFcl: checked,
+                      isShareFCL: checked ? tier.isShareFCL : false
+                    }
+                  : tier
+              )
+            }
+          : detail
+      )
+    }));
+  };
+
+  const handleFinalPriceTierShareFclChange = (
+    detailId: number,
+    tierId: number,
+    checked: boolean
+  ) => {
+    setFinalPriceDraft((prev) => ({
+      ...prev,
+      details: prev.details.map((detail) =>
+        detail.id === detailId
+          ? {
+              ...detail,
+              tiers: detail.tiers.map((tier) =>
+                tier.id === tierId
+                  ? {
+                      ...tier,
+                      isShareFCL: checked,
+                      isFcl: checked ? true : tier.isFcl
+                    }
+                  : tier
+              )
+            }
           : detail
       )
     }));
@@ -3262,10 +3352,11 @@ export default function RFQDetail(): ReactElement {
               quantity: tier.quantity,
               productPrice,
               commission: parsePriceInput(tier.commission),
-              currency: 'THB',
+              currency: tier.currency || 'THB',
               landFreightCost,
               seaFreightCost,
               isFcl: Boolean(tier.isFcl),
+              isShareFCL: Boolean(tier.isShareFCL),
               landTotalPrice,
               seaTotalPrice,
               supplierQuoteTierId: tier.id,
@@ -5077,6 +5168,7 @@ export default function RFQDetail(): ReactElement {
                   onAddLeadTime={handleAddQuoteLeadTime}
                   onLeadTimeChange={handleQuoteLeadTimeChange}
                   onDeleteLeadTime={handleDeleteQuoteLeadTime}
+                  currencyOptions={currencyOptions}
                   leadTimeOptions={leadTimeOptions}
                   formatQuantity={formatQuantity}
                   formatPrice={formatPrice}
@@ -5449,18 +5541,21 @@ export default function RFQDetail(): ReactElement {
         onRecommendChange={handleFinalPriceRecommendChange}
         onCommissionChange={handleFinalPriceCommissionChange}
         onTierChange={handleFinalPriceTierChange}
+        onTierCurrencyChange={handleFinalPriceTierCurrencyChange}
         onTierFclChange={handleFinalPriceTierFclChange}
+        onTierShareFclChange={handleFinalPriceTierShareFclChange}
         onDetailChange={handleFinalPriceDetailChange}
         onDuplicateDetail={handleDuplicateFinalPriceDetail}
         onDeleteDetail={handleRequestDeleteFinalPriceDetail}
+        onDeleteTier={handleDeleteFinalPriceTier}
         onAddAdditionalCost={handleAddFinalPriceAdditionalCost}
         onAdditionalCostChange={handleFinalPriceAdditionalCostChange}
         onDeleteAdditionalCost={handleDeleteFinalPriceAdditionalCost}
         onRequestSave={handleRequestSaveFinalPrice}
         onGenerateMessage={handleGenerateFinalInquiryMessage}
         onTranslateMessage={handleOpenFinalExtractDialog}
-        formatQuantity={formatQuantity}
         formatPrice={formatPrice}
+        currencyOptions={currencyOptions}
         formatSupplierQuoteAdditionalCost={formatSupplierQuoteAdditionalCost}
         getSupplierDisplayName={getSupplierDisplayName}
         t={t}

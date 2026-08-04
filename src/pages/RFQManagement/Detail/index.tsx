@@ -81,7 +81,7 @@ import toast from 'react-hot-toast';
 import { ROUTE_PATHS } from 'routes';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
@@ -139,6 +139,30 @@ const MAX_RFQ_PICTURES = 12;
 
 interface RFQDetailParam {
   id: string;
+}
+
+interface RFQManagementLocationState {
+  returnToList?: {
+    page: number;
+    pageSize: number;
+    filter: {
+      id: string;
+      customerId: string;
+      salesId: string;
+      procurementId: string;
+      rfqTypeCode: string;
+      orderTypeCode: string;
+      productFamily: string;
+      productSubtype1: string;
+      productMaterial: string;
+      status: string;
+      isAccept: string;
+      keyword: string;
+      requestedDateStart: string;
+      requestedDateEnd: string;
+    };
+    customerKeyword: string;
+  };
 }
 
 interface RFQEditableFormValues {
@@ -878,6 +902,8 @@ export default function RFQDetail(): ReactElement {
   const params = useParams<RFQDetailParam>();
   const { t } = useTranslation();
   const history = useHistory();
+  const location = useLocation<RFQManagementLocationState>();
+  const returnToListState = location.state?.returnToList;
   const { hasPermission } = useAuth();
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
@@ -2544,7 +2570,12 @@ export default function RFQDetail(): ReactElement {
               className="btn-cool-grey"
               startIcon={<ArrowBackIos />}
               fullWidth={isDownSm}
-              onClick={() => history.push('/rfq-management')}>
+              onClick={() =>
+                history.push(
+                  ROUTE_PATHS.RFQ_MANAGEMENT,
+                  returnToListState ? { returnToList: returnToListState } : undefined
+                )
+              }>
               {t('button.back')}
             </Button>
           </Stack>

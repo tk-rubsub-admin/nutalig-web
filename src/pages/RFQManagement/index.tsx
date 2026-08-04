@@ -364,6 +364,15 @@ function createDefaultFilter(salesId = '') {
 
 type RFQManagementFilter = ReturnType<typeof createDefaultFilter>;
 
+interface RFQManagementLocationState {
+  returnToList?: {
+    page: number;
+    pageSize: number;
+    filter: RFQManagementFilter;
+    customerKeyword: string;
+  };
+}
+
 function createFilterFromRequestParams(search: string, salesId = ''): RFQManagementFilter {
   const defaultFilter = createDefaultFilter(salesId);
   const params = new URLSearchParams(search);
@@ -444,9 +453,10 @@ export default function RFQManagement(): ReactElement {
   const { getEmployeeId, getRole, getSalesId, hasAnyRole } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
-  const location = useLocation();
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const location = useLocation<RFQManagementLocationState>();
+  const returnToListState = location.state?.returnToList;
+  const [page, setPage] = useState<number>(returnToListState?.page || 1);
+  const [pageSize, setPageSize] = useState<number>(returnToListState?.pageSize || 10);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const canCreateRFQ = hasAnyRole([ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN]);
   const currentRole = getRole();
@@ -454,13 +464,19 @@ export default function RFQManagement(): ReactElement {
   const isSalesRole = currentRole === ROLES.SALES;
   const requestParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const hasSalesIdRequestParam = requestParams.has('salesId');
-  const [customerKeyword, setCustomerKeyword] = useState('');
+  const [customerKeyword, setCustomerKeyword] = useState(
+    returnToListState?.customerKeyword || ''
+  );
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
   const roleDefaultFilter = useMemo(
     () => createFilterFromRequestParams(location.search, isSalesRole ? currentSalesId : ''),
     [currentSalesId, isSalesRole, location.search]
   );
-  const [filter, setFilter] = useState(roleDefaultFilter);
+  const initialFilter = useMemo(
+    () => returnToListState?.filter || roleDefaultFilter,
+    [returnToListState?.filter, roleDefaultFilter]
+  );
+  const [filter, setFilter] = useState(initialFilter);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -619,7 +635,7 @@ export default function RFQManagement(): ReactElement {
   }, [currentSalesId, isSalesRole, salesOptions]);
 
   const searchFormik = useFormik({
-    initialValues: roleDefaultFilter,
+    initialValues: initialFilter,
     enableReinitialize: true,
     onSubmit: (values) => {
       const nextFilter = {
@@ -761,13 +777,24 @@ export default function RFQManagement(): ReactElement {
 
   const rfqList = rfqResponse?.records || [];
 
+  const handleOpenRfqDetail = (rfqId: string) => {
+    history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfqId), {
+      returnToList: {
+        page,
+        pageSize,
+        filter,
+        customerKeyword
+      }
+    });
+  };
+
   const rfqRows =
     rfqList.length > 0 ? (
       rfqList.map((rfq: RFQRecord) => (
         <TableRow
           hover
           key={rfq.id}
-          onClick={() => history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.id))}
+          onClick={() => handleOpenRfqDetail(rfq.id)}
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
             <Stack spacing={0.25} sx={{ pl: 1.5 }}>
@@ -833,7 +860,7 @@ export default function RFQManagement(): ReactElement {
         <TableRow
           hover
           key={rfq.id}
-          onClick={() => history.push(ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.id))}
+          onClick={() => handleOpenRfqDetail(rfq.id)}
           sx={getRFQRowSx(rfq)}>
           <TableCell align="left">
             <Stack spacing={0.5}>

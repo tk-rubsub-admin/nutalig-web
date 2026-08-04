@@ -11,6 +11,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -22,6 +23,7 @@ import {
   Typography
 } from '@mui/material';
 import { ReactElement } from 'react';
+import { SystemConfig } from 'services/Config/config-type';
 import {
   RFQSupplierQuote,
   RFQSupplierQuoteAdditionalCost
@@ -33,10 +35,11 @@ interface FinalPriceDraftTier {
   quantity: number;
   productPrice: string;
   commission: string;
+  currency: string;
   landTotalPrice: string;
   seaTotalPrice: string;
   isFcl: boolean;
-  currency?: string | null;
+  isShareFCL: boolean;
 }
 
 interface FinalPriceDraftDetail {
@@ -56,7 +59,10 @@ interface FinalPriceDraftPackage {
 }
 
 interface FinalPriceDraftErrors {
-  details?: Record<number, { productPrice?: string; landTotalPrice?: string; seaTotalPrice?: string }>;
+  details?: Record<
+    number,
+    { quantity?: string; productPrice?: string; landTotalPrice?: string; seaTotalPrice?: string }
+  >;
 }
 
 interface FinalPriceQuoteDialogProps {
@@ -83,13 +89,16 @@ interface FinalPriceQuoteDialogProps {
   onTierChange: (
     detailId: number,
     tierId: number,
-    field: 'productPrice' | 'landTotalPrice' | 'seaTotalPrice',
+    field: 'quantity' | 'productPrice' | 'landTotalPrice' | 'seaTotalPrice' | 'currency',
     value: string
   ) => void;
+  onTierCurrencyChange: (detailId: number, tierId: number, value: string) => void;
   onTierFclChange: (detailId: number, tierId: number, checked: boolean) => void;
+  onTierShareFclChange: (detailId: number, tierId: number, checked: boolean) => void;
   onDetailChange: (detailId: number, field: 'optionName' | 'spec', value: string) => void;
   onDuplicateDetail: (detailId: number) => void;
   onDeleteDetail: (detailId: number) => void;
+  onDeleteTier: (detailId: number, tierId: number) => void;
   onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
@@ -100,8 +109,8 @@ interface FinalPriceQuoteDialogProps {
   onRequestSave: () => void;
   onGenerateMessage: () => void;
   onTranslateMessage: () => void;
-  formatQuantity: (value?: number | null) => string;
   formatPrice: (value?: number | null, currency?: string | null) => string;
+  currencyOptions: SystemConfig[];
   formatSupplierQuoteAdditionalCost: (additionalCost: RFQSupplierQuoteAdditionalCost) => string;
   getSupplierDisplayName: (supplier?: RFQSupplierQuote['supplier'] | null) => string;
   t: (key: string) => string;
@@ -119,18 +128,21 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     onRecommendChange,
     onCommissionChange,
     onTierChange,
+    onTierCurrencyChange,
     onTierFclChange,
+    onTierShareFclChange,
     onDetailChange,
     onDuplicateDetail,
     onDeleteDetail,
+    onDeleteTier,
     onAddAdditionalCost,
     onAdditionalCostChange,
     onDeleteAdditionalCost,
     onRequestSave,
     onGenerateMessage,
     onTranslateMessage,
-    formatQuantity,
     formatPrice,
+    currencyOptions,
     formatSupplierQuoteAdditionalCost,
     getSupplierDisplayName,
     t
@@ -143,11 +155,11 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     const summaryParts = [
       packageItem.packageName,
       dimension ? `ขนาด ${dimension}` : null,
-      weight ? `น้ำหนัก ${weight} kg` : null,
-      capacity ? `บรรจุ ${capacity} ชิ้น` : null
+      weight ? `น้ำหนัก ${weight}` : null,
+      capacity ? `บรรจุ ${capacity}` : null
     ].filter(Boolean);
 
-    return summaryParts.join(' • ');
+    return summaryParts.join(' | ');
   };
 
   const getTierCurrency = (detailId: number, tierId: number): string | null => {
@@ -277,131 +289,269 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       </Stack>
                     </Stack>
 
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>MOQ</TableCell>
-                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
-                            ราคาจาก supplier
-                          </TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                            ค่าขนส่งภายในจีน
-                          </TableCell>
-                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
-                            ราคาสินค้า(บาท)
-                          </TableCell>
-                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap', fontSize: 12 }}>
-                            รวมส่งทางรถ
-                          </TableCell>
-                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap', fontSize: 12 }}>
-                            รวมส่งทางเรือ
-                          </TableCell>
-                          <TableCell align="center" sx={{ minWidth: 120, whiteSpace: 'nowrap' }}>
-                            ปิดตู้
-                          </TableCell>
-                          <TableCell align="right" sx={{ minWidth: 140, whiteSpace: 'nowrap' }}>
-                            Commission
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {detail.tiers.map((tier) => {
-                          const tierError = finalPriceErrors.details?.[tier.id] || {};
-                          const tierCurrency = getTierCurrency(detail.id, tier.id);
-                          const tierSupplierProductPrice = getTierSupplierProductPrice(
-                            detail.id,
-                            tier.id
-                          );
-                          const tierShippingCost = getTierShippingCost(detail.id, tier.id);
+                    <Box sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+                      <Table
+                        size="small"
+                        sx={{
+                          width: '100%',
+                          tableLayout: 'fixed',
+                          '& .MuiTableCell-root': {
+                            px: 1,
+                            py: 0.75
+                          }
+                        }}>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell
+                              align="center"
+                              sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              MOQ
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              ราคาจาก supplier
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              ค่าขนส่งภายในจีน
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              ราคาสินค้า
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              สกุลเงิน
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              รวมส่งทางรถ
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              รวมส่งทางเรือ
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 78, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              ปิดตู้
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              ปิดตู้ (share)
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              ค่าคอม
+                            </TableCell>
+                            <TableCell align="center" sx={{ width: 64, whiteSpace: 'nowrap', fontSize: 12 }}>
+                              จัดการ
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {detail.tiers.map((tier) => {
+                            const tierError = finalPriceErrors.details?.[tier.id] || {};
+                            const tierCurrency = getTierCurrency(detail.id, tier.id);
+                            const tierSupplierProductPrice = getTierSupplierProductPrice(
+                              detail.id,
+                              tier.id
+                            );
+                            const tierShippingCost = getTierShippingCost(detail.id, tier.id);
 
-                          return (
-                            <TableRow key={tier.id}>
-                              <TableCell>{formatQuantity(tier.quantity)}</TableCell>
-                              <TableCell align="right">
-                                {formatPrice(tierSupplierProductPrice, tierCurrency)}
-                              </TableCell>
-                              <TableCell align="right">
-                                {formatPrice(tierShippingCost, tierCurrency)}
-                              </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 140 }}>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={tier.productPrice}
-                                  onChange={(event) =>
-                                    onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
-                                  }
-                                  error={Boolean(tierError.productPrice)}
-                                  helperText={tierError.productPrice}
-                                  inputProps={{ min: 0, step: '0.01' }}
-                                  fullWidth
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 140 }}>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={tier.landTotalPrice}
-                                  onChange={(event) =>
-                                    onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
-                                  }
-                                  error={Boolean(tierError.landTotalPrice)}
-                                  helperText={tierError.landTotalPrice}
-                                  inputProps={{ min: 0, step: '0.01' }}
-                                  fullWidth
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 140 }}>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={tier.seaTotalPrice}
-                                  onChange={(event) =>
-                                    onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
-                                  }
-                                  error={Boolean(tierError.seaTotalPrice)}
-                                  helperText={tierError.seaTotalPrice}
-                                  inputProps={{ min: 0, step: '0.01' }}
-                                  fullWidth
-                                />
-                              </TableCell>
-                              <TableCell align="center" sx={{ minWidth: 120 }}>
-                                <FormControlLabel
-                                  sx={{ m: 0, justifyContent: 'center' }}
-                                  control={
-                                    <Checkbox
-                                      checked={Boolean(tier.isFcl)}
-                                      onChange={(event) =>
-                                        onTierFclChange(detail.id, tier.id, event.target.checked)
+                            return (
+                              <TableRow key={tier.id}>
+                                <TableCell align="center" sx={{ width: 90 }}>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tier.quantity}
+                                    onChange={(event) =>
+                                      onTierChange(detail.id, tier.id, 'quantity', event.target.value)
+                                    }
+                                    error={Boolean(tierError.quantity)}
+                                    helperText={tierError.quantity}
+                                    inputProps={{ min: 0, step: '1' }}
+                                    sx={{
+                                      width: '10ch',
+                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                                      {
+                                        WebkitAppearance: 'none',
+                                        margin: 0
+                                      },
+                                      '& input[type=number]': {
+                                        MozAppearance: 'textfield'
                                       }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 110 }}>
+                                  {formatPrice(tierSupplierProductPrice, tierCurrency)}
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 110 }}>
+                                  {formatPrice(tierShippingCost, tierCurrency)}
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 100 }}>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tier.productPrice}
+                                    onChange={(event) =>
+                                      onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
+                                    }
+                                    error={Boolean(tierError.productPrice)}
+                                    helperText={tierError.productPrice}
+                                    inputProps={{ min: 0, step: '0.01' }}
+                                    sx={{
+                                      width: '10ch',
+                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                                      {
+                                        WebkitAppearance: 'none',
+                                        margin: 0
+                                      },
+                                      '& input[type=number]': {
+                                        MozAppearance: 'textfield'
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 90 }}>
+                                  <TextField
+                                    size="small"
+                                    select
+                                    value={tier.currency || 'THB'}
+                                    onChange={(event) =>
+                                      onTierCurrencyChange(detail.id, tier.id, event.target.value)
+                                    }
+                                    fullWidth
+                                  >
+                                    {currencyOptions.map((currencyOption) => (
+                                      <MenuItem key={currencyOption.code} value={currencyOption.code}>
+                                        {currencyOption.code}
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 100 }}>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tier.landTotalPrice}
+                                    onChange={(event) =>
+                                      onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
+                                    }
+                                    error={Boolean(tierError.landTotalPrice)}
+                                    helperText={tierError.landTotalPrice}
+                                    inputProps={{ min: 0, step: '0.01' }}
+                                    sx={{
+                                      width: '10ch',
+                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                                      {
+                                        WebkitAppearance: 'none',
+                                        margin: 0
+                                      },
+                                      '& input[type=number]': {
+                                        MozAppearance: 'textfield'
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 100 }}>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tier.seaTotalPrice}
+                                    onChange={(event) =>
+                                      onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
+                                    }
+                                    error={Boolean(tierError.seaTotalPrice)}
+                                    helperText={tierError.seaTotalPrice}
+                                    inputProps={{ min: 0, step: '0.01' }}
+                                    sx={{
+                                      width: '10ch',
+                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                                      {
+                                        WebkitAppearance: 'none',
+                                        margin: 0
+                                      },
+                                      '& input[type=number]': {
+                                        MozAppearance: 'textfield'
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 78 }}>
+                                  <FormControlLabel
+                                    sx={{ m: 0, justifyContent: 'center' }}
+                                    control={
+                                      <Checkbox
+                                        checked={Boolean(tier.isFcl)}
+                                        onChange={(event) =>
+                                          onTierFclChange(detail.id, tier.id, event.target.checked)
+                                        }
+                                      />
+                                    }
+                                    label=""
+                                  />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 92 }}>
+                                  {tier.isFcl ? (
+                                    <FormControlLabel
+                                      sx={{ m: 0, justifyContent: 'center' }}
+                                      control={
+                                        <Checkbox
+                                          checked={Boolean(tier.isShareFCL)}
+                                          onChange={(event) =>
+                                            onTierShareFclChange(
+                                              detail.id,
+                                              tier.id,
+                                              event.target.checked
+                                            )
+                                          }
+                                        />
+                                      }
+                                      label=""
                                     />
-                                  }
-                                  label=""
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={{ minWidth: 50 }}>
-                                {/*
+                                  ) : (
+                                    '-'
+                                  )}
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 86 }}>
+                                  {/*
                                   Keep the displayed default at 100% when the draft has no value yet.
                                 */}
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={tier.commission?.trim() ? tier.commission : '100'}
-                                  onChange={(event) =>
-                                    onCommissionChange(detail.id, tier.id, event.target.value)
-                                  }
-                                  InputProps={{
-                                    endAdornment: <InputAdornment position="end">%</InputAdornment>
-                                  }}
-                                  inputProps={{ min: 0, step: '1', max: 100 }}
-                                  fullWidth
-                                />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={tier.commission?.trim() ? tier.commission : '100'}
+                                    onChange={(event) =>
+                                      onCommissionChange(detail.id, tier.id, event.target.value)
+                                    }
+                                    InputProps={{
+                                      endAdornment: <InputAdornment position="end">%</InputAdornment>
+                                    }}
+                                    inputProps={{ min: 0, step: '1', max: 100 }}
+                                    sx={{
+                                      width: '10ch',
+                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                                      {
+                                        WebkitAppearance: 'none',
+                                        margin: 0
+                                      },
+                                      '& input[type=number]': {
+                                        MozAppearance: 'textfield'
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="center" sx={{ width: 64 }}>
+                                  <Tooltip title="ลบ MOQ">
+                                    <span>
+                                      <IconButton
+                                        color="error"
+                                        onClick={() => onDeleteTier(detail.id, tier.id)}
+                                        disabled={detail.tiers.length <= 1}>
+                                        <DeleteOutline />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </Box>
 
                   </Stack>
                 </Box>
@@ -539,7 +689,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
             </Stack>
 
             <TextField
-              label="Remark"
+              label="Internal Remark"
               value={finalPriceDraft.remark}
               onChange={(event) => onRemarkChange(event.target.value)}
               multiline

@@ -1,4 +1,4 @@
-import { Add, AutoAwesome, ContentCopy, DeleteOutline } from '@mui/icons-material';
+import { Add, AutoAwesome, ContentCopy, DeleteOutline, EmojiTransportation } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -25,6 +25,7 @@ import {
 import { ReactElement } from 'react';
 import { SystemConfig } from 'services/Config/config-type';
 import {
+  RFQDetailTierSplit,
   RFQSupplierQuote,
   RFQSupplierQuoteAdditionalCost
 } from 'services/RFQ/rfq-type';
@@ -61,7 +62,13 @@ interface FinalPriceDraftPackage {
 interface FinalPriceDraftErrors {
   details?: Record<
     number,
-    { quantity?: string; productPrice?: string; landTotalPrice?: string; seaTotalPrice?: string }
+    {
+      quantity?: string;
+      productPrice?: string;
+      commission?: string;
+      landTotalPrice?: string;
+      seaTotalPrice?: string;
+    }
   >;
 }
 
@@ -86,6 +93,7 @@ interface FinalPriceQuoteDialogProps {
   onRemarkChange: (value: string) => void;
   onRecommendChange: (value: string) => void;
   onCommissionChange: (detailId: number, tierId: number, value: string) => void;
+  onDuplicateSpecialDetail: (detailId: number) => void;
   onTierChange: (
     detailId: number,
     tierId: number,
@@ -127,6 +135,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     onRemarkChange,
     onRecommendChange,
     onCommissionChange,
+    onDuplicateSpecialDetail,
     onTierChange,
     onTierCurrencyChange,
     onTierFclChange,
@@ -186,6 +195,685 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     return quoteTier?.quantity || 0;
   };
 
+  const isSpecialOption = (optionName?: string | null): boolean =>
+    optionName?.trim().endsWith(' พิเศษ') ?? false;
+
+  const toNumberValue = (value?: string | null): number => {
+    const normalizedValue = Number(String(value ?? '').replace(/,/g, '').trim());
+    return Number.isFinite(normalizedValue) ? normalizedValue : 0;
+  };
+
+  const toSpecialTierSplit = (tier: FinalPriceDraftTier): RFQDetailTierSplit => ({
+    id: tier.id,
+    quantity: toNumberValue(tier.quantity?.toString()),
+    sellPrice: toNumberValue(tier.productPrice),
+    commission: toNumberValue(tier.commission),
+    currency: tier.currency || 'THB',
+    landFreightQty: toNumberValue(tier.quantity?.toString()),
+    landFreightCost: toNumberValue(tier.landTotalPrice),
+    seaFreightQty: toNumberValue(tier.quantity?.toString()),
+    seaFreightCost: toNumberValue(tier.seaTotalPrice),
+    isFcl: Boolean(tier.isFcl),
+    isShareFCL: Boolean(tier.isShareFCL)
+  });
+
+  const renderSpecialDetailCard = (detail: FinalPriceDraftDetail): ReactElement => (
+    <Box
+      key={detail.id}
+      sx={{
+        border: '1px solid #dce4ee',
+        borderRadius: 2,
+        p: 2,
+        backgroundColor: '#fff'
+      }}>
+      <Stack spacing={1.5}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+          <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+            <TextField
+              size="small"
+              label="Option Name"
+              value={detail.optionName}
+              onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
+              disabled={isSubmitting}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              label="Spec"
+              value={detail.spec}
+              onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
+              disabled={isSubmitting}
+              fullWidth
+              multiline
+              minRows={2}
+            />
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteOutline fontSize="small" />}
+              onClick={() => onDeleteDetail(detail.id)}
+              sx={outlinedActionButtonSx}
+              disabled={isSubmitting || finalPriceDraft.details.length <= 1}>
+              ลบ option
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Box sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+          <Table
+            size="small"
+            sx={{
+              width: '100%',
+              tableLayout: 'fixed',
+              '& .MuiTableCell-root': {
+                px: 1,
+                py: 0.75
+              }
+            }}>
+            <TableHead>
+              <TableRow>
+                <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  MOQ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ราคาขาย
+                </TableCell>
+                <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  สกุลเงิน
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  แบ่งส่งทางรถ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ค่าส่งทางรถ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  แบ่งส่งทางเรือ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ค่าส่งทางเรือ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 78, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ปิดตู้
+                </TableCell>
+                <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ปิดตู้ (share)
+                </TableCell>
+                <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ค่าคอม
+                </TableCell>
+                <TableCell align="center" sx={{ width: 64, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  จัดการ
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {detail.tiers.map((tier) => {
+                const tierSplit = toSpecialTierSplit(tier);
+                const tierError = finalPriceErrors.details?.[tier.id] || {};
+
+                return (
+                  <TableRow key={tier.id}>
+                    <TableCell align="center" sx={{ width: 90 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.quantity}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'quantity', event.target.value)
+                        }
+                        error={Boolean(tierError.quantity)}
+                        helperText={tierError.quantity}
+                        inputProps={{ min: 0, step: '1' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.sellPrice}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
+                        }
+                        error={Boolean(tierError.productPrice)}
+                        helperText={tierError.productPrice}
+                        inputProps={{ min: 0, step: '0.01' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 90 }}>
+                      <TextField
+                        size="small"
+                        select
+                        value={tierSplit.currency || 'THB'}
+                        onChange={(event) =>
+                          onTierCurrencyChange(detail.id, tier.id, event.target.value)
+                        }
+                        fullWidth
+                      >
+                        {currencyOptions.map((currencyOption) => (
+                          <MenuItem key={currencyOption.code} value={currencyOption.code}>
+                            {currencyOption.code}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.landFreightQty}
+                        disabled
+                        inputProps={{ min: 0, step: '1' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.landFreightCost}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
+                        }
+                        error={Boolean(tierError.landTotalPrice)}
+                        helperText={tierError.landTotalPrice}
+                        inputProps={{ min: 0, step: '0.01' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.seaFreightQty}
+                        disabled
+                        inputProps={{ min: 0, step: '1' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.seaFreightCost}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
+                        }
+                        error={Boolean(tierError.seaTotalPrice)}
+                        helperText={tierError.seaTotalPrice}
+                        inputProps={{ min: 0, step: '0.01' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 78 }}>
+                      <FormControlLabel
+                        sx={{ m: 0, justifyContent: 'center' }}
+                        control={
+                          <Checkbox
+                            checked={Boolean(tierSplit.isFcl)}
+                            onChange={(event) =>
+                              onTierFclChange(detail.id, tier.id, event.target.checked)
+                            }
+                          />
+                        }
+                        label=""
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 92 }}>
+                      {tierSplit.isFcl ? (
+                        <FormControlLabel
+                          sx={{ m: 0, justifyContent: 'center' }}
+                          control={
+                            <Checkbox
+                              checked={Boolean(tierSplit.isShareFCL)}
+                              onChange={(event) =>
+                                onTierShareFclChange(
+                                  detail.id,
+                                  tier.id,
+                                  event.target.checked
+                                )
+                              }
+                            />
+                          }
+                          label=""
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 86 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tierSplit.commission ?? 100}
+                        onChange={(event) =>
+                          onCommissionChange(detail.id, tier.id, event.target.value)
+                        }
+                        error={Boolean(tierError.commission)}
+                        helperText={tierError.commission}
+                        InputProps={{
+                          endAdornment: <InputAdornment position="end">%</InputAdornment>
+                        }}
+                        inputProps={{ min: 0, step: '1', max: 100 }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 64 }}>
+                      <Tooltip title="ลบ MOQ">
+                        <span>
+                          <IconButton
+                            color="error"
+                            onClick={() => onDeleteTier(detail.id, tier.id)}
+                            disabled={detail.tiers.length <= 1}>
+                            <DeleteOutline />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Box>
+      </Stack>
+    </Box>
+  );
+
+  const renderDetailCard = (detail: FinalPriceDraftDetail): ReactElement => (
+    <Box
+      key={detail.id}
+      sx={{
+        border: '1px solid #dce4ee',
+        borderRadius: 2,
+        p: 2,
+        backgroundColor: '#fff'
+      }}>
+      <Stack spacing={1.5}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+          <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+            <TextField
+              size="small"
+              label="Option Name"
+              value={detail.optionName}
+              onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
+              disabled={isSubmitting}
+              fullWidth
+            />
+            <TextField
+              size="small"
+              label="Spec"
+              value={detail.spec}
+              onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
+              disabled={isSubmitting}
+              fullWidth
+              multiline
+              minRows={2}
+            />
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ContentCopy fontSize="small" />}
+              onClick={() => onDuplicateDetail(detail.id)}
+              sx={outlinedActionButtonSx}
+              disabled={isSubmitting}>
+              คัดลอก option
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteOutline fontSize="small" />}
+              onClick={() => onDeleteDetail(detail.id)}
+              sx={outlinedActionButtonSx}
+              disabled={isSubmitting || finalPriceDraft.details.length <= 1}>
+              ลบ option
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Box sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+          <Table
+            size="small"
+            sx={{
+              width: '100%',
+              tableLayout: 'fixed',
+              '& .MuiTableCell-root': {
+                px: 1,
+                py: 0.75
+              }
+            }}>
+            <TableHead>
+              <TableRow>
+                <TableCell
+                  align="center"
+                  sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  MOQ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ราคาจาก supplier
+                </TableCell>
+                <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ค่าขนส่งภายในจีน
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ราคาสินค้า
+                </TableCell>
+                <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  สกุลเงิน
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  รวมส่งทางรถ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  รวมส่งทางเรือ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 78, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ปิดตู้
+                </TableCell>
+                <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ปิดตู้ (share)
+                </TableCell>
+                <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ค่าคอม
+                </TableCell>
+                <TableCell align="center" sx={{ width: 64, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  จัดการ
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {detail.tiers.map((tier) => {
+                const tierError = finalPriceErrors.details?.[tier.id] || {};
+                const tierCurrency = getTierCurrency(detail.id, tier.id);
+                const tierSupplierProductPrice = getTierSupplierProductPrice(detail.id, tier.id);
+                const tierShippingCost = getTierShippingCost(detail.id, tier.id);
+
+                return (
+                  <TableRow key={tier.id}>
+                    <TableCell align="center" sx={{ width: 90 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tier.quantity}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'quantity', event.target.value)
+                        }
+                        error={Boolean(tierError.quantity)}
+                        helperText={tierError.quantity}
+                        inputProps={{ min: 0, step: '1' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 110 }}>
+                      {formatPrice(tierSupplierProductPrice, tierCurrency)}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 110 }}>
+                      {formatPrice(tierShippingCost, tierCurrency)}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tier.productPrice}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
+                        }
+                        error={Boolean(tierError.productPrice)}
+                        helperText={tierError.productPrice}
+                        inputProps={{ min: 0, step: '0.01' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 90 }}>
+                      <TextField
+                        size="small"
+                        select
+                        value={tier.currency || 'THB'}
+                        onChange={(event) =>
+                          onTierCurrencyChange(detail.id, tier.id, event.target.value)
+                        }
+                        fullWidth>
+                        {currencyOptions.map((currencyOption) => (
+                          <MenuItem key={currencyOption.code} value={currencyOption.code}>
+                            {currencyOption.code}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tier.landTotalPrice}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
+                        }
+                        error={Boolean(tierError.landTotalPrice)}
+                        helperText={tierError.landTotalPrice}
+                        inputProps={{ min: 0, step: '0.01' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tier.seaTotalPrice}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
+                        }
+                        error={Boolean(tierError.seaTotalPrice)}
+                        helperText={tierError.seaTotalPrice}
+                        inputProps={{ min: 0, step: '0.01' }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 78 }}>
+                      <FormControlLabel
+                        sx={{ m: 0, justifyContent: 'center' }}
+                        control={
+                          <Checkbox
+                            checked={Boolean(tier.isFcl)}
+                            onChange={(event) =>
+                              onTierFclChange(detail.id, tier.id, event.target.checked)
+                            }
+                          />
+                        }
+                        label=""
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 92 }}>
+                      {tier.isFcl ? (
+                        <FormControlLabel
+                          sx={{ m: 0, justifyContent: 'center' }}
+                          control={
+                            <Checkbox
+                              checked={Boolean(tier.isShareFCL)}
+                              onChange={(event) =>
+                                onTierShareFclChange(
+                                  detail.id,
+                                  tier.id,
+                                  event.target.checked
+                                )
+                              }
+                            />
+                          }
+                          label=""
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 86 }}>
+                      {/*
+                      Keep the displayed default at 100% when the draft has no value yet.
+                      */}
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={tier.commission}
+                        onChange={(event) =>
+                          onCommissionChange(detail.id, tier.id, event.target.value)
+                        }
+                        error={Boolean(tierError.commission)}
+                        helperText={tierError.commission}
+                        InputProps={{
+                          endAdornment: <InputAdornment position="end">%</InputAdornment>
+                        }}
+                        inputProps={{ min: 0, step: '1', max: 100 }}
+                        sx={{
+                          width: '10ch',
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
+                          {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          },
+                          '& input[type=number]': {
+                            MozAppearance: 'textfield'
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 64 }}>
+                      <Tooltip title="ลบ MOQ">
+                        <span>
+                          <IconButton
+                            color="error"
+                            onClick={() => onDeleteTier(detail.id, tier.id)}
+                            disabled={detail.tiers.length <= 1}>
+                            <DeleteOutline />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Box>
+      </Stack>
+    </Box>
+  );
+
   return (
     <Dialog open={open} onClose={isSubmitting ? undefined : onClose} maxWidth="lg" fullWidth>
       <DialogTitle>Final ราคา RFQ</DialogTitle>
@@ -213,6 +901,14 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
                 <Button
                   variant="outlined"
+                  startIcon={<EmojiTransportation />}
+                  disabled={isSubmitting || !finalPriceDraft.details.length}
+                  className={'btn-indigo-blue'}
+                  onClick={() => onDuplicateSpecialDetail(finalPriceDraft.details[0].id)}>
+                  Option พิเศษ
+                </Button>
+                <Button
+                  variant="outlined"
                   startIcon={<AutoAwesome />}
                   disabled={isSubmitting}
                   className={'btn-indigo-blue'}
@@ -228,339 +924,37 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 </Button>
               </Stack>
             </Stack>
-            {finalPriceDraft.details.length ? (
-              finalPriceDraft.details.map((detail, detailIndex) => (
-                <Box
-                  key={detail.id}
-                  sx={{
-                    border: '1px solid #dce4ee',
-                    borderRadius: 2,
-                    p: 2,
-                    backgroundColor: '#fff'
-                  }}>
-                  <Stack spacing={1.5}>
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="flex-start"
-                      spacing={2}>
-                      <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-                        <TextField
-                          size="small"
-                          label="Option Name"
-                          value={detail.optionName}
-                          onChange={(event) =>
-                            onDetailChange(detail.id, 'optionName', event.target.value)
-                          }
-                          disabled={isSubmitting}
-                          fullWidth
-                        />
-                        <TextField
-                          size="small"
-                          label="Spec"
-                          value={detail.spec}
-                          onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
-                          disabled={isSubmitting}
-                          fullWidth
-                          multiline
-                          minRows={2}
-                        />
-                      </Stack>
-                      <Stack direction="row" spacing={1} alignItems="flex-start">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<ContentCopy fontSize="small" />}
-                          onClick={() => onDuplicateDetail(detail.id)}
-                          sx={outlinedActionButtonSx}
-                          disabled={isSubmitting}>
-                          คัดลอก option
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          startIcon={<DeleteOutline fontSize="small" />}
-                          onClick={() => onDeleteDetail(detail.id)}
-                          sx={outlinedActionButtonSx}
-                          disabled={isSubmitting || finalPriceDraft.details.length <= 1}>
-                          ลบ option
-                        </Button>
-                      </Stack>
-                    </Stack>
+            {finalPriceDraft.details.some((detail) => !isSpecialOption(detail.optionName)) ? (
+              <Stack spacing={1.5}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Option ปกติ
+                </Typography>
+                <Stack spacing={2}>
+                  {finalPriceDraft.details
+                    .filter((detail) => !isSpecialOption(detail.optionName))
+                    .map((detail) => renderDetailCard(detail))}
+                </Stack>
+              </Stack>
+            ) : null}
 
-                    <Box sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
-                      <Table
-                        size="small"
-                        sx={{
-                          width: '100%',
-                          tableLayout: 'fixed',
-                          '& .MuiTableCell-root': {
-                            px: 1,
-                            py: 0.75
-                          }
-                        }}>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell
-                              align="center"
-                              sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              MOQ
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              ราคาจาก supplier
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              ค่าขนส่งภายในจีน
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              ราคาสินค้า
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              สกุลเงิน
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              รวมส่งทางรถ
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              รวมส่งทางเรือ
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 78, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              ปิดตู้
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              ปิดตู้ (share)
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              ค่าคอม
-                            </TableCell>
-                            <TableCell align="center" sx={{ width: 64, whiteSpace: 'nowrap', fontSize: 12 }}>
-                              จัดการ
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.tiers.map((tier) => {
-                            const tierError = finalPriceErrors.details?.[tier.id] || {};
-                            const tierCurrency = getTierCurrency(detail.id, tier.id);
-                            const tierSupplierProductPrice = getTierSupplierProductPrice(
-                              detail.id,
-                              tier.id
-                            );
-                            const tierShippingCost = getTierShippingCost(detail.id, tier.id);
+            {finalPriceDraft.details.some((detail) => isSpecialOption(detail.optionName)) ? (
+              <Stack spacing={1.5}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Option พิเศษ
+                </Typography>
+                <Stack spacing={2}>
+                  {finalPriceDraft.details
+                    .filter((detail) => isSpecialOption(detail.optionName))
+                    .map((detail) => renderSpecialDetailCard(detail))}
+                </Stack>
+              </Stack>
+            ) : null}
 
-                            return (
-                              <TableRow key={tier.id}>
-                                <TableCell align="center" sx={{ width: 90 }}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.quantity}
-                                    onChange={(event) =>
-                                      onTierChange(detail.id, tier.id, 'quantity', event.target.value)
-                                    }
-                                    error={Boolean(tierError.quantity)}
-                                    helperText={tierError.quantity}
-                                    inputProps={{ min: 0, step: '1' }}
-                                    sx={{
-                                      width: '10ch',
-                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
-                                      {
-                                        WebkitAppearance: 'none',
-                                        margin: 0
-                                      },
-                                      '& input[type=number]': {
-                                        MozAppearance: 'textfield'
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 110 }}>
-                                  {formatPrice(tierSupplierProductPrice, tierCurrency)}
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 110 }}>
-                                  {formatPrice(tierShippingCost, tierCurrency)}
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 100 }}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.productPrice}
-                                    onChange={(event) =>
-                                      onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
-                                    }
-                                    error={Boolean(tierError.productPrice)}
-                                    helperText={tierError.productPrice}
-                                    inputProps={{ min: 0, step: '0.01' }}
-                                    sx={{
-                                      width: '10ch',
-                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
-                                      {
-                                        WebkitAppearance: 'none',
-                                        margin: 0
-                                      },
-                                      '& input[type=number]': {
-                                        MozAppearance: 'textfield'
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 90 }}>
-                                  <TextField
-                                    size="small"
-                                    select
-                                    value={tier.currency || 'THB'}
-                                    onChange={(event) =>
-                                      onTierCurrencyChange(detail.id, tier.id, event.target.value)
-                                    }
-                                    fullWidth
-                                  >
-                                    {currencyOptions.map((currencyOption) => (
-                                      <MenuItem key={currencyOption.code} value={currencyOption.code}>
-                                        {currencyOption.code}
-                                      </MenuItem>
-                                    ))}
-                                  </TextField>
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 100 }}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.landTotalPrice}
-                                    onChange={(event) =>
-                                      onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
-                                    }
-                                    error={Boolean(tierError.landTotalPrice)}
-                                    helperText={tierError.landTotalPrice}
-                                    inputProps={{ min: 0, step: '0.01' }}
-                                    sx={{
-                                      width: '10ch',
-                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
-                                      {
-                                        WebkitAppearance: 'none',
-                                        margin: 0
-                                      },
-                                      '& input[type=number]': {
-                                        MozAppearance: 'textfield'
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 100 }}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.seaTotalPrice}
-                                    onChange={(event) =>
-                                      onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
-                                    }
-                                    error={Boolean(tierError.seaTotalPrice)}
-                                    helperText={tierError.seaTotalPrice}
-                                    inputProps={{ min: 0, step: '0.01' }}
-                                    sx={{
-                                      width: '10ch',
-                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
-                                      {
-                                        WebkitAppearance: 'none',
-                                        margin: 0
-                                      },
-                                      '& input[type=number]': {
-                                        MozAppearance: 'textfield'
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 78 }}>
-                                  <FormControlLabel
-                                    sx={{ m: 0, justifyContent: 'center' }}
-                                    control={
-                                      <Checkbox
-                                        checked={Boolean(tier.isFcl)}
-                                        onChange={(event) =>
-                                          onTierFclChange(detail.id, tier.id, event.target.checked)
-                                        }
-                                      />
-                                    }
-                                    label=""
-                                  />
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 92 }}>
-                                  {tier.isFcl ? (
-                                    <FormControlLabel
-                                      sx={{ m: 0, justifyContent: 'center' }}
-                                      control={
-                                        <Checkbox
-                                          checked={Boolean(tier.isShareFCL)}
-                                          onChange={(event) =>
-                                            onTierShareFclChange(
-                                              detail.id,
-                                              tier.id,
-                                              event.target.checked
-                                            )
-                                          }
-                                        />
-                                      }
-                                      label=""
-                                    />
-                                  ) : (
-                                    '-'
-                                  )}
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 86 }}>
-                                  {/*
-                                  Keep the displayed default at 100% when the draft has no value yet.
-                                */}
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={tier.commission?.trim() ? tier.commission : '100'}
-                                    onChange={(event) =>
-                                      onCommissionChange(detail.id, tier.id, event.target.value)
-                                    }
-                                    InputProps={{
-                                      endAdornment: <InputAdornment position="end">%</InputAdornment>
-                                    }}
-                                    inputProps={{ min: 0, step: '1', max: 100 }}
-                                    sx={{
-                                      width: '10ch',
-                                      '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
-                                      {
-                                        WebkitAppearance: 'none',
-                                        margin: 0
-                                      },
-                                      '& input[type=number]': {
-                                        MozAppearance: 'textfield'
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell align="center" sx={{ width: 64 }}>
-                                  <Tooltip title="ลบ MOQ">
-                                    <span>
-                                      <IconButton
-                                        color="error"
-                                        onClick={() => onDeleteTier(detail.id, tier.id)}
-                                        disabled={detail.tiers.length <= 1}>
-                                        <DeleteOutline />
-                                      </IconButton>
-                                    </span>
-                                  </Tooltip>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </Box>
-
-                  </Stack>
-                </Box>
-              ))
-            ) : (
+            {!finalPriceDraft.details.length ? (
               <Typography variant="body2" color="text.secondary">
                 ยังไม่มีรายละเอียดราคาจาก supplier quote
               </Typography>
-            )}
+            ) : null}
 
             {finalPriceDraft.packages.length ? (
               <Box

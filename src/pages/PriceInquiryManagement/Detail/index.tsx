@@ -183,6 +183,7 @@ interface RFQEditableFormValues {
 interface DraftDetailTierError {
   quantity?: string;
   productPrice?: string;
+  commission?: string;
   shippingCost?: string;
   currency?: string;
   landFreightCost?: string;
@@ -864,6 +865,11 @@ function parsePriceInput(value: string): number | null {
   return Number.isNaN(parsedValue) ? null : parsedValue;
 }
 
+function normalizeCommissionInput(value?: string | null): string {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : '100';
+}
+
 function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
   return {
     optionName: detail.optionName || '',
@@ -904,12 +910,12 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
       remark: detail.remark || null,
-    tiers: detail.tiers.map((tier, tierIndex) => ({
+      tiers: detail.tiers.map((tier, tierIndex) => ({
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
         productPrice: '',
-        commission: '100',
-        currency: tier.currency || 'THB',
+        commission: normalizeCommissionInput(tier.commission?.toString()),
+        currency: 'THB',
         landTotalPrice: '',
         seaTotalPrice: '',
         isFcl: Boolean(tier.isFcl),
@@ -1169,6 +1175,21 @@ function createDraftTier(sortOrder: number): RFQDetailTier {
     sortOrder,
     createdDate: '',
     updatedDate: ''
+  };
+}
+
+function createFinalPriceDraftTier(sortOrder: number): FinalPriceDraftTier {
+  return {
+    id: -(Date.now() + sortOrder),
+    quantity: 0,
+    productPrice: '',
+    commission: '100',
+    currency: 'THB',
+    landTotalPrice: '',
+    seaTotalPrice: '',
+    isFcl: false,
+    isShareFCL: false,
+    sortOrder
   };
 }
 
@@ -1520,8 +1541,9 @@ function mergeFinalPriceDraftFromExtractedPayload(
                 : String(Number(matchedExtractedTier.productPrice || 0)),
             commission:
               matchedExtractedTier.commission === null ||
-                matchedExtractedTier.commission === undefined
-                ? currentTier.commission
+                matchedExtractedTier.commission === undefined ||
+                String(matchedExtractedTier.commission).trim() === ''
+                ? normalizeCommissionInput(currentTier.commission)
                 : String(Number(matchedExtractedTier.commission || 0)),
             currency:
               matchedExtractedTier.currency === null || matchedExtractedTier.currency === undefined
@@ -3011,6 +3033,16 @@ export default function RFQDetail(): ReactElement {
           : detail
       )
     }));
+    setFinalPriceErrors((prev) => ({
+      ...prev,
+      details: {
+        ...prev.details,
+        [tierId]: {
+          ...prev.details?.[tierId],
+          commission: undefined
+        }
+      }
+    }));
   };
 
   const handleFinalPriceTierChange = (
@@ -3024,21 +3056,21 @@ export default function RFQDetail(): ReactElement {
       details: prev.details.map((detail) =>
         detail.id === detailId
           ? {
-              ...detail,
-              tiers: detail.tiers.map((tier) =>
-                tier.id === tierId
-                  ? {
-                      ...tier,
-                      [field]:
-                        field === 'quantity'
-                          ? Number.isNaN(Number(value))
-                            ? 0
-                            : Number(value)
-                          : value
-                    }
-                  : tier
-              )
-            }
+            ...detail,
+            tiers: detail.tiers.map((tier) =>
+              tier.id === tierId
+                ? {
+                  ...tier,
+                  [field]:
+                    field === 'quantity'
+                      ? Number.isNaN(Number(value))
+                        ? 0
+                        : Number(value)
+                      : value
+                }
+                : tier
+            )
+          }
           : detail
       )
     }));
@@ -3060,14 +3092,14 @@ export default function RFQDetail(): ReactElement {
       details: prev.details.map((detail) =>
         detail.id === detailId
           ? {
-              ...detail,
-              tiers: detail.tiers
-                .filter((tier) => tier.id !== tierId)
-                .map((tier, index) => ({
-                  ...tier,
-                  sortOrder: index + 1
-                }))
-            }
+            ...detail,
+            tiers: detail.tiers
+              .filter((tier) => tier.id !== tierId)
+              .map((tier, index) => ({
+                ...tier,
+                sortOrder: index + 1
+              }))
+          }
           : detail
       )
     }));
@@ -3092,17 +3124,17 @@ export default function RFQDetail(): ReactElement {
       details: prev.details.map((detail) =>
         detail.id === detailId
           ? {
-              ...detail,
-              tiers: detail.tiers.map((tier) =>
-                tier.id === tierId
-                  ? {
-                      ...tier,
-                      isFcl: checked,
-                      isShareFCL: checked ? tier.isShareFCL : false
-                    }
-                  : tier
-              )
-            }
+            ...detail,
+            tiers: detail.tiers.map((tier) =>
+              tier.id === tierId
+                ? {
+                  ...tier,
+                  isFcl: checked,
+                  isShareFCL: checked ? tier.isShareFCL : false
+                }
+                : tier
+            )
+          }
           : detail
       )
     }));
@@ -3118,17 +3150,17 @@ export default function RFQDetail(): ReactElement {
       details: prev.details.map((detail) =>
         detail.id === detailId
           ? {
-              ...detail,
-              tiers: detail.tiers.map((tier) =>
-                tier.id === tierId
-                  ? {
-                      ...tier,
-                      isShareFCL: checked,
-                      isFcl: checked ? true : tier.isFcl
-                    }
-                  : tier
-              )
-            }
+            ...detail,
+            tiers: detail.tiers.map((tier) =>
+              tier.id === tierId
+                ? {
+                  ...tier,
+                  isShareFCL: checked,
+                  isFcl: checked ? true : tier.isFcl
+                }
+                : tier
+            )
+          }
           : detail
       )
     }));
@@ -3152,6 +3184,40 @@ export default function RFQDetail(): ReactElement {
           id: -(Date.now() + nextDetailIndex * 100 + tierIndex + 1),
           sortOrder: tierIndex + 1
         }))
+      };
+
+      return {
+        ...prev,
+        details: [...prev.details, copiedDetail].map((detail, index) => ({
+          ...detail,
+          sortOrder: index + 1,
+          tiers: detail.tiers.map((tier, tierIndex) => ({
+            ...tier,
+            sortOrder: tierIndex + 1
+          }))
+        }))
+      };
+    });
+  };
+
+  const handleDuplicateSpecialFinalPriceDetail = (detailId: number) => {
+    setFinalPriceDraft((prev) => {
+      const sourceDetail = prev.details.find((detail) => detail.id === detailId);
+      if (!sourceDetail) {
+        return prev;
+      }
+
+      const nextDetailIndex = prev.details.length + 1;
+      const specialSuffix = ' พิเศษ';
+      const baseOptionName = sourceDetail.optionName?.trim() || `Option ${nextDetailIndex}`;
+      const copiedDetail: FinalPriceDraftDetail = {
+        id: -(Date.now() + nextDetailIndex),
+        optionName: baseOptionName.endsWith(specialSuffix)
+          ? baseOptionName
+          : `${baseOptionName}${specialSuffix}`,
+        spec: '',
+        sortOrder: nextDetailIndex,
+        tiers: [createFinalPriceDraftTier(1)]
       };
 
       return {
@@ -3282,6 +3348,7 @@ export default function RFQDetail(): ReactElement {
     finalPriceDraft.details.forEach((detail) => {
       detail.tiers.forEach((tier) => {
         const productPrice = parsePriceInput(tier.productPrice);
+        const commission = parsePriceInput(tier.commission);
         const landTotalPrice = parsePriceInput(tier.landTotalPrice);
         const seaTotalPrice = parsePriceInput(tier.seaTotalPrice);
         const sourceTier = finalPriceQuote.details
@@ -3294,6 +3361,12 @@ export default function RFQDetail(): ReactElement {
 
         if (productPrice === null || productPrice <= 0) {
           nextTierError.productPrice = 'กรุณาระบุราคาสินค้า(บาท)มากกว่า 0';
+        }
+
+        if (!tier.commission.trim()) {
+          nextTierError.commission = 'กรุณาระบุค่าคอมมิชชั่น';
+        } else if (commission === null || commission < 0 || commission > 100) {
+          nextTierError.commission = 'ค่าคอมมิชชั่นต้องเป็นตัวเลขตั้งแต่ 0 ถึง 100';
         }
         // if (landTotalPrice === null || landTotalPrice < minimumTotalPrice) {
         //   nextTierError.landTotalPrice = 'กรุณาระบุรวมส่งทางรถให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
@@ -3337,6 +3410,7 @@ export default function RFQDetail(): ReactElement {
           supplierId,
           tiers: detail.tiers.map((tier, tierIndex) => {
             const productPrice = parsePriceInput(tier.productPrice) || 0;
+            const commission = parsePriceInput(tier.commission);
             const landTotalPrice = parsePriceInput(tier.landTotalPrice) || 0;
             const seaTotalPrice = parsePriceInput(tier.seaTotalPrice) || 0;
             const sourceTier = finalPriceQuote.details
@@ -3351,7 +3425,7 @@ export default function RFQDetail(): ReactElement {
             return {
               quantity: tier.quantity,
               productPrice,
-              commission: parsePriceInput(tier.commission),
+              commission: commission ?? 100,
               currency: tier.currency || 'THB',
               landFreightCost,
               seaFreightCost,
@@ -3365,18 +3439,6 @@ export default function RFQDetail(): ReactElement {
           })
         })
       );
-      const supplierAdditionalCostPayload: CreateRFQAdditionalCostRequest[] = (
-        finalPriceQuote.additionalCosts || []
-      )
-        .filter((additionalCost) => additionalCost.description && additionalCost.value)
-        .map((additionalCost, index) => ({
-          costTypeCode: '',
-          description: additionalCost.description,
-          value: additionalCost.value || '',
-          unit: additionalCost.unit || '',
-          sortOrder: index + 1,
-          supplierId
-        }));
       const addedAdditionalCostPayload: CreateRFQAdditionalCostRequest[] =
         finalPriceDraft.additionalCosts
           .filter(
@@ -3387,13 +3449,10 @@ export default function RFQDetail(): ReactElement {
             description: additionalCost.description.trim(),
             value: additionalCost.value.trim(),
             unit: additionalCost.unit.trim(),
-            sortOrder: supplierAdditionalCostPayload.length + index + 1,
+            sortOrder: index + 1,
             supplierId
           }));
-      const additionalCostPayload = [
-        ...supplierAdditionalCostPayload,
-        ...addedAdditionalCostPayload
-      ];
+      const additionalCostPayload = addedAdditionalCostPayload;
 
       await toast.promise(
         (async () => {
@@ -4347,7 +4406,7 @@ export default function RFQDetail(): ReactElement {
                   <ListItemText primary="รับงาน" />
                 </MenuItem>
               ) : null}
-              {rfq?.status === 'SUPPLIER_QUOTED' ? (
+              {rfq?.status === 'SUPPLIER_QUOTED' || rfq?.status === 'SPECIAL_PRICE_REVIEW' ? (
                 <Can permission={PERMISSIONS.RFQ_CONFIRM}>
                   <MenuItem onClick={handleFinalPriceFromMenu}>
                     <ListItemIcon>
@@ -4984,9 +5043,11 @@ export default function RFQDetail(): ReactElement {
                                           <TableCell align="right">ราคาสินค้า</TableCell>
                                           <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
                                           <TableCell align="center">FCL</TableCell>
+                                          <TableCell align="center">Share FCL</TableCell>
                                           <TableCell align="right">รวมทางรถ</TableCell>
                                           <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
                                           <TableCell align="right">รวมทางเรือ</TableCell>
+                                          <TableCell align="right">ค่าคอม</TableCell>
                                           <TableCell align="center">Action</TableCell>
                                         </TableRow>
                                       </TableHead>
@@ -5009,6 +5070,9 @@ export default function RFQDetail(): ReactElement {
                                             <TableCell align="center">
                                               {tier.isFcl ? 'ใช่' : '-'}
                                             </TableCell>
+                                            <TableCell align="center">
+                                              {tier.isShareFCL ? 'ใช่' : '-'}
+                                            </TableCell>
                                             <TableCell
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#1565c0' }}>
@@ -5021,6 +5085,9 @@ export default function RFQDetail(): ReactElement {
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#00897b' }}>
                                               {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              {tier.commission + '%'}
                                             </TableCell>
                                             <TableCell align="center">
                                               <IconButton
@@ -5540,6 +5607,7 @@ export default function RFQDetail(): ReactElement {
         onRemarkChange={handleFinalPriceRemarkChange}
         onRecommendChange={handleFinalPriceRecommendChange}
         onCommissionChange={handleFinalPriceCommissionChange}
+        onDuplicateSpecialDetail={handleDuplicateSpecialFinalPriceDetail}
         onTierChange={handleFinalPriceTierChange}
         onTierCurrencyChange={handleFinalPriceTierCurrencyChange}
         onTierFclChange={handleFinalPriceTierFclChange}

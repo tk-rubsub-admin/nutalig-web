@@ -169,6 +169,19 @@ export interface RFQQuotationSummary {
   isLatest?: boolean | null;
 }
 
+export interface RFQDetailTierSplit {
+  id: number;
+  quantity: number;
+  sellPrice: number;
+  commission?: number | null;
+  currency?: string | null;
+  landFreightQty: number;
+  landFreightCost: number;
+  seaFreightQty: number;
+  seaFreightCost: number;
+  isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
+}
 export interface RFQDetailTier {
   id: number;
   quantity: number;

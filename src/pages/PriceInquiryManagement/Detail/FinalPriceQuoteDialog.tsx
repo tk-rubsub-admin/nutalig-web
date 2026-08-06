@@ -37,6 +37,8 @@ interface FinalPriceDraftTier {
   productPrice: string;
   commission: string;
   currency: string;
+  landFreightQty: string;
+  seaFreightQty: string;
   landTotalPrice: string;
   seaTotalPrice: string;
   isFcl: boolean;
@@ -66,6 +68,8 @@ interface FinalPriceDraftErrors {
       quantity?: string;
       productPrice?: string;
       commission?: string;
+      landFreightQty?: string;
+      seaFreightQty?: string;
       landTotalPrice?: string;
       seaTotalPrice?: string;
     }
@@ -94,10 +98,18 @@ interface FinalPriceQuoteDialogProps {
   onRecommendChange: (value: string) => void;
   onCommissionChange: (detailId: number, tierId: number, value: string) => void;
   onDuplicateSpecialDetail: (detailId: number) => void;
+  onAddSpecialTier: (detailId: number) => void;
   onTierChange: (
     detailId: number,
     tierId: number,
-    field: 'quantity' | 'productPrice' | 'landTotalPrice' | 'seaTotalPrice' | 'currency',
+    field:
+      | 'quantity'
+      | 'productPrice'
+      | 'landFreightQty'
+      | 'seaFreightQty'
+      | 'landTotalPrice'
+      | 'seaTotalPrice'
+      | 'currency',
     value: string
   ) => void;
   onTierCurrencyChange: (detailId: number, tierId: number, value: string) => void;
@@ -136,6 +148,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     onRecommendChange,
     onCommissionChange,
     onDuplicateSpecialDetail,
+    onAddSpecialTier,
     onTierChange,
     onTierCurrencyChange,
     onTierFclChange,
@@ -209,9 +222,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     sellPrice: toNumberValue(tier.productPrice),
     commission: toNumberValue(tier.commission),
     currency: tier.currency || 'THB',
-    landFreightQty: toNumberValue(tier.quantity?.toString()),
+    landFreightQty: toNumberValue(tier.landFreightQty),
     landFreightCost: toNumberValue(tier.landTotalPrice),
-    seaFreightQty: toNumberValue(tier.quantity?.toString()),
+    seaFreightQty: toNumberValue(tier.seaFreightQty),
     seaFreightCost: toNumberValue(tier.seaTotalPrice),
     isFcl: Boolean(tier.isFcl),
     isShareFCL: Boolean(tier.isShareFCL)
@@ -249,6 +262,30 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
             />
           </Stack>
           <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ContentCopy fontSize="small" />}
+              onClick={() =>
+                console.log('[FinalPriceDialog][OptionSpecial]', {
+                  detailId: detail.id,
+                  optionName: detail.optionName,
+                  tierSplit: detail.tiers.map((tier) => toSpecialTierSplit(tier))
+                })
+              }
+              sx={outlinedActionButtonSx}
+              disabled={isSubmitting}>
+              build
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Add fontSize="small" />}
+              onClick={() => onAddSpecialTier(detail.id)}
+              sx={outlinedActionButtonSx}
+              disabled={isSubmitting}>
+              เพิ่ม tier
+            </Button>
             <Button
               size="small"
               variant="outlined"
@@ -386,8 +423,12 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       <TextField
                         size="small"
                         type="number"
-                        value={tierSplit.landFreightQty}
-                        disabled
+                        value={tier.landFreightQty}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'landFreightQty', event.target.value)
+                        }
+                        error={Boolean(tierError.landFreightQty)}
+                        helperText={tierError.landFreightQty}
                         inputProps={{ min: 0, step: '1' }}
                         sx={{
                           width: '10ch',
@@ -430,8 +471,12 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       <TextField
                         size="small"
                         type="number"
-                        value={tierSplit.seaFreightQty}
-                        disabled
+                        value={tier.seaFreightQty}
+                        onChange={(event) =>
+                          onTierChange(detail.id, tier.id, 'seaFreightQty', event.target.value)
+                        }
+                        error={Boolean(tierError.seaFreightQty)}
+                        helperText={tierError.seaFreightQty}
                         inputProps={{ min: 0, step: '1' }}
                         sx={{
                           width: '10ch',

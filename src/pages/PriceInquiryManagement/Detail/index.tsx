@@ -186,6 +186,8 @@ interface DraftDetailTierError {
   commission?: string;
   shippingCost?: string;
   currency?: string;
+  landFreightQty?: string;
+  seaFreightQty?: string;
   landFreightCost?: string;
   seaFreightCost?: string;
   landTotalPrice?: string;
@@ -219,6 +221,8 @@ interface FinalPriceDraftTier {
   productPrice: string;
   commission: string;
   currency: string;
+  landFreightQty: string;
+  seaFreightQty: string;
   landTotalPrice: string;
   seaTotalPrice: string;
   isFcl: boolean;
@@ -855,8 +859,8 @@ function formatTargetPrice(value?: number | null): string {
   return priceFormatter.format(value);
 }
 
-function parsePriceInput(value: string): number | null {
-  const normalizedValue = value.replace(/,/g, '').trim();
+function parsePriceInput(value?: string | null): number | null {
+  const normalizedValue = String(value ?? '').replace(/,/g, '').trim();
   if (!normalizedValue) {
     return null;
   }
@@ -916,6 +920,8 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
         productPrice: '',
         commission: normalizeCommissionInput(tier.commission?.toString()),
         currency: 'THB',
+        landFreightQty: '',
+        seaFreightQty: '',
         landTotalPrice: '',
         seaTotalPrice: '',
         isFcl: Boolean(tier.isFcl),
@@ -1185,6 +1191,8 @@ function createFinalPriceDraftTier(sortOrder: number): FinalPriceDraftTier {
     productPrice: '',
     commission: '100',
     currency: 'THB',
+    landFreightQty: '',
+    seaFreightQty: '',
     landTotalPrice: '',
     seaTotalPrice: '',
     isFcl: false,
@@ -3048,7 +3056,14 @@ export default function RFQDetail(): ReactElement {
   const handleFinalPriceTierChange = (
     detailId: number,
     tierId: number,
-    field: 'quantity' | 'productPrice' | 'landTotalPrice' | 'seaTotalPrice' | 'currency',
+    field:
+      | 'quantity'
+      | 'productPrice'
+      | 'landFreightQty'
+      | 'seaFreightQty'
+      | 'landTotalPrice'
+      | 'seaTotalPrice'
+      | 'currency',
     value: string
   ) => {
     setFinalPriceDraft((prev) => ({
@@ -3080,7 +3095,14 @@ export default function RFQDetail(): ReactElement {
         ...prev.details,
         [tierId]: {
           ...prev.details?.[tierId],
-          [field]: undefined
+          [field]: undefined,
+          ...(field === 'quantity' || field === 'landFreightQty' || field === 'seaFreightQty'
+            ? {
+              quantity: undefined,
+              landFreightQty: undefined,
+              seaFreightQty: undefined
+            }
+            : {})
         }
       }
     }));
@@ -3346,11 +3368,14 @@ export default function RFQDetail(): ReactElement {
     const tierErrors: Record<number, DraftDetailTierError> = {};
 
     finalPriceDraft.details.forEach((detail) => {
+      const isSpecialDetail = detail.optionName.trim().endsWith(' พิเศษ');
       detail.tiers.forEach((tier) => {
         const productPrice = parsePriceInput(tier.productPrice);
         const commission = parsePriceInput(tier.commission);
         const landTotalPrice = parsePriceInput(tier.landTotalPrice);
         const seaTotalPrice = parsePriceInput(tier.seaTotalPrice);
+        const landFreightQty = parsePriceInput(tier.landFreightQty);
+        const seaFreightQty = parsePriceInput(tier.seaFreightQty);
         const sourceTier = finalPriceQuote.details
           .find((quoteDetail) => quoteDetail.id === detail.id)
           ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
@@ -3363,10 +3388,36 @@ export default function RFQDetail(): ReactElement {
           nextTierError.productPrice = 'กรุณาระบุราคาสินค้า(บาท)มากกว่า 0';
         }
 
+        if (isSpecialDetail && (!Number.isFinite(tier.quantity) || tier.quantity <= 0)) {
+          nextTierError.quantity = 'กรุณาระบุ MOQ มากกว่า 0';
+        }
+
         if (!tier.commission.trim()) {
           nextTierError.commission = 'กรุณาระบุค่าคอมมิชชั่น';
         } else if (commission === null || commission < 0 || commission > 100) {
           nextTierError.commission = 'ค่าคอมมิชชั่นต้องเป็นตัวเลขตั้งแต่ 0 ถึง 100';
+        }
+
+        if (isSpecialDetail) {
+          if (!Number.isFinite(landFreightQty) || landFreightQty < 0) {
+            nextTierError.landFreightQty = 'กรุณาระบุจำนวนแบ่งส่งทางรถให้ถูกต้อง';
+          }
+
+          if (!Number.isFinite(seaFreightQty) || seaFreightQty < 0) {
+            nextTierError.seaFreightQty = 'กรุณาระบุจำนวนแบ่งส่งทางเรือให้ถูกต้อง';
+          }
+
+          if (
+            Number.isFinite(landFreightQty) &&
+            Number.isFinite(seaFreightQty) &&
+            Number.isFinite(tier.quantity) &&
+            landFreightQty + seaFreightQty !== tier.quantity
+          ) {
+            const message = 'ผลรวม แบ่งส่งทางรถ + แบ่งส่งทางเรือ ต้องเท่ากับ MOQ';
+            nextTierError.landFreightQty = message;
+            nextTierError.seaFreightQty = message;
+            nextTierError.quantity = message;
+          }
         }
         // if (landTotalPrice === null || landTotalPrice < minimumTotalPrice) {
         //   nextTierError.landTotalPrice = 'กรุณาระบุรวมส่งทางรถให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
@@ -3408,35 +3459,61 @@ export default function RFQDetail(): ReactElement {
           commission: null,
           recommend: finalPriceDraft.recommend.trim() || null,
           supplierId,
-          tiers: detail.tiers.map((tier, tierIndex) => {
-            const productPrice = parsePriceInput(tier.productPrice) || 0;
-            const commission = parsePriceInput(tier.commission);
-            const landTotalPrice = parsePriceInput(tier.landTotalPrice) || 0;
-            const seaTotalPrice = parsePriceInput(tier.seaTotalPrice) || 0;
-            const sourceTier = finalPriceQuote.details
-              .find((quoteDetail) => quoteDetail.id === detail.id)
-              ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
-            const shippingCost = sourceTier?.shippingCost || 0;
-            const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
-            const baseAmount = productPrice + shippingPerUnit;
-            const landFreightCost = landTotalPrice - baseAmount;
-            const seaFreightCost = seaTotalPrice - baseAmount;
+          tiers: detail.optionName.trim().endsWith(' พิเศษ')
+            ? []
+            : detail.tiers.map((tier, tierIndex) => {
+              const productPrice = parsePriceInput(tier.productPrice) || 0;
+              const commission = parsePriceInput(tier.commission);
+              const landTotalPrice = parsePriceInput(tier.landTotalPrice) || 0;
+              const seaTotalPrice = parsePriceInput(tier.seaTotalPrice) || 0;
+              const sourceTier = finalPriceQuote.details
+                .find((quoteDetail) => quoteDetail.id === detail.id)
+                ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
+              const shippingCost = sourceTier?.shippingCost || 0;
+              const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
+              const baseAmount = productPrice + shippingPerUnit;
+              const landFreightCost = landTotalPrice - baseAmount;
+              const seaFreightCost = seaTotalPrice - baseAmount;
 
-            return {
-              quantity: tier.quantity,
-              productPrice,
-              commission: commission ?? 100,
-              currency: tier.currency || 'THB',
-              landFreightCost,
-              seaFreightCost,
-              isFcl: Boolean(tier.isFcl),
-              isShareFCL: Boolean(tier.isShareFCL),
-              landTotalPrice,
-              seaTotalPrice,
-              supplierQuoteTierId: tier.id,
-              sortOrder: tierIndex + 1
-            };
-          })
+              return {
+                quantity: tier.quantity,
+                productPrice,
+                commission: commission ?? 100,
+                currency: tier.currency || 'THB',
+                landFreightCost,
+                seaFreightCost,
+                isFcl: Boolean(tier.isFcl),
+                isShareFCL: Boolean(tier.isShareFCL),
+                landTotalPrice,
+                seaTotalPrice,
+                supplierQuoteTierId: tier.id,
+                sortOrder: tierIndex + 1
+              };
+            }),
+          tierSplits: detail.optionName.trim().endsWith(' พิเศษ')
+            ? detail.tiers.map((tier, tierIndex) => {
+              const sellPrice = parsePriceInput(tier.productPrice) || 0;
+              const commission = parsePriceInput(tier.commission);
+              const landFreightQty = parsePriceInput(tier.landFreightQty) || 0;
+              const seaFreightQty = parsePriceInput(tier.seaFreightQty) || 0;
+              const landFreightCost = parsePriceInput(tier.landTotalPrice) || 0;
+              const seaFreightCost = parsePriceInput(tier.seaTotalPrice) || 0;
+
+              return {
+                quantity: tier.quantity,
+                sellPrice,
+                commission: commission ?? 100,
+                currency: tier.currency || 'THB',
+                landFreightCost,
+                landFreightQty,
+                seaFreightQty,
+                seaFreightCost,
+                isFcl: Boolean(tier.isFcl),
+                isShareFCL: Boolean(tier.isShareFCL),
+                sortOrder: tierIndex + 1
+              };
+            })
+            : []
         })
       );
       const addedAdditionalCostPayload: CreateRFQAdditionalCostRequest[] =
@@ -3454,19 +3531,16 @@ export default function RFQDetail(): ReactElement {
           }));
       const additionalCostPayload = addedAdditionalCostPayload;
 
-      await toast.promise(
-        (async () => {
-          await createRFQDetails(params.id, detailPayload);
-          if (additionalCostPayload.length) {
-            await createRFQAdditionalCosts(params.id, additionalCostPayload);
-          }
-        })(),
-        {
-          loading: t('toast.loading'),
-          success: t('toast.success'),
-          error: t('toast.failed')
-        }
-      );
+      console.log('[FinalPriceDialog][SavePayload]', {
+        rfqId: params.id,
+        supplierId,
+        detailPayload,
+        additionalCostPayload
+      });
+      await createRFQDetails(params.id, detailPayload);
+      if (additionalCostPayload.length) {
+        await createRFQAdditionalCosts(params.id, additionalCostPayload);
+      }
       await refetchPriceInquiryData();
       handleCloseFinalPriceDialog();
     } finally {
@@ -3507,6 +3581,20 @@ export default function RFQDetail(): ReactElement {
         sortOrder: index + 1
       }));
     });
+  };
+
+  const handleAddSpecialFinalPriceTier = (detailId: number) => {
+    setFinalPriceDraft((prev) => ({
+      ...prev,
+      details: prev.details.map((detail) =>
+        detail.id === detailId
+          ? {
+            ...detail,
+            tiers: [...detail.tiers, createFinalPriceDraftTier(detail.tiers.length + 1)]
+          }
+          : detail
+      )
+    }));
   };
 
   const handleRequestDeleteQuoteDetail = (detailId: number) => {
@@ -5608,6 +5696,7 @@ export default function RFQDetail(): ReactElement {
         onRecommendChange={handleFinalPriceRecommendChange}
         onCommissionChange={handleFinalPriceCommissionChange}
         onDuplicateSpecialDetail={handleDuplicateSpecialFinalPriceDetail}
+        onAddSpecialTier={handleAddSpecialFinalPriceTier}
         onTierChange={handleFinalPriceTierChange}
         onTierCurrencyChange={handleFinalPriceTierCurrencyChange}
         onTierFclChange={handleFinalPriceTierFclChange}

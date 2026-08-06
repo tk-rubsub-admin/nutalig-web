@@ -423,6 +423,19 @@ export interface CreateRFQDetailTierRequest {
   sortOrder: number;
 }
 
+export interface CreateRFQDetailTierSplitRequest {
+  quantity: number;
+  sellPrice: number;
+  commission?: number | null;
+  currency?: string | null;
+  landFreightCost?: number | null;
+  landFreightQty?: number | null;
+  seaFreightQty?: number | null;
+  seaFreightCost?: number | null;
+  isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
+}
+
 export interface CreateRFQDetailRequest {
   optionName: string;
   spec: string;
@@ -432,6 +445,7 @@ export interface CreateRFQDetailRequest {
   recommend?: string | null;
   supplierId?: string;
   tiers: CreateRFQDetailTierRequest[];
+  tierSplits?: CreateRFQDetailTierSplitRequest[];
 }
 
 export interface UpdateRFQDetailRequest {

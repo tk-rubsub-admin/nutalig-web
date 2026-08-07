@@ -29,7 +29,7 @@ import PageTitle from 'components/PageTitle';
 import { Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import dayjs from 'dayjs';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-google-charts';
 import { useHistory, useLocation } from 'react-router-dom';
@@ -42,6 +42,8 @@ import {
   CustomerDashboardBreakdown
 } from 'services/Customer/customer-type';
 import { useQuery } from 'react-query';
+
+const MemoChart = memo(Chart);
 
 function countBy<T>(
   items: T[],
@@ -203,16 +205,6 @@ export default function CustomerDashboard(): JSX.Element {
     return currentSales ? `${currentSales.salesId} - ${currentSales.nickname || currentSales.name}` : salesId;
   }, [salesId, salesOptions]);
 
-  const sortedCustomers = useMemo(
-    () =>
-      [...(dashboard?.recentCustomers || [])].sort((a, b) => {
-        const aTime = a.createdDate ? new Date(a.createdDate).getTime() : 0;
-        const bTime = b.createdDate ? new Date(b.createdDate).getTime() : 0;
-        return bTime - aTime;
-      }),
-    [dashboard?.recentCustomers]
-  );
-
   const summary = useMemo(
     () => ({
       totalCustomers: dashboard?.totalCustomers || 0,
@@ -233,40 +225,48 @@ export default function CustomerDashboard(): JSX.Element {
     [dashboard?.typeBreakdown]
   );
 
+  const tierBreakdownMap = useMemo(
+    () =>
+      new Map(
+        (dashboard?.tierBreakdown || []).map((item) => [
+          item.code,
+          {
+            label: item.nameEn || item.nameTh || item.code,
+            count: item.count
+          }
+        ])
+      ),
+    [dashboard?.tierBreakdown]
+  );
+
   const tierBoxes = useMemo(
     () => [
       {
         code: 'VIP',
-        label: dashboard?.tierBreakdown?.find((item) => item.code === 'VIP')?.nameEn || 'VIP',
+        label: tierBreakdownMap.get('VIP')?.label || 'VIP',
         color: theme.palette.secondary.main,
-        count: dashboard?.tierBreakdown?.find((item) => item.code === 'VIP')?.count || 0
+        count: tierBreakdownMap.get('VIP')?.count || 0
       },
       {
         code: 'TIER_2',
-        label: dashboard?.tierBreakdown?.find((item) => item.code === 'TIER_2')?.nameEn || 'Tier 2',
+        label: tierBreakdownMap.get('TIER_2')?.label || 'Tier 2',
         color: theme.palette.info.main,
-        count: dashboard?.tierBreakdown?.find((item) => item.code === 'TIER_2')?.count || 0
+        count: tierBreakdownMap.get('TIER_2')?.count || 0
       },
       {
         code: 'TIER_3',
-        label: dashboard?.tierBreakdown?.find((item) => item.code === 'TIER_3')?.nameEn || 'Tier 3',
+        label: tierBreakdownMap.get('TIER_3')?.label || 'Tier 3',
         color: theme.palette.success.main,
-        count: dashboard?.tierBreakdown?.find((item) => item.code === 'TIER_3')?.count || 0
+        count: tierBreakdownMap.get('TIER_3')?.count || 0
       },
       {
         code: 'TIER_4',
-        label: dashboard?.tierBreakdown?.find((item) => item.code === 'TIER_4')?.nameEn || 'Tier 4',
+        label: tierBreakdownMap.get('TIER_4')?.label || 'Tier 4',
         color: theme.palette.warning.main,
-        count: dashboard?.tierBreakdown?.find((item) => item.code === 'TIER_4')?.count || 0
+        count: tierBreakdownMap.get('TIER_4')?.count || 0
       }
     ],
-    [
-      dashboard?.tierBreakdown,
-      theme.palette.info.main,
-      theme.palette.secondary.main,
-      theme.palette.success.main,
-      theme.palette.warning.main
-    ]
+    [tierBreakdownMap, theme.palette.info.main, theme.palette.secondary.main, theme.palette.success.main, theme.palette.warning.main]
   );
 
   const segmentChartRows = useMemo(
@@ -277,12 +277,33 @@ export default function CustomerDashboard(): JSX.Element {
     [dashboard?.segmentBreakdown]
   );
 
-  const chartOptions = {
-    pieHole: 0.35,
-    legend: { position: 'right' as const, textStyle: { fontSize: 12 } },
-    chartArea: { width: '88%', height: '80%' },
-    backgroundColor: 'transparent'
-  };
+  const typeChartData = useMemo(
+    () => [['Type', 'Count'], ...typeChartRows],
+    [typeChartRows]
+  );
+
+  const segmentChartData = useMemo(
+    () => [['Segment', 'Count'], ...segmentChartRows],
+    [segmentChartRows]
+  );
+
+  const chartOptions = useMemo(
+    () => ({
+      pieHole: 0.35,
+      legend: { position: 'right' as const, textStyle: { fontSize: 12 } },
+      chartArea: { width: '88%', height: '80%' },
+      backgroundColor: 'transparent'
+    }),
+    []
+  );
+
+  const segmentChartOptions = useMemo(
+    () => ({
+      ...chartOptions,
+      pieHole: 0.55
+    }),
+    [chartOptions]
+  );
 
   return (
     <Page>
@@ -394,9 +415,9 @@ export default function CustomerDashboard(): JSX.Element {
                       {t('customerDashboard.charts.typeTitle')}
                     </Typography>
                     {typeChartRows.length > 0 ? (
-                      <Chart
+                      <MemoChart
                         chartType="PieChart"
-                        data={[['Type', 'Count'], ...typeChartRows]}
+                        data={typeChartData}
                         options={chartOptions}
                         width="100%"
                         height="320px"
@@ -416,13 +437,10 @@ export default function CustomerDashboard(): JSX.Element {
                       {t('customerDashboard.charts.segmentTitle')}
                     </Typography>
                     {segmentChartRows.length > 0 ? (
-                      <Chart
+                      <MemoChart
                         chartType="PieChart"
-                        data={[['Segment', 'Count'], ...segmentChartRows]}
-                        options={{
-                          ...chartOptions,
-                          pieHole: 0.55
-                        }}
+                        data={segmentChartData}
+                        options={segmentChartOptions}
                         width="100%"
                         height="320px"
                       />

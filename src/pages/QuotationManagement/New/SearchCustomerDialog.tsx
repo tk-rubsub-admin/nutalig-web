@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { Close } from '@mui/icons-material';
-import { Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Grid, MenuItem, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material';
+import { Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Grid, InputAdornment, MenuItem, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import Paginate from 'components/Paginate';
 import { GridSearchSection, TextLineClamp } from 'components/Styled';
@@ -56,6 +56,7 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
         },
     });
     const classes = useStyles();
+    const CUSTOMER_ID_PREFIX = 'NTL-CUST-0';
     const [customerFilter, setCustomerFilter] = useState<SearchCustomerRequest>({});
     const [page, setPage] = useState<number>(1);
     const [pages, setPages] = useState<number>(1);
@@ -84,7 +85,7 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
 
     const searchFormik = useFormik({
         initialValues: {
-            idEqual: '',
+            idSuffix: '',
             nameContain: '',
             typeEqual: '',
             tierEqual: '',
@@ -93,8 +94,9 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
         },
         enableReinitialize: false,
         onSubmit: (value) => {
+            const normalizedSuffix = value.idSuffix.replace(/\D/g, '').slice(0, 4);
             const updateObj = {
-                idEqual: value.idEqual.trim(),
+                idEqual: normalizedSuffix ? `${CUSTOMER_ID_PREFIX}${normalizedSuffix.padStart(4, '0')}` : '',
                 nameContain: value.nameContain.trim(),
                 typeEqual: value.typeEqual.trim(),
                 tierEqual: value.tierEqual.trim(),
@@ -189,11 +191,29 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
                             label={t('customerManagement.column.id')}
                             fullWidth
                             variant="outlined"
-                            value={searchFormik.values.idEqual}
+                            value={searchFormik.values.idSuffix}
                             onChange={({ target }) => {
-                                searchFormik.setFieldValue('idEqual', target.value);
+                                const numericOnly = target.value.replace(/\D/g, '').slice(0, 4);
+                                searchFormik.setFieldValue('idSuffix', numericOnly);
                             }}
-                            onBlur={() => searchFormik.handleSubmit()}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    searchFormik.handleSubmit();
+                                }
+                            }}
+                            inputProps={{
+                                maxLength: 4,
+                                inputMode: 'numeric',
+                                pattern: '[0-9]*'
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        {CUSTOMER_ID_PREFIX}
+                                    </InputAdornment>
+                                )
+                            }}
                             InputLabelProps={{ shrink: true }}
                         />
                     </Grid>
@@ -208,7 +228,12 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
                             onChange={({ target }) => {
                                 searchFormik.setFieldValue('nameContain', target.value);
                             }}
-                            onBlur={() => searchFormik.handleSubmit()}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    searchFormik.handleSubmit();
+                                }
+                            }}
                             InputLabelProps={{ shrink: true }}
                         />
                     </Grid>

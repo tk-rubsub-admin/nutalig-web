@@ -18,6 +18,7 @@ import {
   RejectUrgentRFQRequest,
   RequestRFQInformationRequest,
   RequestSpecialPriceRFQRequest,
+  RequestUrgentRFQApproveRequest,
   UpdateRFQInquiryRequest,
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
@@ -274,6 +275,17 @@ export const closeRFQ = async (rfqId: string, remark: string) => {
 export const requestSpecialPriceRFQ = async (id: string, payload: RequestSpecialPriceRFQRequest) => {
   const response = await api
     .patch(`/v1/rfqs/${id}/request-special-price`, payload)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
+export const requestUrgentApprove = async (
+  id: string,
+  payload: RequestUrgentRFQApproveRequest
+) => {
+  const response = await api
+    .post(`/v1/rfqs/${id}/request-urgent-approve`, payload)
     .then((res) => res.data);
 
   return response.data;

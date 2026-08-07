@@ -112,6 +112,7 @@ import {
   addRFQNote,
   getCustomerQuoted,
   requestSpecialPriceRFQ,
+  requestUrgentApprove,
   rejectRFQ,
   updateRFQCustomer,
   updateRFQ
@@ -730,7 +731,7 @@ function formatAdditionalCostValue(value?: string | null, unit?: string | null):
     return unit || '-';
   }
 
-  return unit ? `${value} ${unit}` : '-';
+  return unit ? `${value} ${unit}` : `${value}`;
 }
 
 function getSortedDetailOptions(details?: RFQDetailOption[]): RFQDetailOption[] {
@@ -3544,6 +3545,9 @@ export default function RFQDetail(): ReactElement {
                       const sortedTiers = [...(detail.tiers || [])].sort(
                         (left, right) => left.sortOrder - right.sortOrder
                       );
+                      const sortedTierSplits = [...(detail.tierSplits || [])].sort(
+                        (left, right) => left.quantity - right.quantity || left.id - right.id
+                      );
                       const isDraftDetail = detail.id < 0;
                       const detailError = draftDetailErrors[detail.id] || {};
                       const isCollapsed = collapsedDetailOptionIds.includes(detail.id);
@@ -3930,10 +3934,11 @@ export default function RFQDetail(): ReactElement {
                                       <TableCell>MOQ</TableCell>
                                       <TableCell align="right">ราคาสินค้า</TableCell>
                                       <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
-                                      <TableCell align="center">FCL</TableCell>
                                       <TableCell align="right">รวมทางรถ</TableCell>
                                       <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
                                       <TableCell align="right">รวมทางเรือ</TableCell>
+                                      <TableCell align="center">ปิดตู้</TableCell>
+                                      <TableCell align="center">ปิดตู้ (Share)</TableCell>
                                       <TableCell align="right">ค่าคอม</TableCell>
                                     </TableRow>
                                   </TableHead>
@@ -3953,9 +3958,6 @@ export default function RFQDetail(): ReactElement {
                                         <TableCell align="right">
                                           {formatPrice(tier.landFreightCost, tier.currency)}
                                         </TableCell>
-                                        <TableCell align="center">
-                                          {tier.isFcl ? 'ใช่' : '-'}
-                                        </TableCell>
                                         <TableCell
                                           align="right"
                                           sx={{ fontWeight: 700, color: '#1565c0' }}>
@@ -3968,6 +3970,12 @@ export default function RFQDetail(): ReactElement {
                                           align="right"
                                           sx={{ fontWeight: 700, color: '#00897b' }}>
                                           {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          {tier.isFcl ? 'ใช่' : '-'}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          {tier.isShareFCL ? 'ใช่' : '-'}
                                         </TableCell>
                                         <TableCell align="right">
                                           {formatPercent(tier.commission)}
@@ -3984,9 +3992,96 @@ export default function RFQDetail(): ReactElement {
                                     color: 'text.secondary',
                                     fontSize: 14
                                   }}>
-                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
-                                </Box>
+                                    ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                  </Box>
                               )}
+                              {sortedTierSplits.length ? (
+                                <Box sx={{ mt: 3 }}>
+                                  <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    sx={{ mb: 1.5 }}>
+                                    <Typography variant="subtitle1" fontWeight={700}>
+                                      Tier Split
+                                    </Typography>
+                                    <Chip
+                                      label={`${sortedTierSplits.length} รายการ`}
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: '#eef6ff',
+                                        color: '#185ea8',
+                                        fontWeight: 700
+                                      }}
+                                    />
+                                  </Stack>
+                                  <Table size="small">
+                                    <TableHead>
+                                      <TableRow
+                                        sx={{
+                                          '& th': {
+                                            fontWeight: 700,
+                                            backgroundColor: '#f8fafc',
+                                            whiteSpace: 'nowrap'
+                                          }
+                                        }}>
+                                        <TableCell>MOQ</TableCell>
+                                        <TableCell align="right">ราคาสินค้า</TableCell>
+                                        <TableCell align="right">แบ่งส่งทางรถ</TableCell>
+                                        <TableCell align="right">ค่าส่งทางรถ</TableCell>
+                                        <TableCell align="right">แบ่งส่งทางเรือ</TableCell>
+                                        <TableCell align="right">ค่าส่งทางเรือ</TableCell>
+                                        <TableCell align="center">FCL</TableCell>
+                                        <TableCell align="center">FCL Share</TableCell>
+                                        <TableCell align="right">ค่าคอม</TableCell>
+                                      </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                      {sortedTierSplits.map((tierSplit) => (
+                                        <TableRow
+                                          key={tierSplit.id}
+                                          sx={{
+                                            '&:last-child td': { borderBottom: 0 }
+                                          }}>
+                                          <TableCell sx={{ fontWeight: 600 }}>
+                                            {formatQuantity(tierSplit.quantity)}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatQuantity(tierSplit.landFreightQty)}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatPrice(
+                                              tierSplit.landFreightCost,
+                                              tierSplit.currency
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatQuantity(tierSplit.seaFreightQty)}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatPrice(
+                                              tierSplit.seaFreightCost,
+                                              tierSplit.currency
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            {tierSplit.isFcl ? 'ใช่' : '-'}
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            {tierSplit.isShareFCL ? 'ใช่' : '-'}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatPercent(tierSplit.commission)}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </Box>
+                              ) : null}
                             </Box>
 
                             <Stack spacing={1.5} sx={{ display: { xs: 'flex', md: 'none' }, p: 2 }}>
@@ -4295,9 +4390,122 @@ export default function RFQDetail(): ReactElement {
                                     backgroundColor: '#ffffff',
                                     color: 'text.secondary'
                                   }}>
-                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
-                                </Box>
+                                    ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                  </Box>
                               )}
+                              {sortedTierSplits.length ? (
+                                <Box
+                                  sx={{
+                                    mt: 1,
+                                    p: 1.5,
+                                    border: '1px solid #dbe3ec',
+                                    borderRadius: 2,
+                                    backgroundColor: '#f8fbff'
+                                  }}>
+                                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                                    <Typography variant="subtitle2" fontWeight={700}>
+                                      Tier Split
+                                    </Typography>
+                                    <Chip
+                                      label={`${sortedTierSplits.length} รายการ`}
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: '#eef6ff',
+                                        color: '#185ea8',
+                                        fontWeight: 700
+                                      }}
+                                    />
+                                  </Stack>
+                                  <Stack spacing={1}>
+                                    {sortedTierSplits.map((tierSplit) => (
+                                      <Box
+                                        key={tierSplit.id}
+                                        sx={{
+                                          p: 1.25,
+                                          borderRadius: 2,
+                                          backgroundColor: '#ffffff',
+                                          border: '1px solid #e5e7eb'
+                                        }}>
+                                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                                          {formatQuantity(tierSplit.quantity)}
+                                        </Typography>
+                                        <Grid container spacing={1}>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ราคาสินค้า
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              แบ่งส่งทางรถ
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatQuantity(tierSplit.landFreightQty)}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ค่าส่งทางรถ
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatPrice(
+                                                tierSplit.landFreightCost,
+                                                tierSplit.currency
+                                              )}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              แบ่งส่งทางเรือ
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatQuantity(tierSplit.seaFreightQty)}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ค่าส่งทางเรือ
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatPrice(
+                                                tierSplit.seaFreightCost,
+                                                tierSplit.currency
+                                              )}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              FCL
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {tierSplit.isFcl ? 'ใช่' : '-'}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              FCL Share
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {tierSplit.isShareFCL ? 'ใช่' : '-'}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ค่าคอม
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatPercent(tierSplit.commission)}
+                                            </Typography>
+                                          </Grid>
+                                        </Grid>
+                                      </Box>
+                                    ))}
+                                  </Stack>
+                                </Box>
+                              ) : null}
                             </Stack>
                           </Collapse>
                         </Box>
@@ -4940,8 +5148,28 @@ export default function RFQDetail(): ReactElement {
             variant="contained"
             disabled={!urgentReason.trim()}
             onClick={async () => {
-              submitModeRef.current = 'URGENT';
-              await formik.submitForm();
+              if (!params.id) {
+                return;
+              }
+
+              try {
+                setIsPictureSubmitting(true);
+                await toast.promise(
+                  requestUrgentApprove(params.id, {
+                    urgentRequestMessage: urgentReason.trim()
+                  }),
+                  {
+                  loading: t('toast.loading'),
+                  success: t('toast.success'),
+                  error: t('toast.failed')
+                  }
+                );
+                setUrgentReasonDialogOpen(false);
+                setUrgentReason('');
+                await refetchRFQ();
+              } finally {
+                setIsPictureSubmitting(false);
+              }
             }}>
             {t('button.confirm')}
           </Button>

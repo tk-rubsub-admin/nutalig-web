@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Add, ArrowBack, DeleteOutline, Save } from "@mui/icons-material";
+import { Add, ArrowBack, DeleteOutline, Replay, Save } from "@mui/icons-material";
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, ListItemIcon, MenuItem, Paper, Radio, RadioGroup, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, useMediaQuery } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import PageTitle from "components/PageTitle";
@@ -15,6 +15,7 @@ import { createFreelanceSale, getFreelanceSales } from "services/FreelanceSale/f
 import { CreateFreelanceSaleRequest } from "services/FreelanceSale/freelance-sale-type";
 import { useTheme } from "styled-components";
 import SearchCustomerDialog from "./SearchCustomerDialog";
+import SearchRfqDialog from "./SearchRfqDialog";
 import { ROUTE_PATHS } from "routes";
 import { useFormik } from "formik";
 import * as Yup from 'yup';
@@ -249,6 +250,7 @@ export default function NewQuotation() {
     const classes = useStyles();
     const [openSearchCustomerAndDocDialog, setOpenSearchCustomerAndDocDialog] = useState(!isCreateFromRFQ);
     const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
+    const [openSearchRfqDialog, setOpenSearchRfqDialog] = useState(false);
     const [isAddCustomerAddressDialogOpen, setIsAddCustomerAddressDialogOpen] = useState(false);
     const [isAddCustomerContactDialogOpen, setIsAddCustomerContactDialogOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -257,6 +259,7 @@ export default function NewQuotation() {
     const [msg, setMsg] = useState<string>('')
     const [action, setAction] = useState<string>('')
     const [customer, setCustomer] = useState<Customer | null>(null);
+    const [selectedRfqFromDialog, setSelectedRfqFromDialog] = useState<RFQRecord | null>(null);
     const [newFreelanceSale, setNewFreelanceSale] = useState<CreateFreelanceSaleRequest>({
         id: '',
         name: '',
@@ -787,6 +790,32 @@ export default function NewQuotation() {
         formik.setFieldValue('items', items);
     };
 
+    const handleLoadItemsFromRfq = () => {
+        if (!customer?.id) {
+            toast.error('กรุณาเลือกลูกค้าก่อน');
+            return;
+        }
+
+        setOpenSearchRfqDialog(true);
+    };
+
+    const handleSelectRfq = async (selectedRfq: RFQRecord) => {
+        setIsLoading(true);
+
+        try {
+            const fullRfq = await getRFQ(selectedRfq.id);
+            setSelectedRfqFromDialog(fullRfq);
+            formik.setFieldValue('rfqId', fullRfq.id);
+            formik.setFieldValue('items', createQuotationItemsFromRFQ(fullRfq));
+            setOpenSearchRfqDialog(false);
+            toast.success('ดึงรายการสินค้าจาก RFQ เรียบร้อย');
+        } catch (error) {
+            toast.error('ไม่สามารถดึงข้อมูล RFQ ได้');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSelectRfqPicture = (index: number, pictureUrl: string) => {
         const items = [...formik.values.items];
 
@@ -814,6 +843,7 @@ export default function NewQuotation() {
     const vatAmount = formik.values.isVat ? taxableAmount * vatRate : 0;
 
     const grandTotal = taxableAmount + vatAmount + freight;
+    const activeRfq = rfq || selectedRfqFromDialog;
 
     return (
         <Page>
@@ -1171,6 +1201,24 @@ export default function NewQuotation() {
                 title={t('documentManagement.quotation.itemSection.title')}
                 isCompleted={isItemSectionCompleted}
                 defaultExpanded={true}
+                action={!isCreateFromRFQ ? (
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Replay />}
+                        onClick={handleLoadItemsFromRfq}
+                        disabled={rfq}
+                        sx={{
+                            borderRadius: '999px',
+                            px: 2,
+                            py: 0.75,
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        ดึงรายการสินค้าจาก RFQ
+                    </Button>
+                ) : null}
             >
                 <Paper
                     elevation={0}
@@ -1380,7 +1428,7 @@ export default function NewQuotation() {
                                                 }}
                                             />
 
-                                            {isCreateFromRFQ && (rfq?.pictures || []).length > 1 ? (
+                                            {(activeRfq?.pictures || []).length > 1 ? (
                                                 <Stack spacing={0.75}>
                                                     <Typography variant="caption" color="text.secondary">
                                                         {t('documentManagement.quotation.itemSection.image')}
@@ -1393,7 +1441,7 @@ export default function NewQuotation() {
                                                             pb: 0.5
                                                         }}
                                                     >
-                                                        {(rfq?.pictures || []).map((picture, pictureIndex) => {
+                                                        {(activeRfq?.pictures || []).map((picture, pictureIndex) => {
                                                             const isSelected = row.imagePreview === picture.pictureUrl;
 
                                                             return (
@@ -1778,6 +1826,12 @@ export default function NewQuotation() {
                 }}
                 initialCustomer={customer}
             />
+            <SearchRfqDialog
+                open={openSearchRfqDialog}
+                onClose={() => setOpenSearchRfqDialog(false)}
+                customerId={customer?.id || ''}
+                onSelect={handleSelectRfq}
+            />
             <ConfirmDialog
                 open={visibleConfirmationDialog}
                 title={title}
@@ -1936,7 +1990,7 @@ export default function NewQuotation() {
                                 onBlur={addressDialogFormik.handleBlur}
                                 error={Boolean(
                                     addressDialogFormik.touched.addressLine1 &&
-                                        addressDialogFormik.errors.addressLine1
+                                    addressDialogFormik.errors.addressLine1
                                 )}
                                 helperText={
                                     addressDialogFormik.touched.addressLine1 &&
@@ -2031,7 +2085,7 @@ export default function NewQuotation() {
                                 onBlur={addressDialogFormik.handleBlur}
                                 error={Boolean(
                                     addressDialogFormik.touched.subdistrict &&
-                                        addressDialogFormik.errors.subdistrict
+                                    addressDialogFormik.errors.subdistrict
                                 )}
                                 helperText={
                                     addressDialogFormik.touched.subdistrict &&
@@ -2114,7 +2168,7 @@ export default function NewQuotation() {
                                 onBlur={contactDialogFormik.handleBlur}
                                 error={Boolean(
                                     contactDialogFormik.touched.contactName &&
-                                        contactDialogFormik.errors.contactName
+                                    contactDialogFormik.errors.contactName
                                 )}
                                 helperText={
                                     contactDialogFormik.touched.contactName &&
@@ -2135,7 +2189,7 @@ export default function NewQuotation() {
                                 onBlur={contactDialogFormik.handleBlur}
                                 error={Boolean(
                                     contactDialogFormik.touched.contactNumber &&
-                                        contactDialogFormik.errors.contactNumber
+                                    contactDialogFormik.errors.contactNumber
                                 )}
                                 helperText={
                                     contactDialogFormik.touched.contactNumber &&

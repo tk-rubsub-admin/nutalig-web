@@ -23,7 +23,7 @@ import {
 import { makeStyles } from '@mui/styles';
 import PageTitle from "components/PageTitle";
 import Paginate from "components/Paginate";
-import { GridSearchSection, Wrapper } from "components/Styled";
+import { GridSearchSection, GridTextField, Wrapper } from "components/Styled";
 import { useFormik } from "formik";
 import { Page } from "layout/LayoutRoute";
 import { useMemo, useState } from "react";
@@ -194,9 +194,9 @@ export default function QuotationManagement(): JSX.Element {
 
     const quotationRows = useMemo(() => {
         if (!quotationList?.data?.quotationList?.length) {
-        return (
-            <TableRow>
-                <TableCell colSpan={7}>
+            return (
+                <TableRow>
+                    <TableCell colSpan={7}>
                         <div className={classes.noResultMessage}>{t('warning.noResultList')}</div>
                     </TableCell>
                 </TableRow>
@@ -346,111 +346,111 @@ export default function QuotationManagement(): JSX.Element {
                     </Button>
                 </Stack>
 
-                    <GridSearchSection container spacing={1}>
-                        <Grid item xs={12} sm={12}>
-                            <Typography variant="h6" component="h2">
-                                {t('documentManagement.quotation.searchPanel')}
-                            </Typography>
-                        </Grid>
-                        <Grid item xs={12} sm={4} md={3}>
-                            <TextField
-                                fullWidth
-                                label="เลขที่เอกสาร"
-                                name="docNoEqual"
-                                value={searchFormik.values.docNoEqual}
-                                onChange={searchFormik.handleChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={4} md={3}>
-                            <TextField
-                                fullWidth
-                                label="รหัสลูกค้า"
-                                name="customerIdEqual"
-                                value={searchFormik.values.customerIdEqual}
-                                onChange={searchFormik.handleChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={4} md={3}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="รหัสเซลล์"
-                                name="salesId"
-                                value={searchFormik.values.salesId}
-                                onChange={searchFormik.handleChange}
-                                disabled={isSalesFetching}
-                                InputLabelProps={{ shrink: true }}>
-                                <MenuItem value="">ทั้งหมด</MenuItem>
-                                {isSalesFetching ? (
-                                    <MenuItem disabled value="">
-                                        Loading...
-                                    </MenuItem>
-                                ) : null}
-                                {!isSalesFetching && salesDropdownOptions.length === 0 ? (
-                                    <MenuItem disabled value="">
-                                        No sales data
-                                    </MenuItem>
-                                ) : null}
-                                {salesDropdownOptions.map((option: SalesRecord) => (
-                                    <MenuItem key={option.salesId} value={option.salesId}>
-                                        {`${option.salesId} - ${option.nickname || option.name}`}
-                                    </MenuItem>
-                                ))}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} sm={4} md={3}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="สถานะ"
-                                name="statusEqual"
-                                value={searchFormik.values.statusEqual || ''}
-                                onChange={searchFormik.handleChange}
-                                InputLabelProps={{ shrink: true }}>
-                                <MenuItem value="">ทั้งหมด</MenuItem>
-                                {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
-                                    <MenuItem key={status} value={status}>
-                                        {getDocumentStatusLabel(status)}
-                                    </MenuItem>
-                                ))}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} sm={4} md={3}>
-                            <TextField
-                                fullWidth
-                                type="date"
-                                label="วันที่เอกสารเริ่มต้น"
-                                name="docDateStart"
-                                value={searchFormik.values.docDateStart}
-                                onChange={searchFormik.handleChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={4} md={3}>
-                            <TextField
-                                fullWidth
-                                type="date"
-                                label="วันที่เอกสารสิ้นสุด"
-                                name="docDateEnd"
-                                value={searchFormik.values.docDateEnd}
-                                onChange={searchFormik.handleChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={8} md={6}>
-                            <TextField
-                                fullWidth
-                                label="คำค้นหา"
-                                name="keyword"
-                                placeholder="เลขใบเสนอราคา, ชื่อลูกค้า, ชื่อสินค้า"
-                                value={searchFormik.values.keyword}
-                                onChange={searchFormik.handleChange}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                    </GridSearchSection>
+                <GridSearchSection container spacing={1}>
+                    <Grid item xs={12} sm={12}>
+                        <Typography variant="h6" component="h2">
+                            {t('documentManagement.quotation.searchPanel')}
+                        </Typography>
+                    </Grid>
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField
+                            fullWidth
+                            label="เลขที่เอกสาร"
+                            name="docNoEqual"
+                            value={searchFormik.values.docNoEqual}
+                            onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </GridTextField>
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField
+                            fullWidth
+                            label="รหัสลูกค้า"
+                            name="customerIdEqual"
+                            value={searchFormik.values.customerIdEqual}
+                            onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </GridTextField>
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField
+                            fullWidth
+                            select
+                            label="รหัสเซลล์"
+                            name="salesId"
+                            value={searchFormik.values.salesId}
+                            onChange={searchFormik.handleChange}
+                            disabled={isSalesFetching}
+                            InputLabelProps={{ shrink: true }}>
+                            <MenuItem value="">ทั้งหมด</MenuItem>
+                            {isSalesFetching ? (
+                                <MenuItem disabled value="">
+                                    Loading...
+                                </MenuItem>
+                            ) : null}
+                            {!isSalesFetching && salesDropdownOptions.length === 0 ? (
+                                <MenuItem disabled value="">
+                                    No sales data
+                                </MenuItem>
+                            ) : null}
+                            {salesDropdownOptions.map((option: SalesRecord) => (
+                                <MenuItem key={option.salesId} value={option.salesId}>
+                                    {`${option.salesId} - ${option.nickname || option.name}`}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </GridTextField>
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField
+                            fullWidth
+                            select
+                            label="สถานะ"
+                            name="statusEqual"
+                            value={searchFormik.values.statusEqual || ''}
+                            onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}>
+                            <MenuItem value="">ทั้งหมด</MenuItem>
+                            {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
+                                <MenuItem key={status} value={status}>
+                                    {getDocumentStatusLabel(status)}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </GridTextField>
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField
+                            fullWidth
+                            type="date"
+                            label="วันที่เอกสารเริ่มต้น"
+                            name="docDateStart"
+                            value={searchFormik.values.docDateStart}
+                            onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </GridTextField>
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField
+                            fullWidth
+                            type="date"
+                            label="วันที่เอกสารสิ้นสุด"
+                            name="docDateEnd"
+                            value={searchFormik.values.docDateEnd}
+                            onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </GridTextField>
+                    <GridTextField item xs={12} sm={8} md={6}>
+                        <TextField
+                            fullWidth
+                            label="คำค้นหา"
+                            name="keyword"
+                            placeholder="เลขใบเสนอราคา, ชื่อลูกค้า, ชื่อสินค้า"
+                            value={searchFormik.values.keyword}
+                            onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </GridTextField>
+                </GridSearchSection>
 
                 {isMobileOnly ? (
                     <GridSearchSection container>

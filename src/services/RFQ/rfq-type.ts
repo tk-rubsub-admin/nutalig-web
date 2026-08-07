@@ -219,6 +219,7 @@ export interface RFQDetailOption {
   packageWeightPerBoxKg?: string;
   supplier?: Supplier | null;
   tiers: RFQDetailTier[];
+  tierSplits?: RFQDetailTierSplit[];
   createdDate: string;
   updatedDate: string;
   createdBy: string;
@@ -384,6 +385,10 @@ export interface RejectUrgentRFQRequest {
 
 export interface RequestSpecialPriceRFQRequest {
   targetPrice: number;
+}
+
+export interface RequestUrgentRFQApproveRequest {
+  urgentRequestMessage: string;
 }
 
 export interface GetCustomerQuotedResponse {

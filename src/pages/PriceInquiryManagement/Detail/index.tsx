@@ -3531,16 +3531,25 @@ export default function RFQDetail(): ReactElement {
           }));
       const additionalCostPayload = addedAdditionalCostPayload;
 
-      console.log('[FinalPriceDialog][SavePayload]', {
-        rfqId: params.id,
-        supplierId,
-        detailPayload,
-        additionalCostPayload
-      });
-      await createRFQDetails(params.id, detailPayload);
-      if (additionalCostPayload.length) {
-        await createRFQAdditionalCosts(params.id, additionalCostPayload);
-      }
+      await toast.promise(
+        (async () => {
+          console.log('[FinalPriceDialog][SavePayload]', {
+            rfqId: params.id,
+            supplierId,
+            detailPayload,
+            additionalCostPayload
+          });
+          await createRFQDetails(params.id, detailPayload);
+          if (additionalCostPayload.length) {
+            await createRFQAdditionalCosts(params.id, additionalCostPayload);
+          }
+        })(),
+        {
+          loading: 'กำลังบันทึกราคาสุดท้าย...',
+          success: 'บันทึกราคาสุดท้ายเรียบร้อย',
+          error: 'บันทึกราคาสุดท้ายไม่สำเร็จ'
+        }
+      );
       await refetchPriceInquiryData();
       handleCloseFinalPriceDialog();
     } finally {

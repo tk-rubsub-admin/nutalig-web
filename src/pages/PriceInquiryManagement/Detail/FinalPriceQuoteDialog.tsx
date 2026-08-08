@@ -1,8 +1,9 @@
-import { Add, AutoAwesome, ContentCopy, DeleteOutline, EmojiTransportation } from '@mui/icons-material';
+import { Add, ArrowDropDown, AutoAwesome, ContentCopy, DeleteOutline, EmojiTransportation, Visibility } from '@mui/icons-material';
 import {
   Box,
   Button,
   Checkbox,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -22,9 +23,10 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
-import { ReactElement } from 'react';
+import { ReactElement, useEffect, useState } from 'react';
 import { SystemConfig } from 'services/Config/config-type';
 import {
+  RFQDetailOption,
   RFQDetailTierSplit,
   RFQSupplierQuote,
   RFQSupplierQuoteAdditionalCost
@@ -79,6 +81,7 @@ interface FinalPriceDraftErrors {
 interface FinalPriceQuoteDialogProps {
   open: boolean;
   finalPriceQuote: RFQSupplierQuote | null;
+  rfqDetails: RFQDetailOption[];
   finalPriceDraft: {
     details: FinalPriceDraftDetail[];
     packages: FinalPriceDraftPackage[];
@@ -140,6 +143,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
   const {
     open,
     finalPriceQuote,
+    rfqDetails,
     finalPriceDraft,
     finalPriceErrors,
     isSubmitting,
@@ -169,6 +173,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     getSupplierDisplayName,
     t
   } = props;
+  const [isOldPriceSectionExpanded, setIsOldPriceSectionExpanded] = useState(true);
 
   const renderPackageSummary = (packageItem: FinalPriceDraftPackage): string => {
     const dimension = packageItem.packageDimension?.trim();
@@ -229,6 +234,114 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     isFcl: Boolean(tier.isFcl),
     isShareFCL: Boolean(tier.isShareFCL)
   });
+
+  const shouldShowOldPriceSection =
+    rfqDetails.length > 0 && rfqDetails.some((detail) => (detail.tiers || []).length > 0);
+
+  useEffect(() => {
+    if (shouldShowOldPriceSection) {
+      setIsOldPriceSectionExpanded(true);
+    }
+  }, [shouldShowOldPriceSection]);
+
+  const renderOldPriceDetailCard = (detail: RFQDetailOption): ReactElement => (
+    <Box
+      key={detail.id}
+      sx={{
+        border: '1px solid #dce4ee',
+        borderRadius: 2,
+        p: 2,
+        backgroundColor: '#f8fafc'
+      }}>
+      <Stack spacing={1.25}>
+        <Stack spacing={0.25}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            {detail.optionName}
+          </Typography>
+          {detail.spec ? (
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+              {detail.spec}
+            </Typography>
+          ) : null}
+        </Stack>
+
+        <Box sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}>
+          <Table
+            size="small"
+            sx={{
+              width: '100%',
+              tableLayout: 'fixed',
+              '& .MuiTableCell-root': {
+                px: 1,
+                py: 0.75
+              }
+            }}>
+            <TableHead>
+              <TableRow>
+                <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  MOQ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ราคาสินค้า
+                </TableCell>
+                <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  สกุลเงิน
+                </TableCell>
+                <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  รวมส่งทางรถ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  รวมส่งทางเรือ
+                </TableCell>
+                <TableCell align="center" sx={{ width: 78, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ปิดตู้
+                </TableCell>
+                <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ปิดตู้ (share)
+                </TableCell>
+                <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ค่าคอม
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(detail.tiers || [])
+                .slice()
+                .sort((left, right) => left.sortOrder - right.sortOrder)
+                .map((tier) => (
+                  <TableRow key={tier.id}>
+                    <TableCell align="center" sx={{ width: 90 }}>
+                      {tier.quantity || '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 110 }}>
+                      {formatPrice(tier.productPrice, tier.currency)}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 90 }}>
+                      {tier.currency || '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 110 }}>
+                      {formatPrice(tier.landTotalPrice, tier.currency)}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 110 }}>
+                      {formatPrice(tier.seaTotalPrice, tier.currency)}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 78 }}>
+                      {tier.isFcl ? 'ใช่' : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 92 }}>
+                      {tier.isFcl && tier.isShareFCL ? 'ใช่' : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 86 }}>
+                      {tier.commission ?? '-'}{tier.commission !== null && tier.commission !== undefined ? '%' : ''}
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </Box>
+      </Stack>
+    </Box>
+  );
 
   const renderSpecialDetailCard = (detail: FinalPriceDraftDetail): ReactElement => (
     <Box
@@ -932,6 +1045,48 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               {finalPriceQuote?.supplier?.supplierCode || finalPriceQuote?.supplier?.id || '-'}
             </Typography>
           </Box>
+
+
+          {shouldShowOldPriceSection ? (
+            <Box
+              sx={{
+                border: '1px solid #cbd5e1',
+                borderRadius: 2,
+                backgroundColor: '#fff7ed',
+                overflow: 'hidden'
+              }}>
+              <Button
+                fullWidth
+                variant="text"
+                onClick={() => setIsOldPriceSectionExpanded((previous) => !previous)}
+                sx={{
+                  justifyContent: 'space-between',
+                  px: 2,
+                  py: 1.25,
+                  color: 'text.primary',
+                  borderRadius: 0
+                }}
+                endIcon={
+                  <ArrowDropDown
+                    sx={{
+                      transform: isOldPriceSectionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      opacity: 0.85
+                    }}
+                  />
+                }>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  ราคาที่เคยให้
+                </Typography>
+              </Button>
+              <Collapse in={isOldPriceSectionExpanded} timeout="auto" unmountOnExit>
+                <Stack spacing={1.5} sx={{ px: 2, pb: 2 }}>
+                  {rfqDetails
+                    .filter((detail) => (detail.tiers || []).length > 0)
+                    .map((detail) => renderOldPriceDetailCard(detail))}
+                </Stack>
+              </Collapse>
+            </Box>
+          ) : null}
 
           <Stack spacing={2}>
             <Stack

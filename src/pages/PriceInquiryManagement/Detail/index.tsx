@@ -3472,8 +3472,8 @@ export default function RFQDetail(): ReactElement {
               const shippingCost = sourceTier?.shippingCost || 0;
               const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
               const baseAmount = productPrice + shippingPerUnit;
-              const landFreightCost = landTotalPrice - baseAmount;
-              const seaFreightCost = seaTotalPrice - baseAmount;
+              const landFreightCost = landTotalPrice !== 0 ? landTotalPrice - baseAmount : 0;
+              const seaFreightCost = seaTotalPrice !== 0 ? seaTotalPrice - baseAmount : 0;
 
               return {
                 quantity: tier.quantity,
@@ -5697,6 +5697,7 @@ export default function RFQDetail(): ReactElement {
       <FinalPriceQuoteDialog
         open={Boolean(finalPriceQuote)}
         finalPriceQuote={finalPriceQuote}
+        rfqDetails={rfq?.details || []}
         finalPriceDraft={finalPriceDraft}
         finalPriceErrors={finalPriceErrors}
         isSubmitting={isFinalPriceSubmitting || isGenerateFinalInquirySubmitting}

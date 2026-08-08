@@ -559,7 +559,7 @@ export default function NewQuotation() {
         toast.promise(addAddressPromise, {
             loading: t('toast.loading'),
             success: (response) => {
-                const updatedCustomer = response as Customer;
+                const updatedCustomer = ((response as any)?.data ?? response) as Customer;
                 setCustomer(updatedCustomer);
 
                 const updatedAddresses = updatedCustomer.addresses || [];
@@ -624,7 +624,7 @@ export default function NewQuotation() {
         toast.promise(addContactPromise, {
             loading: t('toast.loading'),
             success: (response) => {
-                const updatedCustomer = response as Customer;
+                const updatedCustomer = ((response as any)?.data ?? response) as Customer;
                 setCustomer(updatedCustomer);
 
                 const updatedContacts = updatedCustomer.contacts || [];

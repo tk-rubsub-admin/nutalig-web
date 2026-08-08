@@ -30,6 +30,14 @@ export function copyText(text: string) {
   }
 }
 
+export function copyTextSilent(text: string) {
+  if (canUseAsyncClipboard()) {
+    return navigator.clipboard!.writeText(text).then(() => true).catch(() => fallbackCopy(text));
+  }
+
+  return Promise.resolve(fallbackCopy(text));
+}
+
 function canUseAsyncClipboard() {
   return (
     typeof window !== 'undefined' &&

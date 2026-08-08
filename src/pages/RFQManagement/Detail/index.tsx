@@ -83,6 +83,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
+import { copyTextSilent } from 'utils/copyContent';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
@@ -992,7 +993,11 @@ export default function RFQDetail(): ReactElement {
             throw new Error('ไม่พบข้อความคัดลอกราคา');
           }
 
-          await navigator.clipboard.writeText(quotedText);
+          const copied = await copyTextSilent(quotedText);
+
+          if (!copied) {
+            throw new Error('ไม่สามารถคัดลอกข้อความได้');
+          }
         })(),
         {
           loading: t('toast.loading'),

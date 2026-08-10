@@ -42,7 +42,7 @@ import { makeStyles } from '@mui/styles';
 import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
-import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
+import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -86,6 +86,7 @@ import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
+import { buildSalesOrderDocumentFlowItems } from 'utils/documentFlow';
 
 interface SalesOrderDetailParams {
   id: string;
@@ -361,57 +362,18 @@ export default function SalesOrderDetail(): ReactElement {
     rfq?.quotations?.[0]?.quotationNo ||
     null;
 
-  const documentFlowItems: DocumentFlowItem[] = [
-    {
-      title: 'คำขอราคา',
-      docNo: salesOrder?.rfqId || null,
-      onOpen: salesOrder?.rfqId
-        ? () => window.open(ROUTE_PATHS.RFQ_DETAIL.replace(':id', salesOrder.rfqId), '_blank', 'noopener,noreferrer')
-        : undefined
-    },
-    {
-      title: 'ใบเสนอราคา',
-      docNo: quotationNo,
-      status: latestInvoice?.status || latestReceipt?.status || null,
-      statusProfile: latestInvoice?.statusProfile || latestReceipt?.statusProfile,
-      isLoading: isRfqFlowFetching,
-      onOpen: quotationNo
-        ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo), '_blank', 'noopener,noreferrer')
-        : undefined
-    },
-    {
-      title: 'ใบยืนยันสั่งซื้อ',
-      docNo: salesOrder?.salesOrderNo || null,
-      status: salesOrder?.status || null,
-      statusProfile: salesOrder?.statusProfile,
-      isCurrent: true,
-      onOpen: salesOrder?.salesOrderNo
-        ? () => window.open(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo), '_blank', 'noopener,noreferrer')
-        : undefined
-    },
-    {
-      title: 'ใบแจ้งหนี้',
-      docNo: latestInvoice?.invoiceNo || null,
-      status: latestInvoice?.status || null,
-      statusProfile: latestInvoice?.statusProfile,
-      count: relatedInvoices.length > 1 ? relatedInvoices.length : undefined,
-      isLoading: isInvoicePaymentsFetching,
-      onOpen: latestInvoice?.invoiceNo
-        ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', latestInvoice.invoiceNo), '_blank', 'noopener,noreferrer')
-        : undefined
-    },
-    {
-      title: 'ใบเสร็จรับเงิน',
-      docNo: latestReceipt?.receiptNo || null,
-      status: latestReceipt?.status || null,
-      statusProfile: latestReceipt?.statusProfile,
-      count: relatedReceipts.length > 1 ? relatedReceipts.length : undefined,
-      isLoading: isReceiptFlowFetching,
-      onOpen: latestReceipt?.receiptNo
-        ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', latestReceipt.receiptNo), '_blank', 'noopener,noreferrer')
-        : undefined
-    }
-  ];
+  const documentFlowItems = buildSalesOrderDocumentFlowItems({
+    rfqId: salesOrder?.rfqId || null,
+    quotationNo,
+    salesOrder,
+    latestInvoice,
+    latestReceipt,
+    isRfqLoading: isRfqFlowFetching,
+    isInvoiceLoading: isInvoicePaymentsFetching,
+    isReceiptLoading: isReceiptFlowFetching,
+    invoiceCount: relatedInvoices.length,
+    receiptCount: relatedReceipts.length
+  });
 
   const summary = useMemo(() => {
     const subTotal = displayItems.reduce((sum, item) => {
@@ -745,7 +707,7 @@ export default function SalesOrderDetail(): ReactElement {
                     <ListItemIcon>
                       <IoPencil />
                     </ListItemIcon>
-                    <ListItemText primary="แก้ไขใบสั่งซื้อ" />
+                    <ListItemText primary="แก้ไขใบยืนยันสั่งซื้อ" />
                   </MenuItem>
                 </Can>
                 <MenuItem
@@ -755,7 +717,7 @@ export default function SalesOrderDetail(): ReactElement {
                   <ListItemIcon>
                     <Description fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary="ดูใบสั่งซื้อ" />
+                  <ListItemText primary="ดูใบยืนยันสั่งซื้อ" />
                 </MenuItem>
                 <Can permission={PERMISSIONS.INVOICE_CREATE}>
                   <MenuItem

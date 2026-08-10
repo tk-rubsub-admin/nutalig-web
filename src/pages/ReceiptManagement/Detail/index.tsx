@@ -30,7 +30,7 @@ import {
 import { makeStyles } from '@mui/styles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
-import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
+import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -53,6 +53,7 @@ import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
+import { buildReceiptDocumentFlowItems } from 'utils/documentFlow';
 
 interface ReceiptDetailParams {
   id: string;
@@ -259,73 +260,17 @@ export default function ReceiptDetail(): ReactElement {
 
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const isVoidReceiptEnabled = Boolean(receipt && receipt.status !== 'VOID');
-  const documentFlowItems: DocumentFlowItem[] = [
-    {
-      title: 'คำขอราคา',
-      docNo: relatedSalesOrder?.rfqId || null,
-      onOpen: relatedSalesOrder?.rfqId
-        ? () =>
-            window.open(
-              ROUTE_PATHS.RFQ_DETAIL.replace(':id', String(relatedSalesOrder.rfqId)),
-              '_blank',
-              'noopener,noreferrer'
-            )
-        : undefined
-    },
-    {
-      title: 'ใบเสนอราคา',
-      docNo: receipt?.quotationNo || relatedInvoice?.quotationNo || null,
-      onOpen: receipt?.quotationNo || relatedInvoice?.quotationNo
-        ? () =>
-            window.open(
-              ROUTE_PATHS.QUOTATION_DETAIL.replace(
-                ':id',
-                String(receipt?.quotationNo || relatedInvoice?.quotationNo)
-              ),
-              '_blank',
-              'noopener,noreferrer'
-            )
-        : undefined
-    },
-    {
-      title: 'ใบยืนยันสั่งซื้อ',
-      docNo: receipt?.salesOrderNo || relatedInvoice?.salesOrderNo || null,
-      status: relatedSalesOrder?.status || null,
-      statusProfile: relatedSalesOrder?.statusProfile,
-      isLoading: isSalesOrderFlowFetching,
-      onOpen: receipt?.salesOrderNo || relatedInvoice?.salesOrderNo
-        ? () =>
-            window.open(
-              ROUTE_PATHS.SALE_ORDER_DETAIL.replace(
-                ':id',
-                String(receipt?.salesOrderNo || relatedInvoice?.salesOrderNo)
-              ),
-              '_blank',
-              'noopener,noreferrer'
-            )
-        : undefined
-    },
-    {
-      title: 'ใบแจ้งหนี้',
-      docNo: receipt?.invoiceNo || null,
-      status: relatedInvoice?.status || null,
-      statusProfile: relatedInvoice?.statusProfile,
-      isLoading: isInvoiceFlowFetching,
-      onOpen: receipt?.invoiceNo
-        ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', receipt.invoiceNo), '_blank', 'noopener,noreferrer')
-        : undefined
-    },
-    {
-      title: 'ใบเสร็จรับเงิน',
-      docNo: receipt?.receiptNo || null,
-      status: receipt?.status || null,
-      statusProfile: receipt?.statusProfile,
-      isCurrent: true,
-      onOpen: receipt?.receiptNo
-        ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', receipt.receiptNo), '_blank', 'noopener,noreferrer')
-        : undefined
-    }
-  ];
+  const documentFlowItems = buildReceiptDocumentFlowItems({
+    rfqId: relatedSalesOrder?.rfqId || null,
+    quotationNo: receipt?.quotationNo || relatedInvoice?.quotationNo || null,
+    salesOrderNo: receipt?.salesOrderNo || relatedInvoice?.salesOrderNo || null,
+    salesOrderStatus: relatedSalesOrder?.status || null,
+    salesOrderStatusProfile: relatedSalesOrder?.statusProfile || null,
+    invoice: relatedInvoice || null,
+    receipt: receipt || null,
+    isSalesOrderLoading: isSalesOrderFlowFetching,
+    isInvoiceLoading: isInvoiceFlowFetching
+  });
 
   const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history') => {
     setTab(value);

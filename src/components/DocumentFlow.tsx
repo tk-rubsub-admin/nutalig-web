@@ -1,31 +1,10 @@
 /* eslint-disable prettier/prettier */
 import { ArrowForwardIos, OpenInNew } from '@mui/icons-material';
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
-import { DocumentStatusProfile } from 'services/document-status-type';
+import type { DocumentFlowItem } from 'utils/documentFlow';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 
-export type DocumentFlowRelatedItem = {
-    title: string;
-    docNo?: string | null;
-    status?: string | null;
-    statusProfile?: DocumentStatusProfile;
-    isCurrent?: boolean;
-    isLoading?: boolean;
-    onOpen?: () => void;
-};
-
-export type DocumentFlowItem = {
-    title: string;
-    docNo?: string | null;
-    status?: string | null;
-    statusProfile?: DocumentStatusProfile;
-    count?: number;
-    isCurrent?: boolean;
-    isLoading?: boolean;
-    onOpen?: () => void;
-    relatedItems?: DocumentFlowRelatedItem[];
-    relatedItemsLabel?: string;
-};
+export type { DocumentFlowItem, DocumentFlowRelatedItem } from 'utils/documentFlow';
 
 export default function DocumentFlow({ items }: { items: DocumentFlowItem[] }) {
     return (

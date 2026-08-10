@@ -32,11 +32,12 @@ import LoadingDialog from "components/LoadingDialog";
 import { formatCurrency, formatNumber } from "utils/utils";
 import { getRFQ } from "services/RFQ/rfq-api";
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from "services/RFQ/rfq-type";
-import { SystemConfig } from "services/Config/config-type";
-import { addCustomerAddress, addCustomerContact } from "services/Customer/customer-api";
+import { addCustomerAddress, addCustomerContact, getCustomer, updateCustomer } from "services/Customer/customer-api";
 import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from "services/Customer/customer-type";
 import { getDistrict, getProvince, getSubDistrict } from "services/Address/address-api";
 import { District, Province, SubDistrict } from "services/Address/address-type";
+import { GROUP_CODE, SystemConfig } from "services/Config/config-type";
+import { getSystemConfig } from "services/Config/config-api";
 
 const createEmptyRow = (): CreateQuotationItem => ({
     id: Date.now() + Math.floor(Math.random() * 1000),
@@ -253,6 +254,7 @@ export default function NewQuotation() {
     const [openSearchRfqDialog, setOpenSearchRfqDialog] = useState(false);
     const [isAddCustomerAddressDialogOpen, setIsAddCustomerAddressDialogOpen] = useState(false);
     const [isAddCustomerContactDialogOpen, setIsAddCustomerContactDialogOpen] = useState(false);
+    const [isUpdateCustomerDialogOpen, setIsUpdateCustomerDialogOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
     const [title, setTitle] = useState<string>('')
@@ -290,6 +292,41 @@ export default function NewQuotation() {
     const { data: subdistricts = [] } = useQuery('quotation-subdistrict', () => getSubDistrict(), {
         refetchOnWindowFocus: false
     });
+    const { data: customerTypeList = [] } = useQuery(
+        ['quotation-customer-type', GROUP_CODE.CUSTOMER_TYPE],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_TYPE),
+        { refetchOnWindowFocus: false }
+    );
+    const { data: customerTierList = [] } = useQuery(
+        ['quotation-customer-tier', GROUP_CODE.CUSTOMER_TIER],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_TIER),
+        { refetchOnWindowFocus: false }
+    );
+    const { data: customerSegmentList = [] } = useQuery(
+        ['quotation-customer-segment', GROUP_CODE.CUSTOMER_SEGMENT],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_SEGMENT),
+        { refetchOnWindowFocus: false }
+    );
+    const { data: customerCreditTermList = [] } = useQuery(
+        ['quotation-customer-credit-term', GROUP_CODE.CUSTOMER_CREDIT_TERM],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_CREDIT_TERM),
+        { refetchOnWindowFocus: false }
+    );
+    const { data: customerPaymentTermList = [] } = useQuery(
+        ['quotation-customer-payment-term', GROUP_CODE.CUSTOMER_PAYMENT_TERM],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+        { refetchOnWindowFocus: false }
+    );
+    const { data: customerBillingConditionList = [] } = useQuery(
+        ['quotation-customer-billing-condition', GROUP_CODE.CUSTOMER_BILLING_CONDITION],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_BILLING_CONDITION),
+        { refetchOnWindowFocus: false }
+    );
+    const { data: customerPaymentCycleList = [] } = useQuery(
+        ['quotation-customer-payment-cycle', GROUP_CODE.CUSTOMER_PAYMENT_CYCLE],
+        () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_CYCLE),
+        { refetchOnWindowFocus: false }
+    );
 
     useEffect(() => {
         return () => {
@@ -336,6 +373,100 @@ export default function NewQuotation() {
                 .required(t('customerManagement.message.validateContactNumber'))
         }),
         onSubmit: () => undefined
+    });
+
+    const updateCustomerDialogFormik = useFormik({
+        initialValues: {
+            customerName: customer?.customerName ?? '',
+            email: customer?.email ?? '',
+            type: customer?.customerType?.code ?? '',
+            tier: customer?.customerTier?.code ?? '',
+            segment: customer?.customerSegment?.code ?? '',
+            taxId: customer?.taxId ?? '',
+            companyName: customer?.companyName ?? '',
+            companyBranchCode: customer?.branchNumber ?? '',
+            companyBranchName: customer?.branchName ?? '',
+            creditTerm: customer?.customerCreditTerm?.code ?? '',
+            paymentTerm: customer?.customerPaymentTerm?.code ?? '',
+            billingCondition: customer?.customerBillingCondition ?? '',
+            paymentCycle: customer?.customerPaymentCycle ?? '',
+            salesAccounts: customer?.salesAccounts?.length
+                ? customer.salesAccounts
+                : customer?.salesAccount
+                    ? [customer.salesAccount]
+                    : [],
+            coSalesAccount: customer?.coSalesAccount ?? ''
+        },
+        enableReinitialize: true,
+        validationSchema: Yup.object().shape({
+            customerName: Yup.string().max(255).required(t('customerManagement.message.validateCustomerName')),
+            type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
+            tier: Yup.string().max(255).nullable(),
+            segment: Yup.string().max(255).nullable(),
+            companyName: Yup.string().when('type', {
+                is: 'COMPANY',
+                then: Yup.string().required(t('customerManagement.message.validateCompanyName')),
+                otherwise: Yup.string().nullable()
+            }),
+            companyBranchCode: Yup.string().when('type', {
+                is: 'COMPANY',
+                then: Yup.string().required(t('customerManagement.message.validateCompanyBranchCode')),
+                otherwise: Yup.string().nullable()
+            }),
+            companyBranchName: Yup.string().when('type', {
+                is: 'COMPANY',
+                then: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
+                otherwise: Yup.string().nullable()
+            }),
+            creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
+            paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm'))
+        }),
+        onSubmit: async (values, actions) => {
+            if (!customer?.id) {
+                return;
+            }
+
+            actions.setSubmitting(true);
+            const payload: UpdateCustomerRequest = {
+                customerName: values.customerName || null,
+                customerType: values.type || null,
+                customerTier: values.tier || null,
+                customerSegment: values.segment || null,
+                email: values.email || null,
+                taxId: values.taxId || null,
+                companyName: values.companyName || null,
+                branchNumber: values.companyBranchCode || null,
+                branchName: values.companyBranchName || null,
+                creditTerm: values.creditTerm || null,
+                paymentTerm: values.paymentTerm || null,
+                billingCondition: values.billingCondition || null,
+                paymentCycle: values.paymentCycle || null,
+                salesAccount: values.salesAccounts[0] || null,
+                salesAccounts: values.salesAccounts,
+                coSalesAccount: values.coSalesAccount || null
+            };
+
+            const updatePromise = updateCustomer(customer.id, payload).then(() => getCustomer(customer.id));
+
+            toast.promise(updatePromise, {
+                loading: t('toast.loading'),
+                success: (response) => {
+                    const updatedCustomer = response as Customer;
+                    if (updatedCustomer) {
+                        setCustomer(updatedCustomer);
+                        formik.setFieldValue('salesId', updatedCustomer.salesAccounts?.[0] || updatedCustomer.salesAccount || '');
+                        formik.setFieldValue('coSaleId', updatedCustomer.coSalesAccount || '');
+                    }
+                    setIsUpdateCustomerDialogOpen(false);
+                    return t('toast.success');
+                },
+                error: t('toast.failed')
+            });
+
+            updatePromise.finally(() => {
+                actions.setSubmitting(false);
+            });
+        }
     });
 
     const formik = useFormik({
@@ -596,6 +727,15 @@ export default function NewQuotation() {
             }
         });
         setIsAddCustomerContactDialogOpen(true);
+    };
+
+    const handleOpenUpdateCustomer = () => {
+        if (!customer?.id) {
+            return;
+        }
+
+        updateCustomerDialogFormik.resetForm();
+        setIsUpdateCustomerDialogOpen(true);
     };
 
     const getContactPayload = (): CreateCustomerContactRequest => ({
@@ -1046,6 +1186,24 @@ export default function NewQuotation() {
                 title={t('documentManagement.quotation.customerSection.title')}
                 isCompleted={isCustomerSectionCompleted}
                 defaultExpanded={true}
+                action={
+                    customer?.id ? (
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={handleOpenUpdateCustomer}
+                            sx={{
+                                borderRadius: '999px',
+                                px: 2,
+                                py: 0.75,
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            อัพเดตข้อมูล
+                        </Button>
+                    ) : null
+                }
             >
                 <Grid container spacing={1}>
                     {/* customerName */}
@@ -1832,6 +1990,305 @@ export default function NewQuotation() {
                 customerId={customer?.id || ''}
                 onSelect={handleSelectRfq}
             />
+            <Dialog
+                open={isUpdateCustomerDialogOpen}
+                onClose={() => {
+                    setIsUpdateCustomerDialogOpen(false);
+                    updateCustomerDialogFormik.resetForm();
+                }}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>อัพเดตข้อมูลลูกค้า</DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                name="customerName"
+                                label={t('customerManagement.column.name')}
+                                value={updateCustomerDialogFormik.values.customerName}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                error={Boolean(
+                                    updateCustomerDialogFormik.touched.customerName &&
+                                    updateCustomerDialogFormik.errors.customerName
+                                )}
+                                helperText={
+                                    updateCustomerDialogFormik.touched.customerName &&
+                                    updateCustomerDialogFormik.errors.customerName
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                name="email"
+                                label={t('customerManagement.column.email')}
+                                value={updateCustomerDialogFormik.values.email}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="type"
+                                label={t('customerManagement.column.type')}
+                                value={updateCustomerDialogFormik.values.type}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                error={Boolean(
+                                    updateCustomerDialogFormik.touched.type &&
+                                    updateCustomerDialogFormik.errors.type
+                                )}
+                                helperText={updateCustomerDialogFormik.touched.type && updateCustomerDialogFormik.errors.type}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                {customerTypeList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="tier"
+                                label={t('customerManagement.column.tier')}
+                                value={updateCustomerDialogFormik.values.tier}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {customerTierList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="segment"
+                                label={t('customerManagement.column.segment')}
+                                value={updateCustomerDialogFormik.values.segment}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {customerSegmentList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                name="taxId"
+                                label={t('customerManagement.column.taxId')}
+                                value={updateCustomerDialogFormik.values.taxId}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                name="companyName"
+                                label={t('customerManagement.column.company.name')}
+                                value={updateCustomerDialogFormik.values.companyName}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                error={Boolean(
+                                    updateCustomerDialogFormik.touched.companyName &&
+                                    updateCustomerDialogFormik.errors.companyName
+                                )}
+                                helperText={
+                                    updateCustomerDialogFormik.touched.companyName &&
+                                    updateCustomerDialogFormik.errors.companyName
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            />
+                        </Grid>
+                        {updateCustomerDialogFormik.values.type === 'COMPANY' ? (
+                            <>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="companyBranchCode"
+                                        label={t('customerManagement.column.company.branchCode')}
+                                        value={updateCustomerDialogFormik.values.companyBranchCode}
+                                        onChange={updateCustomerDialogFormik.handleChange}
+                                        onBlur={updateCustomerDialogFormik.handleBlur}
+                                        error={Boolean(
+                                            updateCustomerDialogFormik.touched.companyBranchCode &&
+                                            updateCustomerDialogFormik.errors.companyBranchCode
+                                        )}
+                                        helperText={
+                                            updateCustomerDialogFormik.touched.companyBranchCode &&
+                                            updateCustomerDialogFormik.errors.companyBranchCode
+                                        }
+                                        InputLabelProps={{ shrink: true }}
+                                        sx={fieldSx}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="companyBranchName"
+                                        label={t('customerManagement.column.company.branchName')}
+                                        value={updateCustomerDialogFormik.values.companyBranchName}
+                                        onChange={updateCustomerDialogFormik.handleChange}
+                                        onBlur={updateCustomerDialogFormik.handleBlur}
+                                        error={Boolean(
+                                            updateCustomerDialogFormik.touched.companyBranchName &&
+                                            updateCustomerDialogFormik.errors.companyBranchName
+                                        )}
+                                        helperText={
+                                            updateCustomerDialogFormik.touched.companyBranchName &&
+                                            updateCustomerDialogFormik.errors.companyBranchName
+                                        }
+                                        InputLabelProps={{ shrink: true }}
+                                        sx={fieldSx}
+                                    />
+                                </Grid>
+                            </>
+                        ) : null}
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="creditTerm"
+                                label={t('customerManagement.column.creditTerm')}
+                                value={updateCustomerDialogFormik.values.creditTerm}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                error={Boolean(
+                                    updateCustomerDialogFormik.touched.creditTerm &&
+                                    updateCustomerDialogFormik.errors.creditTerm
+                                )}
+                                helperText={
+                                    updateCustomerDialogFormik.touched.creditTerm &&
+                                    updateCustomerDialogFormik.errors.creditTerm
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                {customerCreditTermList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="paymentTerm"
+                                label={t('customerManagement.column.paymentTerm')}
+                                value={updateCustomerDialogFormik.values.paymentTerm}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                error={Boolean(
+                                    updateCustomerDialogFormik.touched.paymentTerm &&
+                                    updateCustomerDialogFormik.errors.paymentTerm
+                                )}
+                                helperText={
+                                    updateCustomerDialogFormik.touched.paymentTerm &&
+                                    updateCustomerDialogFormik.errors.paymentTerm
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                {customerPaymentTermList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="billingCondition"
+                                label={t('customerManagement.column.billingCondition')}
+                                value={updateCustomerDialogFormik.values.billingCondition}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {customerBillingConditionList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="paymentCycle"
+                                label={t('customerManagement.column.paymentCycle')}
+                                value={updateCustomerDialogFormik.values.paymentCycle}
+                                onChange={updateCustomerDialogFormik.handleChange}
+                                onBlur={updateCustomerDialogFormik.handleBlur}
+                                InputLabelProps={{ shrink: true }}
+                                sx={fieldSx}
+                            >
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {customerPaymentCycleList.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                        {getConfigLabel(option)}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => {
+                            setIsUpdateCustomerDialogOpen(false);
+                            updateCustomerDialogFormik.resetForm();
+                        }}
+                    >
+                        {t('button.cancel')}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => updateCustomerDialogFormik.handleSubmit()}
+                        disabled={updateCustomerDialogFormik.isSubmitting}
+                    >
+                        {t('button.save')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
             <ConfirmDialog
                 open={visibleConfirmationDialog}
                 title={title}

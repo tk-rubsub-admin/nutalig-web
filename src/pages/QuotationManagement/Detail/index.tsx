@@ -33,7 +33,7 @@ import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
-import DocumentFlow, { DocumentFlowItem } from 'components/DocumentFlow';
+import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -57,6 +57,7 @@ import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
+import { buildQuotationDocumentFlowItems } from 'utils/documentFlow';
 
 const getEmployeeName = (quotation?: Quotation) => {
     const employee = quotation?.saleAccount || quotation?.salesAccount;
@@ -352,79 +353,27 @@ export default function QuotationDetail(): JSX.Element {
             refetchOnWindowFocus: false
         }
     );
-    const documentFlowItems: DocumentFlowItem[] = [
-        {
-            title: 'คำขอราคา',
-            docNo: quotation?.rfqId || quotation?.referenceRfqId || null,
-            status: 'ได้ราคาแล้ว',
-            statusProfile: undefined,
-            onOpen: quotation?.rfqId || quotation?.referenceRfqId
-                ? () =>
-                    window.open(
-                        ROUTE_PATHS.RFQ_DETAIL.replace(':id', String(quotation?.rfqId || quotation?.referenceRfqId)),
-                        '_blank',
-                        'noopener,noreferrer'
-                    )
-                : undefined
-        },
-        {
-            title: 'ใบเสนอราคา',
-            docNo: quotation?.quotationNo || null,
-            status: quotation?.status || null,
-            statusProfile: quotation?.statusProfile,
-            isCurrent: true,
-            count: rfqQuotationOptions.length > 1 ? rfqQuotationOptions.length : undefined,
-            relatedItems: rfqQuotationOptions
-                .filter((quotationItem) => quotationItem.quotationNo !== quotation?.quotationNo)
-                .map((quotationItem) => ({
-                    title: 'ใบเสนอราคา',
-                    docNo: quotationItem.quotationNo,
-                    status: quotationItem.status,
-                    statusProfile: quotationItem.statusProfile,
-                    onOpen: () =>
-                        window.open(
-                            ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationItem.quotationNo),
-                            '_blank',
-                            'noopener,noreferrer'
-                        )
-                })),
-            onOpen: quotation?.quotationNo
-                ? () => window.open(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotation.quotationNo), '_blank', 'noopener,noreferrer')
-                : undefined
-        },
-        {
-            title: 'ใบยืนยันสั่งซื้อ',
-            docNo: salesOrder?.salesOrderNo || salesOrderNo,
-            status: salesOrder?.status || null,
-            statusProfile: salesOrder?.statusProfile,
-            isLoading: isSalesOrderFlowFetching,
-            onOpen: salesOrder?.salesOrderNo
-                ? () => window.open(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo), '_blank', 'noopener,noreferrer')
-                : undefined
-        },
-        {
-            title: 'ใบแจ้งหนี้',
-            docNo: latestInvoice?.invoiceNo || null,
-            status: latestInvoice?.status || null,
-            statusProfile: latestInvoice?.statusProfile,
-            count: invoiceRecords.length > 1 ? invoiceRecords.length : undefined,
-            isLoading: isInvoiceFlowFetching,
-            onOpen: latestInvoice?.invoiceNo
-                ? () => window.open(ROUTE_PATHS.INVOICE_DETAIL.replace(':id', latestInvoice.invoiceNo), '_blank', 'noopener,noreferrer')
-                : undefined
-        },
-        {
-            title: 'ใบเสร็จรับเงิน',
-            docNo: latestReceipt?.receiptNo || null,
-            status: latestReceipt?.status || null,
-            statusProfile: latestReceipt?.statusProfile,
-            count: receiptRecords.length > 1 ? receiptRecords.length : undefined,
-            isLoading: isReceiptFlowFetching,
-            onOpen: latestReceipt?.receiptNo
-                ? () => window.open(ROUTE_PATHS.RECEIPT_DETAIL.replace(':id', latestReceipt.receiptNo), '_blank', 'noopener,noreferrer')
-                : undefined
-        }
-    ];
+    const documentFlowItems = buildQuotationDocumentFlowItems({
+        quotation: quotation
+            ? {
+                rfqId: quotation.rfqId || null,
+                referenceRfqId: quotation.referenceRfqId || null,
+                quotationNo: quotation.quotationNo || null,
+                status: quotation.status || null,
+                statusProfile: quotation.statusProfile || null
+            }
+            : null,
+        rfqQuotations: rfqQuotationOptions,
+        salesOrder,
+        salesOrderNo,
+        latestInvoice,
+        latestReceipt,
+        isSalesOrderLoading: isSalesOrderFlowFetching,
+        isInvoiceLoading: isInvoiceFlowFetching,
+        isReceiptLoading: isReceiptFlowFetching,
+        invoiceCount: invoiceRecords.length,
+        receiptCount: receiptRecords.length
+    });
     const confirmQuotationRows: ConfirmQuotationRow[] = (quotation?.items || []).map((item, index) => {
         const matched = findMatchingTier(rfq?.details || [], item);
 

@@ -1288,6 +1288,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       formik.setValues({
         ...formik.values,
         rfqId,
+        isVat: Number(quotation?.data?.vat || 0) > 0,
         salesId: getRFQSalesEmployeeId(rfq.sales),
         coSaleId: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount || '',
         coSaleMode: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount
@@ -1411,55 +1412,6 @@ export default function SalesOrderRFQ(): JSX.Element {
   return (
     <Page>
       <PageTitle title="สร้าง Sales Order จาก RFQ" />
-      <Wrapper>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1}
-          useFlexGap
-          sx={{
-            justifyContent: { sm: 'flex-end' },
-            alignItems: { xs: 'stretch', sm: 'center' },
-            mb: 2
-          }}>
-          <Button
-            fullWidth={isDownSm}
-            variant="contained"
-            startIcon={<ArrowBackIos />}
-            className="btn-cool-grey"
-            onClick={() => {
-              setConfirmAction('back');
-              setVisibleConfirmationDialog(true);
-            }}>
-            {t('button.back')}
-          </Button>
-          <Button
-            fullWidth={isDownSm}
-            disabled={!isFormCompleted}
-            variant="contained"
-            startIcon={<Save />}
-            className="btn-amber-orange"
-            onClick={() => {
-              setConfirmAction('DRAFT');
-              setVisibleConfirmationDialog(true);
-            }}>
-            บันทึกฉบับร่าง
-          </Button>
-          <Can permission={PERMISSIONS.SALES_ORDER_CREATE}>
-            <Button
-              fullWidth={isDownSm}
-              disabled={!isFormCompleted}
-              variant="contained"
-              startIcon={<Save />}
-              className="btn-emerald-green"
-              onClick={() => {
-                setConfirmAction('CREATED');
-                setVisibleConfirmationDialog(true);
-              }}>
-              สร้าง
-            </Button>
-          </Can>
-        </Stack>
-      </Wrapper>
       <CollapsibleWrapper
         title="ข้อมูลใบยืนยันคำสั่งซื้อ"
         isCompleted={isGeneralSectionCompleted}
@@ -1603,10 +1555,10 @@ export default function SalesOrderRFQ(): JSX.Element {
                     return;
                   }
 
-                    formik.setFieldValue('coSaleId', event.target.value);
-                  }}
-                  InputLabelProps={{ shrink: true }}
-                >
+                  formik.setFieldValue('coSaleId', event.target.value);
+                }}
+                InputLabelProps={{ shrink: true }}
+              >
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {coSaleMode === CO_SALE_MODE_FREELANCE &&
                   freelanceSales.map((option) => (
@@ -2050,6 +2002,56 @@ export default function SalesOrderRFQ(): JSX.Element {
           </Grid>
         </Grid>
       </CollapsibleWrapper>
+
+      <Wrapper>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          useFlexGap
+          sx={{
+            justifyContent: { sm: 'flex-end' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            mb: 2
+          }}>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            startIcon={<ArrowBackIos />}
+            className="btn-cool-grey"
+            onClick={() => {
+              setConfirmAction('back');
+              setVisibleConfirmationDialog(true);
+            }}>
+            {t('button.back')}
+          </Button>
+          <Button
+            fullWidth={isDownSm}
+            disabled={!isFormCompleted}
+            variant="contained"
+            startIcon={<Save />}
+            className="btn-amber-orange"
+            onClick={() => {
+              setConfirmAction('DRAFT');
+              setVisibleConfirmationDialog(true);
+            }}>
+            บันทึกฉบับร่าง
+          </Button>
+          <Can permission={PERMISSIONS.SALES_ORDER_CREATE}>
+            <Button
+              fullWidth={isDownSm}
+              disabled={!isFormCompleted}
+              variant="contained"
+              startIcon={<Save />}
+              className="btn-emerald-green"
+              onClick={() => {
+                setConfirmAction('CREATED');
+                setVisibleConfirmationDialog(true);
+              }}>
+              สร้าง
+            </Button>
+          </Can>
+        </Stack>
+      </Wrapper>
 
       <ConfirmDialog
         open={visibleConfirmationDialog}

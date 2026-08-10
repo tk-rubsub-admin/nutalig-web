@@ -136,10 +136,10 @@ function toItem(ev: NotificationEvent): NotificationItem {
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(reducer, initialState);
     const queryClient = useQueryClient();
-    const { getToken, getRole, getUserId, authReady } = useAuth();
+    const { getToken, getRoles, getUserId, authReady } = useAuth();
 
     const token = getToken();
-    const role = getRole();
+    const roles = getRoles();
     const userId = getUserId();
 
     // ---------------------------
@@ -230,7 +230,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     useNotificationWS({
         token: authReady ? token : "",
         userId: authReady ? userId : "",
-        roles: authReady && role ? [role] : [],
+        roles: authReady ? roles : [],
         onEvent: (ev) => {
             console.log("[WS EVENT]", ev);
             addNotification(toItem(ev))

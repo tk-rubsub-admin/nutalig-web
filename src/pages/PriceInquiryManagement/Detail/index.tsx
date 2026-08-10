@@ -1843,6 +1843,7 @@ export default function RFQDetail(): ReactElement {
   const [finalPriceQuote, setFinalPriceQuote] = useState<RFQSupplierQuote | null>(null);
   const [visibleFinalPriceConfirmationDialog, setVisibleFinalPriceConfirmationDialog] =
     useState(false);
+  const [isBasicInfoEditing, setIsBasicInfoEditing] = useState(false);
   const [finalPriceDraft, setFinalPriceDraft] = useState<FinalPriceDraft>({
     details: [],
     packages: [],
@@ -1860,7 +1861,7 @@ export default function RFQDetail(): ReactElement {
     id: number;
     optionName: string;
   } | null>(null);
-  const isReadOnly = true;
+  const isReadOnly = !isBasicInfoEditing;
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const isAllowUploadAttachment = hasPermission(PERMISSIONS.RFQ_UPLOAD_FILE);
 
@@ -2025,6 +2026,7 @@ export default function RFQDetail(): ReactElement {
         });
 
         await refetchPriceInquiryData();
+        setIsBasicInfoEditing(false);
       } finally {
         actions.setSubmitting(false);
       }
@@ -2261,6 +2263,11 @@ export default function RFQDetail(): ReactElement {
   const handleOpenRequestInformationDialog = () => {
     setRequestInformationText('');
     setVisibleRequestInformationDialog(true);
+  };
+
+  const handleStartEditBasicInfo = () => {
+    setIsBasicInfoEditing(true);
+    formik.setTouched({}, false);
   };
 
   const handleOpenUrgentDetailDialog = () => {
@@ -4091,6 +4098,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleCancelEdit = () => {
     formik.resetForm({ values: getInitialValues(rfq) });
+    setIsBasicInfoEditing(false);
   };
 
   const handleConfirmSave = async () => {
@@ -4655,7 +4663,42 @@ export default function RFQDetail(): ReactElement {
                 key={supplierQuotes.length ? 'rfq-detail-collapsed' : 'rfq-detail-expanded'}
                 title="รายละเอียดการสอบถามราคา"
                 defaultExpanded={!supplierQuotes.length}
-                action={null}>
+                action={
+                  !isBasicInfoEditing ? (
+                    <Button
+                      variant="contained"
+                      className="btn-indigo-blue"
+                      startIcon={<EditOutlined />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleStartEditBasicInfo();
+                      }}>
+                      อัพเดตข้อมูล
+                    </Button>
+                  ) : (
+                    <Stack direction="row" spacing={1} onClick={(event) => event.stopPropagation()}>
+                      <Button
+                        variant="outlined"
+                        className="btn-cool-grey"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleCancelEdit();
+                        }}>
+                        ยกเลิก
+                      </Button>
+                      <Button
+                        variant="contained"
+                        className="btn-indigo-blue"
+                        startIcon={<Save />}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setVisibleConfirmationDialog(true);
+                        }}>
+                        บันทึก
+                      </Button>
+                    </Stack>
+                  )
+                }>
                 <Grid container spacing={1}>
                   <GridTextField item xs={12} sm={6}>
                     <TextField
@@ -4867,7 +4910,7 @@ export default function RFQDetail(): ReactElement {
                       error={Boolean(formik.touched.material && formik.errors.material)}
                       helperText={formik.touched.material && formik.errors.material}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
+                      InputProps={{ readOnly: isReadOnly }}
                     />
                   </GridTextField>
 
@@ -4882,7 +4925,7 @@ export default function RFQDetail(): ReactElement {
                       error={Boolean(formik.touched.capacity && formik.errors.capacity)}
                       helperText={formik.touched.capacity && formik.errors.capacity}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
+                      InputProps={{ readOnly: isReadOnly }}
                     />
                   </GridTextField>
 
@@ -4998,7 +5041,7 @@ export default function RFQDetail(): ReactElement {
                       error={Boolean(formik.touched.description && formik.errors.description)}
                       helperText={formik.touched.description && formik.errors.description}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
+                      InputProps={{ readOnly: isReadOnly }}
                     />
                   </GridTextField>
 

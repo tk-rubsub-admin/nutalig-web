@@ -46,7 +46,8 @@
     },
     "priceInquiryManagement": {
       "title": "Price Inquiry",
-      "final": "Final Price Inquiry"
+      "final": "Final Price Inquiry",
+      "awaiting": "Awaiting Approve"
     },
     "leadManagement": "Lead Management",
     "customerRelationshipManagement": {

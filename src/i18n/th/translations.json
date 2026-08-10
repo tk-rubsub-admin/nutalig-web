@@ -56,7 +56,8 @@
     },
     "priceInquiryManagement": {
       "title": "สอบถามราคา",
-      "final": "รอสรุปราคา"
+      "final": "รอสรุปราคา",
+      "awaiting": "รออนุมัติเร่งด่วน"
     },
     "staffManagement": {
       "title": "พนักงาน"

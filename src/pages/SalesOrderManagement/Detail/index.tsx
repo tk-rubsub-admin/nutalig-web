@@ -23,6 +23,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  LinearProgress,
   Stack,
   Tab,
   Table,
@@ -398,6 +399,17 @@ export default function SalesOrderDetail(): ReactElement {
     salesOrder?.freight,
     salesOrder?.vatRate
   ]);
+
+  const paymentProgress = useMemo(() => {
+    const grandTotal = Number(salesOrder?.grandTotal || 0);
+    const paidTotal = Number(salesOrder?.paidTotal || 0);
+
+    if (grandTotal <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, Math.max(0, (paidTotal / grandTotal) * 100));
+  }, [salesOrder?.grandTotal, salesOrder?.paidTotal]);
 
   const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history' | 'paymentHistory') => {
     setTab(value);
@@ -1443,6 +1455,48 @@ export default function SalesOrderDetail(): ReactElement {
             <Grid item xs={12}>
               <Stack spacing={1.25} className={classes.section}>
                 <Typography variant="h6">ประวัติการรับชำระเงิน</Typography>
+                <Stack spacing={1}>
+                  <Stack
+                    direction={isDownSm ? 'column' : 'row'}
+                    spacing={1}
+                    justifyContent="space-between"
+                    alignItems={isDownSm ? 'flex-start' : 'center'}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      ยอดชำระแล้ว
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatNumber(Number(salesOrder?.paidTotal || 0))} /{' '}
+                      {formatNumber(Number(salesOrder?.grandTotal || summary.grandTotal))}
+                    </Typography>
+                  </Stack>
+                  <Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={paymentProgress}
+                      sx={{
+                        height: 10,
+                        borderRadius: 999,
+                        backgroundColor: '#e2e8f0',
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 999,
+                          background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)'
+                        }
+                      }}
+                    />
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      sx={{ mt: 0.75 }}
+                      spacing={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        {paymentProgress.toFixed(0)}%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        คงเหลือ {formatNumber(Number(salesOrder?.outstandingTotal || 0))}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Stack>
                 {relatedInvoices.some((invoice) => invoice.payments?.length) ? (
                   <TableContainer>
                     <Table size="small">

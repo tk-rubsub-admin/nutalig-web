@@ -48,6 +48,7 @@ const buildRFQSearchPayload = (
     requestedDateEnd?: string;
     statuses?: string[];
     prioritizeApprovedUrgent?: boolean;
+    urgentRequestStatus?: string;
   }
 ) => {
   const payload: Record<string, unknown> = {};
@@ -116,6 +117,10 @@ const buildRFQSearchPayload = (
     payload.prioritizeApprovedUrgent = true;
   }
 
+  if (options?.urgentRequestStatus) {
+    payload.urgentRequestStatus = options.urgentRequestStatus;
+  }
+
   if (options?.isCreatedPurchaseOrder === true) {
     payload.isCreatedPurchaseOrder = true;
   }
@@ -146,6 +151,7 @@ export const getRFQList = async (
     sortDirection?: string;
     statuses?: string[];
     prioritizeApprovedUrgent?: boolean;
+    urgentRequestStatus?: string;
   }
 ) => {
   const params = new URLSearchParams();
@@ -187,6 +193,7 @@ export const exportRFQList = async (
     requestedDateEnd?: string;
     statuses?: string[];
     prioritizeApprovedUrgent?: boolean;
+    urgentRequestStatus?: string;
   }
 ) => {
   const payload = buildRFQSearchPayload(options);

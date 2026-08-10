@@ -256,6 +256,8 @@ export default function HomeWidgets(): JSX.Element {
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<CalendarDialogEvent | null>(
     null
   );
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Temporal.PlainDate | null>(null);
+  const [isCalendarDayEventsDialogOpen, setIsCalendarDayEventsDialogOpen] = useState(false);
   const [isCreateCalendarDialogOpen, setIsCreateCalendarDialogOpen] = useState(false);
   const [isDeleteCalendarConfirmOpen, setIsDeleteCalendarConfirmOpen] = useState(false);
   const [editingCalendarEventId, setEditingCalendarEventId] = useState<number | null>(null);
@@ -364,6 +366,51 @@ export default function HomeWidgets(): JSX.Element {
   const toCalendarDateTime = (value: string) =>
     Temporal.Instant.from(dayjs(value).toISOString()).toZonedDateTimeISO(DASHBOARD_TIME_ZONE);
 
+  const getCalendarDateKey = (value: unknown): string => {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      return value.slice(0, 10);
+    }
+
+    if (typeof value === 'object' && value !== null && 'year' in value && 'month' in value && 'day' in value) {
+      const dateValue = value as { year: number; month: number; day: number };
+      return `${String(dateValue.year).padStart(4, '0')}-${String(dateValue.month).padStart(2, '0')}-${String(
+        dateValue.day
+      ).padStart(2, '0')}`;
+    }
+
+    return String(value).slice(0, 10);
+  };
+
+  const getCalendarTimeKey = (value: unknown): string => {
+    if (!value || typeof value !== 'object') {
+      return '00:00:00';
+    }
+
+    if ('hour' in value && 'minute' in value) {
+      const timeValue = value as { hour: number; minute: number; second?: number };
+      return `${String(timeValue.hour).padStart(2, '0')}:${String(timeValue.minute).padStart(2, '0')}:${String(
+        timeValue.second || 0
+      ).padStart(2, '0')}`;
+    }
+
+    return '00:00:00';
+  };
+
+  const getCalendarSortKey = (event: { start?: unknown; end?: unknown }) =>
+    `${getCalendarDateKey(event.start)}T${getCalendarTimeKey(event.start)}`;
+
+  const isCalendarEventOnDay = (event: { start?: unknown; end?: unknown }, day: Temporal.PlainDate) => {
+    const dayKey = day.toString();
+    const startKey = getCalendarDateKey(event.start);
+    const endKey = getCalendarDateKey(event.end || event.start);
+
+    return startKey <= dayKey && endKey >= dayKey;
+  };
+
   const eventsServicePlugin = useMemo(() => createEventsServicePlugin(), []);
 
   const calendarApp = useCalendarApp(
@@ -397,6 +444,10 @@ export default function HomeWidgets(): JSX.Element {
             rawEnd: sourceCalendarEvent?.end,
             allDay: sourceCalendarEvent?.allDay
           });
+        },
+        onClickPlusEvents: (date) => {
+          setSelectedCalendarDay(date);
+          setIsCalendarDayEventsDialogOpen(true);
         }
       },
       views: [viewMonthGrid],
@@ -579,6 +630,16 @@ export default function HomeWidgets(): JSX.Element {
     }
     setIsDeleteCalendarConfirmOpen(true);
   };
+
+  const selectedCalendarDayEvents = useMemo(() => {
+    if (!selectedCalendarDay) {
+      return [];
+    }
+
+    return scheduleXEvents
+      .filter((event) => isCalendarEventOnDay(event, selectedCalendarDay))
+      .sort((left, right) => getCalendarSortKey(left).localeCompare(getCalendarSortKey(right)));
+  }, [scheduleXEvents, selectedCalendarDay]);
 
   const handleConfirmDeleteCalendarEvent = () => {
     if (!selectedCalendarEvent?.id || !isPrivateCalendarEvent) {
@@ -862,6 +923,88 @@ export default function HomeWidgets(): JSX.Element {
           onCancel={() => setIsDeleteCalendarConfirmOpen(false)}
           onConfirm={handleConfirmDeleteCalendarEvent}
         />
+        <Dialog
+          open={isCalendarDayEventsDialogOpen}
+          onClose={() => {
+            setIsCalendarDayEventsDialogOpen(false);
+            setSelectedCalendarDay(null);
+          }}
+          fullWidth
+          maxWidth="sm">
+          <DialogTitle>
+            {selectedCalendarDay ? `รายการกิจกรรมวันที่ ${selectedCalendarDay.toString()}` : 'รายการกิจกรรม'}
+          </DialogTitle>
+          <DialogContent>
+            <Stack spacing={1.25} sx={{ pt: 0.5 }}>
+              {selectedCalendarDayEvents.length > 0 ? (
+                selectedCalendarDayEvents.map((calendarEvent) => (
+                  <Button
+                    key={calendarEvent.id}
+                    variant="outlined"
+                    onClick={() => {
+                      const resolvedCalendarEventId =
+                        typeof calendarEvent.calendarEventId === 'number' &&
+                        Number.isFinite(calendarEvent.calendarEventId)
+                          ? calendarEvent.calendarEventId
+                          : typeof calendarEvent.id === 'string' || typeof calendarEvent.id === 'number'
+                            ? Number(String(calendarEvent.id).split('-')[0])
+                            : undefined;
+                      const sourceCalendarEvent = calendarEventsData.find(
+                        (item) => item.id === resolvedCalendarEventId
+                      );
+
+                      setSelectedCalendarEvent({
+                        id: Number.isFinite(resolvedCalendarEventId) ? resolvedCalendarEventId : undefined,
+                        title: calendarEvent.title,
+                        description: calendarEvent.description,
+                        location: calendarEvent.location,
+                        start: calendarEvent.start as CalendarDialogEvent['start'],
+                        end: calendarEvent.end as CalendarDialogEvent['end'],
+                        eventType: calendarEvent.eventType,
+                        status: calendarEvent.status,
+                        remark: calendarEvent.remark,
+                        rawStart: sourceCalendarEvent?.start,
+                        rawEnd: sourceCalendarEvent?.end,
+                        allDay: sourceCalendarEvent?.allDay
+                      });
+                      setIsCalendarDayEventsDialogOpen(false);
+                      setSelectedCalendarDay(null);
+                    }}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      textAlign: 'left',
+                      borderRadius: 2,
+                      py: 1.25,
+                      px: 1.5
+                    }}>
+                    <Stack spacing={0.25} sx={{ width: '100%' }}>
+                      <Typography variant="body2" fontWeight={700}>
+                        {calendarEvent.title || '-'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatCalendarDialogDateTime(calendarEvent.start)} -{' '}
+                        {formatCalendarDialogDateTime(calendarEvent.end)}
+                      </Typography>
+                    </Stack>
+                  </Button>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  ไม่พบรายการในวันนี้
+                </Typography>
+              )}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsCalendarDayEventsDialogOpen(false);
+                setSelectedCalendarDay(null);
+              }}>
+              ปิด
+            </Button>
+          </DialogActions>
+        </Dialog>
         <Dialog
           open={isCreateCalendarDialogOpen}
           onClose={() => {

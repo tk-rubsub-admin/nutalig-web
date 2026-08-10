@@ -236,57 +236,18 @@ function getSLADayLeft(requestedDate?: string | null, slaDate?: string | null): 
 }
 
 function getRFQRowSx(rfq: RFQRecord) {
-  const dayLeft = getSLADayLeft(rfq.requestedDate, rfq.slaDate);
-  const isSLAActiveStatus = ['NEW', 'IN_PROGRESS'].includes(rfq.status || '');
-
-  if (!isSLAActiveStatus) {
-    return {
-      cursor: 'pointer'
-    };
-  }
-
-  if (dayLeft === null || dayLeft === undefined) {
-    return {
-      cursor: 'pointer'
-    };
-  }
-
-  if (dayLeft < 0) {
+  if (rfq.status === 'QUOTED') {
     return {
       cursor: 'pointer',
-      backgroundColor: '#fff1f2',
+      backgroundColor: '#e8f5e9',
       '&:hover': {
-        backgroundColor: '#ffe4e6'
-      }
-    };
-  }
-
-  if (dayLeft === 0) {
-    return {
-      cursor: 'pointer',
-      backgroundColor: '#fff7ed',
-      '&:hover': {
-        backgroundColor: '#ffedd5'
-      }
-    };
-  }
-
-  if (dayLeft === 1) {
-    return {
-      cursor: 'pointer',
-      backgroundColor: '#fff8e1',
-      '&:hover': {
-        backgroundColor: '#ffefc2'
+        backgroundColor: '#dff0e1'
       }
     };
   }
 
   return {
-    cursor: 'pointer',
-    backgroundColor: '#e8f5e9',
-    '&:hover': {
-      backgroundColor: '#dff0e1'
-    }
+    cursor: 'pointer'
   };
 }
 

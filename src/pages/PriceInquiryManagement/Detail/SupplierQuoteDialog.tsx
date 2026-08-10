@@ -29,6 +29,7 @@ import { blueActionButtonSx, outlinedActionButtonSx } from './supplierQuoteDialo
 export interface SupplierQuoteDialogDetail {
   id: number;
   rfqDetailId?: number | null;
+  supplier?: Supplier | null;
   optionName: string;
   spec: string;
   sortOrder: number;
@@ -78,6 +79,7 @@ export interface SupplierQuoteDialogProps {
   onQuoteSupplierSearch: () => void;
   isQuoteSupplierSearchFetching: boolean;
   quoteSupplierSearchResult: Supplier[];
+  quoteSupplierOptions: Supplier[];
   quoteSupplierSearchPagination?: {
     page: number;
     size: number;
@@ -97,6 +99,7 @@ export interface SupplierQuoteDialogProps {
   supplierQuoteRevisionCountBySupplierId: Record<string, number>;
   onSelectSupplier: (supplier: Supplier) => void;
   onChangeSupplier: () => void;
+  onDetailSupplierChange: (detailId: number, supplier: Supplier) => void;
   quoteDraftDetails: SupplierQuoteDialogDetail[];
   quoteDraftAdditionalCosts: Array<{
     id: number;
@@ -180,6 +183,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     onQuoteSupplierSearch,
     isQuoteSupplierSearchFetching,
     quoteSupplierSearchResult,
+    quoteSupplierOptions,
     quoteSupplierSearchPagination,
     quoteSupplierSearchPage,
     quoteSupplierSearchPageSize,
@@ -194,6 +198,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     supplierQuoteRevisionCountBySupplierId,
     onSelectSupplier,
     onChangeSupplier,
+    onDetailSupplierChange,
     quoteDraftDetails,
     quoteDraftAdditionalCosts,
     quoteDraftPackages,
@@ -413,6 +418,10 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                 </Stack>
                 {quoteDraftDetails.map((detail) => {
                   const detailError = quoteDraftErrors[detail.id] || {};
+                  const selectedSupplier =
+                    detail.supplier || supplier || quoteSupplierOptions[0] || null;
+                  const selectedSupplierId =
+                    selectedSupplier?.supplierId || selectedSupplier?.id || '';
                   return (
                     <Box
                       key={detail.id}
@@ -459,7 +468,39 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                               }
                             />
                           </Grid>
-                          <Grid item md={8} />
+                          <Grid item xs={12} md={8}>
+                            <TextField
+                              fullWidth
+                              select
+                              size="small"
+                              label="Supplier"
+                              value={selectedSupplierId}
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(event) => {
+                                const targetSupplier = quoteSupplierOptions.find(
+                                  (item) => (item.supplierId || item.id) === event.target.value
+                                );
+
+                                if (targetSupplier) {
+                                  onDetailSupplierChange(detail.id, targetSupplier);
+                                }
+                              }}>
+                              {quoteSupplierOptions.length ? (
+                                quoteSupplierOptions.map((item) => {
+                                  const itemSupplierId = item.supplierId || item.id;
+                                  return (
+                                    <MenuItem key={itemSupplierId} value={itemSupplierId}>
+                                      {item.supplierName || '-'} ({itemSupplierId})
+                                    </MenuItem>
+                                  );
+                                })
+                              ) : (
+                                <MenuItem value={selectedSupplierId} disabled>
+                                  ไม่พบข้อมูล Supplier
+                                </MenuItem>
+                              )}
+                            </TextField>
+                          </Grid>
                           <Grid item xs={12} md={12}>
                             <TextField
                               fullWidth

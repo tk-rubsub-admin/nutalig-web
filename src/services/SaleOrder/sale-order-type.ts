@@ -98,6 +98,7 @@ export interface SalesOrderV1 {
     status: string;
     statusProfile?: DocumentStatusProfile;
     procurementStatus: string | null;
+    paymentStatus?: string | null;
     currency: string;
     customer: Customer | null;
     saleAccount: Staff | null;
@@ -108,6 +109,8 @@ export interface SalesOrderV1 {
     vat: number;
     grandTotal: number;
     amount: number;
+    paidTotal?: number;
+    outstandingTotal?: number;
     commission: number;
     coSaleCommission: number;
     requestCoa: boolean;

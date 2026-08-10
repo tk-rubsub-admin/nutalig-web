@@ -276,6 +276,7 @@ interface DraftSupplierQuoteTier {
 interface DraftSupplierQuoteDetail {
   id: number;
   rfqDetailId?: number | null;
+  supplier?: Supplier | null;
   optionName: string;
   spec: string;
   sortOrder: number;
@@ -1122,11 +1123,15 @@ function getFirstPackageValue(
   return value || null;
 }
 
-function createDraftQuoteDetail(sortOrder: number): DraftSupplierQuoteDetail {
+function createDraftQuoteDetail(
+  sortOrder: number,
+  supplier?: Supplier | null
+): DraftSupplierQuoteDetail {
   const now = Date.now();
   return {
     id: -(now + sortOrder),
     rfqDetailId: null,
+    supplier: supplier || null,
     optionName: `Option ${sortOrder}`,
     spec: '',
     sortOrder,
@@ -1244,11 +1249,13 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
 }
 
 function createSupplierQuoteDetailFromQuote(
-  detail: RFQSupplierQuoteDetail
+  detail: RFQSupplierQuoteDetail,
+  supplier?: Supplier | null
 ): DraftSupplierQuoteDetail {
   return {
     id: detail.id || -Date.now(),
     rfqDetailId: detail.rfqDetailId || null,
+    supplier: supplier || null,
     optionName: detail.optionName || '',
     spec: detail.spec || '',
     sortOrder: detail.sortOrder,
@@ -1318,6 +1325,7 @@ function buildSupplierQuotePayload(
     remark: quote?.remark || null,
     details: details.map((detail, index) => ({
       rfqDetailId: detail.rfqDetailId || null,
+      supplierId: detail.supplier?.supplierId || detail.supplier?.id || supplier.supplierId || supplier.id,
       optionName: detail.optionName.trim(),
       spec: detail.spec.trim(),
       sortOrder: index + 1,
@@ -1383,11 +1391,13 @@ function buildSupplierQuotePayload(
 
 function createDraftQuoteDetailFromExtractedPayload(
   detail: UpsertRFQSupplierQuoteRequest['details'][number],
-  index: number
+  index: number,
+  supplier?: Supplier | null
 ): DraftSupplierQuoteDetail {
   return {
     id: -(Date.now() + index + 1),
     rfqDetailId: detail.rfqDetailId || null,
+    supplier: supplier || null,
     optionName: detail.optionName || `Option ${index + 1}`,
     spec: detail.spec || '',
     sortOrder: detail.sortOrder || index + 1,
@@ -1918,6 +1928,25 @@ export default function RFQDetail(): ReactElement {
   );
   const quoteSupplierSearchResult = quoteSupplierSearchResponse?.data?.suppliers || [];
   const quoteSupplierSearchPagination = quoteSupplierSearchResponse?.data?.pagination;
+  const quoteSupplierOptions = useMemo(() => {
+    const supplierMap = new Map<string, Supplier>();
+
+    [
+      quoteDialogSupplier,
+      quoteDialogQuote?.supplier,
+      ...quoteSupplierSearchResult,
+      ...quoteDraftDetails
+        .map((detail) => detail.supplier)
+        .filter((detailSupplier): detailSupplier is Supplier => Boolean(detailSupplier))
+    ].forEach((item) => {
+      const supplierId = item?.supplierId || item?.id;
+      if (item && supplierId && !supplierMap.has(supplierId)) {
+        supplierMap.set(supplierId, item);
+      }
+    });
+
+    return Array.from(supplierMap.values());
+  }, [quoteDialogQuote?.supplier, quoteDialogSupplier, quoteDraftDetails, quoteSupplierSearchResult]);
   const { data: leadTimeOptions = [] } = useQuery<LeadTimeConfig[]>(
     ['lead-time-configs'],
     () => getLeadTimeConfigs(),
@@ -2640,8 +2669,10 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogQuote(existingQuote || null);
     setQuoteDraftDetails(
       existingQuote?.details?.length
-        ? existingQuote.details.map(createSupplierQuoteDetailFromQuote)
-        : [createDraftQuoteDetail(1)]
+        ? existingQuote.details.map((detail) =>
+          createSupplierQuoteDetailFromQuote(detail, supplier)
+        )
+        : [createDraftQuoteDetail(1, supplier)]
     );
     setQuoteDraftPackages(mapSupplierQuotePackages(existingQuote?.packages, existingQuote?.details));
     setQuoteDraftAdditionalCosts(
@@ -2667,8 +2698,10 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogQuote(null);
     setQuoteDraftDetails(
       templateQuote?.details?.length
-        ? templateQuote.details.map(createSupplierQuoteDetailFromQuote)
-        : [createDraftQuoteDetail(1)]
+        ? templateQuote.details.map((detail) =>
+          createSupplierQuoteDetailFromQuote(detail, supplier)
+        )
+        : [createDraftQuoteDetail(1, supplier)]
     );
     setQuoteDraftPackages(mapSupplierQuotePackages(templateQuote?.packages, templateQuote?.details));
     setQuoteDraftAdditionalCosts(
@@ -2802,7 +2835,7 @@ export default function RFQDetail(): ReactElement {
       });
 
       const nextDetails = (extractedQuote.details || []).map((detail, index) =>
-        createDraftQuoteDetailFromExtractedPayload(detail, index)
+        createDraftQuoteDetailFromExtractedPayload(detail, index, quoteDialogSupplier)
       );
       const nextPackages =
         extractedQuote.packages?.length
@@ -2816,7 +2849,9 @@ export default function RFQDetail(): ReactElement {
         createDraftLeadTimeFromExtractedPayload(leadTime, index)
       );
 
-      setQuoteDraftDetails(nextDetails.length ? nextDetails : [createDraftQuoteDetail(1)]);
+      setQuoteDraftDetails(
+        nextDetails.length ? nextDetails : [createDraftQuoteDetail(1, quoteDialogSupplier)]
+      );
       setQuoteDraftPackages(nextPackages.length ? nextPackages : [createDraftPackage(1)]);
       setQuoteDraftAdditionalCosts(
         nextAdditionalCosts.length ? nextAdditionalCosts : [createDraftAdditionalCost()]
@@ -3562,6 +3597,7 @@ export default function RFQDetail(): ReactElement {
       quoteDraftDetails.length + 1
     ) as DraftSupplierQuoteDetail;
     nextDetail.rfqDetailId = null;
+    nextDetail.supplier = quoteDialogSupplier;
     setQuoteDraftDetails((prev) => [...prev, nextDetail]);
   };
 
@@ -3576,6 +3612,7 @@ export default function RFQDetail(): ReactElement {
         ...sourceDetail,
         id: -(Date.now() + prev.length + 1),
         rfqDetailId: null,
+        supplier: sourceDetail.supplier || quoteDialogSupplier,
         optionName: sourceDetail.optionName || `Option ${prev.length + 1}`,
         sortOrder: prev.length + 1,
         tiers: sourceDetail.tiers.map((tier, index) => ({
@@ -3632,7 +3669,7 @@ export default function RFQDetail(): ReactElement {
           sortOrder: index + 1
         }));
 
-      return nextDetails.length ? nextDetails : [createDraftQuoteDetail(1)];
+      return nextDetails.length ? nextDetails : [createDraftQuoteDetail(1, quoteDialogSupplier)];
     });
     setQuoteDraftErrors((prev) => {
       const nextErrors = { ...prev };
@@ -3999,6 +4036,19 @@ export default function RFQDetail(): ReactElement {
     setQuoteSupplierSearchInput('');
     setQuoteSupplierSearchKeyword('');
     initializeNewSupplierQuoteDialog(supplier, existingQuote);
+  };
+
+  const handleQuoteDetailSupplierChange = (detailId: number, supplier: Supplier) => {
+    setQuoteDraftDetails((prev) =>
+      prev.map((detail) =>
+        detail.id === detailId
+          ? {
+            ...detail,
+            supplier
+          }
+          : detail
+      )
+    );
   };
 
   const handleDeleteDraftAdditionalCost = (additionalCostId: number) => {
@@ -5832,6 +5882,7 @@ export default function RFQDetail(): ReactElement {
         }}
         isQuoteSupplierSearchFetching={isQuoteSupplierSearchFetching}
         quoteSupplierSearchResult={quoteSupplierSearchResult}
+        quoteSupplierOptions={quoteSupplierOptions}
         quoteSupplierSearchPagination={quoteSupplierSearchPagination}
         quoteSupplierSearchPage={quoteSupplierSearchPage}
         quoteSupplierSearchPageSize={quoteSupplierSearchPageSize}
@@ -5870,6 +5921,7 @@ export default function RFQDetail(): ReactElement {
         onCopyDetail={handleCopyQuoteDetail}
         onDeleteDetail={handleRequestDeleteQuoteDetail}
         onDetailChange={handleQuoteDetailChange}
+        onDetailSupplierChange={handleQuoteDetailSupplierChange}
         onAddPackage={handleAddQuotePackage}
         onPackageChange={handleQuotePackageChange}
         onDeletePackage={handleDeleteQuotePackage}

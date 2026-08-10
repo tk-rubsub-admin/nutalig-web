@@ -620,6 +620,7 @@ export interface UpsertRFQSupplierQuoteTierRequest {
 
 export interface UpsertRFQSupplierQuoteDetailRequest {
   rfqDetailId?: number | null;
+  supplierId?: string | null;
   optionName: string;
   spec: string;
   sortOrder: number;

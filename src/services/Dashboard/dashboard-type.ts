@@ -28,6 +28,7 @@ export interface DashboardTrendChart {
   id: string;
   title: string;
   subtitle: string;
+  unit?: string;
   labels: string[];
   series: DashboardSeries[];
   visibleTo?: string[];
@@ -90,6 +91,10 @@ export interface DashboardData {
   source: 'api' | 'fallback';
   metrics: DashboardMetric[];
   trendCharts: DashboardTrendChart[];
+  acceptWorkDurationChart?: DashboardTrendChart;
+  supplierQuoteDurationChart?: DashboardTrendChart;
+  salesCountChart?: DashboardDistributionChart;
+  customerTypeCountChart?: DashboardDistributionChart;
   distributionCharts: DashboardDistributionChart[];
   workQueues: DashboardWorkQueue[];
   quickLinks: DashboardQuickLink[];

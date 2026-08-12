@@ -112,6 +112,7 @@ import {
   getRFQ,
   addRFQNote,
   getCustomerQuoted,
+  getRFQSupplierQuotes,
   requestSpecialPriceRFQ,
   requestUrgentApprove,
   rejectRFQ,
@@ -129,6 +130,7 @@ import {
   RFQProductMaterial,
   RFQProductSubtype1,
   RFQProductSubtype2,
+  RFQSupplierQuoteLeadTime,
   RFQRecord
 } from 'services/RFQ/rfq-type';
 import { base64ToBlob } from 'utils';
@@ -548,6 +550,20 @@ function getSLAStatusPresentation(
   };
 }
 
+function formatSupplierQuoteLeadTime(leadTime: RFQSupplierQuoteLeadTime): string {
+  const codeLabel =
+    leadTime.leadTimeConfig?.nameTh ||
+    leadTime.leadTimeConfig?.nameEn ||
+    leadTime.leadTimeCode ||
+    '-';
+  const dayLabel =
+    leadTime.leadTimeDayMin === leadTime.leadTimeDayMax
+      ? `${leadTime.leadTimeDayMin} วัน`
+      : `${leadTime.leadTimeDayMin}-${leadTime.leadTimeDayMax} วัน`;
+
+  return codeLabel;
+}
+
 function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
   return {
     contactName: rfq?.contactName || rfq?.customer?.customerName || '',
@@ -898,6 +914,17 @@ function validateDraftDetail(detail: RFQDetailOption): DraftDetailValidationErro
   return nextErrors;
 }
 
+const isRfqNotFoundError = (error: any) => {
+  const status = error?.response?.status;
+  const responseStatus = error?.response?.data?.status;
+  const message = String(error?.response?.data?.message || '').toLowerCase();
+
+  return (
+    status === 404 ||
+    (status === 400 && (responseStatus === 'data_not_found' || message.includes('not found')))
+  );
+};
+
 export default function RFQDetail(): ReactElement {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
@@ -924,6 +951,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleRequestSpecialPriceDialog, setVisibleRequestSpecialPriceDialog] = useState(false);
   const [visibleAddNoteDialog, setVisibleAddNoteDialog] = useState(false);
   const [visibleViewNoteDialog, setVisibleViewNoteDialog] = useState(false);
+  const [visibleRfqNotFoundDialog, setVisibleRfqNotFoundDialog] = useState(false);
   const [urgentReasonDialogOpen, setUrgentReasonDialogOpen] = useState(false);
   const [urgentReason, setUrgentReason] = useState('');
   const [noteText, setNoteText] = useState('');
@@ -1093,7 +1121,13 @@ export default function RFQDetail(): ReactElement {
     refetch: refetchRFQ
   } = useQuery(['rfq-detail', params.id], () => getRFQ(params.id), {
     refetchOnWindowFocus: false,
-    enabled: !!params.id
+    enabled: !!params.id,
+    retry: (failureCount, error: any) => !isRfqNotFoundError(error) && failureCount < 3,
+    onError: (error: any) => {
+      if (isRfqNotFoundError(error)) {
+        setVisibleRfqNotFoundDialog(true);
+      }
+    }
   });
   const quotationOptions = useMemo(() => rfq?.quotations || [], [rfq?.quotations]);
   const latestQuotationNo = useMemo(() => {
@@ -1136,12 +1170,48 @@ export default function RFQDetail(): ReactElement {
       enabled: Boolean(selectedQuotationNo)
     }
   );
+  const {
+    data: supplierQuotes = [],
+    isFetching: isSupplierQuotesFetching
+  } = useQuery(
+    ['rfq-detail-supplier-quotes', params.id],
+    () => getRFQSupplierQuotes(params.id),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!params.id
+    }
+  );
+  const latestSupplierQuote = useMemo(() => {
+    if (!supplierQuotes.length) {
+      return null;
+    }
+
+    return [...supplierQuotes].sort((left, right) => {
+      const leftUpdated = dayjs(left.updatedDate || left.createdDate || '');
+      const rightUpdated = dayjs(right.updatedDate || right.createdDate || '');
+
+      if (leftUpdated.isBefore(rightUpdated)) {
+        return 1;
+      }
+
+      if (leftUpdated.isAfter(rightUpdated)) {
+        return -1;
+      }
+
+      return (right.revisionNo || 0) - (left.revisionNo || 0);
+    })[0];
+  }, [supplierQuotes]);
+  const latestSupplierQuoteLeadTimes = useMemo(
+    () => [...(latestSupplierQuote?.leadTimes || [])].sort((left, right) => left.sortOrder - right.sortOrder),
+    [latestSupplierQuote]
+  );
   const isAttachmentUploadVisible = !['QUOTED', 'CANCELED', 'CLOSED', 'COMPLETED'].includes(
     rfq?.status || ''
   );
   const isRejectRfqVisible = !['CANCELED', 'CLOSED', 'COMPLETED', 'ACCEPTED', 'REJECTED'].includes(
     rfq?.status || ''
   );
+  const isQuotedStatus = rfq?.status === 'QUOTED';
   const canCopyCustomerQuoted = ['QUOTED', 'COMPLETED'].includes(rfq?.status || '');
   const activeQuotationNo = selectedQuotationNo || latestQuotationNo;
 
@@ -3997,8 +4067,8 @@ export default function RFQDetail(): ReactElement {
                                     color: 'text.secondary',
                                     fontSize: 14
                                   }}>
-                                    ยังไม่มีช่วงราคาในตัวเลือกนี้
-                                  </Box>
+                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                </Box>
                               )}
                               {sortedTierSplits.length ? (
                                 <Box sx={{ mt: 3 }}>
@@ -4395,8 +4465,8 @@ export default function RFQDetail(): ReactElement {
                                     backgroundColor: '#ffffff',
                                     color: 'text.secondary'
                                   }}>
-                                    ยังไม่มีช่วงราคาในตัวเลือกนี้
-                                  </Box>
+                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                </Box>
                               )}
                               {sortedTierSplits.length ? (
                                 <Box
@@ -4532,6 +4602,69 @@ export default function RFQDetail(): ReactElement {
                     </Box>
                   )}
                 </Stack>
+              </CollapsibleWrapper>
+              <CollapsibleWrapper title="Lead Time" defaultExpanded action={null}>
+                {latestSupplierQuoteLeadTimes.length ? (
+                  <Box
+                    sx={{
+                      border: '1px solid #dce4ee',
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      backgroundColor: '#fff'
+                    }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow
+                          sx={{
+                            '& th': {
+                              fontWeight: 700,
+                              backgroundColor: '#f8fafc',
+                              whiteSpace: 'nowrap'
+                            }
+                          }}>
+                          <TableCell>Lead Time</TableCell>
+                          <TableCell align="center" width="160">
+                            ช่วงวัน
+                          </TableCell>
+                          <TableCell>หมายเหตุ</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {latestSupplierQuoteLeadTimes.map((leadTime) => (
+                          <TableRow
+                            key={leadTime.id}
+                            sx={{
+                              '&:last-child td': { borderBottom: 0 }
+                            }}>
+                            <TableCell sx={{ fontWeight: 600 }}>
+                              {formatSupplierQuoteLeadTime(leadTime)}
+                            </TableCell>
+                            <TableCell align="center">
+                              {leadTime.leadTimeDayMin === leadTime.leadTimeDayMax
+                                ? `${leadTime.leadTimeDayMin} วัน`
+                                : `${leadTime.leadTimeDayMin}-${leadTime.leadTimeDayMax} วัน`}
+                            </TableCell>
+                            <TableCell>{leadTime.remark || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 3,
+                      py: 4,
+                      px: 2,
+                      textAlign: 'center',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      {isSupplierQuotesFetching ? 'กำลังโหลดข้อมูล Lead Time' : 'ยังไม่มีข้อมูล Lead Time'}
+                    </Typography>
+                  </Box>
+                )}
               </CollapsibleWrapper>
               <CollapsibleWrapper
                 title={t('rfqManagement.detail.sections.additional')}
@@ -4755,6 +4888,15 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleOpenCloseRfqDialog}
         onCancel={() => setVisibleCloseRfqConfirmDialog(false)}
+      />
+      <ConfirmDialog
+        open={visibleRfqNotFoundDialog}
+        title="ไม่พบข้อมูล RFQ"
+        message="ไม่พบข้อมูล RFQ"
+        confirmText={t('button.close')}
+        isShowCancelButton={false}
+        isShowConfirmButton
+        onConfirm={() => history.push(ROUTE_PATHS.RFQ_MANAGEMENT)}
       />
       <Dialog
         open={visibleCloseRfqDialog}
@@ -5164,9 +5306,9 @@ export default function RFQDetail(): ReactElement {
                     urgentRequestMessage: urgentReason.trim()
                   }),
                   {
-                  loading: t('toast.loading'),
-                  success: t('toast.success'),
-                  error: t('toast.failed')
+                    loading: t('toast.loading'),
+                    success: t('toast.success'),
+                    error: t('toast.failed')
                   }
                 );
                 setUrgentReasonDialogOpen(false);

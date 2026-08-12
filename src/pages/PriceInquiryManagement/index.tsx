@@ -33,7 +33,7 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useHistory, useLocation } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { searchCustomerByKeyword } from 'services/Customer/customer-api';
 import { Customer } from 'services/Customer/customer-type';
@@ -651,7 +651,7 @@ export default function PriceInquiryManagement(): ReactElement {
   }, [productFamilyList, selectedProductFamily]);
 
   useEffect(() => {
-    if (!isSalesRole) {
+    if (!isSalesRole || Boolean(restoredListState)) {
       return;
     }
 
@@ -667,10 +667,10 @@ export default function PriceInquiryManagement(): ReactElement {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSalesId, isSalesRole]);
+  }, [currentSalesId, isSalesRole, restoredListState]);
 
   useEffect(() => {
-    if (!isProcurementRole) {
+    if (!isProcurementRole || Boolean(restoredListState)) {
       return;
     }
 
@@ -686,7 +686,7 @@ export default function PriceInquiryManagement(): ReactElement {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProcurementId, isProcurementRole]);
+  }, [currentProcurementId, isProcurementRole, restoredListState]);
 
   const handleClear = () => {
     searchFormik.resetForm();
@@ -720,10 +720,24 @@ export default function PriceInquiryManagement(): ReactElement {
     rfqList.length > 0 ? (
       rfqList.map((rfq: RFQRecord) => (
         <TableRow
+          component={RouterLink}
+          to={{
+            pathname: ROUTE_PATHS.PRICE_INQUIRY.replace(':id', rfq.id),
+            state: {
+              returnToList: {
+                page,
+                pageSize,
+                filter
+              }
+            }
+          }}
           hover
           key={rfq.id}
-          onClick={() => handleOpenPriceInquiryDetail(rfq.id)}
-          sx={getRFQRowSx(rfq)}>
+          sx={{
+            ...getRFQRowSx(rfq),
+            textDecoration: 'none',
+            color: 'inherit'
+          }}>
           <TableCell align="left">
             <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1.5 }}>
               <Typography variant="body2">{rfq.id}</Typography>
@@ -796,10 +810,24 @@ export default function PriceInquiryManagement(): ReactElement {
     rfqList.length > 0 ? (
       rfqList.map((rfq: RFQRecord) => (
         <TableRow
+          component={RouterLink}
+          to={{
+            pathname: ROUTE_PATHS.PRICE_INQUIRY.replace(':id', rfq.id),
+            state: {
+              returnToList: {
+                page,
+                pageSize,
+                filter
+              }
+            }
+          }}
           hover
           key={rfq.id}
-          onClick={() => handleOpenPriceInquiryDetail(rfq.id)}
-          sx={getRFQRowSx(rfq)}>
+          sx={{
+            ...getRFQRowSx(rfq),
+            textDecoration: 'none',
+            color: 'inherit'
+          }}>
           <TableCell align="left">
             <Stack spacing={0.5}>
               <Stack direction="row" spacing={1} alignItems="center">

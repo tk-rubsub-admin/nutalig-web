@@ -661,9 +661,49 @@
           "title": "By Procurement Owner",
           "subtitle": "RFQs distributed across procurement owners"
         },
+        "bySalesCount": {
+          "title": "RFQ Count by Sales Owner",
+          "subtitle": "Number of RFQs owned by each sales person in the selected period"
+        },
+        "byCustomerTypeCount": {
+          "title": "RFQ Count by Customer Type",
+          "subtitle": "Count RFQs by customer type and include records that are not yet customers"
+        },
         "sla": {
           "title": "SLA Status",
           "subtitle": "Only tracked jobs with active SLA"
+        },
+        "acceptWorkDuration": {
+          "title": "Accept time distribution",
+          "subtitle": "Count RFQs by time from NEW to IN_PROGRESS excluding weekends and holidays",
+          "buckets": {
+            "lt1h": "Less than 1 hour",
+            "lte3h": "Within 3 hours",
+            "lte6h": "Within 6 hours",
+            "lte1d": "Within 1 day",
+            "lte2d": "Within 2 days",
+            "lte3d": "Within 3 days",
+            "gt3d": "More than 3 days",
+            "notAccepted": "Not yet accepted"
+          }
+        },
+        "supplierQuoteDuration": {
+          "title": "Supplier response distribution",
+          "subtitle": "Count RFQs by time from IN_PROGRESS to SUPPLIER_QUOTED excluding weekends and holidays",
+          "buckets": {
+            "lt1h": "Less than 1 hour",
+            "lte3h": "Within 3 hours",
+            "lte6h": "Within 6 hours",
+            "lte1d": "Within 1 day",
+            "lte2d": "Within 2 days",
+            "lte3d": "Within 3 days",
+            "gt3d": "More than 3 days",
+            "remaining": "Not yet replied"
+          }
+        },
+        "acceptWorkDurationPercentile": {
+          "title": "Median / P90 accept time",
+          "subtitle": "Use this to spot accept-time outliers by day"
         }
       },
       "queues": {
@@ -722,6 +762,7 @@
       "last7Days": "Last 7 days"
     },
     "filters": {
+      "month": "Month",
       "dateFrom": "Date from",
       "dateTo": "Date to",
       "sales": "Sales owner",

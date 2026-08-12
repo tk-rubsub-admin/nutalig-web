@@ -73,6 +73,8 @@ import { formatCurrency, formatNumber, formatNumberWithoutDigit } from 'utils/ut
 import * as Yup from 'yup';
 import { addCustomerAddress, addCustomerContact } from 'services/Customer/customer-api';
 import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from 'services/Customer/customer-type';
+import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
+import { getSystemConfig } from 'services/Config/config-api';
 
 interface SaleOrderRFQParams {
   rfqId: string;
@@ -150,6 +152,11 @@ function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
     totalFreight: 0,
     remark: ''
   };
+}
+
+function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 7): number {
+  const parsedDays = Number(config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays);
+  return Math.max(1, Number.isFinite(parsedDays) ? parsedDays : fallbackDays);
 }
 
 const fieldSx = {
@@ -769,6 +776,15 @@ export default function SalesOrderRFQ(): JSX.Element {
   const { data: subdistricts = [] } = useQuery('sale-order-rfq-subdistrict', () => getSubDistrict(), {
     refetchOnWindowFocus: false
   });
+  const { data: salesOrderExpireDayConfig = [] } = useQuery(
+    ['sale-order-rfq-expire-day', GROUP_CODE.SALES_ORDER_EXPIRE_DAY],
+    () => getSystemConfig(GROUP_CODE.SALES_ORDER_EXPIRE_DAY),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const salesOrderExpireDays = getExpireDays(salesOrderExpireDayConfig, 7);
+  const salesOrderDefaultEffectiveDate = today.add(salesOrderExpireDays, 'day');
   const imageUrl = getRFQImageUrl(rfq);
 
   const formik = useFormik<SaleOrderRFQFormValues>({
@@ -779,7 +795,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       salesId: '',
       coSaleId: '',
       docDate: today,
-      effectiveDate: today.add(7, 'day'),
+      effectiveDate: salesOrderDefaultEffectiveDate,
       urgentOrder: false,
       customerId: '',
       customerAddressId: '',
@@ -807,6 +823,15 @@ export default function SalesOrderRFQ(): JSX.Element {
     }),
     onSubmit: () => undefined
   });
+
+  useEffect(() => {
+    const fallbackEffectiveDate = today.add(7, 'day');
+    const currentEffectiveDate = formik.values.effectiveDate ? dayjs(formik.values.effectiveDate) : null;
+
+    if (!currentEffectiveDate || currentEffectiveDate.isSame(fallbackEffectiveDate, 'day')) {
+      formik.setFieldValue('effectiveDate', salesOrderDefaultEffectiveDate, false);
+    }
+  }, [salesOrderExpireDays]);
 
   const addressDialogFormik = useFormik({
     initialValues: {

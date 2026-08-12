@@ -26,7 +26,9 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { createInvoice } from 'services/Invoice/invoice-api';
+import { getSystemConfig } from 'services/Config/config-api';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { formatNumber } from 'utils/utils';
@@ -44,25 +46,18 @@ interface InvoiceCreateDraft {
   isVat: boolean;
 }
 
-function toDateInput(value?: string | null): string {
-  if (!value) {
-    return '';
-  }
-
-  const parts = value.split('/');
-  if (parts.length !== 3) {
-    return value;
-  }
-
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 30): number {
+  const parsedDays = Number(config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays);
+  return Math.max(1, Number.isFinite(parsedDays) ? parsedDays : fallbackDays);
 }
 
-function createDraft(salesOrder?: SalesOrderV1): InvoiceCreateDraft {
+function createDraft(salesOrder?: SalesOrderV1, expireDays = 30): InvoiceCreateDraft {
   const today = new Date().toISOString().slice(0, 10);
+  const dueDate = new Date(Date.now() + expireDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   return {
     docDate: today,
-    dueDate: toDateInput(salesOrder?.expireDate) || today,
+    dueDate,
     remark: salesOrder?.remark || '',
     subTotal: Number(salesOrder?.subTotal || 0),
     discount: Number(salesOrder?.discount || 0),
@@ -233,10 +228,18 @@ export default function NewInvoice(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+  const { data: invoiceExpireDayConfig = [] } = useQuery(
+    ['invoice-expire-day', GROUP_CODE.INVOICE_EXPIRE_DAY],
+    () => getSystemConfig(GROUP_CODE.INVOICE_EXPIRE_DAY),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const invoiceExpireDays = getExpireDays(invoiceExpireDayConfig, 30);
 
   useEffect(() => {
-    setDraft(createDraft(salesOrder));
-  }, [salesOrder]);
+    setDraft(createDraft(salesOrder, invoiceExpireDays));
+  }, [salesOrder, invoiceExpireDays]);
 
   const summary = useMemo(() => {
     const paymentTerm = salesOrder?.customer?.customerPaymentTerm?.code;

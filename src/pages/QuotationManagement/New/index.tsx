@@ -327,6 +327,18 @@ export default function NewQuotation() {
         () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_CYCLE),
         { refetchOnWindowFocus: false }
     );
+    const { data: quotationExpireDayConfig = [] } = useQuery(
+        ['quotation-expire-day', 'QUOTATION_EXPIRE_DAY'],
+        () => getSystemConfig('QUOTATION_EXPIRE_DAY'),
+        { refetchOnWindowFocus: false }
+    );
+    const quotationExpireDays = Math.max(
+        1,
+        Number(
+            quotationExpireDayConfig?.[0]?.code
+        ) || 7
+    );
+    const quotationDefaultEffectiveDate = today.add(quotationExpireDays, 'day');
 
     useEffect(() => {
         return () => {
@@ -476,7 +488,7 @@ export default function NewQuotation() {
             customerAddressId: '',
             customerContactId: '',
             docDate: today,
-            effectiveDate: today.add(7, 'day'),
+            effectiveDate: quotationDefaultEffectiveDate,
             salesId: '',
             coSaleId: '',
             coSaleMode: CO_SALE_MODE_NONE,
@@ -577,7 +589,7 @@ export default function NewQuotation() {
             customerAddressId: defaultAddress?.id || '',
             customerContactId: defaultContact?.id || '',
             docDate: today,
-            effectiveDate: today.add(7, 'day'),
+            effectiveDate: quotationDefaultEffectiveDate,
             salesId,
             coSaleId: rfq.customer?.coSalesAccount || '',
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
@@ -611,6 +623,18 @@ export default function NewQuotation() {
             formik.setFieldValue('coSaleId', '');
         }
     }, [formik.values.coSaleId, formik.values.coSaleMode]);
+
+    useEffect(() => {
+        const fallbackEffectiveDate = today.add(30, 'day');
+        const currentEffectiveDate = formik.values.effectiveDate
+            ? dayjs(formik.values.effectiveDate)
+            : null;
+        const targetEffectiveDate = today.add(quotationExpireDays, 'day');
+
+        if (!currentEffectiveDate || currentEffectiveDate.isSame(fallbackEffectiveDate, 'day')) {
+            formik.setFieldValue('effectiveDate', targetEffectiveDate, false);
+        }
+    }, [quotationExpireDays]);
 
     useEffect(() => {
         if (!openCreateFreelanceSaleDialog) return;
@@ -1960,7 +1984,7 @@ export default function NewQuotation() {
                         customerId: payload.customer.id,
                         remark: buildPaymentTermRemark(payload.customer.customerPaymentTerm),
                         docDate: today,
-                        effectiveDate: today.add(7, 'day')
+                        effectiveDate: quotationDefaultEffectiveDate
                     });
                     if (payload.customer?.addresses?.length) {
                         const defaultAddress =

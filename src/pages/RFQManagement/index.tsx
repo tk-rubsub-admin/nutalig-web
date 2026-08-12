@@ -33,7 +33,7 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useHistory, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
 import { ROUTE_PATHS } from 'routes';
@@ -661,7 +661,7 @@ export default function RFQManagement(): ReactElement {
   }, [productFamilyList, selectedProductFamily]);
 
   useEffect(() => {
-    if (!isSalesRole || hasSalesIdRequestParam) {
+    if (!isSalesRole || hasSalesIdRequestParam || Boolean(returnToListState)) {
       return;
     }
 
@@ -677,7 +677,7 @@ export default function RFQManagement(): ReactElement {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSalesId, hasSalesIdRequestParam, isSalesRole]);
+  }, [currentSalesId, hasSalesIdRequestParam, isSalesRole, returnToListState]);
 
   const handleClear = () => {
     searchFormik.resetForm();
@@ -749,10 +749,25 @@ export default function RFQManagement(): ReactElement {
     rfqList.length > 0 ? (
       rfqList.map((rfq: RFQRecord) => (
         <TableRow
+          component={RouterLink}
+          to={{
+            pathname: ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.id),
+            state: {
+              returnToList: {
+                page,
+                pageSize,
+                filter,
+                customerKeyword
+              }
+            }
+          }}
           hover
           key={rfq.id}
-          onClick={() => handleOpenRfqDetail(rfq.id)}
-          sx={getRFQRowSx(rfq)}>
+          sx={{
+            ...getRFQRowSx(rfq),
+            textDecoration: 'none',
+            color: 'inherit'
+          }}>
           <TableCell align="left">
             <Stack spacing={0.25} sx={{ pl: 1.5 }}>
               <Typography variant="body2" fontWeight={700}>
@@ -815,10 +830,25 @@ export default function RFQManagement(): ReactElement {
     rfqList.length > 0 ? (
       rfqList.map((rfq: RFQRecord) => (
         <TableRow
+          component={RouterLink}
+          to={{
+            pathname: ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.id),
+            state: {
+              returnToList: {
+                page,
+                pageSize,
+                filter,
+                customerKeyword
+              }
+            }
+          }}
           hover
           key={rfq.id}
-          onClick={() => handleOpenRfqDetail(rfq.id)}
-          sx={getRFQRowSx(rfq)}>
+          sx={{
+            ...getRFQRowSx(rfq),
+            textDecoration: 'none',
+            color: 'inherit'
+          }}>
           <TableCell align="left">
             <Stack spacing={0.5}>
               <Typography variant="subtitle2" fontWeight={700}>

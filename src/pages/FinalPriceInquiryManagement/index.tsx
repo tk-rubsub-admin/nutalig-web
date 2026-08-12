@@ -647,7 +647,7 @@ export default function FinalPriceInquiryManagement(): ReactElement {
   }, [productFamilyList, selectedProductFamily]);
 
   useEffect(() => {
-    if (!isSalesRole) {
+    if (!isSalesRole || Boolean(restoredListState)) {
       return;
     }
 
@@ -663,10 +663,10 @@ export default function FinalPriceInquiryManagement(): ReactElement {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSalesId, isSalesRole]);
+  }, [currentSalesId, isSalesRole, restoredListState]);
 
   useEffect(() => {
-    if (!isProcurementRole) {
+    if (!isProcurementRole || Boolean(restoredListState)) {
       return;
     }
 
@@ -682,7 +682,7 @@ export default function FinalPriceInquiryManagement(): ReactElement {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentProcurementId, isProcurementRole]);
+  }, [currentProcurementId, isProcurementRole, restoredListState]);
 
   const handleClear = () => {
     searchFormik.resetForm();

@@ -20,12 +20,12 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  MenuItem,
   Stack,
   TextField,
   Typography
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import DatePicker from 'components/DatePicker';
 import PageTitle from 'components/PageTitle';
 import { Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
@@ -49,7 +49,7 @@ import {
 } from 'services/Dashboard/dashboard-type';
 import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
-import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
+import { DEFAULT_DATE_FORMAT_BFF } from 'utils';
 import 'rsuite/dist/rsuite.min.css';
 
 export default function Dashboard(): JSX.Element {
@@ -57,16 +57,45 @@ export default function Dashboard(): JSX.Element {
   const { t } = useTranslation();
   const { getRole } = useAuth();
   const role = getRole();
-  const defaultDateRange = useMemo<DashboardDateRange>(
+  const defaultSelectedMonth = useMemo(() => dayjs().format('YYYY-MM'), []);
+  const [selectedMonth, setSelectedMonth] = useState(defaultSelectedMonth);
+  const [dateRange, setDateRange] = useState<Pick<DashboardDateRange, 'salesId' | 'procurementId'>>({
+    salesId: '',
+    procurementId: ''
+  });
+  const monthOptions = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('th-TH', {
+      month: 'long',
+      year: 'numeric'
+    });
+
+    return Array.from({ length: 12 }, (_value, index) => {
+      const monthDate = dayjs().subtract(11 - index, 'month');
+
+      return {
+        value: monthDate.format('YYYY-MM'),
+        label: formatter.format(monthDate.toDate())
+      };
+    });
+  }, []);
+  const selectedMonthRange = useMemo<DashboardDateRange>(
+    () => ({
+      dateFrom: dayjs(`${selectedMonth}-01`).startOf('month').format(DEFAULT_DATE_FORMAT_BFF),
+      dateTo: dayjs(`${selectedMonth}-01`).endOf('month').format(DEFAULT_DATE_FORMAT_BFF),
+      salesId: dateRange.salesId,
+      procurementId: dateRange.procurementId
+    }),
+    [dateRange.procurementId, dateRange.salesId, selectedMonth]
+  );
+  const currentMonthRange = useMemo<DashboardDateRange>(
     () => ({
       dateFrom: dayjs().startOf('month').format(DEFAULT_DATE_FORMAT_BFF),
       dateTo: dayjs().endOf('month').format(DEFAULT_DATE_FORMAT_BFF),
-      salesId: '',
-      procurementId: ''
+      salesId: dateRange.salesId,
+      procurementId: dateRange.procurementId
     }),
-    []
+    [dateRange.procurementId, dateRange.salesId]
   );
-  const [dateRange, setDateRange] = useState<DashboardDateRange>(defaultDateRange);
 
   const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
     ['dashboard-sales-options'],
@@ -88,12 +117,27 @@ export default function Dashboard(): JSX.Element {
     [
       'dashboard',
       role,
-      dateRange.dateFrom,
-      dateRange.dateTo,
+      selectedMonthRange.dateFrom,
+      selectedMonthRange.dateTo,
       dateRange.salesId,
       dateRange.procurementId
     ],
-    () => getDashboard(dateRange),
+    () => getDashboard(selectedMonthRange),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+
+  const { data: currentMonthData } = useQuery<DashboardData>(
+    [
+      'dashboard-current-month-volume',
+      role,
+      currentMonthRange.dateFrom,
+      currentMonthRange.dateTo,
+      currentMonthRange.salesId,
+      currentMonthRange.procurementId
+    ],
+    () => getDashboard(currentMonthRange),
     {
       refetchOnWindowFocus: false
     }
@@ -110,6 +154,50 @@ export default function Dashboard(): JSX.Element {
   const trendCharts = useMemo(
     () => (data?.trendCharts || []).filter((item) => canSee(item.visibleTo)),
     [data?.trendCharts, role]
+  );
+  const currentMonthVolumeChart = useMemo(
+    () =>
+      (currentMonthData?.trendCharts || [])
+        .find((item) => item.id === 'rfq-volume' && canSee(item.visibleTo)) ||
+      null,
+    [currentMonthData?.trendCharts, role]
+  );
+  const currentMonthVolumeChartData = useMemo(() => {
+    if (!currentMonthVolumeChart) {
+      return null;
+    }
+
+    return [
+      ['Day', ...currentMonthVolumeChart.series.map((series) => series.name), { role: 'annotation' }],
+      ...currentMonthVolumeChart.labels.map((label, index) => {
+        const values = currentMonthVolumeChart.series.map((series) => series.data[index] || 0);
+        const total = values.reduce((sum, value) => sum + value, 0);
+
+        return [label, ...values, total ? String(total) : null];
+      })
+    ];
+  }, [currentMonthVolumeChart]);
+  const acceptWorkDurationChart = useMemo(
+    () => (data?.acceptWorkDurationChart && canSee(data.acceptWorkDurationChart.visibleTo) ? data.acceptWorkDurationChart : null),
+    [data?.acceptWorkDurationChart, role]
+  );
+  const supplierQuoteDurationChart = useMemo(
+    () =>
+    (data?.supplierQuoteDurationChart && canSee(data.supplierQuoteDurationChart.visibleTo)
+      ? data.supplierQuoteDurationChart
+      : null),
+    [data?.supplierQuoteDurationChart, role]
+  );
+  const salesCountChart = useMemo(
+    () => (data?.salesCountChart && canSee(data.salesCountChart.visibleTo) ? data.salesCountChart : null),
+    [data?.salesCountChart, role]
+  );
+  const customerTypeCountChart = useMemo(
+    () =>
+      (data?.customerTypeCountChart && canSee(data.customerTypeCountChart.visibleTo)
+        ? data.customerTypeCountChart
+        : null),
+    [data?.customerTypeCountChart, role]
   );
   const distributionCharts = useMemo(
     () => (data?.distributionCharts || []).filter((item) => canSee(item.visibleTo)),
@@ -143,6 +231,49 @@ export default function Dashboard(): JSX.Element {
     saleOrder: <TrendingUp fontSize="small" />
   };
 
+  const rfqVolumeFallbackColors = [
+    theme.palette.primary.main,
+    theme.palette.error.main,
+    theme.palette.warning.main,
+    theme.palette.info.main
+  ];
+
+  const getRfqVolumeSeriesColor = (series: DashboardTrendChart['series'][number], index: number) => {
+    if (series.color) {
+      return series.color;
+    }
+
+    const normalizedName = series.name.toLowerCase();
+
+    if (normalizedName.includes('urgent') || normalizedName.includes('เร่งด่วน')) {
+      return theme.palette.error.main;
+    }
+
+    if (
+      normalizedName.includes('special') ||
+      normalizedName.includes('พิเศษ') ||
+      normalizedName.includes('review')
+    ) {
+      return theme.palette.warning.main;
+    }
+
+    return rfqVolumeFallbackColors[index % rfqVolumeFallbackColors.length];
+  };
+
+  const acceptWorkDurationBucketColors = [
+    '#16a34a',
+    '#22c55e',
+    '#84cc16',
+    '#facc15',
+    '#fb923c',
+    '#f97316',
+    '#dc2626',
+    '#94a3b8'
+  ];
+
+  const getAcceptWorkDurationBucketColor = (index: number) =>
+    acceptWorkDurationBucketColors[index] || theme.palette.primary.main;
+
   const formatTimestamp = (value?: string) => {
     if (!value) {
       return '-';
@@ -161,15 +292,9 @@ export default function Dashboard(): JSX.Element {
   );
 
   const handleClear = () => {
-    setDateRange(defaultDateRange);
-    if (
-      dateRange.dateFrom === defaultDateRange.dateFrom &&
-      dateRange.dateTo === defaultDateRange.dateTo &&
-      dateRange.salesId === defaultDateRange.salesId &&
-      dateRange.procurementId === defaultDateRange.procurementId
-    ) {
-      refetch();
-    }
+    setSelectedMonth(defaultSelectedMonth);
+    setDateRange({ salesId: '', procurementId: '' });
+    refetch();
   };
 
   return (
@@ -195,55 +320,24 @@ export default function Dashboard(): JSX.Element {
             />
           </Stack>
           <Grid container spacing={1}>
-            <Grid item xs={12} md={3}>
-              <DatePicker
+            <Grid item xs={12} md={4}>
+              <TextField
                 fullWidth
-                inputVariant="outlined"
+                select
+                label={t('dashboard.filters.month')}
+                value={selectedMonth}
                 InputLabelProps={{ shrink: true }}
-                label={t('dashboard.filters.dateFrom')}
-                format={DEFAULT_DATE_FORMAT}
-                value={dateRange.dateFrom ? dayjs(dateRange.dateFrom).toDate() : null}
-                maxDate={dateRange.dateTo ? dayjs(dateRange.dateTo).toDate() : undefined}
-                onChange={(date) => {
-                  if (!date) {
-                    return;
-                  }
-
-                  const nextDateFrom = dayjs(date.toDate())
-                    .startOf('day')
-                    .format(DEFAULT_DATE_FORMAT_BFF);
-                  setDateRange((prev) => ({
-                    dateFrom: nextDateFrom,
-                    dateTo: dayjs(prev.dateTo).isBefore(nextDateFrom) ? nextDateFrom : prev.dateTo
-                  }));
-                }}
-              />
+                onChange={(event) => {
+                  setSelectedMonth(event.target.value);
+                }}>
+                {monthOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
-            <Grid item xs={12} md={3}>
-              <DatePicker
-                fullWidth
-                inputVariant="outlined"
-                InputLabelProps={{ shrink: true }}
-                label={t('dashboard.filters.dateTo')}
-                format={DEFAULT_DATE_FORMAT}
-                value={dateRange.dateTo ? dayjs(dateRange.dateTo).toDate() : null}
-                minDate={dateRange.dateFrom ? dayjs(dateRange.dateFrom).toDate() : undefined}
-                onChange={(date) => {
-                  if (!date) {
-                    return;
-                  }
-
-                  const nextDateTo = dayjs(date.toDate())
-                    .startOf('day')
-                    .format(DEFAULT_DATE_FORMAT_BFF);
-                  setDateRange((prev) => ({
-                    ...prev,
-                    dateTo: nextDateTo
-                  }));
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <Autocomplete
                 options={salesOptions}
                 loading={isSalesFetching}
@@ -277,7 +371,7 @@ export default function Dashboard(): JSX.Element {
                 )}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <Autocomplete
                 options={procurementOptions}
                 loading={isProcurementFetching}
@@ -345,12 +439,7 @@ export default function Dashboard(): JSX.Element {
         ) : (
           <Grid container spacing={2}>
             {metrics.map((metric) => (
-              <Grid
-                item
-                xs={12}
-                sm={6}
-                xl={Math.max(3, Math.floor(12 / Math.max(metrics.length, 1)))}
-                key={metric.id}>
+              <Grid item xs={6} sm={3} key={metric.id}>
                 <Box
                   component={metric.href ? RouterLink : 'div'}
                   to={metric.href || undefined}
@@ -403,51 +492,313 @@ export default function Dashboard(): JSX.Element {
       </Wrapper>
 
       <Grid container spacing={2}>
-        {trendCharts.map((chart) => (
-          <Grid item xs={12} lg={6} key={chart.id}>
+        {trendCharts
+          .filter((chart) => chart.id !== 'rfq-volume')
+          .map((chart) => (
+            <Grid item xs={12} lg={6} key={chart.id}>
+              <Wrapper>
+                <Typography variant="h6">{translateLabel(chart.title)}</Typography>
+                <Chart
+                  chartType="LineChart"
+                  width="100%"
+                  height="280px"
+                  loader={chartLoader}
+                  data={[
+                    ['Day', ...chart.series.map((series) => series.name)],
+                    ...chart.labels.map((label, index) => [
+                      label,
+                      ...chart.series.map((series) => series.data[index] || 0)
+                    ])
+                  ]}
+                  options={{
+                    backgroundColor: 'transparent',
+                    colors: chart.series.map((series) => series.color || theme.palette.primary.main),
+                    legend: { position: 'top' },
+                    chartArea: {
+                      left: 40,
+                      top: 32,
+                      right: 16,
+                      bottom: 36,
+                      width: '100%',
+                      height: '70%'
+                    },
+                    hAxis: { textStyle: { color: '#5f695e' } },
+                    vAxis: { minValue: 0, textStyle: { color: '#5f695e' } }
+                  }}
+                />
+              </Wrapper>
+            </Grid>
+          ))}
+        {currentMonthVolumeChart ? (
+          <Grid item xs={12} lg={12} key={currentMonthVolumeChart.id}>
             <Wrapper>
-              <Typography variant="h6">{translateLabel(chart.title)}</Typography>
-              <Typography variant="body2" sx={{ color: '#677268', mb: 2 }}>
-                {translateLabel(chart.subtitle)}
-              </Typography>
+              <Typography variant="h6">{translateLabel(currentMonthVolumeChart.title)}</Typography>
               <Chart
-                chartType="LineChart"
+                chartType="ColumnChart"
+                width="100%"
+                height="280px"
+                loader={chartLoader}
+                data={currentMonthVolumeChartData || []}
+                options={{
+                  backgroundColor: 'transparent',
+                  colors: currentMonthVolumeChart.series.map(
+                    (series, index) => getRfqVolumeSeriesColor(series, index)
+                  ),
+                  legend: { position: 'top' },
+                  focusTarget: 'category',
+                  tooltip: { isHtml: true, trigger: 'focus' },
+                  isStacked: true,
+                  annotations: {
+                    alwaysOutside: true,
+                    stem: {
+                      color: 'transparent'
+                    },
+                    textStyle: {
+                      color: '#21301e',
+                      fontSize: 12,
+                      bold: true
+                    }
+                  },
+                  chartArea: {
+                    left: 48,
+                    top: 32,
+                    right: 20,
+                    bottom: 48,
+                    width: '100%',
+                    height: '68%'
+                  },
+                  hAxis: {
+                    textStyle: { color: '#5f695e' },
+                    slantedText: true,
+                    slantedTextAngle: 45
+                  },
+                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } },
+                  bar: { groupWidth: '70%' }
+                }}
+              />
+            </Wrapper>
+          </Grid>
+        ) : null}
+        {acceptWorkDurationChart ? (
+          <Grid item xs={12} lg={6} key={acceptWorkDurationChart.id}>
+            <Wrapper>
+              <Typography variant="h6">{translateLabel(acceptWorkDurationChart.title)}</Typography>
+              <Chart
+                chartType="ColumnChart"
                 width="100%"
                 height="280px"
                 loader={chartLoader}
                 data={[
-                  ['Day', ...chart.series.map((series) => series.name)],
-                  ...chart.labels.map((label, index) => [
-                    label,
-                    ...chart.series.map((series) => series.data[index] || 0)
+                  [
+                    'Bucket',
+                    ...acceptWorkDurationChart.series.map((series) => series.name),
+                    { role: 'annotation' },
+                    { role: 'style' }
+                  ],
+                  ...acceptWorkDurationChart.labels.map((label, index) => [
+                    translateLabel(label),
+                    ...acceptWorkDurationChart.series.map((series) => series.data[index] || 0),
+                    String(acceptWorkDurationChart.series[0]?.data[index] || 0),
+                    getAcceptWorkDurationBucketColor(index)
                   ])
                 ]}
                 options={{
                   backgroundColor: 'transparent',
-                  colors: chart.series.map((series) => series.color || theme.palette.primary.main),
-                  legend: { position: 'top' },
+                  legend: { position: 'none' },
                   chartArea: {
-                    left: 40,
+                    left: 48,
                     top: 32,
                     right: 16,
-                    bottom: 36,
+                    bottom: 72,
                     width: '100%',
-                    height: '70%'
+                    height: '66%'
                   },
-                  hAxis: { textStyle: { color: '#5f695e' } },
+                  hAxis: {
+                    textStyle: { color: '#5f695e' },
+                    slantedText: true,
+                    slantedTextAngle: 30
+                  },
+                  annotations: {
+                    alwaysOutside: true,
+                    stem: {
+                      color: 'transparent'
+                    },
+                    textStyle: {
+                      color: '#21301e',
+                      fontSize: 12,
+                      bold: true
+                    }
+                  },
                   vAxis: { minValue: 0, textStyle: { color: '#5f695e' } }
                 }}
               />
             </Wrapper>
           </Grid>
-        ))}
+        ) : null}
+        {supplierQuoteDurationChart ? (
+          <Grid item xs={12} lg={6} key={supplierQuoteDurationChart.id}>
+            <Wrapper>
+              <Typography variant="h6">{translateLabel(supplierQuoteDurationChart.title)}</Typography>
+              <Chart
+                chartType="ColumnChart"
+                width="100%"
+                height="280px"
+                loader={chartLoader}
+                data={[
+                  [
+                    'Bucket',
+                    ...supplierQuoteDurationChart.series.map((series) => series.name),
+                    { role: 'annotation' },
+                    { role: 'style' }
+                  ],
+                  ...supplierQuoteDurationChart.labels.map((label, index) => [
+                    translateLabel(label),
+                    ...supplierQuoteDurationChart.series.map((series) => series.data[index] || 0),
+                    String(supplierQuoteDurationChart.series[0]?.data[index] || 0),
+                    getAcceptWorkDurationBucketColor(index)
+                  ])
+                ]}
+                options={{
+                  backgroundColor: 'transparent',
+                  legend: { position: 'none' },
+                  chartArea: {
+                    left: 48,
+                    top: 32,
+                    right: 16,
+                    bottom: 72,
+                    width: '100%',
+                    height: '66%'
+                  },
+                  hAxis: {
+                    textStyle: { color: '#5f695e' },
+                    slantedText: true,
+                    slantedTextAngle: 30
+                  },
+                  annotations: {
+                    alwaysOutside: true,
+                    stem: {
+                      color: 'transparent'
+                    },
+                    textStyle: {
+                      color: '#21301e',
+                      fontSize: 12,
+                      bold: true
+                    }
+                  },
+                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } }
+                }}
+              />
+            </Wrapper>
+          </Grid>
+        ) : null}
+        {salesCountChart ? (
+          <Grid item xs={12} lg={6} key={salesCountChart.id}>
+            <Wrapper>
+              <Typography variant="h6">{translateLabel(salesCountChart.title)}</Typography>
+              <Chart
+                chartType="ColumnChart"
+                width="100%"
+                height="320px"
+                loader={chartLoader}
+                data={[
+                  ['Sales', 'Count', { role: 'annotation' }, { role: 'style' }],
+                  ...salesCountChart.items.map((item, index) => [
+                    item.label,
+                    item.value,
+                    String(item.value),
+                    item.color || rfqVolumeFallbackColors[index % rfqVolumeFallbackColors.length]
+                  ])
+                ]}
+                options={{
+                  backgroundColor: 'transparent',
+                  legend: { position: 'none' },
+                  chartArea: {
+                    left: 48,
+                    top: 32,
+                    right: 16,
+                    bottom: 72,
+                    width: '100%',
+                    height: '66%'
+                  },
+                  hAxis: {
+                    textStyle: { color: '#5f695e' },
+                    slantedText: true,
+                    slantedTextAngle: 30
+                  },
+                  annotations: {
+                    alwaysOutside: true,
+                    stem: {
+                      color: 'transparent'
+                    },
+                    textStyle: {
+                      color: '#21301e',
+                      fontSize: 12,
+                      bold: true
+                    }
+                  },
+                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } },
+                  bar: { groupWidth: '72%' }
+                }}
+              />
+            </Wrapper>
+          </Grid>
+        ) : null}
+        {customerTypeCountChart ? (
+          <Grid item xs={12} lg={6} key={customerTypeCountChart.id}>
+            <Wrapper>
+              <Typography variant="h6">{translateLabel(customerTypeCountChart.title)}</Typography>
+              <Chart
+                chartType="ColumnChart"
+                width="100%"
+                height="320px"
+                loader={chartLoader}
+                data={[
+                  ['Customer Type', 'Count', { role: 'annotation' }, { role: 'style' }],
+                  ...customerTypeCountChart.items.map((item, index) => [
+                    item.label,
+                    item.value,
+                    String(item.value),
+                    item.color || rfqVolumeFallbackColors[index % rfqVolumeFallbackColors.length]
+                  ])
+                ]}
+                options={{
+                  backgroundColor: 'transparent',
+                  legend: { position: 'none' },
+                  chartArea: {
+                    left: 48,
+                    top: 32,
+                    right: 16,
+                    bottom: 72,
+                    width: '100%',
+                    height: '66%'
+                  },
+                  hAxis: {
+                    textStyle: { color: '#5f695e' },
+                    slantedText: true,
+                    slantedTextAngle: 30
+                  },
+                  annotations: {
+                    alwaysOutside: true,
+                    stem: {
+                      color: 'transparent'
+                    },
+                    textStyle: {
+                      color: '#21301e',
+                      fontSize: 12,
+                      bold: true
+                    }
+                  },
+                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } },
+                  bar: { groupWidth: '72%' }
+                }}
+              />
+            </Wrapper>
+          </Grid>
+        ) : null}
         {distributionCharts.map((chart) => (
           <Grid item xs={12} lg={6} key={chart.id}>
             <Wrapper>
               <Typography variant="h6">{translateLabel(chart.title)}</Typography>
-              <Typography variant="body2" sx={{ color: '#677268', mb: 2 }}>
-                {translateLabel(chart.subtitle)}
-              </Typography>
               <Chart
                 chartType="PieChart"
                 width="100%"

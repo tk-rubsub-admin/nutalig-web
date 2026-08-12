@@ -1723,6 +1723,17 @@ function validateSupplierQuotePackagesDraft(
   return null;
 }
 
+const isRfqNotFoundError = (error: any) => {
+  const status = error?.response?.status;
+  const responseStatus = error?.response?.data?.status;
+  const message = String(error?.response?.data?.message || '').toLowerCase();
+
+  return (
+    status === 404 ||
+    (status === 400 && (responseStatus === 'data_not_found' || message.includes('not found')))
+  );
+};
+
 export default function RFQDetail(): ReactElement {
   const params = useParams<RFQDetailParam>();
   const { hasPermission, hasRole } = useAuth();
@@ -1733,6 +1744,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [visibleAcceptWorkConfirmationDialog, setVisibleAcceptWorkConfirmationDialog] =
     useState(false);
+  const [visibleRfqNotFoundDialog, setVisibleRfqNotFoundDialog] = useState(false);
   const [urgentRejectReason, setUrgentRejectReason] = useState('');
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
   const [visibleDetailSaveConfirmationDialog, setVisibleDetailSaveConfirmationDialog] =
@@ -1871,7 +1883,13 @@ export default function RFQDetail(): ReactElement {
     refetch: refetchRFQ
   } = useQuery(['rfq-detail', params.id], () => getRFQ(params.id), {
     refetchOnWindowFocus: false,
-    enabled: !!params.id
+    enabled: !!params.id,
+    retry: (failureCount, error: any) => !isRfqNotFoundError(error) && failureCount < 3,
+    onError: (error: any) => {
+      if (isRfqNotFoundError(error)) {
+        setVisibleRfqNotFoundDialog(true);
+      }
+    }
   });
   const isQuoteAndInquiryActionDisabled = ['NEW', 'REQUESTED_INFO'].includes(rfq?.status || '');
   const isAttachmentUploadVisible = !['QUOTED', 'CANCELED', 'CLOSED', 'COMPLETED'].includes(
@@ -4562,14 +4580,26 @@ export default function RFQDetail(): ReactElement {
                 </MenuItem>
               ) : null}
               {rfq?.status === 'SUPPLIER_QUOTED' || rfq?.status === 'SPECIAL_PRICE_REVIEW' ? (
-                <Can permission={PERMISSIONS.RFQ_CONFIRM}>
-                  <MenuItem onClick={handleFinalPriceFromMenu}>
-                    <ListItemIcon>
-                      <AssignmentTurnedIn fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary="Final ราคา" />
-                  </MenuItem>
-                </Can>
+                <>
+                  <Can permission={PERMISSIONS.RFQ_CONFIRM}>
+                    <MenuItem onClick={handleFinalPriceFromMenu}>
+                      <ListItemIcon>
+                        <AssignmentTurnedIn fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Final ราคา" />
+                    </MenuItem>
+                  </Can>
+                  {rfq?.status === 'SUPPLIER_QUOTED' && hasRole(ROLES.SUPER_ADMIN) ? (
+                    <MenuItem
+                      disabled={isRequestInformationSubmitting}
+                      onClick={handleRequestInformationFromMenu}>
+                      <ListItemIcon>
+                        <InfoOutlined fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="ขอข้อมูลเพิ่มเติม" />
+                    </MenuItem>
+                  ) : null}
+                </>
               ) : (
                 <MenuItem
                   disabled={isRequestInformationSubmitting}
@@ -5669,6 +5699,15 @@ export default function RFQDetail(): ReactElement {
         isShowConfirmButton
         onConfirm={handleConfirmSave}
         onCancel={() => setVisibleConfirmationDialog(false)}
+      />
+      <ConfirmDialog
+        open={visibleRfqNotFoundDialog}
+        title="ไม่พบข้อมูล RFQ"
+        message="ไม่พบข้อมูล RFQ"
+        confirmText={t('button.close')}
+        isShowCancelButton={false}
+        isShowConfirmButton
+        onConfirm={() => history.push(ROUTE_PATHS.RFQ_MANAGEMENT)}
       />
       <Dialog
         open={visibleUrgentDetailDialog}

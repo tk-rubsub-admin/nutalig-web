@@ -23,6 +23,8 @@ import {
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
   GetCustomerQuotedResponse,
+  RFQDetailHistory,
+  RFQDetailHistoryListResponse,
   UpsertRFQSupplierQuoteRequest,
   UpdateRFQResponse,
   UpdateRFQDetailRequest,
@@ -298,6 +300,14 @@ export const requestUrgentApprove = async (
   return response.data;
 };
 
+export const requestQuotationForAdmin = async (id: string) => {
+  const response = await api
+    .post(`/v1/rfqs/${id}/request-quotation-admin`)
+    .then((res) => res.data);
+
+  return response.data;
+};
+
 export const getCustomerQuoted = async (rfqId: string) => {
   const response: GetCustomerQuotedResponse = await api
     .get(`/v1/rfqs/${rfqId}/customer-quoted`)
@@ -415,6 +425,7 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
   }
 
   formData.append('contactName', payload.contactName);
+  formData.append('contactChannel', payload.contactChannel);
   formData.append('contactPhone', payload.contactPhone);
   formData.append('salesId', payload.salesId);
 
@@ -557,6 +568,14 @@ export const deleteRFQDetail = async (
     .then((response) => response.data);
 
   return response;
+};
+
+export const getRFQDetailHistory = async (id: string): Promise<RFQDetailHistory[]> => {
+  const response: RFQDetailHistoryListResponse = await api
+    .get(`/v1/rfqs/${id}/detail-history`)
+    .then((response) => response.data);
+
+  return Array.isArray(response.data) ? response.data : [];
 };
 
 export const deleteRFQAdditionalCost = async (

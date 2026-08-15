@@ -23,6 +23,7 @@ import {
   DialogTitle,
   FormControlLabel,
   Grid,
+  Collapse,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -40,6 +41,7 @@ import {
   Typography
 } from '@mui/material';
 import { useFormik } from 'formik';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
@@ -93,6 +95,7 @@ import {
   getRFQSuggestSuppliers,
   getRFQSupplierQuotes,
   addRFQNote,
+  getRFQDetailHistory,
   rejectUrgentRFQ,
   requestRFQInformation,
   sendRFQSupplierQuoteNotification,
@@ -108,6 +111,7 @@ import {
   CreateRFQAdditionalCostRequest,
   CreateRFQDetailRequest,
   ExtractRFQSupplierQuoteRequest,
+  RFQDetailHistory,
   RFQDetailOption,
   RFQDetailTier,
   RFQEmployee,
@@ -1991,6 +1995,43 @@ export default function RFQDetail(): ReactElement {
     refetchOnWindowFocus: false,
     enabled: !!params.id
   });
+
+  const { data: detailHistory = [], isFetching: isDetailHistoryFetching } = useQuery(
+    ['rfq-detail-history', params.id],
+    () => getRFQDetailHistory(params.id),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!params.id
+    }
+  );
+
+  const detailHistoryGroups = useMemo(
+    () =>
+      [...detailHistory].reduce<Array<{ detailSetNo: number; records: RFQDetailHistory[] }>>(
+        (groups, record) => {
+          const detailSetNo = record.detailSetNo || 0;
+          const existingGroup = groups.find((group) => group.detailSetNo === detailSetNo);
+          if (existingGroup) {
+            existingGroup.records.push(record);
+          } else {
+            groups.push({ detailSetNo, records: [record] });
+          }
+          return groups;
+        },
+        []
+      ).sort((left, right) => right.detailSetNo - left.detailSetNo),
+    [detailHistory]
+  );
+  const [collapsedDetailHistoryGroupIds, setCollapsedDetailHistoryGroupIds] = useState<
+    Record<number, boolean>
+  >({});
+
+  const toggleDetailHistoryGroup = (detailSetNo: number) => {
+    setCollapsedDetailHistoryGroupIds((prev) => ({
+      ...prev,
+      [detailSetNo]: !prev[detailSetNo]
+    }));
+  };
 
   const refetchPriceInquiryData = async () => {
     await Promise.all([refetchRFQ(), refetchSupplierQuotes(), refetchActivityHistory()]);
@@ -5463,6 +5504,197 @@ export default function RFQDetail(): ReactElement {
                   formatSupplierQuoteLeadTime={formatSupplierQuoteLeadTime}
                   getSupplierDisplayName={getSupplierDisplayName}
                 />
+              </CollapsibleWrapper>
+              <CollapsibleWrapper title="Detail History" defaultExpanded={false} action={null}>
+                {isDetailHistoryFetching ? (
+                  <Box
+                    sx={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 3,
+                      py: 4,
+                      px: 2,
+                      textAlign: 'center',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      กำลังโหลดประวัติชุดตัวเลือกราคา
+                    </Typography>
+                  </Box>
+                ) : detailHistoryGroups.length ? (
+                  <Stack spacing={2}>
+                    {detailHistoryGroups.map((group) => (
+                      <Box
+                        key={group.detailSetNo}
+                        sx={{
+                          border: '1px solid #dce4ee',
+                          borderRadius: 3,
+                          overflow: 'hidden',
+                          backgroundColor: '#fff'
+                        }}>
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 2,
+                            backgroundColor: '#f8fafc',
+                            borderBottom: '1px solid #e2e8f0'
+                          }}>
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              ชุด history #{group.detailSetNo}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {group.records.length} detail
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => toggleDetailHistoryGroup(group.detailSetNo)}
+                            aria-label={
+                              collapsedDetailHistoryGroupIds[group.detailSetNo]
+                                ? 'ขยาย history'
+                                : 'ย่อ history'
+                            }>
+                            {collapsedDetailHistoryGroupIds[group.detailSetNo] ? (
+                              <ExpandMore fontSize="small" />
+                            ) : (
+                              <ExpandLess fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Box>
+                        <Collapse
+                          in={!collapsedDetailHistoryGroupIds[group.detailSetNo]}
+                          timeout="auto"
+                          unmountOnExit>
+                          <Stack spacing={2} sx={{ p: 2 }}>
+                            {group.records.map((record) => {
+                              const snapshot = record.snapshot;
+                              const tiers = snapshot?.tiers || [];
+                              const tierSplits = snapshot?.tierSplits || [];
+                              return (
+                                <Box
+                                  key={record.id}
+                                  sx={{
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 2,
+                                    p: 2,
+                                    backgroundColor: '#fff'
+                                  }}>
+                                  <Stack spacing={1.5}>
+                                    <Stack
+                                      direction="row"
+                                      justifyContent="space-between"
+                                      spacing={2}
+                                      flexWrap="wrap">
+                                      <Box>
+                                        <Typography variant="body1" fontWeight={700}>
+                                          {snapshot?.optionName || record.optionName || '-'}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          {snapshot?.archivedBy || record.archivedBy || '-'}{' '}
+                                          {snapshot?.archivedAt || record.archivedAt
+                                            ? `• ${dayjs(
+                                                snapshot?.archivedAt || record.archivedAt
+                                              ).format('DD/MM/YYYY HH:mm')}`
+                                            : ''}
+                                        </Typography>
+                                      </Box>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Spec ล่าสุด: {snapshot?.spec || record.spec || '-'}
+                                      </Typography>
+                                    </Stack>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {snapshot?.remark || record.remark || '-'}
+                                    </Typography>
+                                    {tiers.length ? (
+                                      <Table size="small">
+                                        <TableHead>
+                                          <TableRow
+                                            sx={{
+                                              '& th': {
+                                                fontWeight: 700,
+                                                backgroundColor: '#f8fafc',
+                                                whiteSpace: 'nowrap'
+                                              }
+                                            }}>
+                                            <TableCell>MOQ</TableCell>
+                                            <TableCell>ราคาสินค้า</TableCell>
+                                            <TableCell>ค่าคอม</TableCell>
+                                            <TableCell>รวมทางรถ</TableCell>
+                                            <TableCell>รวมทางเรือ</TableCell>
+                                          </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                          {tiers.map((tier) => (
+                                            <TableRow key={tier.sourceTierId ?? tier.sortOrder}>
+                                              <TableCell>{tier.quantity ?? '-'}</TableCell>
+                                              <TableCell>{tier.productPrice ?? '-'}</TableCell>
+                                              <TableCell>{tier.commission ?? '-'}</TableCell>
+                                              <TableCell>{tier.landTotalPrice ?? '-'}</TableCell>
+                                              <TableCell>{tier.seaTotalPrice ?? '-'}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : null}
+                                    {tierSplits.length ? (
+                                      <Table size="small">
+                                        <TableHead>
+                                          <TableRow
+                                            sx={{
+                                              '& th': {
+                                                fontWeight: 700,
+                                                backgroundColor: '#f8fafc',
+                                                whiteSpace: 'nowrap'
+                                              }
+                                            }}>
+                                            <TableCell>MOQ Split</TableCell>
+                                            <TableCell>Sell Price</TableCell>
+                                            <TableCell>ค่าคอม</TableCell>
+                                            <TableCell>ค่าส่งทางรถ</TableCell>
+                                            <TableCell>ค่าส่งทางเรือ</TableCell>
+                                          </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                          {tierSplits.map((tierSplit) => (
+                                            <TableRow key={tierSplit.sourceTierSplitId ?? tierSplit.quantity}>
+                                              <TableCell>{tierSplit.quantity ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.sellPrice ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.commission ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.landFreightCost ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.seaFreightCost ?? '-'}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : null}
+                                  </Stack>
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+                        </Collapse>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 3,
+                      py: 4,
+                      px: 2,
+                      textAlign: 'center',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      ยังไม่มีประวัติชุดตัวเลือกราคา
+                    </Typography>
+                  </Box>
+                )}
               </CollapsibleWrapper>
             </>
           </TabPanel>

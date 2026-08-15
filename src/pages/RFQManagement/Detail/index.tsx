@@ -87,6 +87,7 @@ import { copyTextSilent } from 'utils/copyContent';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
+import { getRFQDetailHistory } from 'services/RFQ/rfq-api';
 import { getQuotation, viewQuotation } from 'services/Document/document-api';
 import { QuotationItem } from 'services/Document/document-type';
 import { DownloadDocumentResponse } from 'services/general-type';
@@ -115,6 +116,7 @@ import {
   getRFQSupplierQuotes,
   requestSpecialPriceRFQ,
   requestUrgentApprove,
+  requestQuotationForAdmin,
   rejectRFQ,
   updateRFQCustomer,
   updateRFQ
@@ -125,6 +127,7 @@ import {
   CreateRFQDetailRequest,
   RFQDetailOption,
   RFQDetailTier,
+  RFQDetailHistory,
   RFQEmployee,
   RFQFileResource,
   RFQProductMaterial,
@@ -946,6 +949,8 @@ export default function RFQDetail(): ReactElement {
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
   const [visibleRejectRfqDialog, setVisibleRejectRfqDialog] = useState(false);
   const [visibleCopyRfqConfirmDialog, setVisibleCopyRfqConfirmDialog] = useState(false);
+  const [visibleRequestQuotationChoiceDialog, setVisibleRequestQuotationChoiceDialog] =
+    useState(false);
   const [visibleCloseRfqConfirmDialog, setVisibleCloseRfqConfirmDialog] = useState(false);
   const [visibleCloseRfqDialog, setVisibleCloseRfqDialog] = useState(false);
   const [visibleRequestSpecialPriceDialog, setVisibleRequestSpecialPriceDialog] = useState(false);
@@ -1224,6 +1229,36 @@ export default function RFQDetail(): ReactElement {
     enabled: !!params.id
   });
 
+  const { data: detailHistory = [], isFetching: isDetailHistoryFetching } = useQuery(
+    ['rfq-detail-history', params.id],
+    () => getRFQDetailHistory(params.id),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!params.id
+    }
+  );
+
+  const detailHistoryGroups = useMemo(
+    () =>
+      [...detailHistory].reduce<Array<{ detailSetNo: number; records: RFQDetailHistory[] }>>(
+        (groups, record) => {
+          const detailSetNo = record.detailSetNo || 0;
+          const existingGroup = groups.find((group) => group.detailSetNo === detailSetNo);
+          if (existingGroup) {
+            existingGroup.records.push(record);
+          } else {
+            groups.push({ detailSetNo, records: [record] });
+          }
+          return groups;
+        },
+        []
+      ).sort((left, right) => right.detailSetNo - left.detailSetNo),
+    [detailHistory]
+  );
+  const [collapsedDetailHistoryGroupIds, setCollapsedDetailHistoryGroupIds] = useState<
+    Record<number, boolean>
+  >({});
+
   const requestedInformationAlertKey = useMemo(() => {
     if (!rfq?.id || !rfq?.requestInformation) {
       return null;
@@ -1239,6 +1274,12 @@ export default function RFQDetail(): ReactElement {
     [rfq]
   );
   const isRejectedOrClosedTimeline = rfq?.status === 'REJECTED' || rfq?.status === 'CLOSED';
+  const toggleDetailHistoryGroup = (detailSetNo: number) => {
+    setCollapsedDetailHistoryGroupIds((prev) => ({
+      ...prev,
+      [detailSetNo]: !prev[detailSetNo]
+    }));
+  };
 
   useEffect(() => {
     if (
@@ -1476,12 +1517,35 @@ export default function RFQDetail(): ReactElement {
     formik.setFieldValue('systemMechanic', '');
   };
 
-  const handleRequestQuotation = () => {
+  const handleOpenRequestQuotationChoiceDialog = () => {
     if (!rfq?.customer) {
       setVisibleMissingCustomerConfirmationDialog(true);
       return;
     }
 
+    setVisibleRequestQuotationChoiceDialog(true);
+  };
+
+  const handleRequestQuotationSelf = () => {
+    setVisibleRequestQuotationChoiceDialog(false);
+    handleRequestQuotation();
+  };
+
+  const handleRequestQuotationAdmin = async () => {
+    if (!rfq?.id) {
+      return;
+    }
+
+    setVisibleRequestQuotationChoiceDialog(false);
+
+    await toast.promise(requestQuotationForAdmin(rfq.id), {
+      loading: t('toast.loading'),
+      success: 'ส่งคำขอให้แอดมินออกใบเสนอราคาแล้ว',
+      error: t('toast.failed')
+    });
+  };
+
+  const handleRequestQuotation = () => {
     history.push(ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ.replace(':rfqId', params.id));
   };
 
@@ -2556,7 +2620,7 @@ export default function RFQDetail(): ReactElement {
                     <MenuItem
                       onClick={() => {
                         handleCloseDownloadMenu();
-                        handleRequestQuotation();
+                        handleOpenRequestQuotationChoiceDialog();
                       }}
                       sx={{ width: '100%' }}>
                       <ListItemIcon>
@@ -3762,6 +3826,20 @@ export default function RFQDetail(): ReactElement {
                                       </Typography>
                                     </Box>
                                   ) : null}
+                                  <Box
+                                    sx={{
+                                      mt: 1.5,
+                                      px: 1.5,
+                                      py: 1,
+                                      borderRadius: 2,
+                                      backgroundColor: '#ccebffff'
+                                    }}>
+                                    <Typography variant="body2">
+                                      ราคา ณ วันที่ {detail.createdDate ?
+                                        dayjs(detail.createdDate).format('DD/MM/YYYY HH:mm')
+                                        : ''}
+                                    </Typography>
+                                  </Box>
                                 </>
                               )}
                             </Box>
@@ -4781,6 +4859,197 @@ export default function RFQDetail(): ReactElement {
                   </Box>
                 )}
               </CollapsibleWrapper>
+              {/* <CollapsibleWrapper title="Detail History" defaultExpanded={false} action={null}>
+                {isDetailHistoryFetching ? (
+                  <Box
+                    sx={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 3,
+                      py: 4,
+                      px: 2,
+                      textAlign: 'center',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      กำลังโหลดประวัติชุดตัวเลือกราคา
+                    </Typography>
+                  </Box>
+                ) : detailHistoryGroups.length ? (
+                  <Stack spacing={2}>
+                    {detailHistoryGroups.map((group) => (
+                      <Box
+                        key={group.detailSetNo}
+                        sx={{
+                          border: '1px solid #dce4ee',
+                          borderRadius: 3,
+                          overflow: 'hidden',
+                          backgroundColor: '#fff'
+                        }}>
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 2,
+                            backgroundColor: '#f8fafc',
+                            borderBottom: '1px solid #e2e8f0'
+                          }}>
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight={700}>
+                              ชุด history #{group.detailSetNo}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {group.records.length} detail
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => toggleDetailHistoryGroup(group.detailSetNo)}
+                            aria-label={
+                              collapsedDetailHistoryGroupIds[group.detailSetNo]
+                                ? 'ขยาย history'
+                                : 'ย่อ history'
+                            }>
+                            {collapsedDetailHistoryGroupIds[group.detailSetNo] ? (
+                              <ExpandMore fontSize="small" />
+                            ) : (
+                              <ExpandLess fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Box>
+                        <Collapse
+                          in={!collapsedDetailHistoryGroupIds[group.detailSetNo]}
+                          timeout="auto"
+                          unmountOnExit>
+                          <Stack spacing={2} sx={{ p: 2 }}>
+                            {group.records.map((record) => {
+                              const snapshot = record.snapshot;
+                              const tiers = snapshot?.tiers || [];
+                              const tierSplits = snapshot?.tierSplits || [];
+                              return (
+                                <Box
+                                  key={record.id}
+                                  sx={{
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 2,
+                                    p: 2,
+                                    backgroundColor: '#fff'
+                                  }}>
+                                  <Stack spacing={1.5}>
+                                    <Stack
+                                      direction="row"
+                                      justifyContent="space-between"
+                                      spacing={2}
+                                      flexWrap="wrap">
+                                      <Box>
+                                        <Typography variant="body1" fontWeight={700}>
+                                          {snapshot?.optionName || record.optionName || '-'}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          {snapshot?.archivedBy || record.archivedBy || '-'}{' '}
+                                          {snapshot?.archivedAt || record.archivedAt
+                                            ? `• ${dayjs(
+                                              snapshot?.archivedAt || record.archivedAt
+                                            ).format('DD/MM/YYYY HH:mm')}`
+                                            : ''}
+                                        </Typography>
+                                      </Box>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Spec ล่าสุด: {snapshot?.spec || record.spec || '-'}
+                                      </Typography>
+                                    </Stack>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {snapshot?.remark || record.remark || '-'}
+                                    </Typography>
+                                    {tiers.length ? (
+                                      <Table size="small">
+                                        <TableHead>
+                                          <TableRow
+                                            sx={{
+                                              '& th': {
+                                                fontWeight: 700,
+                                                backgroundColor: '#f8fafc',
+                                                whiteSpace: 'nowrap'
+                                              }
+                                            }}>
+                                            <TableCell>MOQ</TableCell>
+                                            <TableCell>ราคาสินค้า</TableCell>
+                                            <TableCell>ค่าคอม</TableCell>
+                                            <TableCell>รวมทางรถ</TableCell>
+                                            <TableCell>รวมทางเรือ</TableCell>
+                                          </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                          {tiers.map((tier) => (
+                                            <TableRow key={tier.sourceTierId ?? tier.sortOrder}>
+                                              <TableCell>{tier.quantity ?? '-'}</TableCell>
+                                              <TableCell>{tier.productPrice ?? '-'}</TableCell>
+                                              <TableCell>{tier.commission ?? '-'}</TableCell>
+                                              <TableCell>{tier.landTotalPrice ?? '-'}</TableCell>
+                                              <TableCell>{tier.seaTotalPrice ?? '-'}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : null}
+                                    {tierSplits.length ? (
+                                      <Table size="small">
+                                        <TableHead>
+                                          <TableRow
+                                            sx={{
+                                              '& th': {
+                                                fontWeight: 700,
+                                                backgroundColor: '#f8fafc',
+                                                whiteSpace: 'nowrap'
+                                              }
+                                            }}>
+                                            <TableCell>MOQ Split</TableCell>
+                                            <TableCell>Sell Price</TableCell>
+                                            <TableCell>ค่าคอม</TableCell>
+                                            <TableCell>ค่าส่งทางรถ</TableCell>
+                                            <TableCell>ค่าส่งทางเรือ</TableCell>
+                                          </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                          {tierSplits.map((tierSplit) => (
+                                            <TableRow key={tierSplit.sourceTierSplitId ?? tierSplit.quantity}>
+                                              <TableCell>{tierSplit.quantity ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.sellPrice ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.commission ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.landFreightCost ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.seaFreightCost ?? '-'}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : null}
+                                  </Stack>
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+                        </Collapse>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 3,
+                      py: 4,
+                      px: 2,
+                      textAlign: 'center',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      ยังไม่มีประวัติชุดตัวเลือกราคา
+                    </Typography>
+                  </Box>
+                )}
+              </CollapsibleWrapper> */}
             </>
           </TabPanel>
 
@@ -4853,6 +5122,47 @@ export default function RFQDetail(): ReactElement {
         onConfirm={handleCopyRfq}
         onCancel={() => setVisibleCopyRfqConfirmDialog(false)}
       />
+      <Dialog
+        open={visibleRequestQuotationChoiceDialog}
+        fullWidth
+        maxWidth="sm"
+        disableEnforceFocus
+        onClose={() => setVisibleRequestQuotationChoiceDialog(false)}>
+        <DialogTitle>{t('rfqManagement.detail.actions.requestQuotation')}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              เลือกวิธีออกใบเสนอราคา
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              <Button
+                fullWidth
+                variant="contained"
+                className="btn-emerald-green"
+                onClick={handleRequestQuotationSelf}>
+                ออกเอง
+              </Button>
+              <Button
+                fullWidth
+                variant="contained"
+                className="btn-indigo-blue"
+                onClick={() => {
+                  void handleRequestQuotationAdmin();
+                }}>
+                แจ้งแอดมิน
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            onClick={() => setVisibleRequestQuotationChoiceDialog(false)}
+            className="btn-crimson-red">
+            {t('button.cancel')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <ConfirmDialog
         open={visibleMissingCustomerConfirmationDialog}
         title={t('rfqManagement.detail.dialogs.missingCustomerTitle')}

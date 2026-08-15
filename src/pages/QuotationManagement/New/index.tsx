@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "react-query";
 import { useHistory, useParams } from "react-router-dom";
-import { Address, Contact, Customer } from "services/Customer/customer-type";
+import { Address, Contact, Customer, UpdateCustomerRequest } from "services/Customer/customer-type";
 import { getSales } from "services/Sales/sales-api";
 import { createFreelanceSale, getFreelanceSales } from "services/FreelanceSale/freelance-sale-api";
 import { CreateFreelanceSaleRequest } from "services/FreelanceSale/freelance-sale-type";
@@ -497,6 +497,7 @@ export default function NewQuotation() {
             freight: 0,
             isVat: false,
             isShowSummary: false,
+            shipping: '',
             items: [
                 {
                     name: '',
@@ -594,6 +595,7 @@ export default function NewQuotation() {
             coSaleId: rfq.customer?.coSalesAccount || '',
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
             remark: buildPaymentTermRemark(rfq.customer?.customerPaymentTerm),
+            shipping: rfq.shippingMethod || 'ALL',
             freight: rfqAdditionalCostTotal,
             items: createQuotationItemsFromRFQ(rfq)
         });
@@ -1109,14 +1111,21 @@ export default function NewQuotation() {
                     <GridTextField item sm={8} />
 
                     <GridTextField item xs={12} sm={6}>
-                        <RadioGroup
-                            row
-                            value={String(formik.values.isVat)}
-                            onChange={(e) => formik.setFieldValue('isVat', e.target.value === 'true')}
-                        >
-                            <FormControlLabel value="true" control={<Radio />} label="มี VAT" />
-                            <FormControlLabel value="false" control={<Radio />} label="ไม่มี VAT" />
-                        </RadioGroup>
+                        <Box>
+                            <Typography
+                                variant="body2"
+                                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                                ภาษีมูลค่าเพิ่ม
+                            </Typography>
+                            <RadioGroup
+                                row
+                                value={String(formik.values.isVat)}
+                                onChange={(e) => formik.setFieldValue('isVat', e.target.value === 'true')}
+                            >
+                                <FormControlLabel value="true" control={<Radio />} label="มี VAT" />
+                                <FormControlLabel value="false" control={<Radio />} label="ไม่มี VAT" />
+                            </RadioGroup>
+                        </Box>
                     </GridTextField>
 
                     <GridTextField item xs={12} sm={6}>
@@ -1195,14 +1204,40 @@ export default function NewQuotation() {
                     )}
 
                     <GridTextField item xs={12} sm={6}>
-                        <RadioGroup
-                            row
-                            value={String(formik.values.isShowSummary)}
-                            onChange={(e) => formik.setFieldValue('isShowSummary', e.target.value === 'true')}
-                        >
-                            <FormControlLabel value="true" control={<Radio />} label="แสดงยอดรวม" />
-                            <FormControlLabel value="false" control={<Radio />} label="ไม่แสดงยอดรวม" />
-                        </RadioGroup>
+                        <Box>
+                            <Typography
+                                variant="body2"
+                                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                                ยอดรวม
+                            </Typography>
+                            <RadioGroup
+                                row
+                                value={String(formik.values.isShowSummary)}
+                                onChange={(e) => formik.setFieldValue('isShowSummary', e.target.value === 'true')}
+                            >
+                                <FormControlLabel value="true" control={<Radio />} label="แสดงยอดรวม" />
+                                <FormControlLabel value="false" control={<Radio />} label="ไม่แสดงยอดรวม" />
+                            </RadioGroup>
+                        </Box>
+                    </GridTextField>
+                    <GridTextField item sm={6} />
+                    <GridTextField item xs={12} sm={6}>
+                        <Box>
+                            <Typography
+                                variant="body2"
+                                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                                การขนส่ง
+                            </Typography>
+                            <RadioGroup
+                                row
+                                name="shipping"
+                                value={formik.values.shipping}
+                                onChange={formik.handleChange}>
+                                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทั้งหมด" />
+                                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
+                                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
+                            </RadioGroup>
+                        </Box>
                     </GridTextField>
                 </Grid>
             </CollapsibleWrapper>

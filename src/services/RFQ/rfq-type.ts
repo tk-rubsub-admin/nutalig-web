@@ -226,6 +226,85 @@ export interface RFQDetailOption {
   updatedBy: string;
 }
 
+export interface RFQDetailHistory {
+  id: number;
+  rfqId: string;
+  detailSetNo: number;
+  sourceDetailId?: number | null;
+  optionName?: string | null;
+  spec: string;
+  sortOrder?: number | null;
+  remark?: string | null;
+  recommend?: string | null;
+  commission?: number | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  supplierId?: string | null;
+  snapshot?: RFQDetailHistorySnapshot | null;
+  snapshotJson?: string | null;
+  archivedBy?: string | null;
+  archivedAt?: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface RFQDetailHistorySnapshotTier {
+  sourceTierId?: number | null;
+  supplierId?: string | null;
+  quantity?: number | null;
+  productPrice?: number | null;
+  commission?: number | null;
+  currency?: string | null;
+  landFreightCost?: number | null;
+  seaFreightCost?: number | null;
+  isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
+  landTotalPrice?: number | null;
+  seaTotalPrice?: number | null;
+  supplierQuoteTierId?: number | null;
+  sortOrder?: number | null;
+}
+
+export interface RFQDetailHistorySnapshotTierSplit {
+  sourceTierSplitId?: number | null;
+  supplierId?: string | null;
+  quantity?: number | null;
+  sellPrice?: number | null;
+  commission?: number | null;
+  currency?: string | null;
+  landFreightCost?: number | null;
+  landFreightQty?: number | null;
+  seaFreightQty?: number | null;
+  seaFreightCost?: number | null;
+  isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
+}
+
+export interface RFQDetailHistorySnapshot {
+  detailSetNo?: number | null;
+  archivedBy?: string | null;
+  archivedAt?: string | null;
+  sourceDetailId?: number | null;
+  optionName?: string | null;
+  spec?: string | null;
+  sortOrder?: number | null;
+  remark?: string | null;
+  recommend?: string | null;
+  commission?: number | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  supplierId?: string | null;
+  tiers?: RFQDetailHistorySnapshotTier[];
+  tierSplits?: RFQDetailHistorySnapshotTierSplit[];
+}
+
+export interface RFQDetailHistoryListResponse {
+  status: string;
+  data?: RFQDetailHistory[];
+}
+
 export interface RFQAdditionalCost {
   id: number;
   costType: SystemConfig | null;

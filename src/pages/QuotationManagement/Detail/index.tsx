@@ -99,6 +99,17 @@ const getShippingMethodLabel = (shippingMethod: 'LAND' | 'SEA', isFcl = false): 
     return 'ส่งทางรถ';
 };
 
+const isQuotationNotFoundError = (error: any): boolean => {
+    const status = error?.response?.status;
+    const responseStatus = error?.response?.data?.status;
+    const message = String(error?.response?.data?.message || '').toLowerCase();
+
+    return (
+        status === 404 ||
+        (status === 400 && (responseStatus === 'data_not_found' || message.includes('not found')))
+    );
+};
+
 const findMatchingTier = (
     detailOptions: RFQDetailOption[],
     quotationItem: QuotationItem
@@ -270,13 +281,20 @@ export default function QuotationDetail(): JSX.Element {
     const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [visibleConfirmPriceDialog, setVisibleConfirmPriceDialog] = useState(false);
     const [selectedConfirmQuotationRowKeys, setSelectedConfirmQuotationRowKeys] = useState<string[]>([]);
+    const [visibleQuotationNotFoundDialog, setVisibleQuotationNotFoundDialog] = useState(false);
 
-    const { data: quotationResponse, isFetching, refetch: refetchQuotation } = useQuery(
+    const {
+        data: quotationResponse,
+        isFetching,
+        error: quotationError,
+        refetch: refetchQuotation
+    } = useQuery(
         ['quotation-detail', quotationNo],
         () => getQuotation(quotationNo),
         {
             enabled: !!quotationNo,
-            refetchOnWindowFocus: false
+            refetchOnWindowFocus: false,
+            retry: false
         }
     );
 
@@ -390,6 +408,12 @@ export default function QuotationDetail(): JSX.Element {
         };
     });
     const canConfirmPriceAction = Boolean(quotation?.rfqId && quotation?.quotationNo && !salesOrder?.salesOrderNo);
+
+    useEffect(() => {
+        if (quotationError && isQuotationNotFoundError(quotationError)) {
+            setVisibleQuotationNotFoundDialog(true);
+        }
+    }, [quotationError]);
 
     useEffect(() => {
         if (!quotation) {
@@ -603,6 +627,15 @@ export default function QuotationDetail(): JSX.Element {
     return (
         <Page>
             <LoadingDialog open={isFetching || isActivityHistoryFetching || isUpdating} />
+            <ConfirmDialog
+                open={visibleQuotationNotFoundDialog}
+                title="ไม่พบข้อมูลใบเสนอราคา"
+                message={`ไม่พบข้อมูลใบเสนอราคาเลขที่ ${quotationNo}`}
+                confirmText="ตกลง"
+                isShowCancelButton={false}
+                isShowConfirmButton
+                onConfirm={() => history.push(ROUTE_PATHS.QUOTATION_MANAGEMENT)}
+            />
             <PageTitle title={'ใบเสนอราคาเลขที่ ' + quotation?.quotationNo || t('documentManagement.quotation.title')}>
                 {quotation?.status ? (
                     <Chip

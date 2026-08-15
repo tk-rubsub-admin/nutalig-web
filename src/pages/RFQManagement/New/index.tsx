@@ -305,7 +305,6 @@ export default function NewRFQ(): JSX.Element {
     actions: { setSubmitting: (isSubmitting: boolean) => void }
   ) => {
     actions.setSubmitting(true);
-
     try {
       let selectedCapacityUnit = values.capacityUnit;
 
@@ -407,7 +406,9 @@ export default function NewRFQ(): JSX.Element {
         then: Yup.string().max(255).required(t('rfqManagement.validation.contactName')),
         otherwise: Yup.string().nullable()
       }),
-      contactChannel: Yup.string().max(255),
+      contactChannel: Yup.string()
+        .max(255)
+        .required('กรุณาเลือกช่องทางติดต่อ'),
       salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
       purchaseAccount: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
       rfqTypeCode: Yup.string().required(t('rfqManagement.validation.rfqTypeCode')),
@@ -654,7 +655,7 @@ export default function NewRFQ(): JSX.Element {
       requestSample: prevValues.requestSample,
       contactName: parentRfqDetail.contactName || '',
       contactPhone: parentRfqDetail.contactPhone || '',
-      contactChannel: parentRfqDetail.contactChannel || '',
+      contactChannel: prevValues.contactChannel || parentRfqDetail.contactChannel || '',
       salesId: prevValues.salesId,
       purchaseAccount: prevValues.purchaseAccount,
       orderTypeCode: parentRfqDetail.orderType?.code || '',
@@ -920,7 +921,9 @@ export default function NewRFQ(): JSX.Element {
                   InputLabelProps={{ shrink: true }}
                   name="contactChannel"
                   value={formik.values.contactChannel}
-                  onChange={formik.handleChange}
+                  onChange={(event) =>
+                    formik.setFieldValue('contactChannel', event.target.value)
+                  }
                   onBlur={formik.handleBlur}
                   error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
                   helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
@@ -1016,7 +1019,7 @@ export default function NewRFQ(): JSX.Element {
                   InputLabelProps={{ shrink: true }}
                   name="contactChannel"
                   value={formik.values.contactChannel}
-                  onChange={formik.handleChange}
+                  onChange={(event) => formik.setFieldValue('contactChannel', event.target.value)}
                   onBlur={formik.handleBlur}
                   error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
                   helperText={formik.touched.contactChannel && formik.errors.contactChannel}>

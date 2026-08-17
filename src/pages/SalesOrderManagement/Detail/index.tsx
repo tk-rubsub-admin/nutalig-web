@@ -98,6 +98,7 @@ interface SalesOrderDraft {
   expireDate: string;
   coSaleId: string;
   shippingType: string;
+  subTotal: number;
   discount: number;
   freight: number;
   amount: number;
@@ -206,6 +207,7 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     expireDate: toDateInput(salesOrder?.expireDate),
     coSaleId: salesOrder?.coSaleId || '',
     shippingType: salesOrder?.shippingType || '',
+    subTotal: Number(salesOrder?.subTotal || 0),
     discount: Number(salesOrder?.discount || 0),
     freight: Number(salesOrder?.freight || 0),
     amount: Number(salesOrder?.amount || 0),
@@ -380,25 +382,21 @@ export default function SalesOrderDetail(): ReactElement {
     const subTotal = displayItems.reduce((sum, item) => {
       return sum + Number(item.unitPrice || 0) * Number(item.quantity || 0);
     }, 0);
-    const discount = Number(isEditing ? draft.discount : salesOrder?.discount || 0);
-    const freight = Number(isEditing ? draft.freight : salesOrder?.freight || 0);
-    const taxable = Math.max(subTotal - discount, 0);
-    const vat = (isEditing ? draft.isVat : Number(salesOrder?.vatRate || 0) > 0)
-      ? taxable * 0.07
-      : 0;
-    const grandTotal = taxable + vat;
 
-    return { subTotal, discount, freight, vat, grandTotal };
+    return { subTotal };
   }, [
-    displayItems,
-    draft.discount,
-    draft.freight,
-    draft.isVat,
-    isEditing,
-    salesOrder?.discount,
-    salesOrder?.freight,
-    salesOrder?.vatRate
+    displayItems
   ]);
+  const editableSubTotal = Number(isEditing ? draft.subTotal : summary.subTotal || 0);
+  const editableDiscount = Number(isEditing ? draft.discount : salesOrder?.discount || 0);
+  const editableFreight = Number(isEditing ? draft.freight : salesOrder?.freight || 0);
+  const editableVat = (isEditing ? draft.isVat : Number(salesOrder?.vatRate || 0) > 0)
+    ? Math.max(editableSubTotal - editableDiscount, 0) * 0.07
+    : 0;
+  const editableGrandTotal = Math.max(editableSubTotal - editableDiscount, 0) + editableVat;
+  const calculatedSalesOrderAmount = useMemo(() => {
+    return Math.max(editableSubTotal - editableFreight, 0);
+  }, [editableFreight, editableSubTotal]);
 
   const paymentProgress = useMemo(() => {
     const grandTotal = Number(salesOrder?.grandTotal || 0);
@@ -570,9 +568,10 @@ export default function SalesOrderDetail(): ReactElement {
       docDate: draft.docDate || null,
       expireDate: draft.expireDate || null,
       coSaleId: draft.coSaleId || null,
+      subTotal: editableSubTotal,
       discount: Number(draft.discount || 0),
       freight: Number(draft.freight || 0),
-      amount: Number(draft.amount || 0),
+      amount: calculatedSalesOrderAmount,
       commission: Number(draft.commission || 0),
       coSaleCommission: draft.coSaleId ? Number(draft.coSaleCommission || 0) : null,
       isVat: draft.isVat,
@@ -1187,7 +1186,32 @@ export default function SalesOrderDetail(): ReactElement {
               <Grid item xs={12} md={4}>
                 <Stack spacing={1.25} className={classes.section}>
                   <Typography variant="h6">Commission</Typography>
-                  <Summary label="ค่าสินค้า" value={salesOrder?.amount} />
+                  {isEditing ? (
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      spacing={2}>
+                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                        ค่าสินค้า
+                      </Typography>
+                      <TextField
+                        type="number"
+                        value={draft.subTotal}
+                        onChange={(event) =>
+                          updateDraftField('subTotal', Number(event.target.value || 0))
+                        }
+                        sx={{
+                          width: { xs: '100%', sm: 180 },
+                          '& .MuiInputBase-input': {
+                            textAlign: 'right'
+                          }
+                        }}
+                      />
+                    </Stack>
+                  ) : (
+                    <Summary label="ค่าสินค้า" value={summary.subTotal} />
+                  )}
                   {isEditing ? (
                     <Stack
                       direction="row"
@@ -1214,7 +1238,7 @@ export default function SalesOrderDetail(): ReactElement {
                   ) : (
                     <Summary
                       label={t('documentManagement.quotation.summarySection.freight')}
-                      value={summary.freight}
+                      value={editableFreight}
                     />
                   )}
                   {isEditing ? (
@@ -1317,7 +1341,7 @@ export default function SalesOrderDetail(): ReactElement {
                   <Typography variant="h6">สรุปยอด</Typography>
                   <Summary
                     label={t('documentManagement.quotation.summarySection.subtotal')}
-                    value={summary.subTotal}
+                    value={editableSubTotal}
                   />
                   {isEditing ? (
                     <Stack
@@ -1343,18 +1367,18 @@ export default function SalesOrderDetail(): ReactElement {
                       />
                     </Stack>
                   ) : (
-                    <Summary
-                      label={t('documentManagement.quotation.summarySection.discount')}
-                      value={summary.discount}
-                    />
+                  <Summary
+                    label={t('documentManagement.quotation.summarySection.discount')}
+                    value={editableDiscount}
+                  />
                   )}
                   <Summary
                     label={t('documentManagement.quotation.summarySection.vat')}
-                    value={summary.vat}
+                    value={editableVat}
                   />
                   <Summary
                     label={t('documentManagement.quotation.summarySection.grandTotal')}
-                    value={summary.grandTotal}
+                    value={editableGrandTotal}
                     strong
                   />
                 </Stack>
@@ -1466,7 +1490,7 @@ export default function SalesOrderDetail(): ReactElement {
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {formatNumber(Number(salesOrder?.paidTotal || 0))} /{' '}
-                      {formatNumber(Number(salesOrder?.grandTotal || summary.grandTotal))}
+                      {formatNumber(Number(isEditing ? editableGrandTotal : salesOrder?.grandTotal || editableGrandTotal))}
                     </Typography>
                   </Stack>
                   <Box>

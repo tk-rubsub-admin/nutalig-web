@@ -141,6 +141,7 @@ import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import CreateRFQCustomerDialog from './CreateRFQCustomerDialog';
 import { RequestedInformationDialog } from './RequestedInformationDialog';
+import config from 'config';
 
 const MAX_RFQ_PICTURES = 12;
 
@@ -5140,10 +5141,11 @@ export default function RFQDetail(): ReactElement {
                 variant="contained"
                 className="btn-emerald-green"
                 onClick={handleRequestQuotationSelf}>
-                ออกเอง
+                ออกใบเสนอราคา
               </Button>
               <Button
                 fullWidth
+                disabled={!config.rfqEnableRequestQuotation}
                 variant="contained"
                 className="btn-indigo-blue"
                 onClick={() => {

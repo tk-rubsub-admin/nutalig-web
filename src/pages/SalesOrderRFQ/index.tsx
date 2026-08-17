@@ -31,8 +31,7 @@ import {
   TableRow,
   TextField,
   Typography,
-  useMediaQuery,
-  InputAdornment
+  useMediaQuery
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import Can from 'auth/Can';
@@ -69,10 +68,13 @@ import {
   CreateSalesOrderStatus
 } from 'services/SaleOrder/sale-order-type';
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
-import { formatCurrency, formatNumber, formatNumberWithoutDigit } from 'utils/utils';
+import { formatCurrency, formatNumber } from 'utils/utils';
 import * as Yup from 'yup';
 import { addCustomerAddress, addCustomerContact } from 'services/Customer/customer-api';
-import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from 'services/Customer/customer-type';
+import {
+  CreateCustomerAddressRequest,
+  CreateCustomerContactRequest
+} from 'services/Customer/customer-type';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
 
@@ -109,6 +111,8 @@ interface SaleOrderRFQFormValues {
   discount: number;
   salesId: string;
   coSaleId: string;
+  shippingType: string;
+  shipping: string;
   docDate: dayjs.Dayjs | string;
   effectiveDate: dayjs.Dayjs | string;
   urgentOrder: boolean;
@@ -155,7 +159,9 @@ function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
 }
 
 function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 7): number {
-  const parsedDays = Number(config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays);
+  const parsedDays = Number(
+    config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays
+  );
   return Math.max(1, Number.isFinite(parsedDays) ? parsedDays : fallbackDays);
 }
 
@@ -200,8 +206,37 @@ function getRFQProductLabel(value: RFQRecord['productFamily'] | RFQRecord['mater
   return value.nameTh || value.nameEn || value.code || '';
 }
 
-function getRFQImageUrl(rfq?: RFQRecord): string {
-  return rfq?.pictures?.[0]?.pictureUrl || '';
+function getQuotationImageUrl(quotation?: Quotation, quotationDetailId?: number | string): string {
+  if (!quotation?.items?.length) {
+    return '';
+  }
+
+  if (quotationDetailId !== undefined && quotationDetailId !== null) {
+    console.log('quotation ', quotation);
+    console.log('quotationDetailId ', quotationDetailId);
+    const matchedItem = quotation.items.find((item) => String(item.id) === String(quotationDetailId));
+    if (matchedItem?.imagePreview) {
+      return matchedItem.imagePreview;
+    }
+  }
+
+  return quotation.items.find((item) => Boolean(item.imagePreview))?.imagePreview || '';
+}
+
+function deriveShippingTypeFromItems(items: SaleOrderRFQItem[]): string {
+  const shippingMethods = Array.from(
+    new Set(
+      items
+        .map((item) => item.shippingMethod)
+        .filter((shippingMethod): shippingMethod is 'LAND' | 'SEA' => Boolean(shippingMethod))
+    )
+  );
+
+  if (!shippingMethods.length) {
+    return '';
+  }
+
+  return shippingMethods.length > 1 ? 'ALL' : shippingMethods[0];
 }
 
 function getDefaultDropOff(customer: any): CustomerDropOff | null {
@@ -220,9 +255,10 @@ function getRFQSalesDisplayValue(sales?: RFQRecord['sales']): string {
   return [employeeId, nickname].filter(Boolean).join(' - ');
 }
 
-function getShippingMethodLabel(shippingMethod?: string | null): string {
-  if (shippingMethod === 'SEA') return 'ส่งทางเรือ';
-  if (shippingMethod === 'LAND') return 'ส่งทางรถ';
+function getShippingTypeLabel(shippingType?: string | null): string {
+  if (shippingType === 'SEA') return 'ส่งทางเรือ';
+  if (shippingType === 'LAND') return 'ส่งทางรถ';
+  if (shippingType === 'ALL') return 'ส่งทางรถ / ส่งทางเรือ';
   return '';
 }
 
@@ -258,7 +294,10 @@ const CO_SALE_MODE_NONE = 'NONE';
 const CO_SALE_MODE_FREELANCE = 'FREELANCE';
 const CO_SALE_MODE_EXTERNAL = 'EXTERNAL';
 
-const matchesFreelanceSaleCoverage = (saleCoverage?: string | null, salesId?: string | null): boolean => {
+const matchesFreelanceSaleCoverage = (
+  saleCoverage?: string | null,
+  salesId?: string | null
+): boolean => {
   const normalizedSaleCoverage = (saleCoverage || '').trim();
   const normalizedSalesId = (salesId || '').trim();
 
@@ -334,12 +373,12 @@ function getShippingDisplayLabel(
 
   const shippingLabel = shippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
 
-  return shippingMethod === 'SEA' && Boolean(isFcl)
-    ? `${shippingLabel} แบบปิดตู้`
-    : shippingLabel;
+  return shippingMethod === 'SEA' && Boolean(isFcl) ? `${shippingLabel} แบบปิดตู้` : shippingLabel;
 }
 
-function hasFclShippingTag(item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFcl' | 'name' | 'remark'>): boolean {
+function hasFclShippingTag(
+  item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFcl' | 'name' | 'remark'>
+): boolean {
   if (item.shippingMethod !== 'SEA') {
     return false;
   }
@@ -575,13 +614,14 @@ function createSaleOrderItemsFromQuotation(
     const mappedShippingMethod = mappedRow?.shippingMethod || 'LAND';
     const shippingDisplayLabel = getShippingDisplayLabel(mappedShippingMethod, mappedTier?.isFcl);
     const normalizedItemName = item.name || productFamily || 'PRE-ORDER';
-    const itemNameWithShippingLabel =
-      normalizedItemName.includes(shippingDisplayLabel)
-        ? normalizedItemName
-        : `${normalizedItemName} - ${shippingDisplayLabel}`;
+    const itemNameWithShippingLabel = normalizedItemName.includes(shippingDisplayLabel)
+      ? normalizedItemName
+      : `${normalizedItemName} - ${shippingDisplayLabel}`;
 
     return {
-      id: Number.isFinite(numericItemId) ? numericItemId : mappedRow?.fallbackId || Date.now() + index,
+      id: Number.isFinite(numericItemId)
+        ? numericItemId
+        : mappedRow?.fallbackId || Date.now() + index,
       optionId: mappedRow?.optionId,
       tierId: mappedRow?.tierId,
       quotationDetailId: item.id,
@@ -609,10 +649,7 @@ function createSaleOrderItemsFromQuotation(
       unitPrice: Number(item.unitPrice || 0),
       amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
       totalFreight: getTotalFreight(mappedTier, mappedShippingMethod),
-      remark: [
-        `RFQ: ${rfq.id}`,
-        `Shipping: ${shippingDisplayLabel}`
-      ].join('\n')
+      remark: [`RFQ: ${rfq.id}`, `Shipping: ${shippingDisplayLabel}`].join('\n')
     };
   });
 }
@@ -653,7 +690,7 @@ export default function SalesOrderRFQ(): JSX.Element {
     noResultMessage: {
       textAlign: 'center',
       fontSize: '1.2em',
-      fontWeight: 'bold',
+      fontWeight: 'bold'
     },
     tableHeader: {
       border: '2px solid #e0e0e0',
@@ -750,7 +787,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       ''
     );
   }, [location.search, rfq?.quotations]);
-  const { data: quotation, isFetching: isQuotationFetching } = useQuery(
+  const { data: quotation } = useQuery(
     ['sale-order-rfq-quotation', quotationNo],
     () => getQuotation(quotationNo || ''),
     {
@@ -773,9 +810,13 @@ export default function SalesOrderRFQ(): JSX.Element {
   const { data: districts = [] } = useQuery('sale-order-rfq-district', () => getDistrict(), {
     refetchOnWindowFocus: false
   });
-  const { data: subdistricts = [] } = useQuery('sale-order-rfq-subdistrict', () => getSubDistrict(), {
-    refetchOnWindowFocus: false
-  });
+  const { data: subdistricts = [] } = useQuery(
+    'sale-order-rfq-subdistrict',
+    () => getSubDistrict(),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
   const { data: salesOrderExpireDayConfig = [] } = useQuery(
     ['sale-order-rfq-expire-day', GROUP_CODE.SALES_ORDER_EXPIRE_DAY],
     () => getSystemConfig(GROUP_CODE.SALES_ORDER_EXPIRE_DAY),
@@ -785,8 +826,6 @@ export default function SalesOrderRFQ(): JSX.Element {
   );
   const salesOrderExpireDays = getExpireDays(salesOrderExpireDayConfig, 7);
   const salesOrderDefaultEffectiveDate = today.add(salesOrderExpireDays, 'day');
-  const imageUrl = getRFQImageUrl(rfq);
-
   const formik = useFormik<SaleOrderRFQFormValues>({
     initialValues: {
       rfqId,
@@ -794,6 +833,8 @@ export default function SalesOrderRFQ(): JSX.Element {
       discount: 0,
       salesId: '',
       coSaleId: '',
+      shippingType: '',
+      shipping: '',
       docDate: today,
       effectiveDate: salesOrderDefaultEffectiveDate,
       urgentOrder: false,
@@ -825,8 +866,17 @@ export default function SalesOrderRFQ(): JSX.Element {
   });
 
   useEffect(() => {
+    const shippingTypeFromItems = deriveShippingTypeFromItems(formik.values.items);
+    if (formik.values.shipping !== shippingTypeFromItems) {
+      formik.setFieldValue('shipping', getShippingTypeLabel(shippingTypeFromItems), false);
+    }
+  }, [formik.values.items]);
+
+  useEffect(() => {
     const fallbackEffectiveDate = today.add(7, 'day');
-    const currentEffectiveDate = formik.values.effectiveDate ? dayjs(formik.values.effectiveDate) : null;
+    const currentEffectiveDate = formik.values.effectiveDate
+      ? dayjs(formik.values.effectiveDate)
+      : null;
 
     if (!currentEffectiveDate || currentEffectiveDate.isSame(fallbackEffectiveDate, 'day')) {
       formik.setFieldValue('effectiveDate', salesOrderDefaultEffectiveDate, false);
@@ -864,7 +914,9 @@ export default function SalesOrderRFQ(): JSX.Element {
     },
     enableReinitialize: true,
     validationSchema: Yup.object().shape({
-      contactName: Yup.string().max(255).required(t('customerManagement.message.validateContactName')),
+      contactName: Yup.string()
+        .max(255)
+        .required(t('customerManagement.message.validateContactName')),
       contactNumber: Yup.string()
         .matches(/^[0-9]{9,10}$/, t('customerManagement.message.invalidPhoneNumberFormat'))
         .required(t('customerManagement.message.validateContactNumber'))
@@ -887,12 +939,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         setCoSaleMode(detectedMode);
       }
     }
-  }, [
-    coSaleMode,
-    freelanceSales,
-    formik.values.coSaleId,
-    hasInitializedCoSale
-  ]);
+  }, [coSaleMode, freelanceSales, formik.values.coSaleId, hasInitializedCoSale]);
 
   useEffect(() => {
     if (!hasInitializedCoSale || !formik.values.coSaleId) {
@@ -913,12 +960,7 @@ export default function SalesOrderRFQ(): JSX.Element {
     }
 
     // external mode intentionally keeps the current value, matching quotation flow
-  }, [
-    coSaleMode,
-    freelanceSales,
-    formik.values.coSaleId,
-    hasInitializedCoSale
-  ]);
+  }, [coSaleMode, freelanceSales, formik.values.coSaleId, hasInitializedCoSale]);
 
   useEffect(() => {
     if (!openCreateFreelanceSaleDialog) {
@@ -999,7 +1041,9 @@ export default function SalesOrderRFQ(): JSX.Element {
     const values = addressDialogFormik.values;
     const selectedProvince = provinces.find((item: Province) => item.id === values.province);
     const selectedDistrict = districts.find((item: District) => item.id === values.district);
-    const selectedSubdistrict = subdistricts.find((item: SubDistrict) => item.id === values.subdistrict);
+    const selectedSubdistrict = subdistricts.find(
+      (item: SubDistrict) => item.id === values.subdistrict
+    );
 
     return {
       addressType: values.addressType,
@@ -1176,21 +1220,8 @@ export default function SalesOrderRFQ(): JSX.Element {
       discount: 0,
       freight: selectedItems.reduce((sum, item) => sum + Number(item.totalFreight || 0), 0),
       isVat: formik.values.isVat,
-      shippingType: (() => {
-        const shippingMethods = Array.from(
-          new Set(
-            selectedItems
-              .map((item) => item.shippingMethod)
-              .filter((shippingMethod): shippingMethod is 'LAND' | 'SEA' => Boolean(shippingMethod))
-          )
-        );
-
-        if (!shippingMethods.length) {
-          return null;
-        }
-
-        return shippingMethods.length > 1 ? 'ALL' : shippingMethods[0];
-      })(),
+      shippingType: formik.values.shippingType || null,
+      shipping: formik.values.shipping,
       requestCoa: formik.values.requestCoa,
       requestPo: formik.values.requestPo,
       remark: formik.values.notes,
@@ -1275,12 +1306,13 @@ export default function SalesOrderRFQ(): JSX.Element {
             item.shippingMethod === selectedItem.shippingMethod
         )
       );
-      const items = hasSelectedRFQParams
-        ? selectedItemFromDialog
-        : allItems.slice(0, 1);
+      const items = hasSelectedRFQParams ? selectedItemFromDialog : allItems.slice(0, 1);
       const itemsWithImage = items.map((item) => ({
         ...item,
-        imageUrl: getRFQImageUrl(rfq) || null
+        imageUrl:
+          getQuotationImageUrl(quotation?.data, item.quotationDetailId) ||
+          getQuotationImageUrl(quotation?.data) ||
+          null
       }));
       let fullCustomer: Customer | null = null;
       let defaultDropOff: CustomerDropOff | null = null;
@@ -1305,9 +1337,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         customerContacts.find((contact) => contact.contactName === rfq.contactName) ||
         customerContacts.find((contact) => contact.isDefault) ||
         customerContacts[0];
-      const primarySelectedDetail = rfq.details?.find(
-        (detail) => detail.id === items[0]?.optionId
-      );
+      const primarySelectedDetail = rfq.details?.find((detail) => detail.id === items[0]?.optionId);
 
       setCustomer(fullCustomer || (rfq.customer as Customer) || null);
       formik.setValues({
@@ -1316,9 +1346,10 @@ export default function SalesOrderRFQ(): JSX.Element {
         isVat: Number(quotation?.data?.vat || 0) > 0,
         salesId: getRFQSalesEmployeeId(rfq.sales),
         coSaleId: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount || '',
-        coSaleMode: quotation?.data?.coSaleId || rfq.customer?.coSalesAccount
-          ? CO_SALE_MODE_FREELANCE
-          : CO_SALE_MODE_NONE,
+        coSaleMode:
+          quotation?.data?.coSaleId || rfq.customer?.coSalesAccount
+            ? CO_SALE_MODE_FREELANCE
+            : CO_SALE_MODE_NONE,
         customerId: rfq.customer?.id || '',
         customerAddressId: defaultAddress?.id || '',
         customerContactId: defaultContact?.id || '',
@@ -1327,6 +1358,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         creditTerm: fullCustomer?.customerCreditTerm?.code || '',
         dropOffId: defaultDropOff?.id || '',
         dropOffName: defaultDropOff?.dropOffName || '',
+        shippingType: rfq.shippingMethod,
         supplierId:
           getRFQDetailSupplierId(primarySelectedDetail) ||
           defaultDropOff?.supplier?.supplierId ||
@@ -1343,12 +1375,7 @@ export default function SalesOrderRFQ(): JSX.Element {
     };
 
     applyRFQ();
-  }, [
-    rfq,
-    quotation,
-    hasSelectedRFQParams,
-    selectedRFQParams,
-  ]);
+  }, [rfq, quotation, hasSelectedRFQParams, selectedRFQParams]);
   const summaryShippingOptions = useMemo(() => {
     const shippingSummary = new Map<
       string,
@@ -1423,7 +1450,10 @@ export default function SalesOrderRFQ(): JSX.Element {
   };
 
   const handleAddManualItem = () => {
-    formik.setFieldValue('items', [...formik.values.items, createEmptySaleOrderItem(nextManualItemId)]);
+    formik.setFieldValue('items', [
+      ...formik.values.items,
+      createEmptySaleOrderItem(nextManualItemId)
+    ]);
     setNextManualItemId((currentId) => currentId - 1);
   };
 
@@ -1469,7 +1499,6 @@ export default function SalesOrderRFQ(): JSX.Element {
                 ) {
                   formik.setFieldValue('endDeliveryDate', startDate.format(DEFAULT_DATE_FORMAT));
                 }
-
               }}
             />
           </GridTextField>
@@ -1502,7 +1531,6 @@ export default function SalesOrderRFQ(): JSX.Element {
                 }
 
                 formik.setFieldValue('effectiveDate', endDate.format(DEFAULT_DATE_FORMAT));
-
               }}
             />
           </GridTextField>
@@ -1548,11 +1576,22 @@ export default function SalesOrderRFQ(): JSX.Element {
             <RadioGroup
               row
               value={coSaleMode}
-              onChange={(event) => setCoSaleMode(event.target.value)}
-            >
-              <FormControlLabel value={CO_SALE_MODE_NONE} control={<Radio />} label="ไม่มีเซลล์นอก/เซลล์ฟรีแลนซ์" />
-              <FormControlLabel value={CO_SALE_MODE_FREELANCE} control={<Radio />} label="เซลล์ฟรีแลนซ์" />
-              <FormControlLabel value={CO_SALE_MODE_EXTERNAL} control={<Radio />} label="เซลล์นอก" />
+              onChange={(event) => setCoSaleMode(event.target.value)}>
+              <FormControlLabel
+                value={CO_SALE_MODE_NONE}
+                control={<Radio />}
+                label="ไม่มีเซลล์นอก/เซลล์ฟรีแลนซ์"
+              />
+              <FormControlLabel
+                value={CO_SALE_MODE_FREELANCE}
+                control={<Radio />}
+                label="เซลล์ฟรีแลนซ์"
+              />
+              <FormControlLabel
+                value={CO_SALE_MODE_EXTERNAL}
+                control={<Radio />}
+                label="เซลล์นอก"
+              />
             </RadioGroup>
           </GridTextField>
 
@@ -1582,8 +1621,7 @@ export default function SalesOrderRFQ(): JSX.Element {
 
                   formik.setFieldValue('coSaleId', event.target.value);
                 }}
-                InputLabelProps={{ shrink: true }}
-              >
+                InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {coSaleMode === CO_SALE_MODE_FREELANCE &&
                   freelanceSales.map((option) => (
@@ -1909,11 +1947,7 @@ export default function SalesOrderRFQ(): JSX.Element {
             </TableBody>
           </Table>
         </Paper>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ mt: 2.5 }}
-        >
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2.5 }}>
           <Button
             variant="outlined"
             startIcon={<AddCircle />}
@@ -1924,8 +1958,7 @@ export default function SalesOrderRFQ(): JSX.Element {
               py: 1.25,
               fontWeight: 700,
               minHeight: 48
-            }}
-          >
+            }}>
             เพิ่มรายการใหม่
           </Button>
         </Stack>
@@ -1970,6 +2003,17 @@ export default function SalesOrderRFQ(): JSX.Element {
             </Grid>
           </Grid>
           <GridTextField sm={6} />
+          <Grid item xs={12} md={12}>
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              label="การขนส่ง"
+              value={formik.values.shipping}
+              onChange={(event) => formik.setFieldValue('shipping', event.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
           <Grid item xs={12} md={7}>
             <TextField
               fullWidth
@@ -1992,11 +2036,15 @@ export default function SalesOrderRFQ(): JSX.Element {
               }}>
               <Stack spacing={2}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography fontWeight={500}>Subtotal</Typography>
+                  <Typography fontWeight={500}>ยอดรวมสินค้า</Typography>
                   <Typography fontWeight={600}>{formatCurrency(subtotal)}</Typography>
                 </Stack>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                  <Typography fontWeight={500}>Discount</Typography>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  spacing={2}>
+                  <Typography fontWeight={500}>ส่วนลด</Typography>
                   <TextField
                     type="number"
                     value={formik.values.discount}
@@ -2009,14 +2057,14 @@ export default function SalesOrderRFQ(): JSX.Element {
                 </Stack>
                 {formik.values.isVat ? (
                   <Stack direction="row" justifyContent="space-between">
-                    <Typography fontWeight={500}>VAT (7%)</Typography>
+                    <Typography fontWeight={500}>ภาษีมูลค่าเพิ่ม (7%)</Typography>
                     <Typography fontWeight={600}>{formatCurrency(vatAmount)}</Typography>
                   </Stack>
                 ) : null}
                 <Divider />
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="h6" fontWeight={700}>
-                    Grand Total
+                    จำนวนเงินทั้งสิ้น
                   </Typography>
                   <Typography variant="h5" fontWeight={800} sx={{ color: '#1B5E20' }}>
                     {formatCurrency(grandTotal)}
@@ -2112,8 +2160,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         open={isAddCustomerAddressDialogOpen}
         onClose={() => setIsAddCustomerAddressDialogOpen(false)}
         fullWidth
-        maxWidth="sm"
-      >
+        maxWidth="sm">
         <DialogTitle>{t('customerManagement.column.address.addNew')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -2126,13 +2173,22 @@ export default function SalesOrderRFQ(): JSX.Element {
                 value={addressDialogFormik.values.addressType}
                 onChange={addressDialogFormik.handleChange}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType)}
-                helperText={addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType}
-                InputLabelProps={{ shrink: true }}
-              >
-                <MenuItem value="BILLING">{t('customerManagement.column.addressType.billing')}</MenuItem>
-                <MenuItem value="SHIPPING">{t('customerManagement.column.addressType.shipping')}</MenuItem>
-                <MenuItem value="OTHER">{t('customerManagement.column.addressType.other')}</MenuItem>
+                error={Boolean(
+                  addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType
+                )}
+                helperText={
+                  addressDialogFormik.touched.addressType && addressDialogFormik.errors.addressType
+                }
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="BILLING">
+                  {t('customerManagement.column.addressType.billing')}
+                </MenuItem>
+                <MenuItem value="SHIPPING">
+                  {t('customerManagement.column.addressType.shipping')}
+                </MenuItem>
+                <MenuItem value="OTHER">
+                  {t('customerManagement.column.addressType.other')}
+                </MenuItem>
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -2158,10 +2214,12 @@ export default function SalesOrderRFQ(): JSX.Element {
                 onChange={addressDialogFormik.handleChange}
                 onBlur={addressDialogFormik.handleBlur}
                 error={Boolean(
-                  addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1
+                  addressDialogFormik.touched.addressLine1 &&
+                  addressDialogFormik.errors.addressLine1
                 )}
                 helperText={
-                  addressDialogFormik.touched.addressLine1 && addressDialogFormik.errors.addressLine1
+                  addressDialogFormik.touched.addressLine1 &&
+                  addressDialogFormik.errors.addressLine1
                 }
                 InputLabelProps={{ shrink: true }}
               />
@@ -2192,10 +2250,13 @@ export default function SalesOrderRFQ(): JSX.Element {
                   addressDialogFormik.setFieldValue('postcode', '');
                 }}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.province && addressDialogFormik.errors.province)}
-                helperText={addressDialogFormik.touched.province && addressDialogFormik.errors.province}
-                InputLabelProps={{ shrink: true }}
-              >
+                error={Boolean(
+                  addressDialogFormik.touched.province && addressDialogFormik.errors.province
+                )}
+                helperText={
+                  addressDialogFormik.touched.province && addressDialogFormik.errors.province
+                }
+                InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {provinces.map((option: Province) => (
                   <MenuItem key={option.id} value={option.id}>
@@ -2217,13 +2278,18 @@ export default function SalesOrderRFQ(): JSX.Element {
                   addressDialogFormik.setFieldValue('postcode', '');
                 }}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.district && addressDialogFormik.errors.district)}
-                helperText={addressDialogFormik.touched.district && addressDialogFormik.errors.district}
-                InputLabelProps={{ shrink: true }}
-              >
+                error={Boolean(
+                  addressDialogFormik.touched.district && addressDialogFormik.errors.district
+                )}
+                helperText={
+                  addressDialogFormik.touched.district && addressDialogFormik.errors.district
+                }
+                InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {districts
-                  .filter((option: District) => option.provinceId === addressDialogFormik.values.province)
+                  .filter(
+                    (option: District) => option.provinceId === addressDialogFormik.values.province
+                  )
                   .map((option: District) => (
                     <MenuItem key={option.id} value={option.id}>
                       {option.nameTh}
@@ -2239,7 +2305,9 @@ export default function SalesOrderRFQ(): JSX.Element {
                 label={t('customerManagement.column.address.tumbon')}
                 value={addressDialogFormik.values.subdistrict}
                 onChange={(event) => {
-                  const selected = subdistricts.find((item: SubDistrict) => item.id === event.target.value);
+                  const selected = subdistricts.find(
+                    (item: SubDistrict) => item.id === event.target.value
+                  );
                   addressDialogFormik.setFieldValue('subdistrict', selected?.id ?? '');
                   addressDialogFormik.setFieldValue('postcode', selected?.zipCode ?? '');
                 }}
@@ -2250,11 +2318,13 @@ export default function SalesOrderRFQ(): JSX.Element {
                 helperText={
                   addressDialogFormik.touched.subdistrict && addressDialogFormik.errors.subdistrict
                 }
-                InputLabelProps={{ shrink: true }}
-              >
+                InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
                 {subdistricts
-                  .filter((option: SubDistrict) => option.districtId === addressDialogFormik.values.district)
+                  .filter(
+                    (option: SubDistrict) =>
+                      option.districtId === addressDialogFormik.values.district
+                  )
                   .map((option: SubDistrict) => (
                     <MenuItem key={option.id} value={option.id}>
                       {option.nameTh}
@@ -2282,8 +2352,12 @@ export default function SalesOrderRFQ(): JSX.Element {
                 value={addressDialogFormik.values.country}
                 onChange={addressDialogFormik.handleChange}
                 onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(addressDialogFormik.touched.country && addressDialogFormik.errors.country)}
-                helperText={addressDialogFormik.touched.country && addressDialogFormik.errors.country}
+                error={Boolean(
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                )}
+                helperText={
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -2293,16 +2367,14 @@ export default function SalesOrderRFQ(): JSX.Element {
           <Button
             variant="contained"
             className="btn-crimson-red"
-            onClick={() => setIsAddCustomerAddressDialogOpen(false)}
-          >
+            onClick={() => setIsAddCustomerAddressDialogOpen(false)}>
             {t('button.cancel')}
           </Button>
           <Button
             variant="contained"
             className="btn-emerald-green"
             onClick={handleConfirmAddCustomerAddress}
-            disabled={addressDialogFormik.isSubmitting}
-          >
+            disabled={addressDialogFormik.isSubmitting}>
             {t('button.save')}
           </Button>
         </DialogActions>
@@ -2311,8 +2383,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         open={isAddCustomerContactDialogOpen}
         onClose={() => setIsAddCustomerContactDialogOpen(false)}
         fullWidth
-        maxWidth="sm"
-      >
+        maxWidth="sm">
         <DialogTitle>{t('customerManagement.addContact')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -2346,10 +2417,12 @@ export default function SalesOrderRFQ(): JSX.Element {
                 onChange={contactDialogFormik.handleChange}
                 onBlur={contactDialogFormik.handleBlur}
                 error={Boolean(
-                  contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber
+                  contactDialogFormik.touched.contactNumber &&
+                  contactDialogFormik.errors.contactNumber
                 )}
                 helperText={
-                  contactDialogFormik.touched.contactNumber && contactDialogFormik.errors.contactNumber
+                  contactDialogFormik.touched.contactNumber &&
+                  contactDialogFormik.errors.contactNumber
                 }
                 InputLabelProps={{ shrink: true }}
               />
@@ -2360,16 +2433,14 @@ export default function SalesOrderRFQ(): JSX.Element {
           <Button
             variant="contained"
             className="btn-crimson-red"
-            onClick={() => setIsAddCustomerContactDialogOpen(false)}
-          >
+            onClick={() => setIsAddCustomerContactDialogOpen(false)}>
             {t('button.cancel')}
           </Button>
           <Button
             variant="contained"
             className="btn-emerald-green"
             onClick={handleConfirmAddCustomerContact}
-            disabled={contactDialogFormik.isSubmitting}
-          >
+            disabled={contactDialogFormik.isSubmitting}>
             {t('button.save')}
           </Button>
         </DialogActions>
@@ -2378,8 +2449,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         open={openCreateFreelanceSaleDialog}
         onClose={() => setOpenCreateFreelanceSaleDialog(false)}
         fullWidth
-        maxWidth="sm"
-      >
+        maxWidth="sm">
         <DialogTitle>{`เพิ่ม${t('customerManagement.column.coSalesAccount')}`}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -2450,7 +2520,9 @@ export default function SalesOrderRFQ(): JSX.Element {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCreateFreelanceSaleDialog(false)}>{t('button.cancel')}</Button>
+          <Button onClick={() => setOpenCreateFreelanceSaleDialog(false)}>
+            {t('button.cancel')}
+          </Button>
           <Button variant="contained" onClick={handleCreateFreelanceSale}>
             {t('button.save')}
           </Button>

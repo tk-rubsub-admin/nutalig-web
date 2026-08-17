@@ -74,6 +74,7 @@ export interface CreateSalesOrderRequestV1 {
     freight?: number;
     isVat: boolean;
     shippingType?: string;
+    shipping: string;
     requestCoa?: boolean;
     requestPo?: boolean;
     remark?: string;
@@ -187,6 +188,7 @@ export interface UpdateSalesOrderRequestV1 {
     docDate?: string | null;
     expireDate?: string | null;
     coSaleId?: string | null;
+    subTotal?: number;
     commission?: number;
     coSaleCommission?: number | null;
     discount?: number;

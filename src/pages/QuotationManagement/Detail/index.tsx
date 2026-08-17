@@ -407,8 +407,8 @@ export default function QuotationDetail(): JSX.Element {
             isFcl: Boolean(matched.tier?.isFcl)
         };
     });
-    const canConfirmPriceAction = Boolean(quotation?.rfqId && quotation?.quotationNo && !salesOrder?.salesOrderNo);
-
+    // const canConfirmPriceAction = Boolean(quotation?.rfqId && quotation?.quotationNo && !salesOrder?.salesOrderNo);
+    const canConfirmPriceAction = true;
     useEffect(() => {
         if (quotationError && isQuotationNotFoundError(quotationError)) {
             setVisibleQuotationNotFoundDialog(true);
@@ -515,20 +515,20 @@ export default function QuotationDetail(): JSX.Element {
     const handleOpenConfirmPriceDialog = () => {
         handleCloseActionMenu();
 
-        if (salesOrder?.salesOrderNo) {
-            history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
-            return;
-        }
+        // if (salesOrder?.salesOrderNo) {
+        //     history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
+        //     return;
+        // }
 
-        if (!quotation?.rfqId) {
-            toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
-            return;
-        }
+        // if (!quotation?.rfqId) {
+        //     toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
+        //     return;
+        // }
 
-        if (!confirmQuotationRows.length) {
-            toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
-            return;
-        }
+        // if (!confirmQuotationRows.length) {
+        //     toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
+        //     return;
+        // }
 
         setSelectedConfirmQuotationRowKeys([]);
         setVisibleConfirmPriceDialog(true);

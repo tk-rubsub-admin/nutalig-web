@@ -62,7 +62,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { ROUTE_PATHS } from 'routes';
 import toast from 'react-hot-toast';
 import LoadingDialog from 'components/LoadingDialog';
-import AddNewAdminDialog from 'pages/AdminManagement/AddNewAdminDialog';
+import AddNewAdminDialog from 'dialogs/AdminManagement/AddNewAdminDialog';
 import AuditInfo from 'components/AuditInfo';
 // import { QRCode } from 'qrcode.react';
 import QRCode from 'react-qr-code';

@@ -33,8 +33,8 @@ import {
 } from 'services/RFQ/rfq-type';
 import { SystemConfig } from 'services/Config/config-type';
 import { LeadTimeConfig } from 'services/Supplier/supplier-type';
-import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
-import { SupplierQuoteDialogDetail } from './SupplierQuoteDialog';
+import { outlinedActionButtonSx } from 'dialogs/PriceInquiryManagement/Detail/supplierQuoteDialogStyles';
+import { SupplierQuoteDialogDetail } from 'dialogs/PriceInquiryManagement/Detail/SupplierQuoteDialog';
 import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 

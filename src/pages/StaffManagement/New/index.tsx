@@ -32,7 +32,7 @@ import toast from 'react-hot-toast';
 import { CreateStaffResponse } from 'services/Staff/staff-type';
 import ConfirmDialog from 'components/ConfirmDialog';
 import { ROUTE_PATHS } from 'routes';
-import AddNewAdminDialog from 'pages/AdminManagement/AddNewAdminDialog';
+import AddNewAdminDialog from 'dialogs/AdminManagement/AddNewAdminDialog';
 
 export default function NewStaff(): JSX.Element {
   const useStyles = makeStyles({

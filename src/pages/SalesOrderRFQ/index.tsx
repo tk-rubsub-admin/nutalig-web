@@ -4,7 +4,8 @@ import {
   DeleteOutline,
   DirectionsBoat,
   LocalShipping,
-  Save
+  Save,
+  Search
 } from '@mui/icons-material';
 import {
   Box,
@@ -18,6 +19,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   ListItemIcon,
   MenuItem,
   Paper,
@@ -70,13 +72,14 @@ import {
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
 import { formatCurrency, formatNumber } from 'utils/utils';
 import * as Yup from 'yup';
-import { addCustomerAddress, addCustomerContact } from 'services/Customer/customer-api';
+import { addCustomerAddress, addCustomerContact, updateCustomer } from 'services/Customer/customer-api';
 import {
   CreateCustomerAddressRequest,
   CreateCustomerContactRequest
 } from 'services/Customer/customer-type';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
+import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
 
 interface SaleOrderRFQParams {
   rfqId: string;
@@ -666,12 +669,16 @@ export default function SalesOrderRFQ(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isAddCustomerAddressDialogOpen, setIsAddCustomerAddressDialogOpen] = useState(false);
   const [isAddCustomerContactDialogOpen, setIsAddCustomerContactDialogOpen] = useState(false);
+  const [isUpdateCustomerDialogOpen, setIsUpdateCustomerDialogOpen] = useState(false);
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<CreateSalesOrderStatus | 'back'>('CREATED');
   const [nextManualItemId, setNextManualItemId] = useState(-1);
   const [coSaleMode, setCoSaleMode] = useState(CO_SALE_MODE_NONE);
   const [hasInitializedCoSale, setHasInitializedCoSale] = useState(false);
+  const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
   const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
+  const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
+  const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [newFreelanceSale, setNewFreelanceSale] = useState<{
     name: string;
     contactNumber: string;
@@ -824,6 +831,55 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const { data: customerTypeList = [] } = useQuery(
+    ['sale-order-rfq-customer-type', GROUP_CODE.CUSTOMER_TYPE],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_TYPE),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: customerTierList = [] } = useQuery(
+    ['sale-order-rfq-customer-tier', GROUP_CODE.CUSTOMER_TIER],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_TIER),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: customerSegmentList = [] } = useQuery(
+    ['sale-order-rfq-customer-segment', GROUP_CODE.CUSTOMER_SEGMENT],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_SEGMENT),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: customerCreditTermList = [] } = useQuery(
+    ['sale-order-rfq-customer-credit-term', GROUP_CODE.CUSTOMER_CREDIT_TERM],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_CREDIT_TERM),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: customerPaymentTermList = [] } = useQuery(
+    ['sale-order-rfq-customer-payment-term', GROUP_CODE.CUSTOMER_PAYMENT_TERM],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: customerBillingConditionList = [] } = useQuery(
+    ['sale-order-rfq-customer-billing-condition', GROUP_CODE.CUSTOMER_BILLING_CONDITION],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_BILLING_CONDITION),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
+  const { data: customerPaymentCycleList = [] } = useQuery(
+    ['sale-order-rfq-customer-payment-cycle', GROUP_CODE.CUSTOMER_PAYMENT_CYCLE],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_CYCLE),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
   const salesOrderExpireDays = getExpireDays(salesOrderExpireDayConfig, 7);
   const salesOrderDefaultEffectiveDate = today.add(salesOrderExpireDays, 'day');
   const formik = useFormik<SaleOrderRFQFormValues>({
@@ -864,6 +920,15 @@ export default function SalesOrderRFQ(): JSX.Element {
     }),
     onSubmit: () => undefined
   });
+  const selectedFreelanceSale =
+    selectedFreelanceSaleItem ||
+    freelanceSales.find((option) => option.id === formik.values.coSaleId) ||
+    null;
+  const selectedFreelanceSaleDisplay =
+    selectedFreelanceSaleLabel ||
+    (selectedFreelanceSale ? `${selectedFreelanceSale.id} - ${selectedFreelanceSale.name}` : '') ||
+    formik.values.coSaleId ||
+    '';
 
   useEffect(() => {
     const shippingTypeFromItems = deriveShippingTypeFromItems(formik.values.items);
@@ -923,12 +988,110 @@ export default function SalesOrderRFQ(): JSX.Element {
     }),
     onSubmit: () => undefined
   });
+  const updateCustomerDialogFormik = useFormik({
+    initialValues: {
+      customerName: customer?.customerName ?? '',
+      email: customer?.email ?? '',
+      type: customer?.customerType?.code ?? '',
+      tier: customer?.customerTier?.code ?? '',
+      segment: customer?.customerSegment?.code ?? '',
+      taxId: customer?.taxId ?? '',
+      companyName: customer?.companyName ?? '',
+      companyBranchCode: customer?.branchNumber ?? '',
+      companyBranchName: customer?.branchName ?? '',
+      creditTerm: customer?.customerCreditTerm?.code ?? '',
+      paymentTerm: customer?.customerPaymentTerm?.code ?? '',
+      billingCondition: customer?.customerBillingCondition ?? '',
+      paymentCycle: customer?.customerPaymentCycle ?? '',
+      salesAccounts: customer?.salesAccounts?.length
+        ? customer.salesAccounts
+        : customer?.salesAccount
+          ? [customer.salesAccount]
+          : [],
+      coSalesAccount: customer?.coSalesAccount ?? ''
+    },
+    enableReinitialize: true,
+    validationSchema: Yup.object().shape({
+      customerName: Yup.string().max(255).required(t('customerManagement.message.validateCustomerName')),
+      type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
+      tier: Yup.string().max(255).nullable(),
+      segment: Yup.string().max(255).nullable(),
+      companyName: Yup.string().when('type', {
+        is: 'COMPANY',
+        then: Yup.string().required(t('customerManagement.message.validateCompanyName')),
+        otherwise: Yup.string().nullable()
+      }),
+      companyBranchCode: Yup.string().when('type', {
+        is: 'COMPANY',
+        then: Yup.string().required(t('customerManagement.message.validateCompanyBranchCode')),
+        otherwise: Yup.string().nullable()
+      }),
+      companyBranchName: Yup.string().when('type', {
+        is: 'COMPANY',
+        then: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
+        otherwise: Yup.string().nullable()
+      }),
+      creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
+      paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm'))
+    }),
+    onSubmit: async (values, actions) => {
+      if (!customer?.id) {
+        return;
+      }
+
+      actions.setSubmitting(true);
+      const payload = {
+        customerName: values.customerName || null,
+        customerType: values.type || null,
+        customerTier: values.tier || null,
+        customerSegment: values.segment || null,
+        email: values.email || null,
+        taxId: values.taxId || null,
+        companyName: values.companyName || null,
+        branchNumber: values.companyBranchCode || null,
+        branchName: values.companyBranchName || null,
+        creditTerm: values.creditTerm || null,
+        paymentTerm: values.paymentTerm || null,
+        billingCondition: values.billingCondition || null,
+        paymentCycle: values.paymentCycle || null,
+        salesAccount: values.salesAccounts[0] || null,
+        salesAccounts: values.salesAccounts,
+        coSalesAccount: values.coSalesAccount || null
+      };
+
+      const updatePromise = updateCustomer(customer.id, payload).then(() => getCustomer(customer.id));
+
+      toast.promise(updatePromise, {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const updatedCustomer = response as Customer;
+          if (updatedCustomer) {
+            setCustomer(updatedCustomer);
+            formik.setFieldValue('salesId', updatedCustomer.salesAccounts?.[0] || updatedCustomer.salesAccount || '');
+            formik.setFieldValue('coSaleId', updatedCustomer.coSalesAccount || '');
+            setCoSaleMode(
+              updatedCustomer.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE
+            );
+          }
+          setIsUpdateCustomerDialogOpen(false);
+          return t('toast.success');
+        },
+        error: t('toast.failed')
+      });
+
+      updatePromise.finally(() => {
+        actions.setSubmitting(false);
+      });
+    }
+  });
 
   useEffect(() => {
     if (!formik.values.coSaleId) {
       if (hasInitializedCoSale && coSaleMode !== CO_SALE_MODE_NONE) {
         setCoSaleMode(CO_SALE_MODE_NONE);
       }
+      setSelectedFreelanceSaleItem(null);
+      setSelectedFreelanceSaleLabel('');
       return;
     }
 
@@ -942,12 +1105,31 @@ export default function SalesOrderRFQ(): JSX.Element {
   }, [coSaleMode, freelanceSales, formik.values.coSaleId, hasInitializedCoSale]);
 
   useEffect(() => {
+    if (!formik.values.coSaleId) {
+      return;
+    }
+
+    const matchedFreelanceSale = freelanceSales.find(
+      (option) => option.id === formik.values.coSaleId
+    );
+
+    if (!matchedFreelanceSale) {
+      return;
+    }
+
+    setSelectedFreelanceSaleItem(matchedFreelanceSale);
+    setSelectedFreelanceSaleLabel(`${matchedFreelanceSale.id} - ${matchedFreelanceSale.name}`);
+  }, [formik.values.coSaleId, freelanceSales]);
+
+  useEffect(() => {
     if (!hasInitializedCoSale || !formik.values.coSaleId) {
       return;
     }
 
     if (coSaleMode === CO_SALE_MODE_NONE) {
       formik.setFieldValue('coSaleId', '');
+      setSelectedFreelanceSaleItem(null);
+      setSelectedFreelanceSaleLabel('');
       return;
     }
 
@@ -956,6 +1138,8 @@ export default function SalesOrderRFQ(): JSX.Element {
       !freelanceSales.some((option) => option.id === formik.values.coSaleId)
     ) {
       formik.setFieldValue('coSaleId', '');
+      setSelectedFreelanceSaleItem(null);
+      setSelectedFreelanceSaleLabel('');
       return;
     }
 
@@ -1009,6 +1193,10 @@ export default function SalesOrderRFQ(): JSX.Element {
 
       setCoSaleMode(CO_SALE_MODE_FREELANCE);
       formik.setFieldValue('coSaleId', createdFreelanceSale?.id || '');
+      setSelectedFreelanceSaleItem(createdFreelanceSale || null);
+      setSelectedFreelanceSaleLabel(
+        createdFreelanceSale ? `${createdFreelanceSale.id} - ${createdFreelanceSale.name}` : ''
+      );
       setOpenCreateFreelanceSaleDialog(false);
     } finally {
       setIsLoading(false);
@@ -1123,6 +1311,15 @@ export default function SalesOrderRFQ(): JSX.Element {
       }
     });
     setIsAddCustomerContactDialogOpen(true);
+  };
+
+  const handleOpenUpdateCustomer = () => {
+    if (!customer?.id) {
+      return;
+    }
+
+    updateCustomerDialogFormik.resetForm();
+    setIsUpdateCustomerDialogOpen(true);
   };
 
   const getContactPayload = (): CreateCustomerContactRequest => ({
@@ -1573,26 +1770,24 @@ export default function SalesOrderRFQ(): JSX.Element {
           </GridTextField>
 
           <GridTextField item xs={12} sm={6}>
-            <RadioGroup
-              row
-              value={coSaleMode}
-              onChange={(event) => setCoSaleMode(event.target.value)}>
-              <FormControlLabel
-                value={CO_SALE_MODE_NONE}
-                control={<Radio />}
-                label="ไม่มีเซลล์นอก/เซลล์ฟรีแลนซ์"
-              />
-              <FormControlLabel
-                value={CO_SALE_MODE_FREELANCE}
-                control={<Radio />}
-                label="เซลล์ฟรีแลนซ์"
-              />
-              <FormControlLabel
-                value={CO_SALE_MODE_EXTERNAL}
-                control={<Radio />}
-                label="เซลล์นอก"
-              />
-            </RadioGroup>
+            <Box>
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                เซลล์นอก/เซลล์ฟรีแลนซ์
+              </Typography>
+              <RadioGroup
+                row
+                value={coSaleMode}
+                onChange={(event) => setCoSaleMode(event.target.value)}>
+                <FormControlLabel value={CO_SALE_MODE_NONE} control={<Radio />} label="ไม่มี" />
+                <FormControlLabel
+                  value={CO_SALE_MODE_FREELANCE}
+                  control={<Radio />}
+                  label="เซลล์นอก/เซลล์ฟรีแลนซ์"
+                />
+              </RadioGroup>
+            </Box>
           </GridTextField>
 
           <GridTextField item xs={12} sm={6}>
@@ -1608,33 +1803,23 @@ export default function SalesOrderRFQ(): JSX.Element {
           {coSaleMode !== CO_SALE_MODE_NONE ? (
             <GridTextField item xs={12} sm={6}>
               <TextField
-                select
                 fullWidth
-                label={coSaleMode === CO_SALE_MODE_EXTERNAL ? 'เซลล์นอก' : 'เซลล์ฟรีแลนซ์'}
-                value={formik.values.coSaleId || ''}
-                disabled={isFreelanceSalesFetching}
-                onChange={(event) => {
-                  if (event.target.value === ADD_NEW_FREELANCE_SALE_VALUE) {
-                    handleOpenCreateFreelanceSaleDialog();
-                    return;
-                  }
-
-                  formik.setFieldValue('coSaleId', event.target.value);
+                label="เซลล์นอก/เซลล์ฟรีแลนซ์"
+                value={selectedFreelanceSaleDisplay}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  readOnly: true,
+                  endAdornment: (
+                    <IconButton
+                      edge="end"
+                      onClick={() => setOpenSearchFreelanceSalesDialog(true)}
+                      disabled={isFreelanceSalesFetching}
+                    >
+                      <Search />
+                    </IconButton>
+                  )
                 }}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-                {coSaleMode === CO_SALE_MODE_FREELANCE &&
-                  freelanceSales.map((option) => (
-                    <MenuItem key={option.id} value={option.id}>
-                      {`${option.id} - ${option.name}`}
-                    </MenuItem>
-                  ))}
-                {coSaleMode === CO_SALE_MODE_FREELANCE && (
-                  <MenuItem value={ADD_NEW_FREELANCE_SALE_VALUE}>
-                    {`=== เพิ่ม${t('customerManagement.column.coSalesAccount')} ===`}
-                  </MenuItem>
-                )}
-              </TextField>
+              />
             </GridTextField>
           ) : (
             <GridTextField item xs={12} sm={6} />
@@ -1645,7 +1830,24 @@ export default function SalesOrderRFQ(): JSX.Element {
       <CollapsibleWrapper
         title={t('documentManagement.quotation.customerSection.title')}
         isCompleted={isCustomerSectionCompleted}
-        defaultExpanded>
+        defaultExpanded
+        action={
+          customer?.id ? (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleOpenUpdateCustomer}
+              sx={{
+                borderRadius: '999px',
+                px: 2,
+                py: 0.75,
+                fontWeight: 700,
+                whiteSpace: 'nowrap'
+              }}>
+              อัพเดตข้อมูล
+            </Button>
+          ) : null
+        }>
         <Grid container spacing={1}>
           <GridTextField item xs={12} sm={6}>
             <TextField
@@ -1792,6 +1994,295 @@ export default function SalesOrderRFQ(): JSX.Element {
           ) : null}
         </Grid>
       </CollapsibleWrapper>
+
+      <Dialog
+        open={isUpdateCustomerDialogOpen}
+        onClose={() => {
+          setIsUpdateCustomerDialogOpen(false);
+          updateCustomerDialogFormik.resetForm();
+        }}
+        fullWidth
+        maxWidth="md">
+        <DialogTitle>อัพเดตข้อมูลลูกค้า</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                name="customerName"
+                label={t('customerManagement.column.name')}
+                value={updateCustomerDialogFormik.values.customerName}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                error={Boolean(
+                  updateCustomerDialogFormik.touched.customerName &&
+                  updateCustomerDialogFormik.errors.customerName
+                )}
+                helperText={
+                  updateCustomerDialogFormik.touched.customerName &&
+                  updateCustomerDialogFormik.errors.customerName
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                name="email"
+                label={t('customerManagement.column.email')}
+                value={updateCustomerDialogFormik.values.email}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                name="type"
+                label={t('customerManagement.column.type')}
+                value={updateCustomerDialogFormik.values.type}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                error={Boolean(
+                  updateCustomerDialogFormik.touched.type && updateCustomerDialogFormik.errors.type
+                )}
+                helperText={updateCustomerDialogFormik.touched.type && updateCustomerDialogFormik.errors.type}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                {customerTypeList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                name="tier"
+                label={t('customerManagement.column.tier')}
+                value={updateCustomerDialogFormik.values.tier}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerTierList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                name="segment"
+                label={t('customerManagement.column.segment')}
+                value={updateCustomerDialogFormik.values.segment}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerSegmentList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                name="taxId"
+                label={t('customerManagement.column.taxId')}
+                value={updateCustomerDialogFormik.values.taxId}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                name="companyName"
+                label={t('customerManagement.column.company.name')}
+                value={updateCustomerDialogFormik.values.companyName}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                error={Boolean(
+                  updateCustomerDialogFormik.touched.companyName &&
+                  updateCustomerDialogFormik.errors.companyName
+                )}
+                helperText={
+                  updateCustomerDialogFormik.touched.companyName &&
+                  updateCustomerDialogFormik.errors.companyName
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}
+              />
+            </Grid>
+            {updateCustomerDialogFormik.values.type === 'COMPANY' ? (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    name="companyBranchCode"
+                    label={t('customerManagement.column.company.branchCode')}
+                    value={updateCustomerDialogFormik.values.companyBranchCode}
+                    onChange={updateCustomerDialogFormik.handleChange}
+                    onBlur={updateCustomerDialogFormik.handleBlur}
+                    error={Boolean(
+                      updateCustomerDialogFormik.touched.companyBranchCode &&
+                      updateCustomerDialogFormik.errors.companyBranchCode
+                    )}
+                    helperText={
+                      updateCustomerDialogFormik.touched.companyBranchCode &&
+                      updateCustomerDialogFormik.errors.companyBranchCode
+                    }
+                    InputLabelProps={{ shrink: true }}
+                    sx={fieldSx}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    name="companyBranchName"
+                    label={t('customerManagement.column.company.branchName')}
+                    value={updateCustomerDialogFormik.values.companyBranchName}
+                    onChange={updateCustomerDialogFormik.handleChange}
+                    onBlur={updateCustomerDialogFormik.handleBlur}
+                    error={Boolean(
+                      updateCustomerDialogFormik.touched.companyBranchName &&
+                      updateCustomerDialogFormik.errors.companyBranchName
+                    )}
+                    helperText={
+                      updateCustomerDialogFormik.touched.companyBranchName &&
+                      updateCustomerDialogFormik.errors.companyBranchName
+                    }
+                    InputLabelProps={{ shrink: true }}
+                    sx={fieldSx}
+                  />
+                </Grid>
+              </>
+            ) : null}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                name="creditTerm"
+                label={t('customerManagement.column.creditTerm')}
+                value={updateCustomerDialogFormik.values.creditTerm}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                error={Boolean(
+                  updateCustomerDialogFormik.touched.creditTerm &&
+                  updateCustomerDialogFormik.errors.creditTerm
+                )}
+                helperText={
+                  updateCustomerDialogFormik.touched.creditTerm &&
+                  updateCustomerDialogFormik.errors.creditTerm
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                {customerCreditTermList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                name="paymentTerm"
+                label={t('customerManagement.column.paymentTerm')}
+                value={updateCustomerDialogFormik.values.paymentTerm}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                error={Boolean(
+                  updateCustomerDialogFormik.touched.paymentTerm &&
+                  updateCustomerDialogFormik.errors.paymentTerm
+                )}
+                helperText={
+                  updateCustomerDialogFormik.touched.paymentTerm &&
+                  updateCustomerDialogFormik.errors.paymentTerm
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                {customerPaymentTermList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                name="billingCondition"
+                label={t('customerManagement.column.billingCondition')}
+                value={updateCustomerDialogFormik.values.billingCondition}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerBillingConditionList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                name="paymentCycle"
+                label={t('customerManagement.column.paymentCycle')}
+                value={updateCustomerDialogFormik.values.paymentCycle}
+                onChange={updateCustomerDialogFormik.handleChange}
+                onBlur={updateCustomerDialogFormik.handleBlur}
+                InputLabelProps={{ shrink: true }}
+                sx={fieldSx}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {customerPaymentCycleList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {getSystemConfigLabel(option)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setIsUpdateCustomerDialogOpen(false);
+              updateCustomerDialogFormik.resetForm();
+            }}>
+            {t('button.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => updateCustomerDialogFormik.handleSubmit()}
+            disabled={updateCustomerDialogFormik.isSubmitting}>
+            {t('button.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <CollapsibleWrapper title="รายการสินค้า" isCompleted={isItemSectionCompleted} defaultExpanded>
         <Paper
@@ -2445,6 +2936,23 @@ export default function SalesOrderRFQ(): JSX.Element {
           </Button>
         </DialogActions>
       </Dialog>
+      <SearchFreelanceSalesDialog
+        open={openSearchFreelanceSalesDialog}
+        onClose={() => setOpenSearchFreelanceSalesDialog(false)}
+        onAddNew={() => {
+          setOpenSearchFreelanceSalesDialog(false);
+          handleOpenCreateFreelanceSaleDialog();
+        }}
+        salesId={formik.values.salesId || ''}
+        initialFreelanceSale={selectedFreelanceSale}
+        onSelect={({ freelanceSale }) => {
+          formik.setFieldValue('coSaleId', freelanceSale.id || '');
+          setCoSaleMode(CO_SALE_MODE_FREELANCE);
+          setSelectedFreelanceSaleItem(freelanceSale);
+          setSelectedFreelanceSaleLabel(`${freelanceSale.id} - ${freelanceSale.name}`);
+          setOpenSearchFreelanceSalesDialog(false);
+        }}
+      />
       <Dialog
         open={openCreateFreelanceSaleDialog}
         onClose={() => setOpenCreateFreelanceSaleDialog(false)}

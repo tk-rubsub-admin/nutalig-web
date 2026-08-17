@@ -27,7 +27,8 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
-import { createInvoice } from 'services/Invoice/invoice-api';
+import { createInvoice, getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
+import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
@@ -45,6 +46,8 @@ interface InvoiceCreateDraft {
   discount: number;
   isVat: boolean;
 }
+
+const COUNTED_INVOICE_STATUSES = ['ISSUED', 'AWAITING_VALIDATION', 'PARTIALLY_PAID', 'PAID'];
 
 function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 30): number {
   const parsedDays = Number(config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays);
@@ -228,6 +231,14 @@ export default function NewInvoice(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+  const { data: relatedInvoices = [], isFetching: isInvoicesFetching } = useQuery(
+    ['invoice-create-related-invoices', salesOrder?.salesOrderNo],
+    () => getInvoicesBySalesOrderId(salesOrder?.salesOrderNo || ''),
+    {
+      enabled: Boolean(salesOrder?.salesOrderNo),
+      refetchOnWindowFocus: false
+    }
+  );
   const { data: invoiceExpireDayConfig = [] } = useQuery(
     ['invoice-expire-day', GROUP_CODE.INVOICE_EXPIRE_DAY],
     () => getSystemConfig(GROUP_CODE.INVOICE_EXPIRE_DAY),
@@ -241,12 +252,28 @@ export default function NewInvoice(): ReactElement {
     setDraft(createDraft(salesOrder, invoiceExpireDays));
   }, [salesOrder, invoiceExpireDays]);
 
+  const openedInvoiceAmount = useMemo(() => {
+    return relatedInvoices.reduce((sum, invoice: InvoiceRecord) => {
+      if (!COUNTED_INVOICE_STATUSES.includes(invoice.status)) {
+        return sum;
+      }
+
+      return sum + Number(invoice.amount || 0);
+    }, 0);
+  }, [relatedInvoices]);
+
+  const availableInvoiceBaseAmount = useMemo(() => {
+    const subTotal = Number(draft.subTotal || 0);
+    const discount = Number(draft.discount || 0);
+    return Math.max(subTotal - discount - openedInvoiceAmount, 0);
+  }, [draft.discount, draft.subTotal, openedInvoiceAmount]);
+
   const summary = useMemo(() => {
     const paymentTerm = salesOrder?.customer?.customerPaymentTerm?.code;
 
     const subTotal = Number(draft.subTotal || 0);
     const discount = Number(draft.discount || 0);
-    const remainingAmount = Math.max(subTotal - discount, 0);
+    const remainingAmount = Math.max(subTotal - discount - openedInvoiceAmount, 0);
     let depositAmount = 0;
     if (paymentTerm === 'DEP50') {
       depositAmount = (remainingAmount * 50) / 100;
@@ -260,15 +287,21 @@ export default function NewInvoice(): ReactElement {
     return {
       subTotal,
       discount,
+      openedInvoiceAmount,
       remainingAmount,
       depositAmount,
       vat,
       grandTotal: depositAmount + vat
     };
-  }, [draft.discount, draft.isVat, draft.subTotal]);
+  }, [draft.discount, draft.isVat, draft.subTotal, openedInvoiceAmount, salesOrder?.customer?.customerPaymentTerm?.code]);
 
   const handleSubmit = async () => {
     if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    if (availableInvoiceBaseAmount <= 0) {
+      toast.error('ยอดคงเหลือสำหรับออกใบแจ้งหนี้เป็น 0 แล้ว');
       return;
     }
 
@@ -320,7 +353,7 @@ export default function NewInvoice(): ReactElement {
             className="btn-emerald-green"
             startIcon={<ReceiptLong />}
             onClick={() => setIsConfirmOpen(true)}
-            disabled={!salesOrder || isSaving}>
+            disabled={!salesOrder || isSaving || isInvoicesFetching || availableInvoiceBaseAmount <= 0}>
             {t('documentManagement.invoice.createInvoiceButton')}
           </Button>
           <Button
@@ -345,6 +378,11 @@ export default function NewInvoice(): ReactElement {
               <Info
                 label={t('documentManagement.invoice.referenceSalesOrder')}
                 value={salesOrder?.salesOrderNo}
+              />
+              <Info label="ยอดที่เปิดใบแจ้งหนี้ไปแล้ว" value={formatNumber(summary.openedInvoiceAmount)} />
+              <Info
+                label="ยอดคงเหลือที่ออกใบแจ้งหนี้ได้"
+                value={formatNumber(availableInvoiceBaseAmount)}
               />
               <TextField
                 type="date"
@@ -534,7 +572,11 @@ export default function NewInvoice(): ReactElement {
                 }
               />
               <Summary
-                label={t('documentManagement.invoice.summarySection.remainingAmount')}
+                label="ยอดที่เปิดใบแจ้งหนี้ไปแล้ว"
+                value={summary.openedInvoiceAmount}
+              />
+              <Summary
+                label="ยอดคงเหลือที่ออกใบแจ้งหนี้ได้"
                 value={summary.remainingAmount}
               />
               <Summary

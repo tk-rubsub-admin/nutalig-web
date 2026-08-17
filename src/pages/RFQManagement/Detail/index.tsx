@@ -139,8 +139,8 @@ import {
 import { base64ToBlob } from 'utils';
 import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
-import CreateRFQCustomerDialog from './CreateRFQCustomerDialog';
-import { RequestedInformationDialog } from './RequestedInformationDialog';
+import CreateRFQCustomerDialog from 'dialogs/RFQManagement/Detail/CreateRFQCustomerDialog';
+import { RequestedInformationDialog } from 'dialogs/RFQManagement/Detail/RequestedInformationDialog';
 import config from 'config';
 
 const MAX_RFQ_PICTURES = 12;

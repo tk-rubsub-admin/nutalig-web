@@ -120,6 +120,7 @@ export interface SalesOrderV1 {
     vatRate: number;
     remark: string | null;
     revNo: number;
+    shipping: string;
     attachments: SalesOrderAttachment[];
     items: SalesOrderDetailV1[];
 }

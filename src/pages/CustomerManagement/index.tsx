@@ -51,7 +51,7 @@ import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { deleteCustomer, searchCustomer } from 'services/Customer/customer-api';
 import { Customer, SearchCustomerRequest } from 'services/Customer/customer-type';
 import { getSales } from 'services/Sales/sales-api';
-import UploadDialog from './UploadDialog';
+import UploadDialog from 'dialogs/CustomerManagement/UploadDialog';
 import { formatNumber } from 'utils/utils';
 
 export default function CustomerManagement(): JSX.Element {

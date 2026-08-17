@@ -44,7 +44,7 @@ import { Role } from 'services/User/user-type';
 import { isMobileOnly } from 'react-device-detect';
 import { statusList } from 'utils/constant';
 import PhoneCallBox from 'components/PhoneCallBox';
-import UploadStaffDialog from './Dialog/UploadStaffDialog';
+import UploadStaffDialog from 'dialogs/StaffManagement/Dialog/UploadStaffDialog';
 import toast from 'react-hot-toast';
 
 export default function StaffManagement(): JSX.Element {

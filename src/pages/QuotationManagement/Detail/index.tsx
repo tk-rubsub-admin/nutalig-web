@@ -5,6 +5,7 @@ import {
     Button,
     Chip,
     Checkbox,
+    FormControlLabel,
     Dialog,
     DialogActions,
     DialogContent,
@@ -56,7 +57,7 @@ import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
-import { formatNumber } from 'utils/utils';
+import { formatNumber, formatNumberWithDigit } from 'utils/utils';
 import { buildQuotationDocumentFlowItems } from 'utils/documentFlow';
 
 const getEmployeeName = (quotation?: Quotation) => {
@@ -275,9 +276,9 @@ export default function QuotationDetail(): JSX.Element {
     const [tab, setTab] = useState<'detail' | 'history'>('detail');
     const [isEditing, setIsEditing] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [confirmUpdateOpen, setConfirmUpdateOpen] = useState(false);
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
+    const [draftIsVat, setDraftIsVat] = useState(false);
     const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [visibleConfirmPriceDialog, setVisibleConfirmPriceDialog] = useState(false);
     const [selectedConfirmQuotationRowKeys, setSelectedConfirmQuotationRowKeys] = useState<string[]>([]);
@@ -422,6 +423,7 @@ export default function QuotationDetail(): JSX.Element {
 
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
+        setDraftIsVat(Number(quotation.vatRate || 0) > 0);
         setIsEditing(false);
     }, [quotation]);
 
@@ -432,6 +434,7 @@ export default function QuotationDetail(): JSX.Element {
 
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
+        setDraftIsVat(Number(quotation.vatRate || 0) > 0);
         setIsEditing(true);
     };
 
@@ -439,8 +442,8 @@ export default function QuotationDetail(): JSX.Element {
         handleCloseActionMenu();
         setDraftRemark(quotation?.remark || '');
         setDraftItems(quotation?.items || []);
+        setDraftIsVat(Number(quotation?.vatRate || 0) > 0);
         setIsEditing(false);
-        setConfirmUpdateOpen(false);
     };
 
     const handleOpenActionMenu = (event: ReactMouseEvent<HTMLElement>) => {
@@ -515,20 +518,20 @@ export default function QuotationDetail(): JSX.Element {
     const handleOpenConfirmPriceDialog = () => {
         handleCloseActionMenu();
 
-        // if (salesOrder?.salesOrderNo) {
-        //     history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
-        //     return;
-        // }
+        if (salesOrder?.salesOrderNo) {
+            history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
+            return;
+        }
 
-        // if (!quotation?.rfqId) {
-        //     toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
-        //     return;
-        // }
+        if (!quotation?.rfqId) {
+            toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
+            return;
+        }
 
-        // if (!confirmQuotationRows.length) {
-        //     toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
-        //     return;
-        // }
+        if (!confirmQuotationRows.length) {
+            toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
+            return;
+        }
 
         setSelectedConfirmQuotationRowKeys([]);
         setVisibleConfirmPriceDialog(true);
@@ -596,14 +599,14 @@ export default function QuotationDetail(): JSX.Element {
             return;
         }
 
-        setConfirmUpdateOpen(false);
         setIsUpdating(true);
 
         try {
             await toast.promise(
                 updateQuotation(quotationNo, {
                     remark: draftRemark,
-                    items: draftItems
+                    items: draftItems,
+                    isVat: draftIsVat
                 }),
                 {
                     loading: t('toast.loading'),
@@ -677,65 +680,39 @@ export default function QuotationDetail(): JSX.Element {
                             }
                         }}
                         keepMounted>
-                        {isEditing ? (
-                            <>
+                        <>
+                            <MenuItem
+                                onClick={viewQuotationFunction}
+                                disabled={!quotation || quotation.status === 'CANCELLED'}
+                                sx={{ width: '100%' }}>
+                                <ListItemIcon>
+                                    <Description fontSize="small" />
+                                </ListItemIcon>
+                                <ListItemText primary={t('documentManagement.quotation.viewQuotation')} />
+                            </MenuItem>
+                            {canConfirmPriceAction ? (
                                 <MenuItem
-                                    onClick={() => {
-                                        handleCloseActionMenu();
-                                        setConfirmUpdateOpen(true);
-                                    }}
-                                    disabled={isUpdating}
+                                    onClick={handleOpenConfirmPriceDialog}
+                                    disabled={!quotation || quotation.status === 'CANCELLED'}
                                     sx={{ width: '100%' }}>
                                     <ListItemIcon>
                                         <Save fontSize="small" />
                                     </ListItemIcon>
-                                    <ListItemText primary={t('button.save')} />
+                                    <ListItemText primary="คอนเฟิร์มราคา" />
                                 </MenuItem>
+                            ) : null}
+                            <Can permission={PERMISSIONS.QUOTATION_EDIT}>
                                 <MenuItem
-                                    onClick={handleCancelEditQuotation}
-                                    disabled={isUpdating}
-                                    sx={{ width: '100%' }}>
-                                    <ListItemIcon>
-                                        <Cancel fontSize="small" />
-                                    </ListItemIcon>
-                                    <ListItemText primary={t('button.cancel')} />
-                                </MenuItem>
-                            </>
-                        ) : (
-                            <>
-                                <MenuItem
-                                    onClick={viewQuotationFunction}
+                                    onClick={handleSelectEditQuotation}
                                     disabled={!quotation || quotation.status === 'CANCELLED'}
                                     sx={{ width: '100%' }}>
                                     <ListItemIcon>
-                                        <Description fontSize="small" />
+                                        <IoPencil />
                                     </ListItemIcon>
-                                    <ListItemText primary={t('documentManagement.quotation.viewQuotation')} />
+                                    <ListItemText primary={t('documentManagement.quotation.editQuotation')} />
                                 </MenuItem>
-                                {canConfirmPriceAction ? (
-                                    <MenuItem
-                                        onClick={handleOpenConfirmPriceDialog}
-                                        disabled={!quotation || quotation.status === 'CANCELLED'}
-                                        sx={{ width: '100%' }}>
-                                        <ListItemIcon>
-                                            <Save fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText primary="คอนเฟิร์มราคา" />
-                                    </MenuItem>
-                                ) : null}
-                                <Can permission={PERMISSIONS.QUOTATION_EDIT}>
-                                    <MenuItem
-                                        onClick={handleSelectEditQuotation}
-                                        disabled={!quotation || quotation.status === 'CANCELLED'}
-                                        sx={{ width: '100%' }}>
-                                        <ListItemIcon>
-                                            <IoPencil />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t('documentManagement.quotation.editQuotation')} />
-                                    </MenuItem>
-                                </Can>
-                            </>
-                        )}
+                            </Can>
+                        </>
                     </Menu>
                     <Button
                         fullWidth={isDownSm}
@@ -773,6 +750,39 @@ export default function QuotationDetail(): JSX.Element {
                     </Tabs>
                 </Box>
 
+                {isEditing ? (
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1}
+                        useFlexGap
+                        sx={{
+                            justifyContent: 'flex-end',
+                            alignItems: { xs: 'stretch', sm: 'center' },
+                            mt: 2
+                        }}>
+                        <Button
+                            fullWidth={isDownSm}
+                            variant="contained"
+                            className="btn-cool-grey"
+                            startIcon={<Cancel />}
+                            onClick={handleCancelEditQuotation}
+                            disabled={isUpdating}>
+                            {t('button.cancel')}
+                        </Button>
+                        <Button
+                            fullWidth={isDownSm}
+                            variant="contained"
+                            className="btn-emerald-green"
+                            startIcon={<Save />}
+                            onClick={() => {
+                                void handleSaveQuotation();
+                            }}
+                            disabled={isUpdating}>
+                            {t('button.save')}
+                        </Button>
+                    </Stack>
+                ) : null}
+
                 <TabPanel value="detail" currentTab={tab}>
                     <>
                         <Grid container spacing={2}>
@@ -788,6 +798,30 @@ export default function QuotationDetail(): JSX.Element {
                                     />
                                     <Info label={"Revision "} value={quotation?.revNo ?? '-'} />
                                     <Info label="อ้างอิง RFQ " value={quotation?.rfqId} />
+                                    {isEditing ? (
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    checked={draftIsVat}
+                                                    onChange={(event) => setDraftIsVat(event.target.checked)}
+                                                />
+                                            }
+                                            label={draftIsVat ? 'มี VAT 7%' : 'ไม่มี VAT'}
+                                            sx={{
+                                                m: 0,
+                                                '& .MuiFormControlLabel-label': {
+                                                    fontSize: 15,
+                                                    fontWeight: 700,
+                                                    color: '#475569'
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <Info
+                                            label="ภาษีมูลค่าเพิ่ม"
+                                            value={Number(quotation?.vatRate || 0) > 0 ? 'มี VAT 7%' : 'ไม่มี VAT'}
+                                        />
+                                    )}
                                 </Stack>
                             </Grid>
                             <Grid item xs={12} md={4}>
@@ -1026,7 +1060,7 @@ export default function QuotationDetail(): JSX.Element {
                                                                     onChange={(event) => updateDraftItem(index, 'unitPrice', event.target.value)}
                                                                 />
                                                             ) : (
-                                                                formatNumber(item.unitPrice || 0)
+                                                                formatNumberWithDigit(item.unitPrice || 0, 4)
                                                             )}
                                                         </TableCell>
                                                         <TableCell align="right" className={classes.fitContentCell}>
@@ -1080,19 +1114,6 @@ export default function QuotationDetail(): JSX.Element {
                 </TabPanel>
             </Wrapper>
 
-            <ConfirmDialog
-                open={confirmUpdateOpen}
-                title={t('documentManagement.quotation.confirmUpdateTitle')}
-                message={t('documentManagement.quotation.confirmUpdateMsg')}
-                confirmText={t('button.confirm')}
-                cancelText={t('button.cancel')}
-                isShowCancelButton={true}
-                isShowConfirmButton={true}
-                onConfirm={() => {
-                    void handleSaveQuotation();
-                }}
-                onCancel={() => setConfirmUpdateOpen(false)}
-            />
             <Dialog
                 open={visibleConfirmPriceDialog}
                 onClose={() => setVisibleConfirmPriceDialog(false)}

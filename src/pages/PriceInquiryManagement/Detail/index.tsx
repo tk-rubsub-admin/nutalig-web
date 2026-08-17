@@ -136,15 +136,15 @@ import {
   SupplierCapabilityMaterial,
   SupplierContact
 } from 'services/Supplier/supplier-type';
-import { FinalPriceQuoteDialog } from './FinalPriceQuoteDialog';
-import { RequestInformationDialog } from './RequestInformationDialog';
+import { FinalPriceQuoteDialog } from 'dialogs/PriceInquiryManagement/Detail/FinalPriceQuoteDialog';
+import { RequestInformationDialog } from 'dialogs/PriceInquiryManagement/Detail/RequestInformationDialog';
 import { SupplierQuoteSection } from './SupplierQuoteSection';
-import { SupplierQuoteDialog } from './SupplierQuoteDialog';
-import { GeneratedInquiryMessageDialog } from './GeneratedInquiryMessageDialog';
-import { GeneratedFinalInquiryDialog } from './GeneratedFinalInquiryDialog';
-import { AddSupplierDialog } from './AddSupplierDialog';
-import { ExtractSupplierQuoteDialog } from './ExtractSupplierQuoteDialog';
-import { NewSupplierDialog } from './NewSupplierDialog';
+import { SupplierQuoteDialog } from 'dialogs/PriceInquiryManagement/Detail/SupplierQuoteDialog';
+import { GeneratedInquiryMessageDialog } from 'dialogs/PriceInquiryManagement/Detail/GeneratedInquiryMessageDialog';
+import { GeneratedFinalInquiryDialog } from 'dialogs/PriceInquiryManagement/Detail/GeneratedFinalInquiryDialog';
+import { AddSupplierDialog } from 'dialogs/PriceInquiryManagement/Detail/AddSupplierDialog';
+import { ExtractSupplierQuoteDialog } from 'dialogs/PriceInquiryManagement/Detail/ExtractSupplierQuoteDialog';
+import { NewSupplierDialog } from 'dialogs/PriceInquiryManagement/Detail/NewSupplierDialog';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
 

@@ -84,6 +84,7 @@ export interface QuotationItem {
 export interface UpdateQuotationRequest {
     remark: string;
     items: QuotationItem[];
+    isVat?: boolean;
 }
 
 export interface SearchQuotationRequest {

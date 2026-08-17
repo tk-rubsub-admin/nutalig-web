@@ -86,7 +86,7 @@ import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
-import { formatNumber } from 'utils/utils';
+import { formatNumber, formatNumberWithDigit } from 'utils/utils';
 import { buildSalesOrderDocumentFlowItems } from 'utils/documentFlow';
 
 interface SalesOrderDetailParams {
@@ -98,6 +98,7 @@ interface SalesOrderDraft {
   expireDate: string;
   coSaleId: string;
   shippingType: string;
+  shipping: string;
   subTotal: number;
   discount: number;
   freight: number;
@@ -207,6 +208,7 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     expireDate: toDateInput(salesOrder?.expireDate),
     coSaleId: salesOrder?.coSaleId || '',
     shippingType: salesOrder?.shippingType || '',
+    shipping: salesOrder?.shipping || '',
     subTotal: Number(salesOrder?.subTotal || 0),
     discount: Number(salesOrder?.discount || 0),
     freight: Number(salesOrder?.freight || 0),
@@ -384,9 +386,7 @@ export default function SalesOrderDetail(): ReactElement {
     }, 0);
 
     return { subTotal };
-  }, [
-    displayItems
-  ]);
+  }, [displayItems]);
   const editableSubTotal = Number(isEditing ? draft.subTotal : summary.subTotal || 0);
   const editableDiscount = Number(isEditing ? draft.discount : salesOrder?.discount || 0);
   const editableFreight = Number(isEditing ? draft.freight : salesOrder?.freight || 0);
@@ -997,6 +997,26 @@ export default function SalesOrderDetail(): ReactElement {
                   )}
                 </Stack>
               </Grid>
+              <Grid item xs={12}>
+                <Stack spacing={1.25} className={classes.section}>
+                  <Typography variant="h6">การขนส่ง</Typography>
+                  {isEditing ? (
+                    <TextField
+                      multiline
+                      minRows={2}
+                      fullWidth
+                      value={draft.shipping}
+                      onChange={(event) => updateDraftField('shipping', event.target.value)}
+                    />
+                  ) : (
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {salesOrder?.shipping || '-'}
+                    </Typography>
+                  )}
+                </Stack>
+              </Grid>
             </Grid>
 
             <GridSearchSection container>
@@ -1067,7 +1087,10 @@ export default function SalesOrderDetail(): ReactElement {
                                   onChange={(event) => updateDraftItem(index, 'unitPrice', Number(event.target.value || 0))}
                                 />
                               ) : (
-                                <Info label="ราคาต่อหน่วย" value={formatNumber(item.unitPrice || 0)} />
+                                <Info
+                                  label="ราคาต่อหน่วย"
+                                  value={formatNumberWithDigit(item.unitPrice || 0, 4)}
+                                />
                               )}
                             </Grid>
                             <Grid item xs={6}>
@@ -1158,7 +1181,7 @@ export default function SalesOrderDetail(): ReactElement {
                               {isEditing ? (
                                 <TextField type="number" className={classes.itemTextField} value={item.unitPrice ?? 0} onChange={(event) => updateDraftItem(index, 'unitPrice', Number(event.target.value || 0))} />
                               ) : (
-                                formatNumber(item.unitPrice || 0)
+                                formatNumberWithDigit(item.unitPrice || 0, 4)
                               )}
                             </TableCell>
                             <TableCell align="right" className={classes.fitContentCell}>
@@ -1197,9 +1220,9 @@ export default function SalesOrderDetail(): ReactElement {
                       </Typography>
                       <TextField
                         type="number"
-                        value={draft.subTotal}
+                        value={draft.amount}
                         onChange={(event) =>
-                          updateDraftField('subTotal', Number(event.target.value || 0))
+                          updateDraftField('amount', Number(event.target.value || 0))
                         }
                         sx={{
                           width: { xs: '100%', sm: 180 },
@@ -1210,7 +1233,7 @@ export default function SalesOrderDetail(): ReactElement {
                       />
                     </Stack>
                   ) : (
-                    <Summary label="ค่าสินค้า" value={summary.subTotal} />
+                    <Summary label="ค่าสินค้า" value={salesOrder?.amount} />
                   )}
                   {isEditing ? (
                     <Stack
@@ -1367,10 +1390,10 @@ export default function SalesOrderDetail(): ReactElement {
                       />
                     </Stack>
                   ) : (
-                  <Summary
-                    label={t('documentManagement.quotation.summarySection.discount')}
-                    value={editableDiscount}
-                  />
+                    <Summary
+                      label={t('documentManagement.quotation.summarySection.discount')}
+                      value={editableDiscount}
+                    />
                   )}
                   <Summary
                     label={t('documentManagement.quotation.summarySection.vat')}

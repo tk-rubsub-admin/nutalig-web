@@ -2,7 +2,7 @@
 import { IconButton, Tooltip } from '@mui/material';
 import HelpOutline from '@mui/icons-material/HelpOutline';
 import { useState } from 'react';
-import ManualDetailDialog from './ManualDetailDialog';
+import ManualDetailDialog from 'dialogs/Manual/ManualDetailDialog';
 import { useTranslation } from 'react-i18next';
 
 interface ManualHelpButtonProps {

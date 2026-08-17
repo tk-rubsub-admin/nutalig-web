@@ -43,7 +43,7 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from "utils/documentS
 import { formatNumber } from "utils/utils";
 import { getSales } from "services/Sales/sales-api";
 import { SalesRecord } from "services/Sales/sales-type";
-import ViewQuotationDialog from "./ViewQuotationDialog";
+import ViewQuotationDialog from "dialogs/QuotationManagement/ViewQuotationDialog";
 
 function getDefaultDocDateRange() {
     const now = dayjs();

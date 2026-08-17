@@ -8,7 +8,7 @@ import {
   Save
 } from '@mui/icons-material';
 import { Avatar, Button, Chip, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import AddNewAdminDialog from 'pages/AdminManagement/AddNewAdminDialog';
+import AddNewAdminDialog from 'dialogs/AdminManagement/AddNewAdminDialog';
 import ConfirmDialog from 'components/ConfirmDialog';
 import PageTitle from 'components/PageTitle';
 import LoadingDialog from 'components/LoadingDialog';

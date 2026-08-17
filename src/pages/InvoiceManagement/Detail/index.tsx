@@ -45,7 +45,7 @@ import {
   useMemo,
   useState
 } from 'react';
-import ReceivePaymentDialog from './ReceivePaymentDialog';
+import ReceivePaymentDialog from 'dialogs/InvoiceManagement/Detail/ReceivePaymentDialog';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { IoPencil } from 'react-icons/io5';

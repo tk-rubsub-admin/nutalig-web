@@ -111,7 +111,7 @@ const buildRFQSearchPayload = (
     payload.isAccept = options.isAccept;
   }
 
-  if (!options?.status && options?.statuses?.length) {
+  if (options?.statuses?.length) {
     payload.statuses = options.statuses;
   }
 

@@ -17,7 +17,8 @@ import {
   TextField,
   Typography,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Checkbox
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useAuth } from 'auth/AuthContext';
@@ -312,6 +313,7 @@ function createDefaultFilter(salesId = '') {
     productSubtype1: '',
     productMaterial: '',
     status: '',
+    statuses: [] as string[],
     isAccept: '',
     keyword: '',
     requestedDateStart: dayjs().startOf('month').format('YYYY-MM-DD'),
@@ -345,6 +347,7 @@ function createFilterFromRequestParams(search: string, salesId = ''): RFQManagem
     'productSubtype1',
     'productMaterial',
     'status',
+    'statuses',
     'isAccept',
     'keyword',
     'requestedDateStart',
@@ -352,6 +355,14 @@ function createFilterFromRequestParams(search: string, salesId = ''): RFQManagem
   ];
 
   filterKeys.forEach((key) => {
+    if (key === 'statuses') {
+      const values = params.getAll('statuses');
+      if (values.length) {
+        defaultFilter.statuses = values;
+      }
+      return;
+    }
+
     const value = params.get(key);
     if (value !== null) {
       defaultFilter[key] = value;
@@ -483,7 +494,7 @@ export default function RFQManagement(): ReactElement {
       filter.productFamily,
       filter.productSubtype1,
       filter.productMaterial,
-      filter.status,
+      ...(filter.statuses || []),
       filter.isAccept,
       filter.keyword,
       filter.requestedDateStart,
@@ -502,7 +513,7 @@ export default function RFQManagement(): ReactElement {
         productFamily: filter.productFamily,
         productSubtype1: filter.productSubtype1,
         productMaterial: filter.productMaterial,
-        status: filter.status || undefined,
+        statuses: filter.statuses?.length ? filter.statuses : undefined,
         isAccept: parseBooleanFilter(filter.isAccept),
         keyword: filter.keyword,
         requestedDateStart: filter.requestedDateStart,
@@ -609,7 +620,10 @@ export default function RFQManagement(): ReactElement {
         productMaterial: canShowField('productMaterial')
           ? values.productMaterial?.trim() || ''
           : '',
-        status: canShowField('status') ? values.status?.trim() || '' : '',
+        status: '',
+        statuses: canShowField('status') && Array.isArray(values.statuses)
+          ? values.statuses.filter(Boolean)
+          : [],
         isAccept: filter.isAccept,
         keyword: values.keyword?.trim() || '',
         requestedDateStart: canShowField('requestedDateStart')
@@ -703,7 +717,7 @@ export default function RFQManagement(): ReactElement {
       productFamily: filter.productFamily,
       productSubtype1: filter.productSubtype1,
       productMaterial: filter.productMaterial,
-      status: filter.status || undefined,
+      statuses: filter.statuses?.length ? filter.statuses : undefined,
       isAccept: parseBooleanFilter(filter.isAccept),
       keyword: filter.keyword,
       requestedDateStart: filter.requestedDateStart,
@@ -1126,14 +1140,23 @@ export default function RFQManagement(): ReactElement {
                 <TextField
                   fullWidth
                   select
+                  SelectProps={{
+                    multiple: true,
+                    renderValue: (selected) =>
+                      Array.isArray(selected) && selected.length
+                        ? selected
+                            .map((status) => t(`rfqManagement.rfqsStatus.${status}`))
+                            .join(', ')
+                        : 'ทั้งหมด'
+                  }}
                   label="สถานะ"
-                  name="status"
-                  value={searchFormik.values.status}
+                  name="statuses"
+                  value={searchFormik.values.statuses}
                   onChange={searchFormik.handleChange}
                   InputLabelProps={{ shrink: true }}>
-                  <MenuItem value="">ทั้งหมด</MenuItem>
                   {RFQ_STATUS_OPTIONS.map((status) => (
                     <MenuItem key={status} value={status}>
+                      <Checkbox checked={searchFormik.values.statuses.includes(status)} />
                       {t(`rfqManagement.rfqsStatus.${status}`)}
                     </MenuItem>
                   ))}

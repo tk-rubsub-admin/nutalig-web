@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Checkbox,
   Grid,
   MenuItem,
   Stack,
@@ -35,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { Link as RouterLink, useHistory, useLocation } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import config from 'config';
 import { searchCustomerByKeyword } from 'services/Customer/customer-api';
 import { Customer } from 'services/Customer/customer-type';
 import { getSystemConfig } from 'services/Config/config-api';
@@ -125,6 +127,18 @@ function getCustomerTierColor(code?: string | null): { backgroundColor: string; 
   }
 }
 
+function getDefaultRequestedDateStart(): string {
+  const lastMonthStart = dayjs().subtract(1, 'month').startOf('month');
+  console.log(dayjs(lastMonthStart).format('YYYY-MM-DD'));
+  const systemStartDate = config.systemStartDate ? dayjs(config.systemStartDate) : null;
+  console.log(dayjs(systemStartDate));
+  if (systemStartDate?.isValid() && lastMonthStart.isBefore(systemStartDate, 'day')) {
+    return systemStartDate.startOf('day').format('YYYY-MM-DD');
+  }
+
+  return lastMonthStart.format('YYYY-MM-DD');
+}
+
 function createDefaultFilter(salesId = '', procurementId = '') {
   return {
     id: '',
@@ -133,12 +147,13 @@ function createDefaultFilter(salesId = '', procurementId = '') {
     procurementId,
     rfqTypeCode: '',
     status: '',
+    statuses: [] as string[],
     orderTypeCode: '',
     productFamily: '',
     productSubtype1: '',
     productMaterial: '',
     keyword: '',
-    requestedDateStart: dayjs().startOf('month').format('YYYY-MM-DD'),
+    requestedDateStart: getDefaultRequestedDateStart(),
     requestedDateEnd: dayjs().endOf('month').format('YYYY-MM-DD')
   };
 }
@@ -160,6 +175,7 @@ function createFilterFromRequestParams(
     'procurementId',
     'rfqTypeCode',
     'status',
+    'statuses',
     'orderTypeCode',
     'productFamily',
     'productSubtype1',
@@ -170,6 +186,14 @@ function createFilterFromRequestParams(
   ];
 
   filterKeys.forEach((key) => {
+    if (key === 'statuses') {
+      const values = params.getAll('statuses');
+      if (values.length) {
+        defaultFilter.statuses = values;
+      }
+      return;
+    }
+
     const value = params.get(key);
     if (value !== null) {
       defaultFilter[key] = value;
@@ -470,7 +494,8 @@ export default function PriceInquiryManagement(): ReactElement {
         salesId: values.salesId?.trim() || '',
         procurementId: values.procurementId?.trim() || '',
         rfqTypeCode: values.rfqTypeCode?.trim() || '',
-        status: values.status?.trim() || '',
+        status: '',
+        statuses: Array.isArray(values.statuses) ? values.statuses.filter(Boolean) : [],
         orderTypeCode: values.orderTypeCode?.trim() || '',
         productFamily: values.productFamily?.trim() || '',
         productSubtype1: values.productSubtype1?.trim() || '',
@@ -505,7 +530,7 @@ export default function PriceInquiryManagement(): ReactElement {
       filter.salesId,
       filter.procurementId,
       filter.rfqTypeCode,
-      filter.status,
+      ...(filter.statuses || []),
       filter.orderTypeCode,
       filter.productFamily,
       filter.productSubtype1,
@@ -523,7 +548,6 @@ export default function PriceInquiryManagement(): ReactElement {
         salesId: filter.salesId,
         procurementId: filter.procurementId,
         rfqTypeCode: filter.rfqTypeCode,
-        status: filter.status,
         orderTypeCode: filter.orderTypeCode,
         productFamily: filter.productFamily,
         productSubtype1: filter.productSubtype1,
@@ -533,7 +557,9 @@ export default function PriceInquiryManagement(): ReactElement {
         requestedDateEnd: filter.requestedDateEnd,
         sortBy: 'slaDate',
         sortDirection: 'ASC',
-        statuses: ['NEW', 'IN_PROGRESS', 'SPECIAL_PRICE_REVIEW'],
+        statuses: filter.statuses?.length
+          ? filter.statuses
+          : ['NEW', 'IN_PROGRESS', 'SPECIAL_PRICE_REVIEW'],
         prioritizeApprovedUrgent: true
       }),
     {
@@ -1042,13 +1068,20 @@ export default function PriceInquiryManagement(): ReactElement {
                 fullWidth
                 select
                 label="สถานะ"
-                name="status"
-                value={searchFormik.values.status}
+                name="statuses"
+                value={searchFormik.values.statuses}
                 onChange={searchFormik.handleChange}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">ทั้งหมด</MenuItem>
+                InputLabelProps={{ shrink: true }}
+                SelectProps={{
+                  multiple: true,
+                  renderValue: (selected) =>
+                    Array.isArray(selected) && selected.length > 0
+                      ? selected.map((status) => t(`rfqManagement.rfqsStatus.${status}`, status)).join(', ')
+                      : 'ทั้งหมด'
+                }}>
                 {PRICE_INQUIRY_STATUS_OPTIONS.map((status) => (
                   <MenuItem key={status} value={status}>
+                    <Checkbox checked={searchFormik.values.statuses.includes(status)} />
                     {t(`rfqManagement.rfqsStatus.${status}`)}
                   </MenuItem>
                 ))}

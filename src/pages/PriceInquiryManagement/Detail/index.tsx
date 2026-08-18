@@ -5492,6 +5492,7 @@ export default function RFQDetail(): ReactElement {
                   onPackageChange={handleQuotePackageChange}
                   onDeletePackage={handleDeleteQuotePackage}
                   onTierChange={handleQuoteTierChange}
+                  onAddAdditionalCost={handleAddQuoteAdditionalCost}
                   onAdditionalCostChange={handleQuoteAdditionalCostChange}
                   onAddLeadTime={handleAddQuoteLeadTime}
                   onLeadTimeChange={handleQuoteLeadTimeChange}

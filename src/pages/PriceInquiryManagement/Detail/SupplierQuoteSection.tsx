@@ -117,6 +117,7 @@ interface SupplierQuoteSectionProps {
       | 'shippingCostCurrency',
     value: string
   ) => void;
+  onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
     field: 'description' | 'value' | 'unit',
@@ -164,6 +165,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     onPackageChange,
     onDeletePackage,
     onTierChange,
+    onAddAdditionalCost,
     onAdditionalCostChange,
     onAddLeadTime,
     onLeadTimeChange,
@@ -790,9 +792,26 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                       </Box>
 
                       <Box>
-                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-                          รายละเอียดเพิ่มเติม
-                        </Typography>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          justifyContent="space-between"
+                          alignItems={{ xs: 'stretch', sm: 'center' }}
+                          spacing={1}
+                          sx={{ mb: 1 }}>
+                          <Typography variant="subtitle2" fontWeight={700}>
+                            รายละเอียดเพิ่มเติม
+                          </Typography>
+                          {isEditing ? (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<Add />}
+                              sx={outlinedActionButtonSx}
+                              onClick={onAddAdditionalCost}>
+                              เพิ่มรายละเอียด
+                            </Button>
+                          ) : null}
+                        </Stack>
                         {(isEditing ? quoteDraftAdditionalCosts : quote.additionalCosts)?.length ? (
                           <Stack spacing={0.75}>
                             {(isEditing ? quoteDraftAdditionalCosts : quote.additionalCosts).map(

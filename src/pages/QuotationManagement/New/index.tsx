@@ -23,7 +23,7 @@ import * as Yup from 'yup';
 import dayjs from "dayjs";
 import CollapsibleWrapper from "components/CollapsibleWrapper";
 import DatePicker from "components/DatePicker";
-import { DEFAULT_DATE_FORMAT } from "utils";
+import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from "utils";
 import { CreateQuotationItem } from "services/Document/document-type";
 import ConfirmDialog from "components/ConfirmDialog";
 import { uploadFile } from "services/general-api";
@@ -113,6 +113,32 @@ const CO_SALE_MODE_NONE = 'NONE';
 const CO_SALE_MODE_FREELANCE = 'FREELANCE';
 const ADD_NEW_ADDRESS_VALUE = '__ADD_NEW_ADDRESS__';
 const ADD_NEW_CONTACT_VALUE = '__ADD_NEW_CONTACT__';
+
+const formatApiDate = (value?: dayjs.Dayjs | string | null): string | undefined => {
+    if (!value) {
+        return undefined;
+    }
+
+    if (dayjs.isDayjs(value)) {
+        return value.format(DEFAULT_DATE_FORMAT_BFF);
+    }
+
+    const parsed = parseDisplayDate(value);
+    return parsed ? parsed.format(DEFAULT_DATE_FORMAT_BFF) : undefined;
+};
+
+const parseDisplayDate = (value?: string | dayjs.Dayjs | null): dayjs.Dayjs | null => {
+    if (!value) {
+        return null;
+    }
+
+    if (dayjs.isDayjs(value)) {
+        return value;
+    }
+
+    const parsed = dayjs(value, DEFAULT_DATE_FORMAT, true);
+    return parsed.isValid() ? parsed : null;
+};
 
 const matchesFreelanceSaleCoverage = (saleCoverage?: string | null, salesId?: string | null): boolean => {
     const normalizedSaleCoverage = (saleCoverage || '').trim();
@@ -481,8 +507,8 @@ export default function NewQuotation() {
             customerId: '',
             customerAddressId: '',
             customerContactId: '',
-            docDate: today,
-            effectiveDate: quotationDefaultEffectiveDate,
+            docDate: today.format(DEFAULT_DATE_FORMAT),
+            effectiveDate: quotationDefaultEffectiveDate.format(DEFAULT_DATE_FORMAT),
             salesId: '',
             coSaleId: '',
             coSaleMode: CO_SALE_MODE_NONE,
@@ -513,8 +539,13 @@ export default function NewQuotation() {
         }),
         onSubmit: async (values) => {
             setIsLoading(true);
+            const payload = {
+                ...values,
+                docDate: formatApiDate(values.docDate) || '',
+                effectiveDate: formatApiDate(values.effectiveDate) || ''
+            };
             toast
-                .promise(createQuotation(values), {
+                .promise(createQuotation(payload), {
                     loading: t('toast.loading'),
                     success: (response) => {
                         const quotationNo = response?.data?.id;
@@ -590,8 +621,8 @@ export default function NewQuotation() {
             customerId: rfq.customer?.id || '',
             customerAddressId: defaultAddress?.id || '',
             customerContactId: defaultContact?.id || '',
-            docDate: today,
-            effectiveDate: quotationDefaultEffectiveDate,
+            docDate: today.format(DEFAULT_DATE_FORMAT),
+            effectiveDate: quotationDefaultEffectiveDate.format(DEFAULT_DATE_FORMAT),
             salesId,
             coSaleId: rfq.customer?.coSalesAccount || '',
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
@@ -656,7 +687,7 @@ export default function NewQuotation() {
         const targetEffectiveDate = today.add(quotationExpireDays, 'day');
 
         if (!currentEffectiveDate || currentEffectiveDate.isSame(fallbackEffectiveDate, 'day')) {
-            formik.setFieldValue('effectiveDate', targetEffectiveDate, false);
+            formik.setFieldValue('effectiveDate', targetEffectiveDate.format(DEFAULT_DATE_FORMAT), false);
         }
     }, [quotationExpireDays]);
 
@@ -992,23 +1023,21 @@ export default function NewQuotation() {
             >
                 <Grid container spacing={1}>
                     <GridTextField item xs={12} sm={2} style={{ paddingTop: '30px' }}>
-                        <DatePicker
-                            className={classes.datePickerFromTo}
-                            fullWidth
-                            inputVariant="outlined"
-                            InputLabelProps={{ shrink: true }}
-                            required
-                            label={t('documentManagement.quotation.docDate')}
-                            format={DEFAULT_DATE_FORMAT}
-                            value={
-                                formik.values.docDate
-                                    ? dayjs(formik.values.docDate).toDate()
-                                    : null
-                            }
-                            onChange={(date) => {
-                                if (!date) {
-                                    formik.setFieldValue('docDate', '');
-                                    return;
+                            <DatePicker
+                                className={classes.datePickerFromTo}
+                                fullWidth
+                                inputVariant="outlined"
+                                InputLabelProps={{ shrink: true }}
+                                required
+                                label={t('documentManagement.quotation.docDate')}
+                                format={DEFAULT_DATE_FORMAT}
+                                value={
+                                    parseDisplayDate(formik.values.docDate)?.toDate() || null
+                                }
+                                onChange={(date) => {
+                                    if (!date) {
+                                        formik.setFieldValue('docDate', '');
+                                        return;
                                 }
 
                                 const startDate = dayjs(date.toDate()).startOf('day');
@@ -1021,15 +1050,13 @@ export default function NewQuotation() {
                                 // ✅ ถ้า end < start → auto ปรับ end = start
                                 if (
                                     formik.values.effectiveDate &&
-                                    dayjs(formik.values.effectiveDate).isBefore(startDate)
+                                    parseDisplayDate(formik.values.effectiveDate)?.isBefore(startDate)
                                 ) {
                                     formik.setFieldValue(
-                                        'endDeliveryDate',
+                                        'effectiveDate',
                                         startDate.format(DEFAULT_DATE_FORMAT)
                                     );
                                 }
-
-                                formik.handleSubmit();
                             }}
                         />
                     </GridTextField>
@@ -1044,14 +1071,10 @@ export default function NewQuotation() {
                             label={t('documentManagement.quotation.expectiveDate')}
                             format={DEFAULT_DATE_FORMAT}
                             minDate={
-                                formik.values.docDate
-                                    ? dayjs(formik.values.docDate).toDate()
-                                    : undefined
+                                parseDisplayDate(formik.values.docDate)?.toDate()
                             }
                             value={
-                                formik.values.effectiveDate
-                                    ? dayjs(formik.values.effectiveDate).toDate()
-                                    : null
+                                parseDisplayDate(formik.values.effectiveDate)?.toDate() || null
                             }
                             onChange={(date) => {
                                 if (!date) {
@@ -1060,9 +1083,7 @@ export default function NewQuotation() {
                                 }
 
                                 const endDate = dayjs(date.toDate()).startOf('day');
-                                const startDate = formik.values.docDate
-                                    ? dayjs(formik.values.docDate)
-                                    : null;
+                                const startDate = parseDisplayDate(formik.values.docDate);
 
                                 // ❌ กันกรณีเลือกน้อยกว่า start
                                 if (startDate && endDate.isBefore(startDate)) {
@@ -1073,8 +1094,6 @@ export default function NewQuotation() {
                                     'effectiveDate',
                                     endDate.format(DEFAULT_DATE_FORMAT)
                                 );
-
-                                formik.handleSubmit();
                             }}
                         />
                     </GridTextField>

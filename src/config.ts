@@ -3,6 +3,7 @@ interface Config {
   isProductionEnvironment: boolean;
   tableRowsPerPageOptions: number[];
   rfqEnableRequestQuotation: boolean;
+  maxRfqPictures: number;
   systemStartDate: string;
   dpk: string;
   dkpApi: string;
@@ -26,6 +27,11 @@ function normalizeSystemStartDate(value?: string): string {
   return raw;
 }
 
+function normalizePositiveInteger(value?: string, fallback = 12): number {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 const systemStartDate = normalizeSystemStartDate(import.meta.env.REACT_APP_SYSTEM_START_DATE);
 
 const config: Config = {
@@ -33,6 +39,7 @@ const config: Config = {
   isProductionEnvironment: import.meta.env.REACT_APP_ENVIRONMENT === 'production',
   tableRowsPerPageOptions: [10, 20, 50, 100],
   rfqEnableRequestQuotation: String(import.meta.env.REACT_APP_RFQ_ENABLE_REQUEST_QUOTATION || '').toLowerCase() === 'true',
+  maxRfqPictures: normalizePositiveInteger(import.meta.env.REACT_APP_MAX_RFQ_PICTURES, 12),
   systemStartDate,
   dpk: import.meta.env.REACT_APP_NUTALIG_API || '',
   dkpApi: import.meta.env.REACT_APP_NUTALIG_API || '',

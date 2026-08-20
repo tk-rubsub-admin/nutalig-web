@@ -147,6 +147,7 @@ import { ExtractSupplierQuoteDialog } from 'dialogs/PriceInquiryManagement/Detai
 import { NewSupplierDialog } from 'dialogs/PriceInquiryManagement/Detail/NewSupplierDialog';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
+import config from 'config';
 
 interface RFQDetailParam {
   id: string;
@@ -4170,7 +4171,7 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    const remainingSlots = Math.max(0, 5 - pictureResources.length);
+    const remainingSlots = Math.max(0, config.maxRfqPictures - pictureResources.length);
     const filesToUpload = files.slice(0, remainingSlots);
 
     if (!filesToUpload.length) {
@@ -5127,7 +5128,7 @@ export default function RFQDetail(): ReactElement {
                       inputId="rfq-detail-pictures"
                       isDisabled={!canEditPictures || isPictureSubmitting}
                       readOnly={!canEditPictures}
-                      maxFiles={undefined}
+                      maxFiles={config.maxRfqPictures}
                       isMultiple
                       isError={false}
                       files={pictureResources.map((picture) => getRFQFileUrl(picture))}

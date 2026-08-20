@@ -385,15 +385,12 @@ export default function InvoiceDetail(): ReactElement {
           throw new Error('No file');
         }
 
-        files.forEach((file) => {
-          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement('a');
-          anchor.href = url;
-          anchor.download = file.fileName || `${invoice.invoiceNo}.pdf`;
-          anchor.click();
-          URL.revokeObjectURL(url);
-        });
+        const file = files[0];
+        const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+        const url = URL.createObjectURL(blob);
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
         return t('toast.success');
       },

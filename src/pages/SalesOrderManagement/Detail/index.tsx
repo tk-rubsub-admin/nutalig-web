@@ -74,7 +74,7 @@ import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
 import { ReceiptRecord } from 'services/Receipt/receipt-type';
-import { getRFQ } from 'services/RFQ/rfq-api';
+import { getRFQ, getRFQQuotationNos } from 'services/RFQ/rfq-api';
 import { RFQRecord } from 'services/RFQ/rfq-type';
 import {
   getSalesOrderV1,
@@ -107,6 +107,7 @@ interface SalesOrderDraft {
   docDate: string;
   expireDate: string;
   coSaleId: string;
+  quotationNo: string;
   shippingType: string;
   shipping: string;
   subTotal: number;
@@ -244,6 +245,7 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     docDate: toDateInput(salesOrder?.docDate),
     expireDate: toDateInput(salesOrder?.expireDate),
     coSaleId: salesOrder?.coSaleId || '',
+    quotationNo: salesOrder?.quotationNo || '',
     shippingType: salesOrder?.shippingType || '',
     shipping: salesOrder?.shipping || '',
     subTotal: Number(salesOrder?.subTotal || 0),
@@ -383,6 +385,15 @@ export default function SalesOrderDetail(): ReactElement {
     }
   );
 
+  const { data: rfqQuotationNos = [], isFetching: isRfqQuotationNosFetching } = useQuery(
+    ['sales-order-rfq-quotation-nos', salesOrder?.rfqId],
+    () => getRFQQuotationNos(salesOrder?.rfqId || ''),
+    {
+      enabled: Boolean(isEditing && salesOrder?.rfqId),
+      refetchOnWindowFocus: false
+    }
+  );
+
   useEffect(() => {
     setDraft(createDraft(salesOrder));
     setIsEditing(false);
@@ -400,6 +411,7 @@ export default function SalesOrderDetail(): ReactElement {
     null;
   const rfq = rfqResponse as RFQRecord | undefined;
   const quotationNo =
+    salesOrder?.quotationNo ||
     latestInvoice?.quotationNo ||
     latestReceipt?.quotationNo ||
     rfq?.quotations?.find((quotation) => quotation.isLatest)?.quotationNo ||
@@ -705,6 +717,7 @@ export default function SalesOrderDetail(): ReactElement {
       docDate: draft.docDate || null,
       expireDate: draft.expireDate || null,
       coSaleId: draft.coSaleId || null,
+      quotationNo: draft.quotationNo,
       subTotal: editableSubTotal,
       discount: Number(draft.discount || 0),
       freight: Number(draft.freight || 0),
@@ -859,7 +872,12 @@ export default function SalesOrderDetail(): ReactElement {
             variant="contained"
             className="btn-emerald-green"
             onClick={handleOpenRequestPoConfirm}
-            disabled={!salesOrder || salesOrder?.urgentRequest}>
+            disabled={
+              !salesOrder ||
+              salesOrder?.urgentRequest ||
+              ['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
+                salesOrder?.procurementStatus
+              )}>
             ขออนุมัติสร้างใบสั่งซื้อ
           </Button>
           <Button
@@ -926,7 +944,7 @@ export default function SalesOrderDetail(): ReactElement {
                     onClick={handleCreatePurchaseOrder}
                     disabled={
                       !salesOrder ||
-                      !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE'].includes(
+                      !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
                         salesOrder.procurementStatus
                       )
                     }
@@ -1017,6 +1035,24 @@ export default function SalesOrderDetail(): ReactElement {
                 <Stack spacing={1.25} className={classes.section}>
                   <Typography variant="h6">ใบยืนยันสั่งซื้อ</Typography>
                   <Info label="เลขที่เอกสาร" value={salesOrder?.salesOrderNo} />
+                  {isEditing ? (
+                    <TextField
+                      select
+                      label="อ้างอิงใบเสนอราคา"
+                      value={draft.quotationNo}
+                      onChange={(event) => updateDraftField('quotationNo', event.target.value)}
+                      disabled={!salesOrder?.rfqId || isRfqQuotationNosFetching}
+                      InputLabelProps={{ shrink: true }}>
+                      <MenuItem value="">-</MenuItem>
+                      {rfqQuotationNos.map((quotation) => (
+                        <MenuItem key={quotation.quotationNo} value={quotation.quotationNo}>
+                          {quotation.quotationNo}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  ) : (
+                    <Info label="อ้างอิงใบเสนอราคา" value={salesOrder?.quotationNo} />
+                  )}
                   {isEditing ? (
                     <TextField
                       type="date"

@@ -97,6 +97,7 @@ export interface SearchSalesOrderRequestV1 {
 
 export interface SalesOrderV1 {
     salesOrderNo: string;
+    quotationNo: string | null;
     docDate: string | null;
     expireDate: string | null;
     status: string;
@@ -203,6 +204,7 @@ export interface UpdateSalesOrderRequestV1 {
     docDate?: string | null;
     expireDate?: string | null;
     coSaleId?: string | null;
+    quotationNo?: string | null;
     subTotal?: number;
     commission?: number;
     coSaleCommission?: number | null;

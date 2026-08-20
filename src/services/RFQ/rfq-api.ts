@@ -316,6 +316,14 @@ export const getCustomerQuoted = async (rfqId: string) => {
   return response.data || '';
 };
 
+export const getRFQQuotationNos = async (rfqId: string) => {
+  const response = await api
+    .get(`/v1/rfqs/${rfqId}/quotation-no`)
+    .then((res) => res.data);
+
+  return Array.isArray(response?.data) ? response.data : [];
+};
+
 export const updateRFQInquiry = async (
   id: string,
   inquiryId: string,

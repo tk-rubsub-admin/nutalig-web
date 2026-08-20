@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Checkbox,
   Grid,
+  InputAdornment,
   MenuItem,
   Stack,
   Table,
@@ -47,6 +48,8 @@ import { getRFQList } from 'services/RFQ/rfq-api';
 import { RFQEmployee, RFQFileResource, RFQRecord } from 'services/RFQ/rfq-type';
 import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
+
+const RFQ_ID_PREFIX = 'NTL-RFQ2026';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
   if (!productFamily) {
@@ -112,6 +115,20 @@ function getCustomerTierLabel(rfq: RFQRecord): string | null {
   return rfq.customer?.customerTier?.nameEn || null;
 }
 
+function normalizeRfqIdForDisplay(id?: string | null): string {
+  if (!id) {
+    return '';
+  }
+
+  return id.startsWith(RFQ_ID_PREFIX) ? id.slice(RFQ_ID_PREFIX.length) : id;
+}
+
+function buildRfqIdForRequest(id?: string | null): string {
+  const suffix = normalizeRfqIdForDisplay(id).trim();
+
+  return suffix ? `${RFQ_ID_PREFIX}${suffix}` : '';
+}
+
 function getCustomerTierColor(code?: string | null): { backgroundColor: string; color: string } {
   switch (code) {
     case 'VIP':
@@ -147,7 +164,7 @@ function createDefaultFilter(salesId = '', procurementId = '') {
     procurementId,
     rfqTypeCode: '',
     status: '',
-    statuses: [] as string[],
+    statuses: ['NEW', 'IN_PROGRESS', 'SPECIAL_PRICE_REVIEW'] as string[],
     orderTypeCode: '',
     productFamily: '',
     productSubtype1: '',
@@ -196,7 +213,7 @@ function createFilterFromRequestParams(
 
     const value = params.get(key);
     if (value !== null) {
-      defaultFilter[key] = value;
+      defaultFilter[key] = key === 'id' ? normalizeRfqIdForDisplay(value) : value;
     }
   });
 
@@ -447,7 +464,10 @@ export default function PriceInquiryManagement(): ReactElement {
   );
   const restoredListState = location.state?.restoreListState;
   const initialFilter = useMemo(
-    () => restoredListState?.filter || roleDefaultFilter,
+    () => ({
+      ...(restoredListState?.filter || roleDefaultFilter),
+      id: normalizeRfqIdForDisplay(restoredListState?.filter?.id || roleDefaultFilter.id)
+    }),
     [restoredListState?.filter, roleDefaultFilter]
   );
   const [page, setPage] = useState<number>(restoredListState?.page || 1);
@@ -489,7 +509,7 @@ export default function PriceInquiryManagement(): ReactElement {
     enableReinitialize: true,
     onSubmit: (values) => {
       const nextFilter = {
-        id: values.id?.trim() || '',
+        id: normalizeRfqIdForDisplay(values.id),
         customerId: values.customerId?.trim() || '',
         salesId: values.salesId?.trim() || '',
         procurementId: values.procurementId?.trim() || '',
@@ -543,7 +563,7 @@ export default function PriceInquiryManagement(): ReactElement {
     ],
     () =>
       getRFQList(page, pageSize, {
-        id: filter.id,
+        id: buildRfqIdForRequest(filter.id),
         customerId: filter.customerId,
         salesId: filter.salesId,
         procurementId: filter.procurementId,
@@ -557,9 +577,7 @@ export default function PriceInquiryManagement(): ReactElement {
         requestedDateEnd: filter.requestedDateEnd,
         sortBy: 'slaDate',
         sortDirection: 'ASC',
-        statuses: filter.statuses?.length
-          ? filter.statuses
-          : ['NEW', 'IN_PROGRESS', 'SPECIAL_PRICE_REVIEW'],
+        statuses: filter.statuses,
         prioritizeApprovedUrgent: true
       }),
     {
@@ -959,8 +977,17 @@ export default function PriceInquiryManagement(): ReactElement {
                 label="เลข RFQ"
                 name="id"
                 value={searchFormik.values.id}
-                onChange={searchFormik.handleChange}
+                onChange={(event) => {
+                  searchFormik.setFieldValue('id', normalizeRfqIdForDisplay(event.target.value));
+                }}
                 InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
+                      {RFQ_ID_PREFIX}
+                    </InputAdornment>
+                  )
+                }}
               />
             </GridTextField>
             <GridTextField item xs={12} sm={4} md={3}>

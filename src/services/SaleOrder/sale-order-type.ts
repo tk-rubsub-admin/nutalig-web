@@ -210,6 +210,7 @@ export interface UpdateSalesOrderRequestV1 {
     freight?: number;
     isVat?: boolean;
     shippingType?: string | null;
+    shipping?: string | null;
     requestCoa?: boolean | null;
     requestPo?: boolean | null;
     requestPoReason?: string | null;

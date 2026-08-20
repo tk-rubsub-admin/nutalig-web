@@ -6,6 +6,7 @@ import {
   Chip,
   CircularProgress,
   Grid,
+  InputAdornment,
   MenuItem,
   Stack,
   Table,
@@ -51,6 +52,8 @@ import { getProductFamilies } from 'services/Product/product-api';
 import { ProductFamily, ProductMaterial, ProductSubtype1 } from 'services/Product/product-type';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
+
+const RFQ_ID_PREFIX = 'NTL-RFQ2026';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
   if (!productFamily) {
@@ -152,6 +155,20 @@ function getCustomerTagLabel(rfq: RFQRecord): string | null {
 
 function getRfqTypeLabel(rfq: RFQRecord): string {
   return rfq.rfqType?.nameTh || rfq.rfqType?.nameEn || rfq.rfqType?.code || '-';
+}
+
+function normalizeRfqIdForDisplay(id?: string | null): string {
+  if (!id) {
+    return '';
+  }
+
+  return id.startsWith(RFQ_ID_PREFIX) ? id.slice(RFQ_ID_PREFIX.length) : id;
+}
+
+function buildRfqIdForRequest(id?: string | null): string {
+  const suffix = normalizeRfqIdForDisplay(id).trim();
+
+  return suffix ? `${RFQ_ID_PREFIX}${suffix}` : '';
 }
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {
@@ -393,7 +410,7 @@ function createFilterFromRequestParams(search: string, salesId = ''): RFQManagem
 
     const value = params.get(key);
     if (value !== null) {
-      defaultFilter[key] = value;
+      defaultFilter[key] = key === 'id' ? normalizeRfqIdForDisplay(value) : value;
     }
   });
 
@@ -469,7 +486,10 @@ export default function RFQManagement(): ReactElement {
     [currentSalesId, isSalesRole, location.search]
   );
   const initialFilter = useMemo(
-    () => returnToListState?.filter || roleDefaultFilter,
+    () => ({
+      ...(returnToListState?.filter || roleDefaultFilter),
+      id: normalizeRfqIdForDisplay(returnToListState?.filter?.id || roleDefaultFilter.id)
+    }),
     [returnToListState?.filter, roleDefaultFilter]
   );
   const [filter, setFilter] = useState(initialFilter);
@@ -532,7 +552,7 @@ export default function RFQManagement(): ReactElement {
     ],
     () =>
       getRFQList(page, pageSize, {
-        id: filter.id,
+        id: buildRfqIdForRequest(filter.id),
         customerId: filter.customerId,
         salesId: filter.salesId,
         procurementId: filter.procurementId,
@@ -635,7 +655,7 @@ export default function RFQManagement(): ReactElement {
     enableReinitialize: true,
     onSubmit: (values) => {
       const nextFilter = {
-        id: canShowField('id') ? values.id?.trim() || '' : '',
+        id: canShowField('id') ? normalizeRfqIdForDisplay(values.id) : '',
         customerId: canShowField('customerId') ? values.customerId?.trim() || '' : '',
         salesId: canShowField('salesId') ? values.salesId?.trim() || '' : '',
         procurementId: canShowField('procurementId') ? values.procurementId?.trim() || '' : '',
@@ -736,7 +756,7 @@ export default function RFQManagement(): ReactElement {
 
   const handleExport = async () => {
     const exportFilter = {
-      id: filter.id,
+      id: buildRfqIdForRequest(filter.id),
       customerId: filter.customerId,
       salesId: filter.salesId,
       procurementId: filter.procurementId,
@@ -1032,8 +1052,17 @@ export default function RFQManagement(): ReactElement {
                   label="เลข RFQ"
                   name="id"
                   value={searchFormik.values.id}
-                  onChange={searchFormik.handleChange}
+                  onChange={(event) => {
+                    searchFormik.setFieldValue('id', normalizeRfqIdForDisplay(event.target.value));
+                  }}
                   InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ color: 'text.secondary' }}>
+                        {RFQ_ID_PREFIX}
+                      </InputAdornment>
+                    )
+                  }}
                 />
               </GridTextField>
             )}

@@ -57,6 +57,7 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
     });
     const classes = useStyles();
     const CUSTOMER_ID_PREFIX = 'NTL-CUST-0';
+    const CUSTOMER_ID_SUFFIX_LENGTH = 5;
     const [customerFilter, setCustomerFilter] = useState<SearchCustomerRequest>({});
     const [page, setPage] = useState<number>(1);
     const [pages, setPages] = useState<number>(1);
@@ -94,9 +95,9 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
         },
         enableReinitialize: false,
         onSubmit: (value) => {
-            const normalizedSuffix = value.idSuffix.replace(/\D/g, '').slice(0, 4);
+            const normalizedSuffix = value.idSuffix.replace(/\D/g, '').slice(0, CUSTOMER_ID_SUFFIX_LENGTH);
             const updateObj = {
-                idEqual: normalizedSuffix ? `${CUSTOMER_ID_PREFIX}${normalizedSuffix.padStart(4, '0')}` : '',
+                idEqual: normalizedSuffix ? `${CUSTOMER_ID_PREFIX}${normalizedSuffix.padStart(CUSTOMER_ID_SUFFIX_LENGTH, '0')}` : '',
                 nameContain: value.nameContain.trim(),
                 typeEqual: value.typeEqual.trim(),
                 tierEqual: value.tierEqual.trim(),
@@ -193,7 +194,7 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
                             variant="outlined"
                             value={searchFormik.values.idSuffix}
                             onChange={({ target }) => {
-                                const numericOnly = target.value.replace(/\D/g, '').slice(0, 4);
+                                const numericOnly = target.value.replace(/\D/g, '').slice(0, CUSTOMER_ID_SUFFIX_LENGTH);
                                 searchFormik.setFieldValue('idSuffix', numericOnly);
                             }}
                             onKeyDown={(event) => {
@@ -203,7 +204,7 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
                                 }
                             }}
                             inputProps={{
-                                maxLength: 4,
+                                maxLength: CUSTOMER_ID_SUFFIX_LENGTH,
                                 inputMode: 'numeric',
                                 pattern: '[0-9]*'
                             }}

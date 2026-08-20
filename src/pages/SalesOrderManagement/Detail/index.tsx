@@ -713,6 +713,7 @@ export default function SalesOrderDetail(): ReactElement {
       coSaleCommission: draft.coSaleId ? Number(draft.coSaleCommission || 0) : null,
       isVat: draft.isVat,
       shippingType: draft.shippingType || null,
+      shipping: draft.shipping || null,
       requestCoa: draft.requestCoa,
       requestPo: draft.requestPo,
       remark: draft.remark,

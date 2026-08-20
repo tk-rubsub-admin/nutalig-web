@@ -29,7 +29,8 @@ import {
   Stack,
   MenuItem,
   Chip,
-  IconButton
+  IconButton,
+  InputAdornment
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import Can from 'auth/Can';
@@ -55,6 +56,9 @@ import UploadDialog from 'dialogs/CustomerManagement/UploadDialog';
 import { formatNumber } from 'utils/utils';
 
 export default function CustomerManagement(): JSX.Element {
+  const CUSTOMER_ID_PREFIX = 'NTL-CUST-';
+  const CUSTOMER_ID_SUFFIX_LENGTH = 5;
+
   const formatOrderTotalDisplay = (value?: number | null) => {
     const numericValue = Number(value || 0);
     return numericValue === 0 ? '' : formatNumber(numericValue);
@@ -181,7 +185,7 @@ export default function CustomerManagement(): JSX.Element {
   });
   const searchFormik = useFormik({
     initialValues: {
-      idEqual: '',
+      idSuffix: '',
       nameContain: '',
       typeEqual: '',
       tierEqual: '',
@@ -192,8 +196,9 @@ export default function CustomerManagement(): JSX.Element {
     },
     enableReinitialize: false,
     onSubmit: (value) => {
+      const normalizedSuffix = value.idSuffix.replace(/\D/g, '').slice(0, CUSTOMER_ID_SUFFIX_LENGTH);
       const updateObj = {
-        idEqual: value.idEqual,
+        idEqual: normalizedSuffix ? `${CUSTOMER_ID_PREFIX}${normalizedSuffix.padStart(CUSTOMER_ID_SUFFIX_LENGTH, '0')}` : '',
         nameContain: value.nameContain,
         typeEqual: value.typeEqual?.code || '',
         tierEqual: value.tierEqual?.code || '',
@@ -466,11 +471,20 @@ export default function CustomerManagement(): JSX.Element {
               label={t('customerManagement.column.id')}
               fullWidth
               variant="outlined"
-              value={searchFormik.values.idEqual}
+              value={searchFormik.values.idSuffix}
               onChange={({ target }) => {
-                searchFormik.setFieldValue('idEqual', target.value);
+                const numericOnly = target.value.replace(/\D/g, '').slice(0, CUSTOMER_ID_SUFFIX_LENGTH);
+                searchFormik.setFieldValue('idSuffix', numericOnly);
               }}
               onBlur={() => searchFormik.handleSubmit()}
+              inputProps={{
+                maxLength: CUSTOMER_ID_SUFFIX_LENGTH,
+                inputMode: 'numeric',
+                pattern: '[0-9]*'
+              }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">{CUSTOMER_ID_PREFIX}</InputAdornment>
+              }}
               InputLabelProps={{ shrink: true }}
             />
           </Grid>

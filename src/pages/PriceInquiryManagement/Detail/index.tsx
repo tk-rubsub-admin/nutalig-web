@@ -2180,7 +2180,7 @@ export default function RFQDetail(): ReactElement {
     [rfq?.serviceLevelAgreement?.dayType, rfq?.status, slaDayLeft]
   );
   const pictureResources = useMemo(() => getRFQPictureResources(rfq), [rfq]);
-  const canEditPictures = isAllowUploadAttachment && pictureResources.length < 5;
+  const canEditPictures = isAllowUploadAttachment;
   const attachmentResources = useMemo(() => getRFQAttachmentResources(rfq), [rfq]);
   const hasDraftDetailOptions = draftDetailOptions.length > 0;
   const rfqProductFamilyCode = useMemo(
@@ -5127,7 +5127,7 @@ export default function RFQDetail(): ReactElement {
                       inputId="rfq-detail-pictures"
                       isDisabled={!canEditPictures || isPictureSubmitting}
                       readOnly={!canEditPictures}
-                      maxFiles={5}
+                      maxFiles={undefined}
                       isMultiple
                       isError={false}
                       files={pictureResources.map((picture) => getRFQFileUrl(picture))}
@@ -5598,8 +5598,8 @@ export default function RFQDetail(): ReactElement {
                                           {snapshot?.archivedBy || record.archivedBy || '-'}{' '}
                                           {snapshot?.archivedAt || record.archivedAt
                                             ? `• ${dayjs(
-                                                snapshot?.archivedAt || record.archivedAt
-                                              ).format('DD/MM/YYYY HH:mm')}`
+                                              snapshot?.archivedAt || record.archivedAt
+                                            ).format('DD/MM/YYYY HH:mm')}`
                                             : ''}
                                         </Typography>
                                       </Box>

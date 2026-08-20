@@ -69,6 +69,28 @@ const getEmployeeName = (quotation?: Quotation) => {
     return [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ').trim() || '-';
 };
 
+const getCustomerAddress = (quotation?: Quotation): string => {
+    const address = quotation?.customerAddress;
+    if (!address) {
+        return '-';
+    }
+
+    return (
+        address.fullAddress ||
+        [
+            address.addressLine1,
+            address.addressLine2,
+            [address.subdistrict, address.district, address.province].filter(Boolean).join(' '),
+            address.postcode,
+            address.country
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
+        '-'
+    );
+};
+
 type ConfirmQuotationRow = {
     key: string;
     quotationItem: QuotationItem;
@@ -681,6 +703,17 @@ export default function QuotationDetail(): JSX.Element {
                         }}
                         keepMounted>
                         <>
+                            <Can permission={PERMISSIONS.QUOTATION_EDIT}>
+                                <MenuItem
+                                    onClick={handleSelectEditQuotation}
+                                    disabled={!quotation || quotation.status === 'CANCELLED'}
+                                    sx={{ width: '100%' }}>
+                                    <ListItemIcon>
+                                        <IoPencil />
+                                    </ListItemIcon>
+                                    <ListItemText primary={t('documentManagement.quotation.editQuotation')} />
+                                </MenuItem>
+                            </Can>
                             <MenuItem
                                 onClick={viewQuotationFunction}
                                 disabled={!quotation || quotation.status === 'CANCELLED'}
@@ -701,17 +734,6 @@ export default function QuotationDetail(): JSX.Element {
                                     <ListItemText primary="คอนเฟิร์มราคา" />
                                 </MenuItem>
                             ) : null}
-                            <Can permission={PERMISSIONS.QUOTATION_EDIT}>
-                                <MenuItem
-                                    onClick={handleSelectEditQuotation}
-                                    disabled={!quotation || quotation.status === 'CANCELLED'}
-                                    sx={{ width: '100%' }}>
-                                    <ListItemIcon>
-                                        <IoPencil />
-                                    </ListItemIcon>
-                                    <ListItemText primary={t('documentManagement.quotation.editQuotation')} />
-                                </MenuItem>
-                            </Can>
                         </>
                     </Menu>
                     <Button
@@ -833,6 +855,7 @@ export default function QuotationDetail(): JSX.Element {
                                     />
                                     <Info label={t('documentManagement.quotation.customerSection.contactName')} value={quotation?.customerContact?.contactName} />
                                     <Info label={t('documentManagement.quotation.customerSection.contactNumber')} value={quotation?.customerContact?.contactNumber} />
+                                    <Info label="ที่อยู่" value={getCustomerAddress(quotation)} />
                                 </Stack>
                             </Grid>
                             <Grid item xs={12} md={4}>

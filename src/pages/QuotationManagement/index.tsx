@@ -54,6 +54,14 @@ function getDefaultDocDateRange() {
     };
 }
 
+function getQuotationCustomerContactName(quotation: Quotation): string {
+    return quotation.customer?.customerName || '-';
+}
+
+function getQuotationCustomerIdTag(quotation: Quotation): string | null {
+    return quotation.customer?.id || null;
+}
+
 export default function QuotationManagement(): JSX.Element {
     const useStyles = makeStyles({
         noResultMessage: {
@@ -143,8 +151,7 @@ export default function QuotationManagement(): JSX.Element {
             return '-';
         }
 
-        const name = [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ').trim();
-        console.log(name);
+        const name = employee?.nickName.trim();
         return name || '-';
     };
 
@@ -223,11 +230,24 @@ export default function QuotationManagement(): JSX.Element {
                     </Stack>
                 </TableCell>
                 <TableCell align="center">{quo.docDate || '-'}</TableCell>
-                <TableCell align="center">
-                    {quo.customer ? `(${quo.customer.id}) ${quo.customer.customerName}` : '-'}
+                <TableCell>
+                    <Stack alignItems="flex-start">
+                        <Typography variant="body2">{getQuotationCustomerContactName(quo)}</Typography>
+                        {getQuotationCustomerIdTag(quo) ? (
+                            <Chip
+                                label={`(${getQuotationCustomerIdTag(quo)})`}
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#eff6ff',
+                                    color: '#1d4ed8',
+                                    fontWeight: 700
+                                }}
+                            />
+                        ) : null}
+                    </Stack>
                 </TableCell>
                 <TableCell align="center">{getEmployeeName(quo.saleAccount || quo.salesAccount)}</TableCell>
-                <TableCell align="center">{formatNumber(quo.grandTotal)}</TableCell>
+                <TableCell align="center">{quo.isShowSummary ? formatNumber(quo.grandTotal) : '-'}</TableCell>
                 <TableCell align="center">
                     <Tooltip title={t('documentManagement.quotation.viewQuotation')} arrow>
                         <span>
@@ -276,9 +296,16 @@ export default function QuotationManagement(): JSX.Element {
                             </Stack>
                         </Stack>
                         <Typography variant="body2">{quo.docDate || '-'}</Typography>
-                        <Typography variant="body2">
-                            {quo.customer ? `(${quo.customer.id}) ${quo.customer.customerName}` : '-'}
-                        </Typography>
+                        <Stack alignItems="flex-start">
+                            <Typography variant="body2">
+                                {getQuotationCustomerContactName(quo)}
+                            </Typography>
+                            {getQuotationCustomerIdTag(quo) ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                    {`(${getQuotationCustomerIdTag(quo)})`}
+                                </Typography>
+                            ) : null}
+                        </Stack>
                         <Typography variant="body2" color="text.secondary">
                             {getEmployeeName(quo.saleAccount || quo.salesAccount)}
                         </Typography>

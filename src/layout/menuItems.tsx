@@ -12,6 +12,8 @@ import {
   Assignment,
   CurrencyExchange,
   Task,
+  Grading,
+  DoneAll,
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { PERMISSIONS } from 'auth/permissions';
@@ -41,6 +43,13 @@ export function useMenuItems() {
     //   icon: Group,
     //   allowedRoles: [ROLES.SUPER_ADMIN]
     // },
+    {
+      id: 'left_menu__waiting_approve_rfq_management',
+      title: 'รายการรออนุมัติ',
+      href: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
+      icon: DoneAll,
+      allowedPermission: [PERMISSIONS.AWAITING_APPROVE_VIEW]
+    },
     {
       id: 'left_menu__sales_management',
       title: 'ฝ่ายขาย',
@@ -83,12 +92,6 @@ export function useMenuItems() {
           title: t('sidebar.priceInquiryManagement.title'),
           href: ROUTE_PATHS.PRICE_INQUIRY_MANAGEMENT,
           allowedPermission: [PERMISSIONS.PRICE_INQUIRY_VIEW]
-        },
-        {
-          id: 'left_menu__waiting_approve_rfq_management',
-          title: t('sidebar.priceInquiryManagement.awaiting'),
-          href: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
-          allowedPermission: [PERMISSIONS.AWAITING_APPROVE_VIEW]
         },
         {
           id: 'left_menu__final_price_inquiry_management',

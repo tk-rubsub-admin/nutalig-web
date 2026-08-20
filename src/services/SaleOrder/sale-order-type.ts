@@ -89,7 +89,10 @@ export interface SearchSalesOrderRequestV1 {
     salesId?: string;
     status?: string;
     statuses?: string[];
+    urgentRequestStatus?: string | null;
     keyword?: string;
+    sortBy?: string;
+    sortDirection?: string;
 }
 
 export interface SalesOrderV1 {
@@ -110,12 +113,23 @@ export interface SalesOrderV1 {
     vat: number;
     grandTotal: number;
     amount: number;
+    customerContact: import('services/Customer/customer-type').Contact | null;
     paidTotal?: number;
     outstandingTotal?: number;
     commission: number;
     coSaleCommission: number;
     requestCoa: boolean;
     requestPo: boolean;
+    urgentRequest: boolean;
+    urgentRequestReason: string | null;
+    urgentRequestStatus: string | null;
+    urgentRequestedBy: string | null;
+    urgentRequestedDate: string | null;
+    urgentApprovedBy: string | null;
+    urgentApprovedDate: string | null;
+    urgentRejectedBy: string | null;
+    urgentRejectedDate: string | null;
+    urgentRejectReason: string | null;
     shippingType: string | null;
     vatRate: number;
     remark: string | null;
@@ -198,8 +212,17 @@ export interface UpdateSalesOrderRequestV1 {
     shippingType?: string | null;
     requestCoa?: boolean | null;
     requestPo?: boolean | null;
+    requestPoReason?: string | null;
     remark?: string | null;
     items?: UpdateSalesOrderDetailRequestV1[];
+}
+
+export interface UrgentApprovalRequest {
+    reason: string | null;
+}
+
+export interface RejectUrgentSalesOrderRequest {
+    reason: string;
 }
 
 export interface SearchSalesOrderResponseV1 {

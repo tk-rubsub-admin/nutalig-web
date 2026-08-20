@@ -43,11 +43,11 @@ import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 
 function getCustomerLabel(salesOrder: SalesOrderV1): string {
-  const customer = salesOrder.customer as any;
-  if (!customer) return '-';
-  return [customer.id ? `(${customer.id})` : '', customer.customerName || customer.companyName || '']
-    .filter(Boolean)
-    .join(' ') || '-';
+  return salesOrder.customer?.customerName || '-';
+}
+
+function getCustomerTagLabel(salesOrder: SalesOrderV1): string | null {
+  return salesOrder.customer?.id || null;
 }
 
 function getSalesLabel(salesOrder: SalesOrderV1): string {
@@ -76,6 +76,7 @@ const defaultFilter: SearchSalesOrderRequestV1 = {
   customerId: '',
   salesId: '',
   status: null,
+  urgentRequestStatus: null,
   keyword: ''
 };
 
@@ -190,6 +191,7 @@ export default function SalesOrderManagement(): ReactElement {
         customerId: canShowField('customerId') ? values.customerId?.trim() || '' : '',
         salesId: isSalesRole ? currentSalesId : canShowField('salesId') ? values.salesId?.trim() || '' : '',
         status: canShowField('status') ? values.status || null : null,
+        urgentRequestStatus: values.urgentRequestStatus || null,
         keyword: canShowField('keyword') ? values.keyword?.trim() || '' : ''
       };
 
@@ -269,7 +271,22 @@ export default function SalesOrderManagement(): ReactElement {
           </Stack>
         </TableCell>
         <TableCell align="center">{salesOrder.docDate || '-'}</TableCell>
-        <TableCell align="center">{getCustomerLabel(salesOrder)}</TableCell>
+        <TableCell>
+          <Stack alignItems="flex-start">
+            <Typography variant="body2">{getCustomerLabel(salesOrder)}</Typography>
+            {getCustomerTagLabel(salesOrder) ? (
+              <Chip
+                label={`(${getCustomerTagLabel(salesOrder)})`}
+                size="small"
+                sx={{
+                  backgroundColor: '#eff6ff',
+                  color: '#1d4ed8',
+                  fontWeight: 700
+                }}
+              />
+            ) : null}
+          </Stack>
+        </TableCell>
         <TableCell align="center">{getSalesLabel(salesOrder)}</TableCell>
         <TableCell align="right">{formatNumber(salesOrder.grandTotal)}</TableCell>
         <TableCell align="center">{salesOrder.shippingType || '-'}</TableCell>
@@ -322,7 +339,14 @@ export default function SalesOrderManagement(): ReactElement {
               />
             </Stack>
             <Typography variant="body2">{salesOrder.docDate || '-'}</Typography>
-            <Typography variant="body2">{getCustomerLabel(salesOrder)}</Typography>
+            <Stack alignItems="flex-start">
+              <Typography variant="body2">{getCustomerLabel(salesOrder)}</Typography>
+              {getCustomerTagLabel(salesOrder) ? (
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                  {`(${getCustomerTagLabel(salesOrder)})`}
+                </Typography>
+              ) : null}
+            </Stack>
             <Typography variant="body2" color="text.secondary">
               {getSalesLabel(salesOrder)}
             </Typography>

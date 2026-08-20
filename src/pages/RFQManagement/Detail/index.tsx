@@ -15,6 +15,7 @@ import {
   FilePresent,
   LocalShipping,
   Menu as MenuIcon,
+  PersonAdd,
   OpenInNew,
   Save,
   DisabledByDefault,
@@ -140,10 +141,9 @@ import { base64ToBlob } from 'utils';
 import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import CreateRFQCustomerDialog from 'dialogs/RFQManagement/Detail/CreateRFQCustomerDialog';
+import LinkRFQCustomerDialog from 'dialogs/RFQManagement/Detail/LinkRFQCustomerDialog';
 import { RequestedInformationDialog } from 'dialogs/RFQManagement/Detail/RequestedInformationDialog';
 import config from 'config';
-
-const MAX_RFQ_PICTURES = 12;
 
 interface RFQDetailParam {
   id: string;
@@ -945,6 +945,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleMissingCustomerConfirmationDialog, setVisibleMissingCustomerConfirmationDialog] =
     useState(false);
   const [visibleCreateCustomerDialog, setVisibleCreateCustomerDialog] = useState(false);
+  const [visibleLinkCustomerDialog, setVisibleLinkCustomerDialog] = useState(false);
   const [visibleConfirmRfqDialog, setVisibleConfirmRfqDialog] = useState(false);
   const [visibleRequestedInformationDialog, setVisibleRequestedInformationDialog] = useState(false);
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
@@ -1916,7 +1917,7 @@ export default function RFQDetail(): ReactElement {
     [rfq?.serviceLevelAgreement?.dayType, rfq?.status, slaDayLeft]
   );
   const pictureResources = useMemo(() => getRFQPictureResources(rfq), [rfq]);
-  const canEditPictures = isAllowUploadAttachment && pictureResources.length < MAX_RFQ_PICTURES;
+  const canEditPictures = isAllowUploadAttachment && pictureResources.length < config.maxRfqPictures;
   const attachmentResources = useMemo(() => getRFQAttachmentResources(rfq), [rfq]);
   const canRejectAction = isRejectRfqVisible && hasPermission(PERMISSIONS.RFQ_EDIT);
   const canCopyRfqAction = hasPermission(PERMISSIONS.RFQ_CREATE);
@@ -2013,7 +2014,7 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    const remainingSlots = Math.max(0, MAX_RFQ_PICTURES - pictureResources.length);
+    const remainingSlots = Math.max(0, config.maxRfqPictures - pictureResources.length);
     const filesToUpload = files.slice(0, remainingSlots);
 
     if (!filesToUpload.length) {
@@ -2641,6 +2642,19 @@ export default function RFQDetail(): ReactElement {
                         <ContentCopy fontSize="small" />
                       </ListItemIcon>
                       <ListItemText primary="คัดลอก RFQ" />
+                    </MenuItem>
+                  ) : null}
+                  {isSalesPermission ? (
+                    <MenuItem
+                      disabled={Boolean(rfq?.customer)}
+                      onClick={() => {
+                        setVisibleLinkCustomerDialog(true);
+                      }}
+                      sx={{ width: '100%' }}>
+                      <ListItemIcon>
+                        <PersonAdd fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="เชื่อมลูกค้า" />
                     </MenuItem>
                   ) : null}
                   <MenuItem onClick={handleOpenAddNoteDialog} disabled={isAddNoteSubmitting}>
@@ -3566,7 +3580,7 @@ export default function RFQDetail(): ReactElement {
                       inputId="rfq-detail-pictures"
                       isDisabled={!canEditPictures || isPictureSubmitting}
                       readOnly={!canEditPictures}
-                      maxFiles={MAX_RFQ_PICTURES}
+                      maxFiles={config.maxRfqPictures}
                       isMultiple
                       isError={false}
                       files={pictureResources.map((picture) => getRFQFileUrl(picture))}
@@ -5165,20 +5179,39 @@ export default function RFQDetail(): ReactElement {
           </Button>
         </DialogActions>
       </Dialog>
-      <ConfirmDialog
+      <Dialog
         open={visibleMissingCustomerConfirmationDialog}
-        title={t('rfqManagement.detail.dialogs.missingCustomerTitle')}
-        message={t('rfqManagement.detail.dialogs.missingCustomerMessage')}
-        confirmText={t('button.confirm')}
-        cancelText={t('button.close')}
-        isShowCancelButton
-        isShowConfirmButton
-        onConfirm={() => {
-          setVisibleMissingCustomerConfirmationDialog(false);
-          setVisibleCreateCustomerDialog(true);
-        }}
-        onCancel={() => setVisibleMissingCustomerConfirmationDialog(false)}
-      />
+        fullWidth
+        maxWidth="sm"
+        disableEnforceFocus
+        onClose={() => setVisibleMissingCustomerConfirmationDialog(false)}>
+        <DialogTitle>{t('rfqManagement.detail.dialogs.missingCustomerTitle')}</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary">
+            ยังไม่มีข้อมูลลูกค้าในระบบ กรุณาสร้างข้อมูลลูกค้าก่อนออกใบเสนอราคา
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            className="btn-indigo-blue"
+            onClick={() => {
+              setVisibleMissingCustomerConfirmationDialog(false);
+              setVisibleLinkCustomerDialog(true);
+            }}>
+            เชื่อมข้อมูลลูกค้า
+          </Button>
+          <Button
+            variant="contained"
+            className="btn-emerald-green"
+            onClick={() => {
+              setVisibleMissingCustomerConfirmationDialog(false);
+              setVisibleCreateCustomerDialog(true);
+            }}>
+            สร้างลูกค้าใหม่
+          </Button>
+        </DialogActions>
+      </Dialog>
       <ConfirmDialog
         open={visibleRejectRfqDialog}
         title={t('rfqManagement.detail.dialogs.rejectTitle')}
@@ -5571,6 +5604,15 @@ export default function RFQDetail(): ReactElement {
           await refetchRFQ();
 
           history.push(ROUTE_PATHS.QUOTATION_CREATE_FROM_RFQ.replace(':rfqId', params.id));
+        }}
+      />
+      <LinkRFQCustomerDialog
+        open={visibleLinkCustomerDialog}
+        rfq={rfq}
+        confirmMessage={'ระบบจะเชื่อมลูกค้าที่เลือกเข้ากับ RFQ นี้'}
+        onClose={() => setVisibleLinkCustomerDialog(false)}
+        onUpdated={async () => {
+          await refetchRFQ();
         }}
       />
       <Dialog

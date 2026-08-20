@@ -489,7 +489,7 @@ export const updateRFQCustomer = async (
   customerId: string
 ): Promise<UpdateRFQResponse> => {
   const response: UpdateRFQResponse = await api
-    .post(`/v1/rfqs/${id}/customers`, { customerId })
+    .patch(`/v1/rfqs/${id}/customers/${encodeURIComponent(customerId)}`)
     .then((res) => res.data);
 
   return response;

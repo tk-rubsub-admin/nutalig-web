@@ -16,6 +16,10 @@ import {
   Button,
   Chip,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   Grid,
   InputAdornment,
@@ -40,9 +44,12 @@ import {
   useTheme
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import { useAuth } from 'auth/AuthContext';
 import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
+import { ROLES } from 'auth/roles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
+import ConfirmDialog from 'components/ConfirmDialog';
 import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
@@ -74,7 +81,10 @@ import {
   deleteSalesOrderAttachment,
   updateSalesOrderV1,
   downloadSaleOrder,
-  uploadSalesOrderAttachments
+  uploadSalesOrderAttachments,
+  requestUrgentApproval,
+  approveUrgentSalesOrder,
+  rejectUrgentSalesOrder
 } from 'services/SaleOrder/sale-order-api';
 import {
   SalesOrderAttachment,
@@ -136,6 +146,31 @@ function getCustomerLabel(salesOrder?: SalesOrderV1): string {
   );
 }
 
+function getCustomerAddress(salesOrder?: SalesOrderV1): string {
+  const customer = salesOrder?.customer as any;
+  const address =
+    customer?.addresses?.find((item: any) => item.isDefault) || customer?.addresses?.[0];
+
+  if (!address) {
+    return '-';
+  }
+
+  return (
+    address.fullAddress ||
+    [
+      address.addressLine1,
+      address.addressLine2,
+      [address.subdistrict, address.district, address.province].filter(Boolean).join(' '),
+      address.postcode,
+      address.country
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim() ||
+    '-'
+  );
+}
+
 function getShippingTypeLabel(shippingType?: string | null): string {
   if (!shippingType) {
     return '-';
@@ -162,6 +197,8 @@ function getProcurementStatusLabel(status?: string | null): string {
       return 'ยังไม่พร้อมสร้าง PO';
     case 'READY_FOR_PO':
       return 'พร้อมสร้าง PO';
+    case 'READY_FOR_PO_OVERRIDE':
+      return 'พร้อมสร้าง PO (Override)';
     case 'PO_CREATED':
       return 'สร้าง PO แล้ว';
     default:
@@ -227,12 +264,17 @@ export default function SalesOrderDetail(): ReactElement {
   const { id } = useParams<SalesOrderDetailParams>();
   const history = useHistory();
   const { t } = useTranslation();
+  const { hasRole } = useAuth();
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const [tab, setTab] = useState<'detail' | 'history' | 'paymentHistory'>('detail');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<SalesOrderDraft>(createDraft());
+  const [requestPoConfirmOpen, setRequestPoConfirmOpen] = useState(false);
+  const [requestPoReason, setRequestPoReason] = useState('');
+  const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
+  const [urgentRejectReason, setUrgentRejectReason] = useState('');
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const useStyles = makeStyles({
     tableHeader: {
@@ -316,10 +358,7 @@ export default function SalesOrderDetail(): ReactElement {
     }
   );
 
-  const {
-    data: relatedReceiptsResponse,
-    isFetching: isReceiptFlowFetching
-  } = useQuery(
+  const { data: relatedReceiptsResponse, isFetching: isReceiptFlowFetching } = useQuery(
     ['sales-order-receipts', salesOrder?.salesOrderNo],
     () =>
       searchReceipts(
@@ -409,7 +448,10 @@ export default function SalesOrderDetail(): ReactElement {
     return Math.min(100, Math.max(0, (paidTotal / grandTotal) * 100));
   }, [salesOrder?.grandTotal, salesOrder?.paidTotal]);
 
-  const handleChangeTab = (_event: SyntheticEvent, value: 'detail' | 'history' | 'paymentHistory') => {
+  const handleChangeTab = (
+    _event: SyntheticEvent,
+    value: 'detail' | 'history' | 'paymentHistory'
+  ) => {
     setTab(value);
   };
 
@@ -494,6 +536,101 @@ export default function SalesOrderDetail(): ReactElement {
         salesOrder.salesOrderNo
       )
     );
+  };
+
+  const handleOpenRequestPoConfirm = () => {
+    if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    setRequestPoReason('');
+    setRequestPoConfirmOpen(true);
+  };
+
+  const handleCloseRequestPoConfirm = () => {
+    setRequestPoConfirmOpen(false);
+    setRequestPoReason('');
+  };
+
+  const handleConfirmRequestPo = async () => {
+    if (!salesOrder?.salesOrderNo || !requestPoReason.trim()) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(
+        requestUrgentApproval(salesOrder.salesOrderNo, {
+          reason: requestPoReason.trim()
+        }),
+        {
+          loading: 'กำลังส่งคำขออนุมัติสร้างใบสั่งซื้อ',
+          success: 'ส่งคำขออนุมัติสร้างใบสั่งซื้อสำเร็จ',
+          error: 'ส่งคำขออนุมัติสร้างใบสั่งซื้อไม่สำเร็จ'
+        }
+      );
+
+      setRequestPoConfirmOpen(false);
+      setRequestPoReason('');
+      await refetch();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOpenUrgentDetailDialog = () => {
+    setUrgentRejectReason(salesOrder?.urgentRejectReason || '');
+    setVisibleUrgentDetailDialog(true);
+  };
+
+  const handleCloseUrgentDetailDialog = () => {
+    setVisibleUrgentDetailDialog(false);
+    setUrgentRejectReason('');
+  };
+
+  const handleApproveUrgent = async () => {
+    if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(approveUrgentSalesOrder(salesOrder.salesOrderNo), {
+        loading: 'กำลังอนุมัติคำขอเร่งด่วน',
+        success: 'อนุมัติคำขอเร่งด่วนแล้ว',
+        error: 'ไม่สามารถอนุมัติคำขอเร่งด่วนได้'
+      });
+
+      handleCloseUrgentDetailDialog();
+      await refetch();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRejectUrgent = async () => {
+    if (!salesOrder?.salesOrderNo || !urgentRejectReason.trim()) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(
+        rejectUrgentSalesOrder(salesOrder.salesOrderNo, {
+          reason: urgentRejectReason.trim()
+        }),
+        {
+          loading: 'กำลังไม่อนุมัติคำขอเร่งด่วน',
+          success: 'ไม่อนุมัติคำขอเร่งด่วนแล้ว',
+          error: 'ไม่สามารถไม่อนุมัติคำขอเร่งด่วนได้'
+        }
+      );
+
+      handleCloseUrgentDetailDialog();
+      await refetch();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -657,20 +794,54 @@ export default function SalesOrderDetail(): ReactElement {
 
   return (
     <Page>
-      <LoadingDialog open={isFetching || isActivityHistoryFetching || isInvoicePaymentsFetching || isSaving} />
+      <LoadingDialog
+        open={isFetching || isActivityHistoryFetching || isInvoicePaymentsFetching || isSaving}
+      />
       <PageTitle
         title={
           salesOrder?.salesOrderNo
             ? `ใบยืนยันสั่งซื้อเลขที่ ${salesOrder.salesOrderNo}`
             : 'ใบยืนยันสั่งซื้อ'
         }>
-        {salesOrder?.status ? (
-          <Chip
-            label={getDocumentStatusLabel(salesOrder.status, salesOrder.statusProfile)}
-            size="small"
-            sx={getDocumentStatusChipSx(salesOrder.status, salesOrder.statusProfile)}
-          />
-        ) : null}
+        <Stack direction="row" spacing={1} useFlexGap alignItems="center">
+          {salesOrder?.status ? (
+            <Chip
+              label={getDocumentStatusLabel(salesOrder.status, salesOrder.statusProfile)}
+              size="small"
+              sx={getDocumentStatusChipSx(salesOrder.status, salesOrder.statusProfile)}
+            />
+          ) : null}
+          {salesOrder?.urgentRequest ? (
+            <Chip
+              clickable
+              onClick={handleOpenUrgentDetailDialog}
+              label={
+                salesOrder.urgentRequestStatus === 'APPROVED'
+                  ? 'เร่งด่วนอนุมัติแล้ว'
+                  : salesOrder.urgentRequestStatus === 'REJECTED'
+                    ? 'คำขอเร่งด่วนไม่อนุมัติ'
+                    : 'เร่งด่วนรออนุมัติ 🔥🔥🔥'
+              }
+              size="small"
+              sx={{
+                height: 28,
+                backgroundColor:
+                  salesOrder.urgentRequestStatus === 'APPROVED'
+                    ? '#fee2e2'
+                    : salesOrder.urgentRequestStatus === 'REJECTED'
+                      ? '#e2e8f0'
+                      : '#fff7ed',
+                color:
+                  salesOrder.urgentRequestStatus === 'APPROVED'
+                    ? '#b91c1c'
+                    : salesOrder.urgentRequestStatus === 'REJECTED'
+                      ? '#475569'
+                      : '#b45309',
+                cursor: 'pointer'
+              }}
+            />
+          ) : null}
+        </Stack>
       </PageTitle>
       <Wrapper>
         <Stack
@@ -682,6 +853,14 @@ export default function SalesOrderDetail(): ReactElement {
             alignItems: { xs: 'stretch', sm: 'center' },
             mb: 2
           }}>
+          <Button
+            fullWidth={isDownSm}
+            variant="contained"
+            className="btn-emerald-green"
+            onClick={handleOpenRequestPoConfirm}
+            disabled={!salesOrder || salesOrder?.urgentRequest}>
+            ขออนุมัติสร้างใบสั่งซื้อ
+          </Button>
           <Button
             fullWidth={isDownSm}
             variant="contained"
@@ -744,7 +923,12 @@ export default function SalesOrderDetail(): ReactElement {
                 <Can permission={PERMISSIONS.PURCHASE_ORDER_CREATE}>
                   <MenuItem
                     onClick={handleCreatePurchaseOrder}
-                    disabled={!salesOrder || salesOrder.procurementStatus !== 'READY_FOR_PO'}
+                    disabled={
+                      !salesOrder ||
+                      !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE'].includes(
+                        salesOrder.procurementStatus
+                      )
+                    }
                     sx={{ width: '100%' }}>
                     <ListItemIcon>
                       <AssignmentTurnedIn fontSize="small" />
@@ -902,6 +1086,7 @@ export default function SalesOrderDetail(): ReactElement {
                       salesOrder?.customer?.contacts?.[0]?.contactNumber
                     }
                   />
+                  <Info label="ที่อยู่" value={getCustomerAddress(salesOrder)} />
                 </Stack>
               </Grid>
               <Grid item xs={12} md={4}>
@@ -954,10 +1139,7 @@ export default function SalesOrderDetail(): ReactElement {
                       label="Request COA"
                     />
                   ) : (
-                    <Info
-                      label="Request COA"
-                      value={salesOrder?.requestCoa ? 'ใช่' : 'ไม่ใช่'}
-                    />
+                    <Info label="Request COA" value={salesOrder?.requestCoa ? 'ใช่' : 'ไม่ใช่'} />
                   )}
                   {isEditing ? (
                     <FormControlLabel
@@ -970,10 +1152,7 @@ export default function SalesOrderDetail(): ReactElement {
                       label="Request PO"
                     />
                   ) : (
-                    <Info
-                      label="Request PO"
-                      value={salesOrder?.requestPo ? 'ใช่' : 'ไม่ใช่'}
-                    />
+                    <Info label="Request PO" value={salesOrder?.requestPo ? 'ใช่' : 'ไม่ใช่'} />
                   )}
                 </Stack>
               </Grid>
@@ -1024,8 +1203,15 @@ export default function SalesOrderDetail(): ReactElement {
                 <Stack spacing={1.25} sx={{ width: '100%' }}>
                   {displayItems.length ? (
                     displayItems.map((item, index) => (
-                      <Stack key={item.id || item.lineNo || index} spacing={1.25} className={classes.mobileItemCard}>
-                        <Stack direction="row" spacing={1.25} alignItems="flex-start" className={classes.mobileItemHeader}>
+                      <Stack
+                        key={item.id || item.lineNo || index}
+                        spacing={1.25}
+                        className={classes.mobileItemCard}>
+                        <Stack
+                          direction="row"
+                          spacing={1.25}
+                          alignItems="flex-start"
+                          className={classes.mobileItemHeader}>
                           {item.imageUrl ? (
                             <Box
                               component="img"
@@ -1051,17 +1237,25 @@ export default function SalesOrderDetail(): ReactElement {
                                 className={classes.itemTextField}
                                 fullWidth
                                 value={item.name || ''}
-                                onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
+                                onChange={(event) =>
+                                  updateDraftItem(index, 'name', event.target.value)
+                                }
                               />
                             ) : (
-                              <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={700}
+                                sx={{ wordBreak: 'break-word' }}>
                                 {item.name || '-'}
                               </Typography>
                             )}
                           </Stack>
                         </Stack>
                         <Stack spacing={1}>
-                          <Info label="รายละเอียด" value={isEditing ? undefined : item.spec || '-'} />
+                          <Info
+                            label="รายละเอียด"
+                            value={isEditing ? undefined : item.spec || '-'}
+                          />
                           {isEditing ? (
                             <TextField
                               className={classes.itemTextField}
@@ -1071,7 +1265,9 @@ export default function SalesOrderDetail(): ReactElement {
                               minRows={2}
                               label="รายละเอียด"
                               InputLabelProps={{ shrink: true }}
-                              onChange={(event) => updateDraftItem(index, 'spec', event.target.value)}
+                              onChange={(event) =>
+                                updateDraftItem(index, 'spec', event.target.value)
+                              }
                             />
                           ) : null}
                           <Grid container spacing={1.25}>
@@ -1084,7 +1280,13 @@ export default function SalesOrderDetail(): ReactElement {
                                   label="ราคาต่อหน่วย"
                                   InputLabelProps={{ shrink: true }}
                                   value={item.unitPrice ?? 0}
-                                  onChange={(event) => updateDraftItem(index, 'unitPrice', Number(event.target.value || 0))}
+                                  onChange={(event) =>
+                                    updateDraftItem(
+                                      index,
+                                      'unitPrice',
+                                      Number(event.target.value || 0)
+                                    )
+                                  }
                                 />
                               ) : (
                                 <Info
@@ -1102,7 +1304,13 @@ export default function SalesOrderDetail(): ReactElement {
                                   label="จำนวน"
                                   InputLabelProps={{ shrink: true }}
                                   value={item.quantity ?? 0}
-                                  onChange={(event) => updateDraftItem(index, 'quantity', Number(event.target.value || 0))}
+                                  onChange={(event) =>
+                                    updateDraftItem(
+                                      index,
+                                      'quantity',
+                                      Number(event.target.value || 0)
+                                    )
+                                  }
                                 />
                               ) : (
                                 <Info label="จำนวน" value={formatNumber(item.quantity || 0)} />
@@ -1113,8 +1321,17 @@ export default function SalesOrderDetail(): ReactElement {
                                 direction="row"
                                 justifyContent="space-between"
                                 alignItems="center"
-                                sx={{ px: 1.25, py: 1, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                sx={{
+                                  px: 1.25,
+                                  py: 1,
+                                  borderRadius: 2,
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0'
+                                }}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  fontWeight={700}>
                                   รวม
                                 </Typography>
                                 <Typography variant="body2" fontWeight={700}>
@@ -1135,20 +1352,46 @@ export default function SalesOrderDetail(): ReactElement {
                   <Table id="sales_order_detail_items___table">
                     <TableHead>
                       <TableRow>
-                        <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
-                        <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>รูปภาพสินค้า</TableCell>
-                        <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>สินค้า</TableCell>
-                        <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>รายละเอียด</TableCell>
-                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>ราคาต่อหน่วย</TableCell>
-                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>จำนวน</TableCell>
-                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>รวม</TableCell>
+                        <TableCell
+                          align="center"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          #
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          รูปภาพสินค้า
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          สินค้า
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>
+                          รายละเอียด
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          ราคาต่อหน่วย
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          จำนวน
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          รวม
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {displayItems.length ? (
                         displayItems.map((item, index) => (
                           <TableRow key={item.id || item.lineNo || index}>
-                            <TableCell align="center" className={classes.fitContentCell}>{item.lineNo || index + 1}</TableCell>
+                            <TableCell align="center" className={classes.fitContentCell}>
+                              {item.lineNo || index + 1}
+                            </TableCell>
                             <TableCell align="center" className={classes.fitContentCell}>
                               {item.imageUrl ? (
                                 <Box
@@ -1165,38 +1408,79 @@ export default function SalesOrderDetail(): ReactElement {
                             </TableCell>
                             <TableCell className={classes.fitContentCell}>
                               {isEditing ? (
-                                <TextField className={classes.itemTextField} value={item.name || ''} onChange={(event) => updateDraftItem(index, 'name', event.target.value)} />
+                                <TextField
+                                  className={classes.itemTextField}
+                                  value={item.name || ''}
+                                  onChange={(event) =>
+                                    updateDraftItem(index, 'name', event.target.value)
+                                  }
+                                />
                               ) : (
                                 item.name || '-'
                               )}
                             </TableCell>
                             <TableCell className={classes.specCell}>
                               {isEditing ? (
-                                <TextField className={classes.itemTextField} value={item.spec || ''} fullWidth multiline minRows={2} onChange={(event) => updateDraftItem(index, 'spec', event.target.value)} />
+                                <TextField
+                                  className={classes.itemTextField}
+                                  value={item.spec || ''}
+                                  fullWidth
+                                  multiline
+                                  minRows={2}
+                                  onChange={(event) =>
+                                    updateDraftItem(index, 'spec', event.target.value)
+                                  }
+                                />
                               ) : (
                                 item.spec || '-'
                               )}
                             </TableCell>
                             <TableCell align="right" className={classes.fitContentCell}>
                               {isEditing ? (
-                                <TextField type="number" className={classes.itemTextField} value={item.unitPrice ?? 0} onChange={(event) => updateDraftItem(index, 'unitPrice', Number(event.target.value || 0))} />
+                                <TextField
+                                  type="number"
+                                  className={classes.itemTextField}
+                                  value={item.unitPrice ?? 0}
+                                  onChange={(event) =>
+                                    updateDraftItem(
+                                      index,
+                                      'unitPrice',
+                                      Number(event.target.value || 0)
+                                    )
+                                  }
+                                />
                               ) : (
                                 formatNumberWithDigit(item.unitPrice || 0, 4)
                               )}
                             </TableCell>
                             <TableCell align="right" className={classes.fitContentCell}>
                               {isEditing ? (
-                                <TextField type="number" className={classes.itemTextField} value={item.quantity ?? 0} onChange={(event) => updateDraftItem(index, 'quantity', Number(event.target.value || 0))} />
+                                <TextField
+                                  type="number"
+                                  className={classes.itemTextField}
+                                  value={item.quantity ?? 0}
+                                  onChange={(event) =>
+                                    updateDraftItem(
+                                      index,
+                                      'quantity',
+                                      Number(event.target.value || 0)
+                                    )
+                                  }
+                                />
                               ) : (
                                 formatNumber(item.quantity || 0)
                               )}
                             </TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.amount || 0)}</TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>
+                              {formatNumber(item.amount || 0)}
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} align="center">{t('warning.noResultList')}</TableCell>
+                          <TableCell colSpan={7} align="center">
+                            {t('warning.noResultList')}
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -1306,7 +1590,9 @@ export default function SalesOrderDetail(): ReactElement {
                       justifyContent="space-between"
                       alignItems="center"
                       spacing={2}>
-                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{"ค่าคอมมิชชั่น"}</Typography>
+                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                        {'ค่าคอมมิชชั่น'}
+                      </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         {`${salesOrder?.commission || 0} %`}
                       </Typography>
@@ -1411,7 +1697,11 @@ export default function SalesOrderDetail(): ReactElement {
             <Grid container spacing={2} sx={{ mt: 0.5 }}>
               <Grid item xs={12}>
                 <Stack spacing={2} className={classes.section}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    spacing={2}>
                     <Typography variant="h6">ไฟล์แนบ</Typography>
                     <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
                       {canManageSalesOrderAttachments ? (
@@ -1445,7 +1735,9 @@ export default function SalesOrderDetail(): ReactElement {
                           }}>
                           <Stack spacing={0.25}>
                             <Typography sx={{ fontWeight: 600 }}>
-                              {attachment.originalFileName || attachment.fileName || `attachment-${attachment.id}`}
+                              {attachment.originalFileName ||
+                                attachment.fileName ||
+                                `attachment-${attachment.id}`}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {attachment.contentType || '-'}
@@ -1513,7 +1805,13 @@ export default function SalesOrderDetail(): ReactElement {
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {formatNumber(Number(salesOrder?.paidTotal || 0))} /{' '}
-                      {formatNumber(Number(isEditing ? editableGrandTotal : salesOrder?.grandTotal || editableGrandTotal))}
+                      {formatNumber(
+                        Number(
+                          isEditing
+                            ? editableGrandTotal
+                            : salesOrder?.grandTotal || editableGrandTotal
+                        )
+                      )}
                     </Typography>
                   </Stack>
                   <Box>
@@ -1634,7 +1932,9 @@ export default function SalesOrderDetail(): ReactElement {
                                     <Button
                                       size="small"
                                       variant="text"
-                                      onClick={() => handleViewReceipt(payment.receiptNo as string)}>
+                                      onClick={() =>
+                                        handleViewReceipt(payment.receiptNo as string)
+                                      }>
                                       <Description />
                                     </Button>
                                   </Tooltip>
@@ -1672,6 +1972,105 @@ export default function SalesOrderDetail(): ReactElement {
           </GridSearchSection>
         </TabPanel>
       </Wrapper>
+
+      <Dialog
+        open={visibleUrgentDetailDialog}
+        onClose={handleCloseUrgentDetailDialog}
+        fullWidth
+        maxWidth="sm">
+        <DialogTitle>รายละเอียดคำขออนุมัติเร่งด่วน</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="สถานะคำขอเร่งด่วน"
+              value={
+                salesOrder?.urgentRequestStatus === 'APPROVED'
+                  ? 'เร่งด่วนอนุมัติแล้ว'
+                  : salesOrder?.urgentRequestStatus === 'REJECTED'
+                    ? 'คำขอเร่งด่วนไม่อนุมัติ'
+                    : 'เร่งด่วนรออนุมัติ'
+              }
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="เหตุผลที่ขอ"
+              value={salesOrder?.urgentRequestReason || '-'}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              fullWidth
+              label="เหตุผลที่ไม่อนุมัติ"
+              value={
+                hasRole(ROLES.SUPER_ADMIN) && salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL'
+                  ? urgentRejectReason
+                  : salesOrder?.urgentRejectReason || '-'
+              }
+              onChange={(event) => setUrgentRejectReason(event.target.value)}
+              multiline
+              minRows={3}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                readOnly: !(hasRole(ROLES.SUPER_ADMIN) && salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL')
+              }}
+              helperText={
+                hasRole(ROLES.SUPER_ADMIN) && salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL'
+                  ? 'จำเป็นต้องกรอกเมื่อกดไม่อนุมัติ'
+                  : undefined
+              }
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          {hasRole(ROLES.SUPER_ADMIN) && salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL' ? (
+            <>
+              <Button className="btn-crimson-red" onClick={() => void handleRejectUrgent()}>
+                ไม่อนุมัติเร่งด่วน
+              </Button>
+              <Button className="btn-indigo-blue" onClick={() => void handleApproveUrgent()}>
+                อนุมัติเร่งด่วน
+              </Button>
+            </>
+          ) : null}
+          <Button onClick={handleCloseUrgentDetailDialog}>{t('button.close')}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <ConfirmDialog
+        open={requestPoConfirmOpen}
+        title="ขออนุมัติสร้างใบสั่งซื้อ"
+        confirmDisabled={!requestPoReason.trim()}
+        confirmText="ยืนยัน"
+        cancelText="ยกเลิก"
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={() => {
+          void handleConfirmRequestPo();
+        }}
+        onCancel={handleCloseRequestPoConfirm}
+      >
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            ต้องการส่งคำขออนุมัติสร้างใบสั่งซื้อนี้ใช่หรือไม่
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={4}
+            label="เหตุผลในการขออนุมัติ"
+            placeholder="ระบุเหตุผลในการขออนุมัติ"
+            value={requestPoReason}
+            onChange={(event) => setRequestPoReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Stack>
+      </ConfirmDialog>
     </Page>
   );
 }

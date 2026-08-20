@@ -37,6 +37,7 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridTextField, Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
+import config from 'config';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -65,7 +66,6 @@ import * as Yup from 'yup';
 const CUSTOM_UNIT_OPTION = '__custom_unit__';
 const RFQ_SALES_TEAM_CODES = ['SALES_ONLINE', 'SALES_OFFLINE'];
 const PARENT_RFQ_TYPE_CODES = ['REPEAT_PRICE', 'REORDER', 'SPEC_REV', 'SPECIAL_PRICE_REVIEW'];
-const MAX_RFQ_PICTURES = 12;
 
 function getProductFamilyDisplayName(productFamily: ProductFamily): string {
   if (productFamily.nameTh && productFamily.nameEn) {
@@ -177,6 +177,7 @@ export default function NewRFQ(): JSX.Element {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customUnitInput, setCustomUnitInput] = useState('');
   const [isCreatingUnit, setIsCreatingUnit] = useState(false);
 
@@ -497,6 +498,7 @@ export default function NewRFQ(): JSX.Element {
       description: copiedRfq.description || ''
     });
 
+    setSelectedCustomer(copiedRfq.customer || null);
     setCustomerKeyword(customerId ? `(${customerId}) ${customerName}` : '');
   }, [defaultSalesId, formik, location.state, unitOptions]);
 
@@ -950,12 +952,10 @@ export default function NewRFQ(): JSX.Element {
                   options={customerOptions}
                   loading={isCustomerFetching}
                   filterOptions={(options) => options}
-                  value={
-                    customerOptions.find((customer) => customer.id === formik.values.customerId) ||
-                    null
-                  }
+                  value={selectedCustomer}
                   getOptionLabel={(option: Customer) => '(' + option.id + ') ' + option.customerName}
                   onChange={(_event, value) => {
+                    setSelectedCustomer(value);
                     const defaultContact =
                       value?.contacts?.find((contact: Contact) => contact.isDefault) ||
                       value?.contacts?.[0];
@@ -972,6 +972,7 @@ export default function NewRFQ(): JSX.Element {
 
                     if (reason === 'clear') {
                       setCustomerKeyword('');
+                      setSelectedCustomer(null);
                       formik.setFieldValue('customerId', '');
                       formik.setFieldValue('contactName', '');
                       formik.setFieldValue('contactPhone', '');
@@ -1444,9 +1445,10 @@ export default function NewRFQ(): JSX.Element {
                 name="shippingMethod"
                 value={formik.values.shippingMethod}
                 onChange={formik.handleChange}>
-                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทั้งหมด" />
+                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทางรถ/ทางเรือ" />
                 <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
                 <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
+                <FormControlLabel value="AIR" control={<Radio size="small" />} label="ทางเครื่องบิน" />
               </RadioGroup>
             </Box>
           </GridTextField>
@@ -1614,9 +1616,9 @@ export default function NewRFQ(): JSX.Element {
             <ImageFileUploaderWrapper
               id="rfq-picture-uploader"
               inputId="rfq-pictures"
-              isDisabled={pictureFiles.length >= MAX_RFQ_PICTURES}
+              isDisabled={pictureFiles.length >= config.maxRfqPictures}
               readOnly={false}
-              maxFiles={MAX_RFQ_PICTURES}
+              maxFiles={config.maxRfqPictures}
               isMultiple
               isError={false}
               files={pictureUrls}
@@ -1625,7 +1627,7 @@ export default function NewRFQ(): JSX.Element {
                 setPictureFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
               }}
               onSuccess={(files) => {
-                setPictureFiles((prev) => [...prev, ...files].slice(0, MAX_RFQ_PICTURES));
+                setPictureFiles((prev) => [...prev, ...files].slice(0, config.maxRfqPictures));
               }}
               fileUploader={FileUploader}
             />

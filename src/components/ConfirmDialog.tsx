@@ -15,6 +15,7 @@ interface ConfirmDialogProps {
   htmlContent?: string;
   confirmText?: string;
   cancelText?: string;
+  confirmDisabled?: boolean;
   manualId?: string;
   isShowCancelButton: boolean;
   isShowConfirmButton: boolean;
@@ -31,6 +32,7 @@ export default function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
     htmlContent,
     confirmText,
     cancelText,
+    confirmDisabled,
     manualId,
     isShowCancelButton,
     isShowConfirmButton,
@@ -79,6 +81,7 @@ export default function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
               onClick={onConfirm}
               className="btn-emerald-green"
               variant="contained"
+              disabled={confirmDisabled}
               aria-label="confirm">
               {confirmText || 'Confirm'}
             </Button>

@@ -139,7 +139,15 @@ function getSalesProcurementLabel(rfq: RFQRecord): string {
 }
 
 function getCustomerLabel(rfq: RFQRecord): string | null {
-  return rfq.customer?.customerName || rfq.customer?.companyName || null;
+  if (rfq.customer !== null && rfq.customer !== undefined) {
+    return rfq.contactName ? `${rfq.contactName} (${rfq.customer.id})` : `(${rfq.customer.id})`;
+  }
+
+  return rfq.contactName || null;
+}
+
+function getCustomerTagLabel(rfq: RFQRecord): string | null {
+  return rfq.customer?.id || null;
 }
 
 function getRfqTypeLabel(rfq: RFQRecord): string {
@@ -200,6 +208,8 @@ function RFQPictureGrid({
   pictures: { id: number; pictureUrl: string }[];
 }): ReactElement {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const visiblePictures = pictures.slice(0, 3);
+  const remainingPictureCount = Math.max(pictures.length - visiblePictures.length, 0);
 
   if (!pictures.length) {
     return (
@@ -223,7 +233,7 @@ function RFQPictureGrid({
         gap: 0.75,
         width: 180
       }}>
-      {pictures.slice(0, 12).map((picture) => (
+      {visiblePictures.map((picture, index) => (
         <Box
           key={picture.id}
           onClick={(event) => {
@@ -231,6 +241,7 @@ function RFQPictureGrid({
             setPreviewUrl(picture.pictureUrl);
           }}
           sx={{
+            position: 'relative',
             width: 56,
             height: 56,
             borderRadius: 2,
@@ -259,6 +270,23 @@ function RFQPictureGrid({
               display: 'block'
             }}
           />
+          {index === visiblePictures.length - 1 && remainingPictureCount > 0 ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(15, 23, 42, 0.62)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: 16,
+                letterSpacing: 0.3
+              }}>
+              +{remainingPictureCount}
+            </Box>
+          ) : null}
         </Box>
       ))}
       {previewUrl && (
@@ -783,11 +811,11 @@ export default function RFQManagement(): ReactElement {
             color: 'inherit'
           }}>
           <TableCell align="left">
-            <Stack spacing={0.25} sx={{ pl: 1.5 }}>
+            <Stack spacing={0.25}>
               <Typography variant="body2" fontWeight={700}>
                 {rfq.id}
               </Typography>
-              <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+              <Stack direction="row" useFlexGap flexWrap="wrap">
                 <Chip
                   label={getRfqTypeLabel(rfq)}
                   size="small"
@@ -815,7 +843,20 @@ export default function RFQManagement(): ReactElement {
             </TextLineClamp>
           </TableCell>
           <TableCell>
-            <TextLineClamp>{rfq.contactName || '-'}</TextLineClamp>
+            <Stack alignItems="flex-start">
+              {rfq.contactName || '-'}
+              {getCustomerTagLabel(rfq) ? (
+                <Chip
+                  label={`(${getCustomerTagLabel(rfq)})`}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontWeight: 700
+                  }}
+                />
+              ) : null}
+            </Stack>
           </TableCell>
           <TableCell>
             <TextLineClamp>{getSalesProcurementLabel(rfq)}</TextLineClamp>
@@ -1145,8 +1186,8 @@ export default function RFQManagement(): ReactElement {
                     renderValue: (selected) =>
                       Array.isArray(selected) && selected.length
                         ? selected
-                            .map((status) => t(`rfqManagement.rfqsStatus.${status}`))
-                            .join(', ')
+                          .map((status) => t(`rfqManagement.rfqsStatus.${status}`))
+                          .join(', ')
                         : 'ทั้งหมด'
                   }}
                   label="สถานะ"

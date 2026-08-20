@@ -12,12 +12,14 @@ import {
     SearchSaleOrderRequest,
     SearchSalesOrderRequestV1,
     SearchSalesOrderResponseV1,
+    RejectUrgentSalesOrderRequest,
     UpdateSalesOrderRequestV1,
     UpdatePOLineRequest,
     UpdateSaleOrderBilling,
     UpdateSaleOrderLineSupplierRequest,
     UpdateSaleOrderLineSupplierRequestV2,
-    UpdateSaleOrderRequest
+    UpdateSaleOrderRequest,
+    UrgentApprovalRequest
 } from './sale-order-type';
 
 export const createOrder = async (formValues: any) => {
@@ -63,14 +65,29 @@ export const searchOrder = async (data: SearchSaleOrderRequest, page: number, si
     return response;
 };
 
-export const searchSalesOrdersV1 = async (data: SearchSalesOrderRequestV1, page: number, size: number) => {
+export const searchSalesOrdersV1 = async (
+    data: SearchSalesOrderRequestV1,
+    page: number,
+    size: number,
+    options?: {
+        sortBy?: string;
+        sortDirection?: string;
+    }
+) => {
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('size', String(size));
+
+    if (options?.sortBy) {
+        params.append('sortBy', options.sortBy);
+    }
+
+    if (options?.sortDirection) {
+        params.append('sortDirection', options.sortDirection);
+    }
+
     const response: SearchSalesOrderResponseV1 = await api
-        .post(`/v1/sales-orders/search`, data, {
-            params: {
-                page,
-                size
-            }
-        })
+        .post(`/v1/sales-orders/search`, data, { params })
         .then((response) => response.data);
     return response;
 };
@@ -96,6 +113,27 @@ export const getSalesOrderV1 = async (id: string) => {
 export const updateSalesOrderV1 = async (id: string, data: UpdateSalesOrderRequestV1) => {
     const response = await api
         .patch(`/v1/sales-orders/${id}`, data)
+        .then((response) => response.data);
+    return response.data;
+};
+
+export const requestUrgentApproval = async (id: string, data: UrgentApprovalRequest) => {
+    const response = await api
+        .post(`/v1/sales-orders/${id}/request-urgent-approve`, data)
+        .then((response) => response.data);
+    return response.data;
+}
+
+export const approveUrgentSalesOrder = async (id: string) => {
+    const response = await api
+        .post(`/v1/sales-orders/${id}/approve-urgent`)
+        .then((response) => response.data);
+    return response.data;
+};
+
+export const rejectUrgentSalesOrder = async (id: string, data: RejectUrgentSalesOrderRequest) => {
+    const response = await api
+        .post(`/v1/sales-orders/${id}/reject-urgent`, data)
         .then((response) => response.data);
     return response.data;
 };

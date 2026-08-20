@@ -5,7 +5,8 @@ import {
   CreateInvoiceResponse,
   InvoiceRecord,
   SearchInvoiceRequest,
-  SearchInvoiceResponse
+  SearchInvoiceResponse,
+  UpdateInvoiceRequest
 } from './invoice-type';
 
 export const createInvoice = async (data: CreateInvoiceRequest): Promise<CreateInvoiceResponse> => {
@@ -20,6 +21,14 @@ export const getInvoice = async (id: string): Promise<InvoiceRecord> => {
     })
     .then((result) => result.data);
 
+  return response.data;
+};
+
+export const updateInvoice = async (
+  id: string,
+  data: UpdateInvoiceRequest
+): Promise<InvoiceRecord> => {
+  const response = await api.patch(`/v1/invoices/${id}`, data).then((result) => result.data);
   return response.data;
 };
 

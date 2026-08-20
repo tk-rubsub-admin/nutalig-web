@@ -272,6 +272,7 @@ export default function SalesOrderDetail(): ReactElement {
   const [tab, setTab] = useState<'detail' | 'history' | 'paymentHistory'>('detail');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [quotationNoError, setQuotationNoError] = useState(false);
   const [draft, setDraft] = useState<SalesOrderDraft>(createDraft());
   const [requestPoConfirmOpen, setRequestPoConfirmOpen] = useState(false);
   const [requestPoReason, setRequestPoReason] = useState('');
@@ -509,6 +510,7 @@ export default function SalesOrderDetail(): ReactElement {
 
   const handleEdit = () => {
     setDraft(createDraft(salesOrder));
+    setQuotationNoError(false);
     setIsEditing(true);
   };
 
@@ -648,6 +650,7 @@ export default function SalesOrderDetail(): ReactElement {
   const handleCancel = () => {
     handleCloseActionMenu();
     setDraft(createDraft(salesOrder));
+    setQuotationNoError(false);
     setIsEditing(false);
   };
 
@@ -713,6 +716,11 @@ export default function SalesOrderDetail(): ReactElement {
       return;
     }
 
+    if (!draft.quotationNo.trim()) {
+      setQuotationNoError(true);
+      return;
+    }
+
     const payload: UpdateSalesOrderRequestV1 = {
       docDate: draft.docDate || null,
       expireDate: draft.expireDate || null,
@@ -762,6 +770,7 @@ export default function SalesOrderDetail(): ReactElement {
         error: t('toast.failed')
       });
       setIsEditing(false);
+      setQuotationNoError(false);
       await Promise.all([refetch(), refetchHistory(), refetchInvoices()]);
     } finally {
       setIsSaving(false);
@@ -1040,8 +1049,15 @@ export default function SalesOrderDetail(): ReactElement {
                       select
                       label="อ้างอิงใบเสนอราคา"
                       value={draft.quotationNo}
-                      onChange={(event) => updateDraftField('quotationNo', event.target.value)}
+                      onChange={(event) => {
+                        updateDraftField('quotationNo', event.target.value);
+                        if (quotationNoError && event.target.value) {
+                          setQuotationNoError(false);
+                        }
+                      }}
                       disabled={!salesOrder?.rfqId || isRfqQuotationNosFetching}
+                      error={quotationNoError}
+                      helperText={quotationNoError ? 'กรุณาเลือกอ้างอิงใบเสนอราคา' : ' '}
                       InputLabelProps={{ shrink: true }}>
                       <MenuItem value="">-</MenuItem>
                       {rfqQuotationNos.map((quotation) => (

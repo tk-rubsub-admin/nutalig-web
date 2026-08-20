@@ -56,7 +56,7 @@ export default function SearchCustomerDialog(props: SearchCustomerDialogProps): 
         },
     });
     const classes = useStyles();
-    const CUSTOMER_ID_PREFIX = 'NTL-CUST-0';
+    const CUSTOMER_ID_PREFIX = 'NTL-CUST-';
     const CUSTOMER_ID_SUFFIX_LENGTH = 5;
     const [customerFilter, setCustomerFilter] = useState<SearchCustomerRequest>({});
     const [page, setPage] = useState<number>(1);

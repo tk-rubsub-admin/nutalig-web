@@ -33,6 +33,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
+import DatePicker from 'components/DatePicker';
 import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
@@ -42,9 +43,11 @@ import {
   MouseEvent as ReactMouseEvent,
   ReactElement,
   SyntheticEvent,
+  useEffect,
   useMemo,
   useState
 } from 'react';
+import dayjs from 'dayjs';
 import ReceivePaymentDialog from 'dialogs/InvoiceManagement/Detail/ReceivePaymentDialog';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -57,16 +60,18 @@ import {
   getInvoice,
   receiveInvoicePayment,
   sendAwaitingValidationNotification,
+  updateInvoice,
   viewInvoice
 } from 'services/Invoice/invoice-api';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
-import { ReceiptRecord } from 'services/Receipt/receipt-type';
-import { InvoiceItem, InvoiceRecord } from 'services/Invoice/invoice-type';
+import {
+  InvoiceItem,
+  InvoiceRecord,
+  UpdateInvoiceRequest
+} from 'services/Invoice/invoice-type';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
-import { SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
-import { base64ToBlob } from 'utils';
-import { formatDate } from 'utils';
+import { base64ToBlob, DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF, formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 import Can from 'auth/Can';
@@ -77,7 +82,26 @@ interface InvoiceDetailParams {
   id: string;
 }
 
+interface InvoiceDraft {
+  deliveryDate: string;
+}
+
 const getTodayDateInputValue = () => new Date().toISOString().slice(0, 10);
+
+const toDateInputValue = (value?: string | null) => {
+  if (!value) {
+    return '';
+  }
+
+  const parsed = dayjs(value, DEFAULT_DATE_FORMAT, true);
+  return parsed.isValid() ? parsed.format(DEFAULT_DATE_FORMAT_BFF) : '';
+};
+
+const createDraft = (invoice?: InvoiceRecord | null): InvoiceDraft => {
+  return {
+    deliveryDate: toDateInputValue(invoice?.deliveryDate)
+  };
+};
 
 const toPaymentDateTimeIso = (dateValue: string) => {
   const now = new Date();
@@ -178,6 +202,9 @@ export default function InvoiceDetail(): ReactElement {
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [draft, setDraft] = useState<InvoiceDraft>(createDraft());
   const [receivePaymentDialogOpen, setReceivePaymentDialogOpen] = useState(false);
   const [paymentDate, setPaymentDate] = useState(getTodayDateInputValue);
   const [paymentMethod, setPaymentMethod] = useState<'TRANSFER' | 'CHEQUE' | 'CASH'>('TRANSFER');
@@ -231,6 +258,11 @@ export default function InvoiceDetail(): ReactElement {
     enabled: Boolean(id),
     refetchOnWindowFocus: false
   });
+
+  useEffect(() => {
+    setDraft(createDraft(invoice));
+    setIsEditing(false);
+  }, [invoice]);
 
   const {
     data: activityHistory = [],
@@ -287,6 +319,7 @@ export default function InvoiceDetail(): ReactElement {
   const isReceivePaymentEnabled = Boolean(
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
   );
+  const canEditInvoice = Boolean(invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status));
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestReceipt =
     relatedReceipts.find((record) => record.invoiceNo === invoice?.invoiceNo) || relatedReceipts[0] || null;
@@ -320,7 +353,40 @@ export default function InvoiceDetail(): ReactElement {
 
   const handleSelectEditInvoice = () => {
     handleCloseActionMenu();
-    toast.error('ระบบยังไม่รองรับการแก้ไขใบแจ้งหนี้');
+    if (!invoice) {
+      return;
+    }
+
+    setDraft(createDraft(invoice));
+    setIsEditing(true);
+  };
+
+  const handleCancelEditInvoice = () => {
+    setDraft(createDraft(invoice));
+    setIsEditing(false);
+  };
+
+  const handleSaveInvoice = async () => {
+    if (!invoice?.invoiceNo) {
+      return;
+    }
+
+    const payload: UpdateInvoiceRequest = {
+      deliveryDate: draft.deliveryDate || null
+    };
+
+    setIsSaving(true);
+    try {
+      await toast.promise(updateInvoice(invoice.invoiceNo, payload), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+      setIsEditing(false);
+      await Promise.all([refetchInvoice(), refetchActivityHistory()]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOpenReceivePaymentDialog = () => {
@@ -440,7 +506,7 @@ export default function InvoiceDetail(): ReactElement {
 
   return (
     <Page>
-      <LoadingDialog open={isFetching || isActivityHistoryFetching} />
+      <LoadingDialog open={isFetching || isActivityHistoryFetching || isSaving} />
       <PageTitle
         title={
           invoice?.invoiceNo
@@ -510,7 +576,7 @@ export default function InvoiceDetail(): ReactElement {
             </Can>
             <MenuItem
               onClick={handleSelectEditInvoice}
-              disabled={!isReceivePaymentEnabled}
+              disabled={!canEditInvoice}
               sx={{ width: '100%' }}>
               <ListItemIcon>
                 <IoPencil />
@@ -574,6 +640,59 @@ export default function InvoiceDetail(): ReactElement {
                     value={invoice?.currency || 'THB'}
                   />
                   <Info label="Revision" value={invoice?.revNo ?? '-'} />
+                  {isEditing ? (
+                    <Stack spacing={0.25}>
+                      <DatePicker
+                        fullWidth
+                        inputVariant="outlined"
+                        InputLabelProps={{ shrink: true }}
+                        label="วันที่ส่งสินค้า"
+                        format={DEFAULT_DATE_FORMAT}
+                        value={
+                          draft.deliveryDate
+                            ? dayjs(draft.deliveryDate, DEFAULT_DATE_FORMAT_BFF).toDate()
+                            : null
+                        }
+                        onChange={(date) => {
+                          if (!date) {
+                            setDraft((previous) => ({
+                              ...previous,
+                              deliveryDate: ''
+                            }));
+                            return;
+                          }
+
+                          setDraft((previous) => ({
+                            ...previous,
+                            deliveryDate: dayjs(date.toDate())
+                              .startOf('day')
+                              .format(DEFAULT_DATE_FORMAT_BFF)
+                          }));
+                        }}
+                      />
+                    </Stack>
+                  ) : (
+                    <Info
+                      label="วันที่ส่งสินค้า"
+                      value={invoice?.deliveryDate || '-'}
+                    />
+                  )}
+                  {isEditing ? (
+                    <Stack direction="row" spacing={1} justifyContent="flex-end" useFlexGap>
+                      <Button variant="outlined" onClick={handleCancelEditInvoice}>
+                        ยกเลิก
+                      </Button>
+                      <Button
+                        variant="contained"
+                        className="btn-indigo-blue"
+                        onClick={() => {
+                          void handleSaveInvoice();
+                        }}
+                        disabled={isSaving}>
+                        บันทึก
+                      </Button>
+                    </Stack>
+                  ) : null}
                 </Stack>
               </Grid>
 

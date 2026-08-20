@@ -7,12 +7,17 @@ export interface CreateInvoiceRequest {
   salesOrderNo: string;
   docDate?: string;
   dueDate?: string;
+  deliveryDate?: string;
   remark?: string;
   subTotal?: number;
   discount?: number;
   amount?: number;
   vat?: number;
   grandTotal?: number;
+}
+
+export interface UpdateInvoiceRequest {
+  deliveryDate?: string | null;
 }
 
 export interface CreateInvoiceResponse {
@@ -67,6 +72,7 @@ export interface InvoiceRecord {
   quotationNo: string | null;
   docDate: string | null;
   dueDate: string | null;
+  deliveryDate: string | null;
   status: string;
   statusProfile?: DocumentStatusProfile;
   currency: string | null;

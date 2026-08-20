@@ -41,6 +41,7 @@ interface InvoiceCreateParams {
 interface InvoiceCreateDraft {
   docDate: string;
   dueDate: string;
+  deliveryDate: string;
   remark: string;
   subTotal: number;
   discount: number;
@@ -61,6 +62,7 @@ function createDraft(salesOrder?: SalesOrderV1, expireDays = 30): InvoiceCreateD
   return {
     docDate: today,
     dueDate,
+    deliveryDate: '',
     remark: salesOrder?.remark || '',
     subTotal: Number(salesOrder?.subTotal || 0),
     discount: Number(salesOrder?.discount || 0),
@@ -312,6 +314,7 @@ export default function NewInvoice(): ReactElement {
           salesOrderNo: salesOrder.salesOrderNo,
           docDate: draft.docDate || undefined,
           dueDate: draft.dueDate || undefined,
+          deliveryDate: draft.deliveryDate || undefined,
           remark: draft.remark?.trim() || undefined,
           subTotal: Number(draft.subTotal || 0),
           discount: Number(draft.discount || 0),
@@ -399,6 +402,15 @@ export default function NewInvoice(): ReactElement {
                 value={draft.dueDate}
                 onChange={(event) =>
                   setDraft((previous) => ({ ...previous, dueDate: event.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                type="date"
+                label="วันที่ส่งสินค้า"
+                value={draft.deliveryDate}
+                onChange={(event) =>
+                  setDraft((previous) => ({ ...previous, deliveryDate: event.target.value }))
                 }
                 InputLabelProps={{ shrink: true }}
               />

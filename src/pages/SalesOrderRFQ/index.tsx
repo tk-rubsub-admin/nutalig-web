@@ -94,6 +94,7 @@ interface SaleOrderRFQItem {
   quotationDetailId?: number | string;
   shippingMethod: 'LAND' | 'SEA' | null;
   isFcl?: boolean;
+  isShareFCL?: boolean;
   supplierCurrency?: string | null;
   supplierUnitPrice?: number | null;
   exchangeRate?: number | null;
@@ -368,7 +369,8 @@ function formatApiDate(value: dayjs.Dayjs | string): string | undefined {
 
 function getShippingDisplayLabel(
   shippingMethod: 'LAND' | 'SEA' | null,
-  isFcl?: boolean | null
+  isFcl?: boolean | null,
+  isShareFCL?: boolean | null
 ): string {
   if (!shippingMethod) {
     return '';
@@ -376,17 +378,27 @@ function getShippingDisplayLabel(
 
   const shippingLabel = shippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
 
-  return shippingMethod === 'SEA' && Boolean(isFcl) ? `${shippingLabel} แบบปิดตู้` : shippingLabel;
+  if (shippingMethod === 'SEA') {
+    if (Boolean(isShareFCL)) {
+      return `${shippingLabel} แบบแชร์ปิดตู้`;
+    }
+
+    if (Boolean(isFcl)) {
+      return `${shippingLabel} แบบปิดตู้`;
+    }
+  }
+
+  return shippingLabel;
 }
 
 function hasFclShippingTag(
-  item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFcl' | 'name' | 'remark'>
+  item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFcl' | 'isShareFCL' | 'name' | 'remark'>
 ): boolean {
   if (item.shippingMethod !== 'SEA') {
     return false;
   }
 
-  if (Boolean(item.isFcl)) {
+  if (Boolean(item.isFcl) || Boolean(item.isShareFCL)) {
     return true;
   }
 
@@ -455,7 +467,11 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
       return (['LAND', 'SEA'] as const).map((shippingMethod, shippingIndex) => {
         const quantity = Number(tier.quantity || 1);
         const unitPrice = getShippingPrice(tier, shippingMethod);
-        const shippingDisplayLabel = getShippingDisplayLabel(shippingMethod, tier.isFcl);
+        const shippingDisplayLabel = getShippingDisplayLabel(
+          shippingMethod,
+          tier.isFcl,
+          tier.isShareFCL
+        );
 
         return {
           id: Number(`${detail.id}${tier.id}${shippingIndex}`),
@@ -464,6 +480,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           supplierQuoteTierId: tier.supplierQuoteTierId || undefined,
           shippingMethod,
           isFcl: Boolean(tier.isFcl),
+          isShareFCL: Boolean(tier.isShareFCL),
           supplierCurrency: tier.currency || null,
           supplierUnitPrice: Number(tier.productPrice || 0),
           exchangeRate: Number(tier.exchangeRate || 0),
@@ -615,7 +632,11 @@ function createSaleOrderItemsFromQuotation(
     const mappedDetail = rfq.details?.find((detail) => detail.id === mappedRow?.optionId);
     const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === mappedRow?.tierId);
     const mappedShippingMethod = mappedRow?.shippingMethod || 'LAND';
-    const shippingDisplayLabel = getShippingDisplayLabel(mappedShippingMethod, mappedTier?.isFcl);
+    const shippingDisplayLabel = getShippingDisplayLabel(
+      mappedShippingMethod,
+      mappedTier?.isFcl,
+      mappedTier?.isShareFCL
+    );
     const normalizedItemName = item.name || productFamily || 'PRE-ORDER';
     const itemNameWithShippingLabel = normalizedItemName.includes(shippingDisplayLabel)
       ? normalizedItemName
@@ -631,6 +652,7 @@ function createSaleOrderItemsFromQuotation(
       supplierQuoteTierId: mappedTier?.supplierQuoteTierId || undefined,
       shippingMethod: mappedShippingMethod,
       isFcl: Boolean(mappedTier?.isFcl),
+      isShareFCL: Boolean(mappedTier?.isShareFCL),
       supplierCurrency: mappedTier?.currency || null,
       supplierUnitPrice: Number(mappedTier?.productPrice || 0),
       exchangeRate: Number(mappedTier?.exchangeRate || 0),
@@ -1609,7 +1631,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         key: summaryKey,
         shippingMethod: item.shippingMethod,
         isFcl,
-        label: getShippingDisplayLabel(item.shippingMethod, isFcl),
+        label: getShippingDisplayLabel(item.shippingMethod, isFcl, item.isShareFCL),
         icon: getShippingMethodIcon(item.shippingMethod),
         color: getShippingMethodColor(item.shippingMethod),
         unitPrice: Number(item.unitPrice || 0),

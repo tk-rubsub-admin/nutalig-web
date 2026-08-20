@@ -6,6 +6,8 @@ import { RFQReference } from "services/RFQ/rfq-type";
 import { Pagination } from "services/general-type";
 import { DocumentStatusProfile } from "services/document-status-type";
 
+export type TemplateLanguage = 'TH' | 'EN';
+
 export interface CreateQuotationRequest {
     docDate: string;
     effectiveDate: string;

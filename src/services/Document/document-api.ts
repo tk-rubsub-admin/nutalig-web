@@ -1,6 +1,13 @@
 /* eslint-disable prettier/prettier */
 import { api } from 'api/api';
-import { CreateQuotationRequest, GetQuotationResponse, SearchQuotationRequest, SearchQuotationResponse, UpdateQuotationRequest } from './document-type';
+import {
+    CreateQuotationRequest,
+    GetQuotationResponse,
+    SearchQuotationRequest,
+    SearchQuotationResponse,
+    TemplateLanguage,
+    UpdateQuotationRequest
+} from './document-type';
 import { UploadFileResponse } from 'services/general-type';
 
 export interface CreateQuotationResponse {
@@ -51,12 +58,25 @@ export const updateQuotation = async (id: string, data: UpdateQuotationRequest) 
     return response;
 };
 
-export const viewQuotation = async (id: string, original: boolean, copy: boolean) => {
+export const viewQuotation = async (
+    id: string,
+    original: boolean,
+    copy: boolean,
+    lang: TemplateLanguage = 'TH'
+) => {
     const response = await api
-        .get(`/v1/quotations/document?id=${id}&format=PDF&isOriginal=${original}&isCopy=${copy}`)
-        .then(response => response)
-    return response
-}
+        .get('/v1/quotations/document', {
+            params: {
+                id,
+                format: 'PDF',
+                lang,
+                isOriginal: original,
+                isCopy: copy
+            }
+        })
+        .then((response) => response);
+    return response;
+};
 
 export const generateQuotationPdfUrl = async (
     id: string,

@@ -114,6 +114,26 @@ const CO_SALE_MODE_FREELANCE = 'FREELANCE';
 const ADD_NEW_ADDRESS_VALUE = '__ADD_NEW_ADDRESS__';
 const ADD_NEW_CONTACT_VALUE = '__ADD_NEW_CONTACT__';
 
+function getShippingMethodLabel(
+    shippingMethod: 'LAND' | 'SEA',
+    isFcl?: boolean | null,
+    isShareFCL?: boolean | null
+): string {
+    if (shippingMethod === 'SEA') {
+        if (Boolean(isShareFCL)) {
+            return 'ทางเรือแบบแชร์ปิดตู้';
+        }
+
+        if (Boolean(isFcl)) {
+            return 'ทางเรือแบบปิดตู้';
+        }
+
+        return 'ทางเรือ';
+    }
+
+    return 'ทางรถ';
+}
+
 function QuotationItemMobileCard({
     row,
     index,
@@ -516,7 +536,10 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
             if (hasLandTotalPrice && hasSeaTotalPrice) {
                 return [
                     buildQuotationItem(toTierPriceNumber(tier?.landTotalPrice), 'ทางรถ'),
-                    buildQuotationItem(toTierPriceNumber(tier?.seaTotalPrice), 'ทางเรือ')
+                    buildQuotationItem(
+                        toTierPriceNumber(tier?.seaTotalPrice),
+                        getShippingMethodLabel('SEA', tier?.isFcl, tier?.isShareFCL)
+                    )
                 ];
             }
 
@@ -525,7 +548,12 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
             }
 
             if (hasSeaTotalPrice) {
-                return [buildQuotationItem(toTierPriceNumber(tier?.seaTotalPrice), 'ทางเรือ')];
+                return [
+                    buildQuotationItem(
+                        toTierPriceNumber(tier?.seaTotalPrice),
+                        getShippingMethodLabel('SEA', tier?.isFcl, tier?.isShareFCL)
+                    )
+                ];
             }
 
             return [buildQuotationItem(toTierPriceNumber(tier?.productPrice))];

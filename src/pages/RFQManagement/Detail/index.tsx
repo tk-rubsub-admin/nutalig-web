@@ -60,6 +60,7 @@ import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import AddNoteDialog from 'components/AddNoteDialog';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import ConfirmDialog from 'components/ConfirmDialog';
+import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
 import FileUploader from 'components/FileUploader';
 import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
 import { GridTextField, Wrapper } from 'components/Styled';
@@ -90,7 +91,7 @@ import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
 import { getRFQDetailHistory } from 'services/RFQ/rfq-api';
 import { getQuotation, viewQuotation } from 'services/Document/document-api';
-import { QuotationItem } from 'services/Document/document-type';
+import { QuotationItem, TemplateLanguage } from 'services/Document/document-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { getProductFamilies } from 'services/Product/product-api';
 import {
@@ -984,6 +985,7 @@ export default function RFQDetail(): ReactElement {
     useState<RFQAdditionalCost | null>(null);
   const [isPictureSubmitting, setIsPictureSubmitting] = useState(false);
   const [isQuotationDocumentLoading, setIsQuotationDocumentLoading] = useState(false);
+  const [visibleQuotationLanguageDialog, setVisibleQuotationLanguageDialog] = useState(false);
   const [isCustomerQuotedCopying, setIsCustomerQuotedCopying] = useState(false);
   const [downloadMenuAnchorEl, setDownloadMenuAnchorEl] = useState<null | HTMLElement>(null);
   const isSalesPermission = hasPermission(PERMISSIONS.RFQ_EDIT);
@@ -1746,7 +1748,45 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    history.push(ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', activeQuotationNo));
+    setVisibleQuotationLanguageDialog(true);
+  };
+
+  const handleCloseQuotationLanguageDialog = () => {
+    setVisibleQuotationLanguageDialog(false);
+  };
+
+  const handleSelectQuotationLanguage = async (language: TemplateLanguage) => {
+    handleCloseQuotationLanguageDialog();
+
+    if (!activeQuotationNo) {
+      return;
+    }
+
+    setIsQuotationDocumentLoading(true);
+
+    try {
+      await toast.promise(viewQuotation(activeQuotationNo, true, false, language), {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const data = response.data as DownloadDocumentResponse;
+
+          if (!data.files?.length) {
+            throw new Error('No quotation file');
+          }
+
+          const file = data.files[0];
+          const blob = base64ToBlob(file.base64, file.contentType);
+          const url = URL.createObjectURL(blob);
+
+          window.open(url, '_blank', 'noopener,noreferrer');
+
+          return t('toast.success');
+        },
+        error: () => t('toast.failed')
+      });
+    } finally {
+      setIsQuotationDocumentLoading(false);
+    }
   };
 
   const handleDownloadSalesOrder = async () => {
@@ -2547,6 +2587,12 @@ export default function RFQDetail(): ReactElement {
         onClose={handleCloseRequestedInformationDialog}
       />
       <ViewNoteDialog open={visibleViewNoteDialog} note={rfq?.note} onClose={handleCloseViewNoteDialog} />
+      <DocumentLanguageDialog
+        open={visibleQuotationLanguageDialog}
+        title={t('documentManagement.quotation.viewQuotation')}
+        onClose={handleCloseQuotationLanguageDialog}
+        onSelect={handleSelectQuotationLanguage}
+      />
       <Wrapper>
         <Stack spacing={{ xs: 1.5, sm: 2 }}>
           <Stack

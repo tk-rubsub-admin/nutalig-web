@@ -35,6 +35,7 @@ import { PERMISSIONS } from 'auth/permissions';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
 import DocumentFlow from 'components/DocumentFlow';
+import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -48,7 +49,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getQuotation, updateQuotation, viewQuotation } from 'services/Document/document-api';
-import { Quotation, QuotationItem } from 'services/Document/document-type';
+import { Quotation, QuotationItem, TemplateLanguage } from 'services/Document/document-type';
 import { searchInvoices } from 'services/Invoice/invoice-api';
 import { searchReceipts } from 'services/Receipt/receipt-api';
 import { getRFQ } from 'services/RFQ/rfq-api';
@@ -101,6 +102,7 @@ type ConfirmQuotationRow = {
     quantity: number;
     unitPrice: number;
     isFcl: boolean;
+    isShareFCL: boolean;
 };
 
 const inferQuotationItemShippingMethod = (name?: string | null): 'LAND' | 'SEA' | null => {
@@ -114,9 +116,21 @@ const inferQuotationItemShippingMethod = (name?: string | null): 'LAND' | 'SEA' 
     return null;
 };
 
-const getShippingMethodLabel = (shippingMethod: 'LAND' | 'SEA', isFcl = false): string => {
+const getShippingMethodLabel = (
+    shippingMethod: 'LAND' | 'SEA',
+    isFcl = false,
+    isShareFCL = false
+): string => {
     if (shippingMethod === 'SEA') {
-        return isFcl ? 'ส่งทางเรือ แบบปิดตู้' : 'ส่งทางเรือ';
+        if (isShareFCL) {
+            return 'ส่งทางเรือ แบบแชร์ปิดตู้';
+        }
+
+        if (isFcl) {
+            return 'ส่งทางเรือ แบบปิดตู้';
+        }
+
+        return 'ส่งทางเรือ';
     }
 
     return 'ส่งทางรถ';
@@ -305,6 +319,7 @@ export default function QuotationDetail(): JSX.Element {
     const [visibleConfirmPriceDialog, setVisibleConfirmPriceDialog] = useState(false);
     const [selectedConfirmQuotationRowKeys, setSelectedConfirmQuotationRowKeys] = useState<string[]>([]);
     const [visibleQuotationNotFoundDialog, setVisibleQuotationNotFoundDialog] = useState(false);
+    const [visibleQuotationLanguageDialog, setVisibleQuotationLanguageDialog] = useState(false);
 
     const {
         data: quotationResponse,
@@ -427,7 +442,8 @@ export default function QuotationDetail(): JSX.Element {
             optionName: matched.detail?.optionName || item.name || `รายการที่ ${index + 1}`,
             quantity: Number(item.quantity || 0),
             unitPrice: Number(item.unitPrice || 0),
-            isFcl: Boolean(matched.tier?.isFcl)
+            isFcl: Boolean(matched.tier?.isFcl),
+            isShareFCL: Boolean(matched.tier?.isShareFCL)
         };
     });
     // const canConfirmPriceAction = Boolean(quotation?.rfqId && quotation?.quotationNo && !salesOrder?.salesOrderNo);
@@ -504,14 +520,28 @@ export default function QuotationDetail(): JSX.Element {
         );
     };
 
-    const viewQuotationFunction = () => {
+    const handleOpenQuotationLanguageDialog = () => {
         handleCloseActionMenu();
 
         if (!quotation?.quotationNo) {
             return;
         }
 
-        toast.promise(viewQuotation(quotation.quotationNo, true, false), {
+        setVisibleQuotationLanguageDialog(true);
+    };
+
+    const handleCloseQuotationLanguageDialog = () => {
+        setVisibleQuotationLanguageDialog(false);
+    };
+
+    const handleSelectQuotationLanguage = async (language: TemplateLanguage) => {
+        handleCloseQuotationLanguageDialog();
+
+        if (!quotation?.quotationNo) {
+            return;
+        }
+
+        await toast.promise(viewQuotation(quotation.quotationNo, true, false, language), {
             loading: t('toast.loading'),
             success: (response) => {
                 const data = response.data as DownloadDocumentResponse;
@@ -607,7 +637,8 @@ export default function QuotationDetail(): JSX.Element {
             selectedRows.length === 1
                 ? `เลือก ${selectedRows[0].optionName} จำนวน ${formatNumber(selectedRows[0].quantity)} ${getShippingMethodLabel(
                     selectedRows[0].shippingMethod,
-                    selectedRows[0].isFcl
+                    selectedRows[0].isFcl,
+                    selectedRows[0].isShareFCL
                 )}`
                 : `เลือกรายการสำหรับคอนเฟิร์มราคาแล้ว ${selectedRows.length} รายการ`
         );
@@ -660,6 +691,12 @@ export default function QuotationDetail(): JSX.Element {
                 isShowCancelButton={false}
                 isShowConfirmButton
                 onConfirm={() => history.push(ROUTE_PATHS.QUOTATION_MANAGEMENT)}
+            />
+            <DocumentLanguageDialog
+                open={visibleQuotationLanguageDialog}
+                title={t('documentManagement.quotation.viewQuotation')}
+                onClose={handleCloseQuotationLanguageDialog}
+                onSelect={handleSelectQuotationLanguage}
             />
             <PageTitle title={'ใบเสนอราคาเลขที่ ' + quotation?.quotationNo || t('documentManagement.quotation.title')}>
                 {quotation?.status ? (
@@ -715,7 +752,7 @@ export default function QuotationDetail(): JSX.Element {
                                 </MenuItem>
                             </Can>
                             <MenuItem
-                                onClick={viewQuotationFunction}
+                                onClick={handleOpenQuotationLanguageDialog}
                                 disabled={!quotation || quotation.status === 'CANCELLED'}
                                 sx={{ width: '100%' }}>
                                 <ListItemIcon>
@@ -1183,7 +1220,11 @@ export default function QuotationDetail(): JSX.Element {
                                                 </Stack>
                                             </TableCell>
                                             <TableCell>
-                                                {getShippingMethodLabel(row.shippingMethod, row.isFcl)}
+                                                {getShippingMethodLabel(
+                                                    row.shippingMethod,
+                                                    row.isFcl,
+                                                    row.isShareFCL
+                                                )}
                                             </TableCell>
                                             <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
                                             <TableCell align="right">{formatNumber(row.unitPrice)}</TableCell>

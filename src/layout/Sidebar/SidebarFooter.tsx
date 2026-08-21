@@ -1,6 +1,5 @@
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
-import { version } from '../../../package.json';
 import { Button, Grid, IconButton, Stack } from '@mui/material';
 import { Logout } from '@mui/icons-material';
 import ConfirmDialog from 'components/ConfirmDialog';
@@ -8,6 +7,7 @@ import { ROUTE_PATHS } from 'routes';
 import { useAuth } from 'auth/AuthContext';
 import { useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import { appVersionLabel } from 'utils/appVersion';
 
 const Footer = styled.div`
   background-color: ${(props) => props.theme.sidebar.footer.background} !important;
@@ -34,7 +34,7 @@ function SidebarFooter({ ...rest }): JSX.Element {
         sx={{ width: '100%', color: 'white' }}>
         {/* Left: Version */}
         <span>
-          {t('header.version')} {version}
+          {t('header.version')} {appVersionLabel()}
         </span>
 
         {/* Right: Logout */}

@@ -12,11 +12,11 @@ import {
   Toolbar
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
-import { version } from '../../../package.json';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useState } from 'react';
 import NavbarMenu from './NavbarMenu';
 import { isMobileOnly } from 'react-device-detect';
+import { appVersionLabel } from 'utils/appVersion';
 
 const AppBar = styled(MuiAppBar)`
   background: #fff !important;
@@ -163,7 +163,7 @@ function Navbar({ onSidebarToggle }: NavbarProps) {
           <Grid item xs />
           <Grid item sx={{ display: { xs: 'none', sm: 'block' }, mr: 1 }}>
             <VersionText>
-              {t('header.version')} {version}
+              {t('header.version')} {appVersionLabel()}
             </VersionText>
           </Grid>
           <Grid item sx={{ display: { xs: 'none', sm: 'block' }, mr: 1 }}>

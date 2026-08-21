@@ -27,5 +27,5 @@ yarn-error.log*
 .idea
 # others
 .env
-
+public/firebase-messaging-sw.js
 

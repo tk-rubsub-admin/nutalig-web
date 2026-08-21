@@ -19,6 +19,7 @@ import SearchFreelanceSalesDialog from "dialogs/QuotationManagement/New/SearchFr
 import SearchRfqDialog from "dialogs/QuotationManagement/New/SearchRfqDialog";
 import { ROUTE_PATHS } from "routes";
 import { useFormik } from "formik";
+import { getIn } from "formik";
 import * as Yup from 'yup';
 import dayjs from "dayjs";
 import CollapsibleWrapper from "components/CollapsibleWrapper";
@@ -49,7 +50,7 @@ const createEmptyRow = (): CreateQuotationItem => ({
     size: '',
     spec: '',
     unitPrice: 0,
-    quantity: 1,
+    quantity: 0,
     unitPriceInput: '',
     amount: 0,
     imageFile: null,
@@ -140,6 +141,8 @@ function QuotationItemMobileCard({
     activeRfqPictures,
     t,
     fieldSx,
+    showItemErrors,
+    itemErrors,
     onUpdateItem,
     onUploadImage,
     onRemoveImage,
@@ -151,6 +154,12 @@ function QuotationItemMobileCard({
     activeRfqPictures: RFQRecord['pictures'];
     t: (key: string) => string;
     fieldSx: any;
+    showItemErrors: boolean;
+    itemErrors: {
+        name?: string;
+        quantity?: string;
+        unitPrice?: string;
+    };
     onUpdateItem: (index: number, field: keyof CreateQuotationItem, value: any) => void;
     onUploadImage: (index: number, file?: File | null) => void;
     onRemoveImage: (index: number) => void;
@@ -320,35 +329,17 @@ function QuotationItemMobileCard({
                 </Stack>
 
                 <Stack spacing={1.25}>
-                    <TextField
-                        fullWidth
-                        required
-                        label={t('documentManagement.quotation.itemSection.name')}
-                        value={row.name}
-                        onChange={(e) => onUpdateItem(index, 'name', e.target.value)}
-                        variant="outlined"
-                        sx={fieldSx}
-                    />
-
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                         <TextField
                             fullWidth
-                            label={t('documentManagement.quotation.itemSection.type')}
-                            value={row.type}
-                            onChange={(e) => onUpdateItem(index, 'type', e.target.value)}
+                            required
+                            label={t('documentManagement.quotation.itemSection.name')}
+                            value={row.name}
+                            onChange={(e) => onUpdateItem(index, 'name', e.target.value)}
                             variant="outlined"
                             sx={fieldSx}
+                            error={Boolean(showItemErrors && itemErrors.name)}
+                            helperText={showItemErrors ? itemErrors.name : ''}
                         />
-
-                        <TextField
-                            fullWidth
-                            label={t('documentManagement.quotation.itemSection.capacity')}
-                            value={row.capacity}
-                            onChange={(e) => onUpdateItem(index, 'capacity', e.target.value)}
-                            variant="outlined"
-                            sx={fieldSx}
-                        />
-                    </Stack>
 
                     <TextField
                         fullWidth
@@ -393,6 +384,8 @@ function QuotationItemMobileCard({
                                     fontWeight: 500
                                 }
                             }}
+                            error={Boolean(showItemErrors && itemErrors.quantity)}
+                            helperText={showItemErrors ? itemErrors.quantity : ''}
                         />
                         <TextField
                             fullWidth
@@ -414,6 +407,8 @@ function QuotationItemMobileCard({
                                     textAlign: 'right'
                                 }
                             }}
+                            error={Boolean(showItemErrors && itemErrors.unitPrice)}
+                            helperText={showItemErrors ? itemErrors.unitPrice : ''}
                         />
                     </Stack>
 
@@ -865,7 +860,7 @@ export default function NewQuotation() {
                     type: '',
                     capacity: '',
                     spec: '',
-                    quantity: 1,
+                    quantity: 0,
                     unitPrice: 0,
                     amount: 0,
                     imageFile: null,
@@ -876,7 +871,30 @@ export default function NewQuotation() {
         },
         enableReinitialize: false,
         validationSchema: Yup.object().shape({
-
+            items: Yup.array()
+                .of(
+                    Yup.object().shape({
+                        name: Yup.string()
+                            .trim()
+                            .required('ต้องระบุชื่อสินค้า'),
+                        quantity: Yup.number()
+                            .transform((value, originalValue) =>
+                                originalValue === '' || originalValue === null ? undefined : Number(originalValue)
+                            )
+                            .typeError('ต้องระบุจำนวน')
+                            .moreThan(0, 'จำนวนต้องมากกว่า 0')
+                            .required('ต้องระบุจำนวน'),
+                        unitPrice: Yup.number()
+                            .transform((value, originalValue) =>
+                                originalValue === '' || originalValue === null ? undefined : Number(originalValue)
+                            )
+                            .typeError('ต้องระบุราคาต่อชิ้น')
+                            .moreThan(0, 'ราคาต่อชิ้นต้องมากกว่า 0')
+                            .required('ต้องระบุราคาต่อชิ้น')
+                    })
+                )
+                .min(1, 'At least one item is required')
+                .required('Items are required')
         }),
         onSubmit: async (values) => {
             setIsLoading(true);
@@ -1212,18 +1230,34 @@ export default function NewQuotation() {
     const isItemSectionCompleted =
         formik.values.items.length > 0 &&
         formik.values.items.every((item) => {
-            const hasImage = !!item.imagePreview;
             const hasName = !!item.name?.trim();
             const hasQuantity = Number(item.quantity) > 0;
             const hasPrice = Number(item.unitPrice) > 0;
 
-            return hasImage && hasName && hasQuantity && hasPrice;
+            return hasName && hasQuantity && hasPrice;
         });
 
     const isQuotationFormCompleted =
         isCustomerSectionCompleted &&
         isGeneralSectionCompleted &&
         isItemSectionCompleted;
+
+    const getItemFieldError = (index: number, field: 'name' | 'quantity' | 'unitPrice') => {
+        const touched = getIn(formik.touched, `items[${index}].${field}`);
+        const error = getIn(formik.errors, `items[${index}].${field}`);
+
+        if (!error) {
+            return '';
+        }
+
+        return touched || formik.submitCount > 0 ? String(error) : '';
+    };
+
+    const getItemErrorState = (index: number) => ({
+        name: getItemFieldError(index, 'name'),
+        quantity: getItemFieldError(index, 'quantity'),
+        unitPrice: getItemFieldError(index, 'unitPrice')
+    });
 
     const updateItem = (index: number, field: string, value: any) => {
         const items = [...formik.values.items];
@@ -1246,7 +1280,7 @@ export default function NewQuotation() {
             type: '',
             capacity: '',
             spec: '',
-            quantity: 1,
+            quantity: 0,
             unitPrice: 0,
             amount: 0,
             imageFile: null,
@@ -1764,21 +1798,28 @@ export default function NewQuotation() {
             >
                 {isDownSm ? (
                     <Stack spacing={1.5}>
-                        {formik.values.items.map((row, index) => (
-                            <QuotationItemMobileCard
-                                key={index}
-                                row={row}
-                                index={index}
-                                activeRfqPictures={activeRfq?.pictures}
-                                t={t}
-                                fieldSx={fieldSx}
-                                onUpdateItem={updateItem}
-                                onUploadImage={handleUploadImage}
-                                onRemoveImage={removeImage}
-                                onSelectRfqPicture={handleSelectRfqPicture}
-                                onRemoveRow={removeRow}
-                            />
-                        ))}
+                        {formik.values.items.map((row, index) => {
+                            const itemErrors = getItemErrorState(index);
+                            const showItemErrors = formik.submitCount > 0;
+
+                            return (
+                                <QuotationItemMobileCard
+                                    key={index}
+                                    row={row}
+                                    index={index}
+                                    activeRfqPictures={activeRfq?.pictures}
+                                    t={t}
+                                    fieldSx={fieldSx}
+                                    showItemErrors={showItemErrors}
+                                    itemErrors={itemErrors}
+                                    onUpdateItem={updateItem}
+                                    onUploadImage={handleUploadImage}
+                                    onRemoveImage={removeImage}
+                                    onSelectRfqPicture={handleSelectRfqPicture}
+                                    onRemoveRow={removeRow}
+                                />
+                            );
+                        })}
                     </Stack>
                 ) : (
                     <Paper
@@ -1839,7 +1880,11 @@ export default function NewQuotation() {
                             </TableHead>
 
                             <TableBody>
-                                {formik.values.items.map((row, index) => (
+                                {formik.values.items.map((row, index) => {
+                                    const itemErrors = getItemErrorState(index);
+                                    const showItemErrors = formik.submitCount > 0;
+
+                                    return (
                                     <TableRow
                                         key={index}
                                         sx={{
@@ -1948,27 +1993,9 @@ export default function NewQuotation() {
                                                     onChange={(e) => updateItem(index, 'name', e.target.value)}
                                                     variant="outlined"
                                                     sx={fieldSx}
+                                                    error={Boolean(showItemErrors && itemErrors.name)}
+                                                    helperText={showItemErrors ? itemErrors.name : ''}
                                                 />
-
-                                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
-                                                    <TextField
-                                                        fullWidth
-                                                        label={t('documentManagement.quotation.itemSection.type')}
-                                                        value={row.type}
-                                                        onChange={(e) => updateItem(index, 'type', e.target.value)}
-                                                        variant="outlined"
-                                                        sx={fieldSx}
-                                                    />
-
-                                                    <TextField
-                                                        fullWidth
-                                                        label={t('documentManagement.quotation.itemSection.capacity')}
-                                                        value={row.capacity}
-                                                        onChange={(e) => updateItem(index, 'capacity', e.target.value)}
-                                                        variant="outlined"
-                                                        sx={fieldSx}
-                                                    />
-                                                </Stack>
 
                                                 <TextField
                                                     fullWidth
@@ -2049,11 +2076,11 @@ export default function NewQuotation() {
 
                                         {/* Quantity */}
                                         <TableCell align="center">
-                                            <TextField
-                                                fullWidth
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={row.quantity}
+                                                <TextField
+                                                    fullWidth
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={row.quantity}
                                                 onChange={(e) =>
                                                     updateItem(index, 'quantity', Number(e.target.value || 0))
                                                 }
@@ -2062,46 +2089,50 @@ export default function NewQuotation() {
                                                     style: { textAlign: 'center' }
                                                 }}
                                                 variant="outlined"
-                                                sx={{
-                                                    maxWidth: 130,
-                                                    mx: 'auto',
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
+                                                    sx={{
+                                                        maxWidth: 130,
+                                                        mx: 'auto',
+                                                        '& .MuiOutlinedInput-root': {
+                                                            borderRadius: '12px',
                                                         minHeight: 54,
                                                         backgroundColor: '#fff'
                                                     },
-                                                    '& .MuiInputBase-input': {
-                                                        fontSize: 16,
-                                                        fontWeight: 500
-                                                    }
-                                                }}
-                                            />
+                                                        '& .MuiInputBase-input': {
+                                                            fontSize: 16,
+                                                            fontWeight: 500
+                                                        }
+                                                    }}
+                                                    error={Boolean(showItemErrors && itemErrors.quantity)}
+                                                    helperText={showItemErrors ? itemErrors.quantity : ''}
+                                                />
                                         </TableCell>
 
                                         {/* Unit Price */}
                                         <TableCell align="center">
-                                            <TextField
-                                                fullWidth
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={row.unitPrice}
+                                                <TextField
+                                                    fullWidth
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={row.unitPrice}
                                                 onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
                                                 variant="outlined"
-                                                sx={{
-                                                    maxWidth: 155,
-                                                    mx: 'auto',
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: '12px',
+                                                    sx={{
+                                                        maxWidth: 155,
+                                                        mx: 'auto',
+                                                        '& .MuiOutlinedInput-root': {
+                                                            borderRadius: '12px',
                                                         minHeight: 54,
                                                         backgroundColor: '#fff'
                                                     },
-                                                    '& .MuiInputBase-input': {
-                                                        fontSize: 16,
-                                                        fontWeight: 500,
-                                                        textAlign: 'right'
-                                                    }
-                                                }}
-                                            />
+                                                        '& .MuiInputBase-input': {
+                                                            fontSize: 16,
+                                                            fontWeight: 500,
+                                                            textAlign: 'right'
+                                                        }
+                                                    }}
+                                                    error={Boolean(showItemErrors && itemErrors.unitPrice)}
+                                                    helperText={showItemErrors ? itemErrors.unitPrice : ''}
+                                                />
                                         </TableCell>
 
                                         {/* Amount */}
@@ -2145,7 +2176,8 @@ export default function NewQuotation() {
                                             </IconButton>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </Paper>
@@ -2336,7 +2368,7 @@ export default function NewQuotation() {
                     </Button>
                     <Button
                         fullWidth={isDownSm}
-                        disabled={!isQuotationFormCompleted}
+                        disabled={formik.isSubmitting || isLoading}
                         onClick={() => {
                             setAction('create');
                             setTitle(t('documentManagement.message.confirmCreateQuotationTitle'));

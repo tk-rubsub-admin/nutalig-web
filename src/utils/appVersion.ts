@@ -1,8 +1,16 @@
 import packageInfo from '../../package.json';
 
+const readInjectedValue = (value: unknown): string => {
+    return typeof value === 'string' ? value.trim() : '';
+};
+
 const formatBuildMetadata = (): string => {
-    const buildDate = __APP_BUILD_DATE__?.trim();
-    const commitHash = __APP_COMMIT_HASH__?.trim();
+    const buildDate = readInjectedValue(
+        typeof __APP_BUILD_DATE__ !== 'undefined' ? __APP_BUILD_DATE__ : ''
+    );
+    const commitHash = readInjectedValue(
+        typeof __APP_COMMIT_HASH__ !== 'undefined' ? __APP_COMMIT_HASH__ : ''
+    );
 
     if (!buildDate && !commitHash) {
         return '';
@@ -20,8 +28,8 @@ const formatBuildMetadata = (): string => {
 };
 
 export const appVersion = packageInfo.version;
-export const buildDate = __APP_BUILD_DATE__;
-export const commitHash = __APP_COMMIT_HASH__;
+export const buildDate = typeof __APP_BUILD_DATE__ !== 'undefined' ? __APP_BUILD_DATE__ : '';
+export const commitHash = typeof __APP_COMMIT_HASH__ !== 'undefined' ? __APP_COMMIT_HASH__ : '';
 
 export const appVersionLabel = (): string => {
     const metadata = formatBuildMetadata();

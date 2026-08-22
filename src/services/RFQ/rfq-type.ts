@@ -3,6 +3,14 @@ import { SystemConfig } from 'services/Config/config-type';
 import { Supplier } from 'services/Supplier/supplier-type';
 import { DocumentStatusProfile } from 'services/document-status-type';
 
+export const RequestInfoTo = {
+  ALL: 'ALL',
+  OWNER: 'OWNER',
+  PROCUREMENT: 'PROCUREMENT'
+} as const;
+
+export type RequestInfoTo = (typeof RequestInfoTo)[keyof typeof RequestInfoTo];
+
 export interface RFQProductFamily {
   code: string;
   nameTh?: string | null;
@@ -325,6 +333,7 @@ export interface RFQRecord {
   saleOrderId?: string | null;
   shippingMethod?: 'ALL' | 'LAND' | 'SEA' | null;
   requestInformation?: string | null;
+  requestTo?: RequestInfoTo | null;
   note?: string | null;
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
@@ -452,6 +461,7 @@ export interface UpdateRFQRequest {
 export interface RequestRFQInformationRequest {
   rfqId: string;
   requestInformation: string;
+  requestTo: RequestInfoTo;
 }
 
 export interface AddRFQNoteRequest {

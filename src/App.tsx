@@ -4,6 +4,7 @@ import { Box, CircularProgress } from '@material-ui/core';
 import { Toaster } from 'react-hot-toast';
 import { routes, ROUTE_PATHS } from './routes';
 import LayoutRoute from './layout/LayoutRoute';
+import ReleaseNoteDialog from 'components/ReleaseNoteDialog';
 import './styles/button.css';
 
 function App(): JSX.Element {
@@ -21,6 +22,7 @@ function App(): JSX.Element {
       }>
       <Router>
         <Toaster />
+        <ReleaseNoteDialog />
         <Switch>
           {routes.map(({ exact, path, component, isPublic, allowedRoles, requiredPermissions }) => (
             <LayoutRoute

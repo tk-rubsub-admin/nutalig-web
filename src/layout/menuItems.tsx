@@ -210,6 +210,12 @@ export function useMenuItems() {
           title: t('sidebar.systemConfigManagement.title'),
           href: ROUTE_PATHS.SYSTEM_CONFIG_MANAGEMENT,
           allowedPermission: [PERMISSIONS.SYSTEM_CONFIG_VIEW]
+        },
+        {
+          id: 'left_menu__release_note',
+          title: 'Release Note',
+          href: ROUTE_PATHS.RELEASE_NOTE,
+          allowedPermission: [PERMISSIONS.SYSTEM_CONFIG_VIEW]
         }
       ]
     },

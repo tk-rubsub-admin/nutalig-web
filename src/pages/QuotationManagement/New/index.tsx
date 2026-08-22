@@ -329,17 +329,17 @@ function QuotationItemMobileCard({
                 </Stack>
 
                 <Stack spacing={1.25}>
-                        <TextField
-                            fullWidth
-                            required
-                            label={t('documentManagement.quotation.itemSection.name')}
-                            value={row.name}
-                            onChange={(e) => onUpdateItem(index, 'name', e.target.value)}
-                            variant="outlined"
-                            sx={fieldSx}
-                            error={Boolean(showItemErrors && itemErrors.name)}
-                            helperText={showItemErrors ? itemErrors.name : ''}
-                        />
+                    <TextField
+                        fullWidth
+                        required
+                        label={t('documentManagement.quotation.itemSection.name')}
+                        value={row.name}
+                        onChange={(e) => onUpdateItem(index, 'name', e.target.value)}
+                        variant="outlined"
+                        sx={fieldSx}
+                        error={Boolean(showItemErrors && itemErrors.name)}
+                        helperText={showItemErrors ? itemErrors.name : ''}
+                    />
 
                     <TextField
                         fullWidth
@@ -964,10 +964,10 @@ export default function NewQuotation() {
             rfq.customer?.salesAccounts?.[0] ||
             rfq.customer?.salesAccount ||
             '';
-        const rfqAdditionalCostTotal = (rfq.additionalCosts || []).reduce(
-            (sum, cost) => sum + Number(cost.value || 0),
-            0
-        );
+        // const rfqAdditionalCostTotal = (rfq.additionalCosts || []).reduce(
+        //     (sum, cost) => sum + Number(cost.value || 0),
+        //     0
+        // );
 
         setCustomer(rfq.customer ? {
             ...rfq.customer,
@@ -987,7 +987,6 @@ export default function NewQuotation() {
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
             remark: buildPaymentTermRemark(rfq.customer?.customerPaymentTerm),
             shipping: rfq.shippingMethod || 'ALL',
-            freight: rfqAdditionalCostTotal,
             items: createQuotationItemsFromRFQ(rfq)
         });
     }, [rfq]);
@@ -1885,218 +1884,218 @@ export default function NewQuotation() {
                                     const showItemErrors = formik.submitCount > 0;
 
                                     return (
-                                    <TableRow
-                                        key={index}
-                                        sx={{
-                                            '& .MuiTableCell-root': {
-                                                py: 2,
-                                                backgroundColor: '#fff'
-                                            },
-                                            '&:hover .delete-btn': {
-                                                opacity: 1
-                                            }
-                                        }}
-                                    >
-                                        {/* Index */}
-                                        <TableCell align="center">
-                                            <Box
-                                                sx={{
-                                                    width: 34,
-                                                    height: 34,
-                                                    borderRadius: '10px',
-                                                    backgroundColor: '#F1F4F9',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontWeight: 700,
-                                                    color: '#3A4256',
-                                                    mx: 'auto'
-                                                }}
-                                            >
-                                                {index + 1}
-                                            </Box>
-                                        </TableCell>
-
-                                        <TableCell align="center">
-                                            <Stack spacing={1} alignItems="center">
+                                        <TableRow
+                                            key={index}
+                                            sx={{
+                                                '& .MuiTableCell-root': {
+                                                    py: 2,
+                                                    backgroundColor: '#fff'
+                                                },
+                                                '&:hover .delete-btn': {
+                                                    opacity: 1
+                                                }
+                                            }}
+                                        >
+                                            {/* Index */}
+                                            <TableCell align="center">
                                                 <Box
                                                     sx={{
-                                                        width: 88,
-                                                        height: 88,
-                                                        border: '1px dashed #C8D0DB',
-                                                        borderRadius: '14px',
-                                                        overflow: 'hidden',
-                                                        backgroundColor: '#FAFBFC',
+                                                        width: 34,
+                                                        height: 34,
+                                                        borderRadius: '10px',
+                                                        backgroundColor: '#F1F4F9',
                                                         display: 'flex',
                                                         alignItems: 'center',
-                                                        justifyContent: 'center'
+                                                        justifyContent: 'center',
+                                                        fontWeight: 700,
+                                                        color: '#3A4256',
+                                                        mx: 'auto'
                                                     }}
                                                 >
-                                                    {row.imagePreview ? (
-                                                        <Box
-                                                            component="img"
-                                                            src={row.imagePreview}
-                                                            alt="product"
-                                                            sx={{
-                                                                width: '100%',
-                                                                height: '100%',
-                                                                objectFit: 'cover'
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <Typography variant="caption" color="text.secondary" textAlign="center">
-                                                            {t('documentManagement.quotation.itemSection.noImage')}
-                                                        </Typography>
-                                                    )}
+                                                    {index + 1}
                                                 </Box>
+                                            </TableCell>
 
-                                                <Button
-                                                    component="label"
-                                                    variant="outlined"
-                                                    size="small"
-                                                    sx={{ borderRadius: '999px' }}
-                                                >
-                                                    {t('documentManagement.quotation.itemSection.uploadImage')}
-                                                    <input
-                                                        hidden
-                                                        accept="image/*"
-                                                        type="file"
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            handleUploadImage(index, file);
+                                            <TableCell align="center">
+                                                <Stack spacing={1} alignItems="center">
+                                                    <Box
+                                                        sx={{
+                                                            width: 88,
+                                                            height: 88,
+                                                            border: '1px dashed #C8D0DB',
+                                                            borderRadius: '14px',
+                                                            overflow: 'hidden',
+                                                            backgroundColor: '#FAFBFC',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
                                                         }}
-                                                    />
-                                                </Button>
+                                                    >
+                                                        {row.imagePreview ? (
+                                                            <Box
+                                                                component="img"
+                                                                src={row.imagePreview}
+                                                                alt="product"
+                                                                sx={{
+                                                                    width: '100%',
+                                                                    height: '100%',
+                                                                    objectFit: 'cover'
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <Typography variant="caption" color="text.secondary" textAlign="center">
+                                                                {t('documentManagement.quotation.itemSection.noImage')}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
 
-                                                {row.imagePreview && (
                                                     <Button
-                                                        color="error"
+                                                        component="label"
                                                         variant="outlined"
                                                         size="small"
                                                         sx={{ borderRadius: '999px' }}
-                                                        onClick={() => removeImage(index)}
                                                     >
-                                                        {t('documentManagement.quotation.itemSection.removeImage')}
-                                                    </Button>
-                                                )}
-                                            </Stack>
-                                        </TableCell>
-
-                                        {/* Name */}
-                                        <TableCell>
-                                            <Stack spacing={1.25}>
-                                                <TextField
-                                                    fullWidth
-                                                    required
-                                                    label={t('documentManagement.quotation.itemSection.name')}
-                                                    value={row.name}
-                                                    onChange={(e) => updateItem(index, 'name', e.target.value)}
-                                                    variant="outlined"
-                                                    sx={fieldSx}
-                                                    error={Boolean(showItemErrors && itemErrors.name)}
-                                                    helperText={showItemErrors ? itemErrors.name : ''}
-                                                />
-
-                                                <TextField
-                                                    fullWidth
-                                                    label={t('documentManagement.quotation.itemSection.spec')}
-                                                    multiline
-                                                    minRows={2}
-                                                    value={row.spec}
-                                                    onChange={(e) => updateItem(index, 'spec', e.target.value)}
-                                                    variant="outlined"
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '12px',
-                                                            backgroundColor: '#fff'
-                                                        },
-                                                        '& .MuiInputBase-input': {
-                                                            fontSize: 16
-                                                        }
-                                                    }}
-                                                />
-
-                                                {(activeRfq?.pictures || []).length > 1 ? (
-                                                    <Stack spacing={0.75}>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {t('documentManagement.quotation.itemSection.image')}
-                                                        </Typography>
-                                                        <Stack
-                                                            direction="row"
-                                                            spacing={0.75}
-                                                            sx={{
-                                                                overflowX: 'auto',
-                                                                pb: 0.5
+                                                        {t('documentManagement.quotation.itemSection.uploadImage')}
+                                                        <input
+                                                            hidden
+                                                            accept="image/*"
+                                                            type="file"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                handleUploadImage(index, file);
                                                             }}
+                                                        />
+                                                    </Button>
+
+                                                    {row.imagePreview && (
+                                                        <Button
+                                                            color="error"
+                                                            variant="outlined"
+                                                            size="small"
+                                                            sx={{ borderRadius: '999px' }}
+                                                            onClick={() => removeImage(index)}
                                                         >
-                                                            {(activeRfq?.pictures || []).map((picture, pictureIndex) => {
-                                                                const isSelected = row.imagePreview === picture.pictureUrl;
+                                                            {t('documentManagement.quotation.itemSection.removeImage')}
+                                                        </Button>
+                                                    )}
+                                                </Stack>
+                                            </TableCell>
 
-                                                                return (
-                                                                    <Box
-                                                                        key={picture.id || picture.pictureUrl || pictureIndex}
-                                                                        onClick={() => handleSelectRfqPicture(index, picture.pictureUrl)}
-                                                                        sx={{
-                                                                            width: 56,
-                                                                            minWidth: 56,
-                                                                            height: 56,
-                                                                            borderRadius: '10px',
-                                                                            overflow: 'hidden',
-                                                                            cursor: 'pointer',
-                                                                            border: isSelected
-                                                                                ? '2px solid #1F3F37'
-                                                                                : '1px solid #C8D0DB',
-                                                                            boxShadow: isSelected
-                                                                                ? '0 0 0 2px rgba(31, 63, 55, 0.16)'
-                                                                                : 'none',
-                                                                            opacity: isSelected ? 1 : 0.82,
-                                                                            transition: 'all 0.2s ease',
-                                                                            flexShrink: 0
-                                                                        }}
-                                                                    >
+                                            {/* Name */}
+                                            <TableCell>
+                                                <Stack spacing={1.25}>
+                                                    <TextField
+                                                        fullWidth
+                                                        required
+                                                        label={t('documentManagement.quotation.itemSection.name')}
+                                                        value={row.name}
+                                                        onChange={(e) => updateItem(index, 'name', e.target.value)}
+                                                        variant="outlined"
+                                                        sx={fieldSx}
+                                                        error={Boolean(showItemErrors && itemErrors.name)}
+                                                        helperText={showItemErrors ? itemErrors.name : ''}
+                                                    />
+
+                                                    <TextField
+                                                        fullWidth
+                                                        label={t('documentManagement.quotation.itemSection.spec')}
+                                                        multiline
+                                                        minRows={2}
+                                                        value={row.spec}
+                                                        onChange={(e) => updateItem(index, 'spec', e.target.value)}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: '12px',
+                                                                backgroundColor: '#fff'
+                                                            },
+                                                            '& .MuiInputBase-input': {
+                                                                fontSize: 16
+                                                            }
+                                                        }}
+                                                    />
+
+                                                    {(activeRfq?.pictures || []).length > 1 ? (
+                                                        <Stack spacing={0.75}>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {t('documentManagement.quotation.itemSection.image')}
+                                                            </Typography>
+                                                            <Stack
+                                                                direction="row"
+                                                                spacing={0.75}
+                                                                sx={{
+                                                                    overflowX: 'auto',
+                                                                    pb: 0.5
+                                                                }}
+                                                            >
+                                                                {(activeRfq?.pictures || []).map((picture, pictureIndex) => {
+                                                                    const isSelected = row.imagePreview === picture.pictureUrl;
+
+                                                                    return (
                                                                         <Box
-                                                                            component="img"
-                                                                            src={picture.pictureUrl}
-                                                                            alt={`rfq-picture-${pictureIndex + 1}`}
+                                                                            key={picture.id || picture.pictureUrl || pictureIndex}
+                                                                            onClick={() => handleSelectRfqPicture(index, picture.pictureUrl)}
                                                                             sx={{
-                                                                                width: '100%',
-                                                                                height: '100%',
-                                                                                objectFit: 'cover',
-                                                                                display: 'block'
+                                                                                width: 56,
+                                                                                minWidth: 56,
+                                                                                height: 56,
+                                                                                borderRadius: '10px',
+                                                                                overflow: 'hidden',
+                                                                                cursor: 'pointer',
+                                                                                border: isSelected
+                                                                                    ? '2px solid #1F3F37'
+                                                                                    : '1px solid #C8D0DB',
+                                                                                boxShadow: isSelected
+                                                                                    ? '0 0 0 2px rgba(31, 63, 55, 0.16)'
+                                                                                    : 'none',
+                                                                                opacity: isSelected ? 1 : 0.82,
+                                                                                transition: 'all 0.2s ease',
+                                                                                flexShrink: 0
                                                                             }}
-                                                                        />
-                                                                    </Box>
-                                                                );
-                                                            })}
+                                                                        >
+                                                                            <Box
+                                                                                component="img"
+                                                                                src={picture.pictureUrl}
+                                                                                alt={`rfq-picture-${pictureIndex + 1}`}
+                                                                                sx={{
+                                                                                    width: '100%',
+                                                                                    height: '100%',
+                                                                                    objectFit: 'cover',
+                                                                                    display: 'block'
+                                                                                }}
+                                                                            />
+                                                                        </Box>
+                                                                    );
+                                                                })}
+                                                            </Stack>
                                                         </Stack>
-                                                    </Stack>
-                                                ) : null}
-                                            </Stack>
-                                        </TableCell>
+                                                    ) : null}
+                                                </Stack>
+                                            </TableCell>
 
-                                        {/* Quantity */}
-                                        <TableCell align="center">
+                                            {/* Quantity */}
+                                            <TableCell align="center">
                                                 <TextField
                                                     fullWidth
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={row.quantity}
-                                                onChange={(e) =>
-                                                    updateItem(index, 'quantity', Number(e.target.value || 0))
-                                                }
-                                                inputProps={{
-                                                    min: 0,
-                                                    style: { textAlign: 'center' }
-                                                }}
-                                                variant="outlined"
+                                                    onChange={(e) =>
+                                                        updateItem(index, 'quantity', Number(e.target.value || 0))
+                                                    }
+                                                    inputProps={{
+                                                        min: 0,
+                                                        style: { textAlign: 'center' }
+                                                    }}
+                                                    variant="outlined"
                                                     sx={{
                                                         maxWidth: 130,
                                                         mx: 'auto',
                                                         '& .MuiOutlinedInput-root': {
                                                             borderRadius: '12px',
-                                                        minHeight: 54,
-                                                        backgroundColor: '#fff'
-                                                    },
+                                                            minHeight: 54,
+                                                            backgroundColor: '#fff'
+                                                        },
                                                         '& .MuiInputBase-input': {
                                                             fontSize: 16,
                                                             fontWeight: 500
@@ -2105,25 +2104,25 @@ export default function NewQuotation() {
                                                     error={Boolean(showItemErrors && itemErrors.quantity)}
                                                     helperText={showItemErrors ? itemErrors.quantity : ''}
                                                 />
-                                        </TableCell>
+                                            </TableCell>
 
-                                        {/* Unit Price */}
-                                        <TableCell align="center">
+                                            {/* Unit Price */}
+                                            <TableCell align="center">
                                                 <TextField
                                                     fullWidth
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={row.unitPrice}
-                                                onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
-                                                variant="outlined"
+                                                    onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
+                                                    variant="outlined"
                                                     sx={{
                                                         maxWidth: 155,
                                                         mx: 'auto',
                                                         '& .MuiOutlinedInput-root': {
                                                             borderRadius: '12px',
-                                                        minHeight: 54,
-                                                        backgroundColor: '#fff'
-                                                    },
+                                                            minHeight: 54,
+                                                            backgroundColor: '#fff'
+                                                        },
                                                         '& .MuiInputBase-input': {
                                                             fontSize: 16,
                                                             fontWeight: 500,
@@ -2133,49 +2132,49 @@ export default function NewQuotation() {
                                                     error={Boolean(showItemErrors && itemErrors.unitPrice)}
                                                     helperText={showItemErrors ? itemErrors.unitPrice : ''}
                                                 />
-                                        </TableCell>
+                                            </TableCell>
 
-                                        {/* Amount */}
-                                        <TableCell align="center">
-                                            <Box
-                                                sx={{
-                                                    minHeight: 54,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'flex-end',
-                                                    px: 1.5
-                                                }}
-                                            >
-                                                <Typography
-                                                    fontWeight={700}
+                                            {/* Amount */}
+                                            <TableCell align="center">
+                                                <Box
                                                     sx={{
-                                                        fontSize: 20,
-                                                        color: '#2F3447'
+                                                        minHeight: 54,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'flex-end',
+                                                        px: 1.5
                                                     }}
                                                 >
-                                                    {formatNumber(row.amount)}
-                                                </Typography>
-                                            </Box>
-                                        </TableCell>
+                                                    <Typography
+                                                        fontWeight={700}
+                                                        sx={{
+                                                            fontSize: 20,
+                                                            color: '#2F3447'
+                                                        }}
+                                                    >
+                                                        {formatNumber(row.amount)}
+                                                    </Typography>
+                                                </Box>
+                                            </TableCell>
 
-                                        {/* Delete */}
-                                        <TableCell align="center">
-                                            <IconButton
-                                                className="delete-btn"
-                                                onClick={() => removeRow(index)}
-                                                sx={{
-                                                    opacity: 0.7,
-                                                    transition: '0.2s',
-                                                    borderRadius: '12px',
-                                                    '&:hover': {
-                                                        backgroundColor: '#FFF1F1'
-                                                    }
-                                                }}
-                                            >
-                                                <DeleteOutline sx={{ color: '#B0B7C3' }} />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
+                                            {/* Delete */}
+                                            <TableCell align="center">
+                                                <IconButton
+                                                    className="delete-btn"
+                                                    onClick={() => removeRow(index)}
+                                                    sx={{
+                                                        opacity: 0.7,
+                                                        transition: '0.2s',
+                                                        borderRadius: '12px',
+                                                        '&:hover': {
+                                                            backgroundColor: '#FFF1F1'
+                                                        }
+                                                    }}
+                                                >
+                                                    <DeleteOutline sx={{ color: '#B0B7C3' }} />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
                                     );
                                 })}
                             </TableBody>

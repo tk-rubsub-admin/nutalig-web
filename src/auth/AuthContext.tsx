@@ -31,6 +31,10 @@ export const STORAGE_KEYS = {
   ADVANCE_DAYS: 'advance_days',
 };
 
+export const SESSION_KEYS = {
+  PENDING_RELEASE_NOTE: 'nutalig:pending-release-note'
+};
+
 interface AuthProviderProps {
   children: ReactElement;
 }
@@ -289,6 +293,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     return getAdminUserRoleLabel(role, t);
   };
 
+  const markReleaseNotePending = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    sessionStorage.setItem(SESSION_KEYS.PENDING_RELEASE_NOTE, '1');
+  };
+
   const logInWithEmailAndPassword = async (email: string, password: string): Promise<string> => {
     void email;
     void password;
@@ -315,6 +327,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     setToken(token);
 
     const roleCode = await hydrateUserProfileFromBackend();
+    markReleaseNotePending();
 
     return roleCode;
   };
@@ -333,6 +346,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     if (token) {
       setToken(token);
       await hydrateUserProfileFromBackend();
+      markReleaseNotePending();
     }
 
     return response;
@@ -352,6 +366,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     if (token) {
       setToken(token);
       await hydrateUserProfileFromBackend();
+      markReleaseNotePending();
     }
 
     return response;
@@ -364,6 +379,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         await logout({ userId: uid });
       }
     } finally {
+      sessionStorage.removeItem(SESSION_KEYS.PENDING_RELEASE_NOTE);
       ls.clear();
       setTokenState('');
       setUserIdState('');

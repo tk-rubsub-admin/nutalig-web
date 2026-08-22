@@ -276,6 +276,7 @@ export default function SalesOrderDetail(): ReactElement {
   const [draft, setDraft] = useState<SalesOrderDraft>(createDraft());
   const [requestPoConfirmOpen, setRequestPoConfirmOpen] = useState(false);
   const [requestPoReason, setRequestPoReason] = useState('');
+  const [requestPoPaymentScheduleDate, setRequestPoPaymentScheduleDate] = useState('');
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
   const [urgentRejectReason, setUrgentRejectReason] = useState('');
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -558,16 +559,18 @@ export default function SalesOrderDetail(): ReactElement {
     }
 
     setRequestPoReason('');
+    setRequestPoPaymentScheduleDate('');
     setRequestPoConfirmOpen(true);
   };
 
   const handleCloseRequestPoConfirm = () => {
     setRequestPoConfirmOpen(false);
     setRequestPoReason('');
+    setRequestPoPaymentScheduleDate('');
   };
 
   const handleConfirmRequestPo = async () => {
-    if (!salesOrder?.salesOrderNo || !requestPoReason.trim()) {
+    if (!salesOrder?.salesOrderNo || !requestPoReason.trim() || !requestPoPaymentScheduleDate) {
       return;
     }
 
@@ -575,7 +578,8 @@ export default function SalesOrderDetail(): ReactElement {
     try {
       await toast.promise(
         requestUrgentApproval(salesOrder.salesOrderNo, {
-          reason: requestPoReason.trim()
+          reason: requestPoReason.trim(),
+          paymentScheduleDate: requestPoPaymentScheduleDate
         }),
         {
           loading: 'กำลังส่งคำขออนุมัติสร้างใบสั่งซื้อ',
@@ -2120,6 +2124,14 @@ export default function SalesOrderDetail(): ReactElement {
             placeholder="ระบุเหตุผลในการขออนุมัติ"
             value={requestPoReason}
             onChange={(event) => setRequestPoReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            fullWidth
+            type="date"
+            label="วันที่จะชำระ"
+            value={requestPoPaymentScheduleDate}
+            onChange={(event) => setRequestPoPaymentScheduleDate(event.target.value)}
             InputLabelProps={{ shrink: true }}
           />
         </Stack>

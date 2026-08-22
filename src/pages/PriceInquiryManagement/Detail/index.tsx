@@ -124,6 +124,7 @@ import {
   RFQSupplierQuoteDetail,
   RFQSupplierQuotePackage,
   RFQSupplierQuoteLeadTime,
+  RequestInfoTo,
   UpdateRFQDetailRequest,
   UpdateRFQDetailTierRequest,
   UpsertRFQSupplierQuotePackageRequest,
@@ -1770,6 +1771,9 @@ export default function RFQDetail(): ReactElement {
     null
   );
   const [requestInformationText, setRequestInformationText] = useState('');
+  const [requestInformationTo, setRequestInformationTo] = useState<RequestInfoTo>(
+    RequestInfoTo.ALL
+  );
   const [visibleRequestInformationDialog, setVisibleRequestInformationDialog] = useState(false);
   const [isRequestInformationSubmitting, setIsRequestInformationSubmitting] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -2320,8 +2324,9 @@ export default function RFQDetail(): ReactElement {
     setVisibleInquiryUpdateConfirmationDialog(false);
   };
 
-  const handleOpenRequestInformationDialog = () => {
+  const handleOpenRequestInformationDialog = (to: RequestInfoTo) => {
     setRequestInformationText('');
+    setRequestInformationTo(to);
     setVisibleRequestInformationDialog(true);
   };
 
@@ -2345,6 +2350,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleCloseRequestInformationDialog = () => {
     setRequestInformationText('');
+    setRequestInformationTo(RequestInfoTo.ALL);
     setVisibleRequestInformationDialog(false);
   };
 
@@ -2430,7 +2436,8 @@ export default function RFQDetail(): ReactElement {
       await toast.promise(
         requestRFQInformation({
           rfqId: params.id,
-          requestInformation: requestInformationText.trim()
+          requestInformation: requestInformationText.trim(),
+          requestTo: requestInformationTo
         }),
         {
           loading: t('toast.loading'),
@@ -2988,9 +2995,9 @@ export default function RFQDetail(): ReactElement {
     handleOpenFinalPriceDialogFromButton();
   };
 
-  const handleRequestInformationFromMenu = () => {
+  const handleRequestInformationFromMenu = (to: RequestInfoTo) => {
     handleCloseActionMenu();
-    handleOpenRequestInformationDialog();
+    handleOpenRequestInformationDialog(to);
   };
 
   const handleSupplierQuoteFromMenu = () => {
@@ -4631,10 +4638,10 @@ export default function RFQDetail(): ReactElement {
                       <ListItemText primary="Final ราคา" />
                     </MenuItem>
                   </Can>
-                  {rfq?.status === 'SUPPLIER_QUOTED' && hasRole(ROLES.SUPER_ADMIN) ? (
+                  {(rfq?.status === 'SUPPLIER_QUOTED' || rfq?.status === 'SPECIAL_PRICE_REVIEW') && hasRole(ROLES.SUPER_ADMIN) ? (
                     <MenuItem
                       disabled={isRequestInformationSubmitting}
-                      onClick={handleRequestInformationFromMenu}>
+                      onClick={() => handleRequestInformationFromMenu('PROCUREMENT')}>
                       <ListItemIcon>
                         <InfoOutlined fontSize="small" />
                       </ListItemIcon>
@@ -4645,7 +4652,7 @@ export default function RFQDetail(): ReactElement {
               ) : (
                 <MenuItem
                   disabled={isRequestInformationSubmitting}
-                  onClick={handleRequestInformationFromMenu}>
+                  onClick={() => handleRequestInformationFromMenu('OWNER')}>
                   <ListItemIcon>
                     <InfoOutlined fontSize="small" />
                   </ListItemIcon>
@@ -6136,7 +6143,11 @@ export default function RFQDetail(): ReactElement {
       <RequestInformationDialog
         open={visibleRequestInformationDialog}
         requestInformation={requestInformationText}
+        requestTo={requestInformationTo}
+        requestToSales={rfq?.sales || null}
+        requestToProcurement={rfq?.procurement || null}
         onRequestInformationChange={setRequestInformationText}
+        onRequestToChange={setRequestInformationTo}
         onClose={handleCloseRequestInformationDialog}
         onConfirm={handleConfirmRequestInformation}
         isSubmitting={isRequestInformationSubmitting}

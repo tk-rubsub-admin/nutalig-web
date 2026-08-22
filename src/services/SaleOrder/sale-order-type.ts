@@ -121,6 +121,7 @@ export interface SalesOrderV1 {
     coSaleCommission: number;
     requestCoa: boolean;
     requestPo: boolean;
+    paymentScheduleDate: string | null;
     urgentRequest: boolean;
     urgentRequestReason: string | null;
     urgentRequestStatus: string | null;
@@ -222,6 +223,7 @@ export interface UpdateSalesOrderRequestV1 {
 
 export interface UrgentApprovalRequest {
     reason: string | null;
+    paymentScheduleDate: string | null;
 }
 
 export interface RejectUrgentSalesOrderRequest {

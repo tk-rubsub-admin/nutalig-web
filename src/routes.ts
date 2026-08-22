@@ -34,6 +34,7 @@ export const ROUTE_PATHS = Object.freeze({
   CUSTOMER_DASHBOARD: '/customer-dashboard',
   PRODUCT_FAMILY_MANAGEMENT: '/product-family-management',
   SYSTEM_CONFIG_MANAGEMENT: '/system-config-management',
+  RELEASE_NOTE: '/release-note',
   RFQ_MANAGEMENT: '/rfq-management',
   TODO_MANAGEMENT: '/to-do-management',
   PRICE_INQUIRY: '/price-inquiry/:id',
@@ -208,6 +209,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.SYSTEM_CONFIG_MANAGEMENT,
     component: lazy(() => import('./pages/SystemConfigManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.SYSTEM_CONFIG_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.RELEASE_NOTE,
+    component: lazy(() => import('./pages/ReleaseNote' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.SYSTEM_CONFIG_VIEW]
   },
   {

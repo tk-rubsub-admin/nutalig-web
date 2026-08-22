@@ -1,0 +1,38 @@
+{
+  "notes": [
+    {
+      "version": "0.1.1",
+      "publishedAt": "22/08/2026 14:16",
+      "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",
+      "titleEn": "What's New in This Release",
+      "summaryTh": "ปรับปรุงประสบการณ์ใช้งาน",
+      "summaryEn": "Improved the user experience.",
+      "itemsTh": [
+        "ปรับรูปแบบเวอร์ชันเป็น semver พร้อม commit hash และวันที่ build",
+        "เพิ่มหน้าต่าง release note แสดงอัตโนมัติเมื่อมีเวอร์ชันใหม่",
+        "ปรับ validation และการแสดงผลในหน้าจอสร้างใบเสนอราคา",
+        "ปรับให้บันทึก supplier quote ต่อได้ แม้ detail บางรายการไม่พบใน RFQ ปัจจุบัน",
+        "ลดโอกาสที่หน้าจอแก้ไขราคาจะบันทึกไม่ผ่านเพราะ detail reference ไม่ตรง",
+        "เพิ่มช่องวันที่จะชำระใน dialog ขออนุมัติสร้างใบสั่งซื้อ",
+        "เปลี่ยนชื่อฟิลด์เป็น paymentScheduleDate ให้สอดคล้องกันทั้งเว็บและ API",
+        "เพิ่มคอลัมน์ payment_schedule_date ในตาราง sales_order",
+        "เพิ่มเงื่อนไขให้ request information ทำงานกับ RFQ สถานะ SPECIAL_PRICE_REVIEW ได้",
+        "เมื่อ RFQ อยู่ในสถานะ SUPPLIER_QUOTED หรือ SPECIAL_PRICE_REVIEW และกดโดย SUPER_ADMIN จะส่ง notification ไปยัง procurement owner",
+        "Fix bug ค่าขนส่ง ของใบเสนอราคา"
+      ],
+      "itemsEn": [
+        "Changed version format to semver with commit hash and build date",
+        "Added an auto-opening release note dialog for new versions",
+        "Improved validation and item rendering in quotation creation",
+        "Allowed supplier quote saving to continue even when some details no longer exist in the current RFQ",
+        "Reduced save failures caused by stale detail references",
+        "Added a payment schedule date field to the purchase order approval dialog",
+        "Renamed the field to paymentScheduleDate consistently across web and API",
+        "Added payment_schedule_date to the sales_order table",
+        "Allowed request information to work with RFQs in SPECIAL_PRICE_REVIEW status",
+        "Sent notifications to the procurement owner when SUPER_ADMIN requests information for SUPPLIER_QUOTED or SPECIAL_PRICE_REVIEW RFQs",
+        "Fix bug : Quotation's freight."
+      ]
+    }
+  ]
+}

@@ -229,6 +229,16 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                     alignItems={{ xs: 'flex-start', sm: 'center' }}>
                     <Box sx={{ minWidth: 0 }}>
                       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <Chip
+                          size="small"
+                          label={quote.id}
+                          sx={{
+                            backgroundColor: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                            fontWeight: 700
+                          }}
+                        />
                         <Typography variant="subtitle1" fontWeight={700}>
                           {getSupplierDisplayName(quote.supplier)}
                         </Typography>
@@ -253,9 +263,6 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                           }}
                         /> */}
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">
-                        {quote.supplier?.supplierCode || quote.supplier?.id || '-'}
-                      </Typography>
                       {quote.remark ? (
                         <Typography variant="body2" sx={{ mt: 0.5 }}>
                           Remark: {quote.remark}
@@ -365,9 +372,25 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                           direction="row"
                                           justifyContent="space-between"
                                           alignItems="center">
-                                          <Typography variant="subtitle2" fontWeight={700}>
-                                            Option {detail.sortOrder || detailIndex + 1}
-                                          </Typography>
+                                          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                                            <Chip
+                                              size="small"
+                                              label={`id: ${detail.id}`}
+                                              sx={{
+                                                backgroundColor: '#eff6ff',
+                                                color: '#1d4ed8',
+                                                border: '1px solid #bfdbfe',
+                                                fontWeight: 700,
+                                                flexShrink: 0
+                                              }}
+                                            />
+                                            <Typography
+                                              variant="subtitle2"
+                                              fontWeight={700}
+                                              sx={{ whiteSpace: 'nowrap' }}>
+                                              Option {detail.sortOrder || detailIndex + 1}
+                                            </Typography>
+                                          </Stack>
                                           <Stack direction="row" spacing={0.5}>
                                             <IconButton
                                               size="small"
@@ -431,9 +454,22 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                     </Grid>
                                   ) : (
                                     <>
-                                      <Typography variant="body2" fontWeight={700}>
-                                        {detail.optionName || `Option ${detailIndex + 1}`}
-                                      </Typography>
+                                      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                                        <Chip
+                                          size="small"
+                                          label={`id: ${detail.id}`}
+                                          sx={{
+                                            backgroundColor: '#eff6ff',
+                                            color: '#1d4ed8',
+                                            border: '1px solid #bfdbfe',
+                                            fontWeight: 700,
+                                            flexShrink: 0
+                                          }}
+                                        />
+                                        <Typography variant="body2" fontWeight={700}>
+                                          {detail.optionName || `Option ${detailIndex + 1}`}
+                                        </Typography>
+                                      </Stack>
                                       <Typography variant="body2" color="text.secondary">
                                         {detail.spec || '-'}
                                       </Typography>

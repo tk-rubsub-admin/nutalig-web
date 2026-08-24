@@ -14,6 +14,7 @@ import {
   Task,
   Grading,
   DoneAll,
+  FactCheck,
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { PERMISSIONS } from 'auth/permissions';
@@ -42,13 +43,23 @@ export function useMenuItems() {
     //   href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
     //   icon: Group,
     //   allowedRoles: [ROLES.SUPER_ADMIN]
-    // },
+    // },, 
     {
-      id: 'left_menu__waiting_approve_rfq_management',
-      title: 'รายการรออนุมัติ',
-      href: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
-      icon: DoneAll,
-      allowedPermission: [PERMISSIONS.AWAITING_APPROVE_VIEW]
+      id: 'left_menu__approve_management',
+      title: 'ผู้อนุมัติ',
+      icon: FactCheck,
+      children: [
+        {
+          id: 'left_menu__final_price_inquiry_management',
+          title: 'รอสรุปราคา/ทบทวนราคาพิเศษ',
+          href: ROUTE_PATHS.FINAL_PRICE_INQUIRY_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW]
+        }, {
+          id: 'left_menu__waiting_approve_rfq_management',
+          title: 'รายการรออนุมัติ',
+          href: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.AWAITING_APPROVE_VIEW]
+        }]
     },
     {
       id: 'left_menu__sales_management',
@@ -94,10 +105,10 @@ export function useMenuItems() {
           allowedPermission: [PERMISSIONS.PRICE_INQUIRY_VIEW]
         },
         {
-          id: 'left_menu__final_price_inquiry_management',
-          title: t('sidebar.priceInquiryManagement.final'),
-          href: ROUTE_PATHS.FINAL_PRICE_INQUIRY_MANAGEMENT,
-          allowedPermission: [PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW]
+          id: 'left_menu__ready_for_purchase_order',
+          title: 'รอออกใบสั่งซื้อ',
+          href: ROUTE_PATHS.AWAITING_SALE_ORDER_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_VIEW]
         },
         {
           id: 'left_menu__purchase_order',

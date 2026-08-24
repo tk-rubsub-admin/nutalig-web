@@ -50,6 +50,7 @@ import { PERMISSIONS } from 'auth/permissions';
 import { ROLES } from 'auth/roles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
+import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
 import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
@@ -98,6 +99,7 @@ import { formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber, formatNumberWithDigit } from 'utils/utils';
 import { buildSalesOrderDocumentFlowItems } from 'utils/documentFlow';
+import { TemplateLanguage } from 'services/Document/document-type';
 
 interface SalesOrderDetailParams {
   id: string;
@@ -278,6 +280,8 @@ export default function SalesOrderDetail(): ReactElement {
   const [requestPoReason, setRequestPoReason] = useState('');
   const [requestPoPaymentScheduleDate, setRequestPoPaymentScheduleDate] = useState('');
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
+  const [visibleSalesOrderLanguageDialog, setVisibleSalesOrderLanguageDialog] = useState(false);
+  const [isSalesOrderDocumentLoading, setIsSalesOrderDocumentLoading] = useState(false);
   const [urgentRejectReason, setUrgentRejectReason] = useState('');
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const useStyles = makeStyles({
@@ -658,34 +662,48 @@ export default function SalesOrderDetail(): ReactElement {
     setIsEditing(false);
   };
 
-  const handleDownloadSalesOrder = async () => {
+  const handleOpenSalesOrderLanguageDialog = () => {
+    handleCloseActionMenu();
+    setVisibleSalesOrderLanguageDialog(true);
+  };
+
+  const handleCloseSalesOrderLanguageDialog = () => {
+    setVisibleSalesOrderLanguageDialog(false);
+  };
+
+  const handleSelectSalesOrderLanguage = async (language: TemplateLanguage) => {
     if (!salesOrder?.salesOrderNo) {
       return;
     }
 
-    handleCloseActionMenu();
+    setVisibleSalesOrderLanguageDialog(false);
+    setIsSalesOrderDocumentLoading(true);
 
-    await toast.promise(downloadSaleOrder(salesOrder.salesOrderNo, 'PDF', true, false), {
-      loading: t('toast.loading'),
-      success: (response) => {
-        const data = response.data as DownloadDocumentResponse;
-        const files = data.files || [];
+    try {
+      await toast.promise(downloadSaleOrder(salesOrder.salesOrderNo, 'PDF', true, false, language), {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const data = response.data as DownloadDocumentResponse;
+          const files = data.files || [];
 
-        if (!files.length) {
-          throw new Error('No file');
-        }
+          if (!files.length) {
+            throw new Error('No file');
+          }
 
-        const file = files[0];
-        const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-        const url = URL.createObjectURL(blob);
+          const file = files[0];
+          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+          const url = URL.createObjectURL(blob);
 
-        window.open(url, '_blank', 'noopener,noreferrer');
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          window.open(url, '_blank', 'noopener,noreferrer');
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
-        return t('toast.success');
-      },
-      error: t('toast.failed')
-    });
+          return t('toast.success');
+        },
+        error: t('toast.failed')
+      });
+    } finally {
+      setIsSalesOrderDocumentLoading(false);
+    }
   };
 
   const handleViewReceipt = async (receiptNo: string) => {
@@ -933,8 +951,8 @@ export default function SalesOrderDetail(): ReactElement {
                   </MenuItem>
                 </Can>
                 <MenuItem
-                  onClick={handleDownloadSalesOrder}
-                  disabled={!salesOrder}
+                  onClick={handleOpenSalesOrderLanguageDialog}
+                  disabled={!salesOrder || isSalesOrderDocumentLoading}
                   sx={{ width: '100%' }}>
                   <ListItemIcon>
                     <Description fontSize="small" />
@@ -2030,6 +2048,12 @@ export default function SalesOrderDetail(): ReactElement {
         </TabPanel>
       </Wrapper>
 
+      <DocumentLanguageDialog
+        open={visibleSalesOrderLanguageDialog}
+        title="ดูใบยืนยันสั่งซื้อ"
+        onClose={handleCloseSalesOrderLanguageDialog}
+        onSelect={handleSelectSalesOrderLanguage}
+      />
       <Dialog
         open={visibleUrgentDetailDialog}
         onClose={handleCloseUrgentDetailDialog}

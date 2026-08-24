@@ -334,11 +334,11 @@ export default function UrgentApprovalManagement(): ReactElement {
       await toast.promise(
         isRfq
           ? rejectUrgentRFQ(urgentDialogTarget.id, {
-              reason: urgentDialogReason.trim()
-            })
+            reason: urgentDialogReason.trim()
+          })
           : rejectUrgentSalesOrder(urgentDialogTarget.id, {
-              reason: urgentDialogReason.trim()
-            }),
+            reason: urgentDialogReason.trim()
+          }),
         {
           loading: isRfq ? 'กำลังไม่อนุมัติเร่งด่วน' : 'กำลังไม่อนุมัติคำขอสร้างใบสั่งซื้อ',
           success: isRfq ? 'ไม่อนุมัติเร่งด่วนแล้ว' : 'ไม่อนุมัติคำขอสร้างใบสั่งซื้อแล้ว',
@@ -473,11 +473,6 @@ export default function UrgentApprovalManagement(): ReactElement {
                   color: '#334155',
                   fontWeight: 700
                 }}
-              />
-              <Chip
-                label={item.statusLabel}
-                size="small"
-                sx={buildUrgentApprovalStatusChipSx(item.type)}
               />
               <Chip
                 label={buildUrgentApprovalStatusLabel(item.type)}
@@ -678,12 +673,10 @@ export default function UrgentApprovalManagement(): ReactElement {
             <Typography variant="body2" color="text.secondary">
               {urgentDialogTarget
                 ? urgentDialogMode === 'APPROVE'
-                  ? `คุณต้องการอนุมัติ ${buildUrgentApprovalItemLabel(urgentDialogTarget.type)} ${
-                      urgentDialogTarget.id
-                    } ใช่หรือไม่`
-                  : `คุณต้องการไม่อนุมัติ ${buildUrgentApprovalItemLabel(urgentDialogTarget.type)} ${
-                      urgentDialogTarget.id
-                    } ใช่หรือไม่`
+                  ? `คุณต้องการอนุมัติ ${buildUrgentApprovalItemLabel(urgentDialogTarget.type)} ${urgentDialogTarget.id
+                  } ใช่หรือไม่`
+                  : `คุณต้องการไม่อนุมัติ ${buildUrgentApprovalItemLabel(urgentDialogTarget.type)} ${urgentDialogTarget.id
+                  } ใช่หรือไม่`
                 : '-'}
             </Typography>
             {urgentDialogMode === 'REJECT' ? (

@@ -5,6 +5,7 @@ import {
     CreateSaleOrderLineRequestV2,
     CreateSaleOrderRequest,
     CreateSalesOrderRequestV1,
+    TemplateLanguage,
     GetSaleOrderResponse,
     GetSalesOrderResponseV1,
     OrderPackage,
@@ -163,12 +164,19 @@ export const deleteSalesOrderAttachment = async (id: string, attachmentId: numbe
     return response.data;
 };
 
-export const downloadSaleOrder = async (id: string, format: string, original: boolean, copy: boolean) => {
+export const downloadSaleOrder = async (
+    id: string,
+    format: string,
+    original: boolean,
+    copy: boolean,
+    lang: TemplateLanguage = 'TH'
+) => {
     const response = await api
         .get(`/v1/sales-orders/document`, {
             params: {
                 id,
                 format,
+                lang,
                 isOriginal: original,
                 isCopy: copy
             }

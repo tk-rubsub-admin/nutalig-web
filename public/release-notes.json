@@ -1,6 +1,28 @@
 {
   "notes": [
     {
+      "version": "0.1.2",
+      "publishedAt": "24/08/2026 19:41",
+      "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",
+      "titleEn": "What's New in This Release",
+      "summaryTh": "ปรับปรุงประสบการณ์ใช้งาน",
+      "summaryEn": "Improved the user experience.",
+      "itemsTh": [
+        "ค้นหาซัพพลายเออร์ของแต่ละ Option ได้",
+        "เพิ่มตัวเลือก ขนาด Container",
+        "ปรับขนาดช่องขนส่งในเอกสารใบเสนอราคา, ใบยืนยันสั่งซื้อ",
+        "เพิ่มเมนู ผู้อนุมัติ",
+        "Fix bug ดูใบเสนอราคาในหน้าจอมือถือ"
+      ],
+      "itemsEn": [
+        "Search supplier on each option",
+        "Add container size dropdown",
+        "Adjust shipping textfield in Quotation, SalesOrder",
+        "Add Authorizer menu",
+        "Fix bug view Quotation on Mobile screen"
+      ]
+    },
+    {
       "version": "0.1.1",
       "publishedAt": "22/08/2026 14:16",
       "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",

@@ -49,6 +49,8 @@ import { RFQEmployee, RFQFileResource, RFQRecord } from 'services/RFQ/rfq-type';
 import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 
+const FALLBACK_RFQ_IMAGE_URL = '/no-image.jpg';
+
 const RFQ_ID_PREFIX = 'NTL-RFQ2026';
 
 function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): string {
@@ -337,6 +339,8 @@ function RFQPictureGrid({
   pictures: { id: number; pictureUrl: string }[];
 }): ReactElement {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const visiblePictures = pictures.slice(0, 3);
+  const remainingPictureCount = Math.max(pictures.length - visiblePictures.length, 0);
 
   if (!pictures.length) {
     return (
@@ -360,7 +364,7 @@ function RFQPictureGrid({
         gap: 0.75,
         width: 180
       }}>
-      {pictures.slice(0, 5).map((picture) => (
+      {visiblePictures.map((picture, index) => (
         <Box
           key={picture.id}
           onClick={(event) => {
@@ -368,6 +372,7 @@ function RFQPictureGrid({
             setPreviewUrl(picture.pictureUrl);
           }}
           sx={{
+            position: 'relative',
             width: 56,
             height: 56,
             borderRadius: 2,
@@ -382,6 +387,13 @@ function RFQPictureGrid({
             src={picture.pictureUrl}
             alt={String(picture.id)}
             loading="lazy"
+            onError={(event) => {
+              const image = event.currentTarget as HTMLImageElement;
+              if (image.getAttribute('src') === FALLBACK_RFQ_IMAGE_URL) {
+                return;
+              }
+              image.src = FALLBACK_RFQ_IMAGE_URL;
+            }}
             sx={{
               width: '100%',
               height: '100%',
@@ -389,6 +401,23 @@ function RFQPictureGrid({
               display: 'block'
             }}
           />
+          {index === visiblePictures.length - 1 && remainingPictureCount > 0 ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(15, 23, 42, 0.62)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: 16,
+                letterSpacing: 0.3
+              }}>
+              +{remainingPictureCount}
+            </Box>
+          ) : null}
         </Box>
       ))}
       {previewUrl && (
@@ -411,6 +440,13 @@ function RFQPictureGrid({
             component="img"
             src={previewUrl}
             alt="Price inquiry preview"
+            onError={(event) => {
+              const image = event.currentTarget as HTMLImageElement;
+              if (image.getAttribute('src') === FALLBACK_RFQ_IMAGE_URL) {
+                return;
+              }
+              image.src = FALLBACK_RFQ_IMAGE_URL;
+            }}
             sx={{
               maxWidth: '90vw',
               maxHeight: '90vh',

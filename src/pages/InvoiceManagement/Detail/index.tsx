@@ -34,6 +34,7 @@ import {
 import { makeStyles } from '@mui/styles';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import DatePicker from 'components/DatePicker';
+import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
 import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
@@ -56,6 +57,7 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
+import { TemplateLanguage } from 'services/Document/document-type';
 import {
   getInvoice,
   receiveInvoicePayment,
@@ -213,6 +215,8 @@ export default function InvoiceDetail(): ReactElement {
   const [chequeDate, setChequeDate] = useState('');
   const [chequeBranch, setChequeBranch] = useState('');
   const [paymentSlipFiles, setPaymentSlipFiles] = useState<File[]>([]);
+  const [visibleInvoiceLanguageDialog, setVisibleInvoiceLanguageDialog] = useState(false);
+  const [isInvoiceDocumentLoading, setIsInvoiceDocumentLoading] = useState(false);
   const useStyles = makeStyles({
     tableHeader: {
       border: '2px solid #e0e0e0',
@@ -434,34 +438,48 @@ export default function InvoiceDetail(): ReactElement {
     });
   };
 
-  const handleViewInvoice = async () => {
+  const handleOpenInvoiceLanguageDialog = () => {
+    handleCloseActionMenu();
+    setVisibleInvoiceLanguageDialog(true);
+  };
+
+  const handleCloseInvoiceLanguageDialog = () => {
+    setVisibleInvoiceLanguageDialog(false);
+  };
+
+  const handleSelectInvoiceLanguage = async (language: TemplateLanguage) => {
     if (!invoice?.invoiceNo) {
       return;
     }
 
-    handleCloseActionMenu();
+    setVisibleInvoiceLanguageDialog(false);
+    setIsInvoiceDocumentLoading(true);
 
-    await toast.promise(viewInvoice(invoice.invoiceNo, true, false), {
-      loading: t('toast.loading'),
-      success: (response) => {
-        const data = response.data as DownloadDocumentResponse;
-        const files = data.files || [];
+    try {
+      await toast.promise(viewInvoice(invoice.invoiceNo, true, false, language), {
+        loading: t('toast.loading'),
+        success: (response) => {
+          const data = response.data as DownloadDocumentResponse;
+          const files = data.files || [];
 
-        if (!files.length) {
-          throw new Error('No file');
-        }
+          if (!files.length) {
+            throw new Error('No file');
+          }
 
-        const file = files[0];
-        const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-        const url = URL.createObjectURL(blob);
+          const file = files[0];
+          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+          const url = URL.createObjectURL(blob);
 
-        window.open(url, '_blank', 'noopener,noreferrer');
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          window.open(url, '_blank', 'noopener,noreferrer');
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
-        return t('toast.success');
-      },
-      error: t('toast.failed')
-    });
+          return t('toast.success');
+        },
+        error: t('toast.failed')
+      });
+    } finally {
+      setIsInvoiceDocumentLoading(false);
+    }
   };
 
   const handleViewReceipt = async (receiptNo: string) => {
@@ -505,8 +523,14 @@ export default function InvoiceDetail(): ReactElement {
   };
 
   return (
-    <Page>
+      <Page>
       <LoadingDialog open={isFetching || isActivityHistoryFetching || isSaving} />
+      <DocumentLanguageDialog
+        open={visibleInvoiceLanguageDialog}
+        title="ดูใบแจ้งหนี้"
+        onClose={handleCloseInvoiceLanguageDialog}
+        onSelect={handleSelectInvoiceLanguage}
+      />
       <PageTitle
         title={
           invoice?.invoiceNo
@@ -557,7 +581,10 @@ export default function InvoiceDetail(): ReactElement {
               }
             }}
             keepMounted>
-            <MenuItem onClick={handleViewInvoice} disabled={!invoice} sx={{ width: '100%' }}>
+            <MenuItem
+              onClick={handleOpenInvoiceLanguageDialog}
+              disabled={!invoice || isInvoiceDocumentLoading}
+              sx={{ width: '100%' }}>
               <ListItemIcon>
                 <Description fontSize="small" />
               </ListItemIcon>

@@ -183,6 +183,7 @@ export interface RFQDetailTierSplit {
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;
+  containerSize?: string | null;
   landFreightQty: number;
   landFreightCost: number;
   seaFreightQty: number;
@@ -506,6 +507,7 @@ export interface CreateRFQDetailTierRequest {
   productPrice: number;
   commission?: number | null;
   currency?: string | null;
+  containerSize?: string | null;
   exchangeRate?: number | null;
   landFreightCost: number;
   seaFreightCost: number;
@@ -522,6 +524,7 @@ export interface CreateRFQDetailTierSplitRequest {
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;
+  containerSize?: string | null;
   landFreightCost?: number | null;
   landFreightQty?: number | null;
   seaFreightQty?: number | null;
@@ -561,6 +564,7 @@ export interface UpdateRFQDetailTierRequest {
   productPrice: number;
   commission?: number | null;
   currency?: string | null;
+  containerSize?: string | null;
   landFreightCost?: number | null;
   seaFreightCost?: number | null;
   isFcl?: boolean | null;

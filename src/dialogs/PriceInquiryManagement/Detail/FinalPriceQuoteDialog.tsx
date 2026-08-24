@@ -33,12 +33,15 @@ import {
 } from 'services/RFQ/rfq-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 
+const CONTAINER_SIZE_OPTIONS = ['20GP', '40HQ'] as const;
+
 interface FinalPriceDraftTier {
   id: number;
   quantity: number;
   productPrice: string;
   commission: string;
   currency: string;
+  containerSize: string;
   landFreightQty: string;
   seaFreightQty: string;
   landTotalPrice: string;
@@ -70,6 +73,7 @@ interface FinalPriceDraftErrors {
       quantity?: string;
       productPrice?: string;
       commission?: string;
+      containerSize?: string;
       landFreightQty?: string;
       seaFreightQty?: string;
       landTotalPrice?: string;
@@ -108,6 +112,7 @@ interface FinalPriceQuoteDialogProps {
     field:
       | 'quantity'
       | 'productPrice'
+      | 'containerSize'
       | 'landFreightQty'
       | 'seaFreightQty'
       | 'landTotalPrice'
@@ -227,6 +232,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     sellPrice: toNumberValue(tier.productPrice),
     commission: toNumberValue(tier.commission),
     currency: tier.currency || 'THB',
+    containerSize: tier.containerSize || null,
     landFreightQty: toNumberValue(tier.landFreightQty),
     landFreightCost: toNumberValue(tier.landTotalPrice),
     seaFreightQty: toNumberValue(tier.seaFreightQty),
@@ -299,6 +305,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ปิดตู้ (share)
                 </TableCell>
+                <TableCell align="center" sx={{ width: 104, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ขนาดตู้
+                </TableCell>
                 <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ค่าคอม
                 </TableCell>
@@ -330,6 +339,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     </TableCell>
                     <TableCell align="center" sx={{ width: 92 }}>
                       {tier.isFcl && tier.isShareFCL ? 'ใช่' : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 104 }}>
+                      {tier.containerSize || '-'}
                     </TableCell>
                     <TableCell align="center" sx={{ width: 86 }}>
                       {tier.commission ?? '-'}{tier.commission !== null && tier.commission !== undefined ? '%' : ''}
@@ -451,6 +463,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 </TableCell>
                 <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ปิดตู้ (share)
+                </TableCell>
+                <TableCell align="center" sx={{ width: 104, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ขนาดตู้
                 </TableCell>
                 <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ค่าคอม
@@ -664,6 +679,32 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         '-'
                       )}
                     </TableCell>
+                    <TableCell align="center" sx={{ width: 104 }}>
+                      {tierSplit.isFcl || tierSplit.isShareFCL ? (
+                        <TextField
+                          size="small"
+                          select
+                          value={tierSplit.containerSize || ''}
+                          onChange={(event) =>
+                            onTierChange(detail.id, tier.id, 'containerSize', event.target.value)
+                          }
+                          error={Boolean(tierError.containerSize)}
+                          helperText={tierError.containerSize}
+                          fullWidth
+                        >
+                          <MenuItem value="">
+                            <em>เลือกขนาดตู้</em>
+                          </MenuItem>
+                          {CONTAINER_SIZE_OPTIONS.map((option) => (
+                            <MenuItem key={option} value={option}>
+                              {option}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell align="center" sx={{ width: 86 }}>
                       <TextField
                         size="small"
@@ -808,6 +849,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 </TableCell>
                 <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ปิดตู้ (share)
+                </TableCell>
+                <TableCell align="center" sx={{ width: 104, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ขนาดตู้
                 </TableCell>
                 <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ค่าคอม
@@ -976,6 +1020,32 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                           }
                           label=""
                         />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 104 }}>
+                      {tier.isFcl || tier.isShareFCL ? (
+                        <TextField
+                          size="small"
+                          select
+                          value={tier.containerSize || ''}
+                          onChange={(event) =>
+                            onTierChange(detail.id, tier.id, 'containerSize', event.target.value)
+                          }
+                          error={Boolean(tierError.containerSize)}
+                          helperText={tierError.containerSize}
+                          fullWidth
+                        >
+                          <MenuItem value="">
+                            <em>เลือกขนาดตู้</em>
+                          </MenuItem>
+                          {CONTAINER_SIZE_OPTIONS.map((option) => (
+                            <MenuItem key={option} value={option}>
+                              {option}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       ) : (
                         '-'
                       )}

@@ -8,6 +8,7 @@ import {
   SearchInvoiceResponse,
   UpdateInvoiceRequest
 } from './invoice-type';
+import { TemplateLanguage } from 'services/Document/document-type';
 
 export const createInvoice = async (data: CreateInvoiceRequest): Promise<CreateInvoiceResponse> => {
   const response = await api.post('/v1/invoices', data).then((result) => result.data);
@@ -70,12 +71,18 @@ export const getInvoicesBySalesOrderId = async (salesOrderId: string): Promise<I
   return response.data;
 };
 
-export const viewInvoice = async (id: string, original: boolean, copy: boolean) => {
+export const viewInvoice = async (
+  id: string,
+  original: boolean,
+  copy: boolean,
+  lang: TemplateLanguage = 'TH'
+) => {
   const response = await api
     .get('/v1/invoices/document', {
       params: {
         id,
         format: 'PDF',
+        lang,
         isOriginal: original,
         isCopy: copy
       }

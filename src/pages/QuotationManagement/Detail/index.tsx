@@ -541,6 +541,12 @@ export default function QuotationDetail(): JSX.Element {
             return;
         }
 
+        const previewWindow = window.open('', '_blank', 'noopener,noreferrer');
+        if (!previewWindow) {
+            toast.error(t('toast.failed'));
+            return;
+        }
+
         await toast.promise(viewQuotation(quotation.quotationNo, true, false, language), {
             loading: t('toast.loading'),
             success: (response) => {
@@ -554,11 +560,16 @@ export default function QuotationDetail(): JSX.Element {
                 const blob = base64ToBlob(file.base64, file.contentType);
                 const url = URL.createObjectURL(blob);
 
-                window.open(url, '_blank', 'noopener,noreferrer');
+                previewWindow.location.href = url;
+                previewWindow.focus();
+                setTimeout(() => URL.revokeObjectURL(url), 30_000);
 
                 return t('toast.success');
             },
-            error: () => t('toast.failed')
+            error: () => {
+                previewWindow.close();
+                return t('toast.failed');
+            }
         });
     };
 

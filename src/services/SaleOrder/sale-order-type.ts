@@ -90,6 +90,7 @@ export interface SearchSalesOrderRequestV1 {
     status?: string;
     statuses?: string[];
     urgentRequestStatus?: string | null;
+    procurementStatus?: string[] | null;
     keyword?: string;
     sortBy?: string;
     sortDirection?: string;

@@ -1,5 +1,6 @@
 import { Add, ContentCopy, DeleteOutline } from '@mui/icons-material';
 import {
+  Autocomplete,
   Box,
   Button,
   Dialog,
@@ -8,6 +9,7 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  CircularProgress,
   InputAdornment,
   MenuItem,
   Stack,
@@ -20,11 +22,149 @@ import {
   Typography
 } from '@mui/material';
 import Paginate from 'components/Paginate';
-import { ReactElement } from 'react';
+import { ReactElement, useEffect, useMemo, useState } from 'react';
+import { useQuery } from 'react-query';
 import { SystemConfig } from 'services/Config/config-type';
 import { LeadTimeConfig, Supplier } from 'services/Supplier/supplier-type';
+import { searchSupplier } from 'services/Supplier/supplier-api';
 import { RFQSupplierQuote } from 'services/RFQ/rfq-type';
 import { blueActionButtonSx, outlinedActionButtonSx } from './supplierQuoteDialogStyles';
+
+function getSupplierDisplayName(supplier?: Supplier | null): string {
+  if (!supplier) {
+    return '-';
+  }
+
+  return supplier.supplierName || supplier.supplierCode || supplier.supplierId || supplier.id || '-';
+}
+
+function getSupplierOptionLabel(supplier?: Supplier | null): string {
+  if (!supplier) {
+    return '-';
+  }
+
+  const supplierId = supplier.supplierId || supplier.id || '';
+  const supplierName = getSupplierDisplayName(supplier);
+
+  return supplierId ? `${supplierName} (${supplierId})` : supplierName;
+}
+
+function SupplierAutocompleteField({
+  value,
+  onChange
+}: {
+  value: Supplier | null;
+  onChange: (supplier: Supplier) => void;
+}): ReactElement {
+  const [inputValue, setInputValue] = useState('');
+  const [debouncedInputValue, setDebouncedInputValue] = useState('');
+
+  useEffect(() => {
+    if (value) {
+      setInputValue(getSupplierOptionLabel(value));
+      return;
+    }
+
+    setInputValue('');
+  }, [value]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedInputValue(inputValue.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [inputValue]);
+
+  const { data: supplierSearchResult = [], isFetching } = useQuery(
+    ['supplier-option-search', debouncedInputValue],
+    () =>
+      searchSupplier(
+        {
+          statusEqual: 'ACTIVE',
+          nameContain: debouncedInputValue || undefined
+        },
+        1,
+        20
+      ).then((response) => response.data.suppliers),
+    {
+      enabled: Boolean(debouncedInputValue),
+      refetchOnWindowFocus: false,
+      keepPreviousData: true
+    }
+  );
+
+  const options = useMemo(() => {
+    const supplierMap = new Map<string, Supplier>();
+
+    if (value) {
+      const selectedSupplierId = value.supplierId || value.id;
+      if (selectedSupplierId) {
+        supplierMap.set(selectedSupplierId, value);
+      }
+    }
+
+    supplierSearchResult.forEach((item) => {
+      const supplierId = item.supplierId || item.id;
+      if (supplierId && !supplierMap.has(supplierId)) {
+        supplierMap.set(supplierId, item);
+      }
+    });
+
+    return Array.from(supplierMap.values());
+  }, [supplierSearchResult, value]);
+
+  return (
+    <Autocomplete
+      fullWidth
+      size="small"
+      autoHighlight
+      openOnFocus
+      options={options}
+      value={value}
+      inputValue={inputValue}
+      loading={isFetching}
+      filterOptions={(optionList) => optionList}
+      onChange={(_event, newValue) => {
+        if (newValue) {
+          onChange(newValue);
+          setInputValue(getSupplierOptionLabel(newValue));
+        }
+      }}
+      onInputChange={(_event, newValue, reason) => {
+        setInputValue(newValue);
+
+        if (reason === 'clear') {
+          setInputValue('');
+        }
+      }}
+      getOptionLabel={(option) => getSupplierOptionLabel(option)}
+      isOptionEqualToValue={(option, selectedValue) => {
+        const optionSupplierId = option.supplierId || option.id;
+        const selectedSupplierId = selectedValue.supplierId || selectedValue.id;
+        return optionSupplierId === selectedSupplierId;
+      }}
+      noOptionsText={debouncedInputValue ? 'ไม่พบข้อมูล Supplier' : 'พิมพ์ค้นหา Supplier'}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label="Supplier"
+          InputLabelProps={{ shrink: true }}
+          helperText="พิมพ์ค้นหา supplier"
+          InputProps={{
+            ...params.InputProps,
+            endAdornment: (
+              <>
+                {isFetching ? <CircularProgress color="inherit" size={20} /> : null}
+                {params.InputProps.endAdornment}
+              </>
+            )
+          }}
+        />
+      )}
+    />
+  );
+}
 
 export interface SupplierQuoteDialogDetail {
   id: number;
@@ -177,14 +317,13 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     open,
     supplier,
     quote,
-    quoteSupplierSearchInput,
-    onQuoteSupplierSearchInputChange,
-    onQuoteSupplierSearchEnter,
-    onQuoteSupplierSearch,
-    isQuoteSupplierSearchFetching,
-    quoteSupplierSearchResult,
-    quoteSupplierOptions,
-    quoteSupplierSearchPagination,
+  quoteSupplierSearchInput,
+  onQuoteSupplierSearchInputChange,
+  onQuoteSupplierSearchEnter,
+  onQuoteSupplierSearch,
+  isQuoteSupplierSearchFetching,
+  quoteSupplierSearchResult,
+  quoteSupplierSearchPagination,
     quoteSupplierSearchPage,
     quoteSupplierSearchPageSize,
     onQuoteSupplierSearchPageChange,
@@ -418,10 +557,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                 </Stack>
                 {quoteDraftDetails.map((detail) => {
                   const detailError = quoteDraftErrors[detail.id] || {};
-                  const selectedSupplier =
-                    detail.supplier || supplier || quoteSupplierOptions[0] || null;
-                  const selectedSupplierId =
-                    selectedSupplier?.supplierId || selectedSupplier?.id || '';
+                  const selectedSupplier = detail.supplier || supplier || null;
                   return (
                     <Box
                       key={detail.id}
@@ -469,37 +605,10 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                             />
                           </Grid>
                           <Grid item xs={12} md={8}>
-                            <TextField
-                              fullWidth
-                              select
-                              size="small"
-                              label="Supplier"
-                              value={selectedSupplierId}
-                              InputLabelProps={{ shrink: true }}
-                              onChange={(event) => {
-                                const targetSupplier = quoteSupplierOptions.find(
-                                  (item) => (item.supplierId || item.id) === event.target.value
-                                );
-
-                                if (targetSupplier) {
-                                  onDetailSupplierChange(detail.id, targetSupplier);
-                                }
-                              }}>
-                              {quoteSupplierOptions.length ? (
-                                quoteSupplierOptions.map((item) => {
-                                  const itemSupplierId = item.supplierId || item.id;
-                                  return (
-                                    <MenuItem key={itemSupplierId} value={itemSupplierId}>
-                                      {item.supplierName || '-'} ({itemSupplierId})
-                                    </MenuItem>
-                                  );
-                                })
-                              ) : (
-                                <MenuItem value={selectedSupplierId} disabled>
-                                  ไม่พบข้อมูล Supplier
-                                </MenuItem>
-                              )}
-                            </TextField>
+                            <SupplierAutocompleteField
+                              value={selectedSupplier}
+                              onChange={(selected) => onDetailSupplierChange(detail.id, selected)}
+                            />
                           </Grid>
                           <Grid item xs={12} md={12}>
                             <TextField

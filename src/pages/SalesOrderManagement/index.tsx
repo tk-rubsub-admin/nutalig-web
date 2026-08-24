@@ -61,6 +61,23 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
   return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
 }
 
+function getProcurementStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'NOT_READY':
+      return 'ยังไม่พร้อมสร้าง PO';
+    case 'READY_FOR_PO':
+      return 'พร้อมสร้าง PO';
+    case 'READY_FOR_PO_OVERRIDE':
+      return 'พร้อมสร้าง PO (Override)';
+    case 'PO_CREATED':
+      return 'สร้าง PO แล้ว';
+    default:
+      return status || '-';
+  }
+}
+
+const PROCUREMENT_STATUS_OPTIONS = ['NOT_READY', 'READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'] as const;
+
 function getDefaultDocDateRange() {
   const now = dayjs();
 
@@ -77,6 +94,7 @@ const defaultFilter: SearchSalesOrderRequestV1 = {
   salesId: '',
   status: null,
   urgentRequestStatus: null,
+  procurementStatus: [],
   keyword: ''
 };
 
@@ -192,6 +210,7 @@ export default function SalesOrderManagement(): ReactElement {
         salesId: isSalesRole ? currentSalesId : canShowField('salesId') ? values.salesId?.trim() || '' : '',
         status: canShowField('status') ? values.status || null : null,
         urgentRequestStatus: values.urgentRequestStatus || null,
+        procurementStatus: canShowField('procurementStatus') ? values.procurementStatus || [] : [],
         keyword: canShowField('keyword') ? values.keyword?.trim() || '' : ''
       };
 
@@ -479,6 +498,37 @@ export default function SalesOrderManagement(): ReactElement {
                 {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
                   <MenuItem key={status} value={status}>
                     {getDocumentStatusLabel(status)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+          )}
+          {canShowField('procurementStatus') && (
+            <GridTextField item xs={12} sm={4} md={3}>
+              <TextField
+                fullWidth
+                select
+                SelectProps={{
+                  multiple: true,
+                  renderValue: (selected) =>
+                    Array.isArray(selected) && selected.length > 0
+                      ? selected.map((status) => getProcurementStatusLabel(status)).join(', ')
+                      : 'ทั้งหมด'
+                }}
+                label="สถานะจัดซื้อ"
+                name="procurementStatus"
+                value={searchFormik.values.procurementStatus || []}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  searchFormik.setFieldValue(
+                    'procurementStatus',
+                    typeof value === 'string' ? value.split(',') : value
+                  );
+                }}
+                InputLabelProps={{ shrink: true }}>
+                {PROCUREMENT_STATUS_OPTIONS.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {getProcurementStatusLabel(status)}
                   </MenuItem>
                 ))}
               </TextField>

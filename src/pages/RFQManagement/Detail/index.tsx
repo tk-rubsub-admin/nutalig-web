@@ -986,6 +986,8 @@ export default function RFQDetail(): ReactElement {
   const [isPictureSubmitting, setIsPictureSubmitting] = useState(false);
   const [isQuotationDocumentLoading, setIsQuotationDocumentLoading] = useState(false);
   const [visibleQuotationLanguageDialog, setVisibleQuotationLanguageDialog] = useState(false);
+  const [visibleSalesOrderLanguageDialog, setVisibleSalesOrderLanguageDialog] = useState(false);
+  const [isSalesOrderDocumentLoading, setIsSalesOrderDocumentLoading] = useState(false);
   const [isCustomerQuotedCopying, setIsCustomerQuotedCopying] = useState(false);
   const [downloadMenuAnchorEl, setDownloadMenuAnchorEl] = useState<null | HTMLElement>(null);
   const isSalesPermission = hasPermission(PERMISSIONS.RFQ_EDIT);
@@ -1789,17 +1791,26 @@ export default function RFQDetail(): ReactElement {
     }
   };
 
-  const handleDownloadSalesOrder = async () => {
+  const handleOpenSalesOrderLanguageDialog = () => {
     handleCloseDownloadMenu();
+    setVisibleSalesOrderLanguageDialog(true);
+  };
+
+  const handleCloseSalesOrderLanguageDialog = () => {
+    setVisibleSalesOrderLanguageDialog(false);
+  };
+
+  const handleSelectSalesOrderLanguage = async (language: TemplateLanguage) => {
+    handleCloseSalesOrderLanguageDialog();
 
     if (!rfq?.saleOrderId) {
       return;
     }
 
-    setIsQuotationDocumentLoading(true);
+    setIsSalesOrderDocumentLoading(true);
 
     try {
-      await toast.promise(downloadSaleOrder(rfq.saleOrderId, 'PDF', true, false), {
+      await toast.promise(downloadSaleOrder(rfq.saleOrderId, 'PDF', true, false, language), {
         loading: t('toast.loading'),
         success: (response) => {
           const data = response.data as DownloadDocumentResponse;
@@ -1811,7 +1822,7 @@ export default function RFQDetail(): ReactElement {
         error: () => t('toast.failed')
       });
     } finally {
-      setIsQuotationDocumentLoading(false);
+      setIsSalesOrderDocumentLoading(false);
     }
   };
 
@@ -2593,6 +2604,12 @@ export default function RFQDetail(): ReactElement {
         onClose={handleCloseQuotationLanguageDialog}
         onSelect={handleSelectQuotationLanguage}
       />
+      <DocumentLanguageDialog
+        open={visibleSalesOrderLanguageDialog}
+        title="ดูใบยืนยันสั่งซื้อ"
+        onClose={handleCloseSalesOrderLanguageDialog}
+        onSelect={handleSelectSalesOrderLanguage}
+      />
       <Wrapper>
         <Stack spacing={{ xs: 1.5, sm: 2 }}>
           <Stack
@@ -2728,7 +2745,10 @@ export default function RFQDetail(): ReactElement {
                     </MenuItem>
                   ) : null}
                   {canDownloadSalesOrderAction ? (
-                    <MenuItem onClick={handleDownloadSalesOrder} sx={{ width: '100%' }}>
+                    <MenuItem
+                      onClick={handleOpenSalesOrderLanguageDialog}
+                      disabled={isSalesOrderDocumentLoading}
+                      sx={{ width: '100%' }}>
                       <ListItemIcon>
                         <Download fontSize="small" />
                       </ListItemIcon>

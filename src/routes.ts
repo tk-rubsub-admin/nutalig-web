@@ -45,6 +45,7 @@ export const ROUTE_PATHS = Object.freeze({
   RFQ_DETAIL: '/rfq/:id',
   CUSTOMER_NEW: '/customer-create',
   CUSTOMER_DETAIL: '/customer/:id',
+  AWAITING_SALE_ORDER_MANAGEMENT: '/awaiting-sales-order-management',
   SALE_ORDER_MANAGEMENT: '/sales-order-management',
   SALE_ORDER_CREATE: '/sales-order-create',
   SALE_ORDER_CREATE_FROM_RFQ: '/create-sales-order-rfq/:rfqId',
@@ -292,6 +293,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
     component: lazy(() => import('./pages/SalesOrderManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.SALES_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.AWAITING_SALE_ORDER_MANAGEMENT,
+    component: lazy(() => import('./pages/AwaitingSOManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.SALES_ORDER_VIEW]
   },
   {

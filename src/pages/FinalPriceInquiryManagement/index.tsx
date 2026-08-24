@@ -146,7 +146,7 @@ function createDefaultFilter(salesId = '', procurementId = '') {
     procurementId,
     rfqTypeCode: '',
     status: '',
-    statuses: [] as string[],
+    statuses: ['SPECIAL_PRICE_REVIEW', 'SUPPLIER_QUOTED'] as string[],
     orderTypeCode: '',
     productFamily: '',
     productSubtype1: '',
@@ -315,6 +315,8 @@ function RFQPictureGrid({
   pictures: { id: number; pictureUrl: string }[];
 }): ReactElement {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const visiblePictures = pictures.slice(0, 3);
+  const remainingPictureCount = Math.max(pictures.length - visiblePictures.length, 0);
 
   if (!pictures.length) {
     return (
@@ -338,7 +340,7 @@ function RFQPictureGrid({
         gap: 0.75,
         width: 180
       }}>
-      {pictures.slice(0, 5).map((picture) => (
+      {visiblePictures.map((picture, index) => (
         <Box
           key={picture.id}
           onClick={(event) => {
@@ -346,6 +348,7 @@ function RFQPictureGrid({
             setPreviewUrl(picture.pictureUrl);
           }}
           sx={{
+            position: 'relative',
             width: 56,
             height: 56,
             borderRadius: 2,
@@ -367,6 +370,23 @@ function RFQPictureGrid({
               display: 'block'
             }}
           />
+          {index === visiblePictures.length - 1 && remainingPictureCount > 0 ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(15, 23, 42, 0.62)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: 16,
+                letterSpacing: 0.3
+              }}>
+              +{remainingPictureCount}
+            </Box>
+          ) : null}
         </Box>
       ))}
       {previewUrl && (
@@ -552,7 +572,7 @@ export default function FinalPriceInquiryManagement(): ReactElement {
         requestedDateEnd: filter.requestedDateEnd,
         sortBy: 'requestedDate',
         sortDirection: 'DESC',
-        statuses: filter.statuses?.length ? filter.statuses : ['SPECIAL_PRICE_REVIEW', 'SUPPLIER_QUOTED', 'QUOTED'],
+        statuses: filter.statuses?.length ? filter.statuses : ['SPECIAL_PRICE_REVIEW', 'SUPPLIER_QUOTED'],
         prioritizeApprovedUrgent: true
       }),
     {
@@ -912,7 +932,7 @@ export default function FinalPriceInquiryManagement(): ReactElement {
 
   return (
     <Page>
-      <PageTitle title="รอสรุปราคา" />
+      <PageTitle title="รอสรุปราคา/ทบทวนราคาพิเศษ" />
       <Wrapper>
         <Stack
           direction={isDownSm ? 'column' : 'row'}

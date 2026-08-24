@@ -192,6 +192,7 @@ interface DraftDetailTierError {
   commission?: string;
   shippingCost?: string;
   currency?: string;
+  containerSize?: string;
   landFreightQty?: string;
   seaFreightQty?: string;
   landFreightCost?: string;
@@ -227,6 +228,7 @@ interface FinalPriceDraftTier {
   productPrice: string;
   commission: string;
   currency: string;
+  containerSize: string;
   landFreightQty: string;
   seaFreightQty: string;
   landTotalPrice: string;
@@ -1202,6 +1204,7 @@ function createFinalPriceDraftTier(sortOrder: number): FinalPriceDraftTier {
     productPrice: '',
     commission: '100',
     currency: 'THB',
+    containerSize: '',
     landFreightQty: '',
     seaFreightQty: '',
     landTotalPrice: '',
@@ -3168,6 +3171,7 @@ export default function RFQDetail(): ReactElement {
     field:
       | 'quantity'
       | 'productPrice'
+      | 'containerSize'
       | 'landFreightQty'
       | 'seaFreightQty'
       | 'landTotalPrice'
@@ -3210,6 +3214,11 @@ export default function RFQDetail(): ReactElement {
               quantity: undefined,
               landFreightQty: undefined,
               seaFreightQty: undefined
+            }
+            : {}),
+          ...(field === 'containerSize'
+            ? {
+              containerSize: undefined
             }
             : {})
         }
@@ -3261,7 +3270,8 @@ export default function RFQDetail(): ReactElement {
                 ? {
                   ...tier,
                   isFcl: checked,
-                  isShareFCL: checked ? tier.isShareFCL : false
+                  isShareFCL: checked ? tier.isShareFCL : false,
+                  containerSize: checked ? tier.containerSize : ''
                 }
                 : tier
             )
@@ -3269,6 +3279,18 @@ export default function RFQDetail(): ReactElement {
           : detail
       )
     }));
+    if (!checked) {
+      setFinalPriceErrors((prev) => ({
+        ...prev,
+        details: {
+          ...prev.details,
+          [tierId]: {
+            ...prev.details?.[tierId],
+            containerSize: undefined
+          }
+        }
+      }));
+    }
   };
 
   const handleFinalPriceTierShareFclChange = (
@@ -3287,7 +3309,8 @@ export default function RFQDetail(): ReactElement {
                 ? {
                   ...tier,
                   isShareFCL: checked,
-                  isFcl: checked ? true : tier.isFcl
+                  isFcl: checked ? true : tier.isFcl,
+                  containerSize: checked || tier.isFcl ? tier.containerSize : ''
                 }
                 : tier
             )
@@ -3490,7 +3513,6 @@ export default function RFQDetail(): ReactElement {
           ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
         const shippingCost = sourceTier?.shippingCost || 0;
         const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
-        const minimumTotalPrice = (productPrice || 0) + shippingPerUnit;
         const nextTierError: DraftDetailTierError = {};
 
         if (productPrice === null || productPrice <= 0) {
@@ -3527,6 +3549,10 @@ export default function RFQDetail(): ReactElement {
             nextTierError.seaFreightQty = message;
             nextTierError.quantity = message;
           }
+        }
+
+        if ((tier.isFcl || tier.isShareFCL) && !tier.containerSize.trim()) {
+          nextTierError.containerSize = 'กรุณาระบุขนาดตู้';
         }
         // if (landTotalPrice === null || landTotalPrice < minimumTotalPrice) {
         //   nextTierError.landTotalPrice = 'กรุณาระบุรวมส่งทางรถให้ไม่น้อยกว่าราคาสินค้ารวมค่าขนส่ง';
@@ -3589,6 +3615,8 @@ export default function RFQDetail(): ReactElement {
                 productPrice,
                 commission: commission ?? 100,
                 currency: tier.currency || 'THB',
+                containerSize:
+                  tier.isFcl || tier.isShareFCL ? tier.containerSize.trim() || null : null,
                 landFreightCost,
                 seaFreightCost,
                 isFcl: Boolean(tier.isFcl),
@@ -3613,6 +3641,8 @@ export default function RFQDetail(): ReactElement {
                 sellPrice,
                 commission: commission ?? 100,
                 currency: tier.currency || 'THB',
+                containerSize:
+                  tier.isFcl || tier.isShareFCL ? tier.containerSize.trim() || null : null,
                 landFreightCost,
                 landFreightQty,
                 seaFreightQty,

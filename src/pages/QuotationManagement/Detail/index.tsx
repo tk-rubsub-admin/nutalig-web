@@ -541,12 +541,6 @@ export default function QuotationDetail(): JSX.Element {
             return;
         }
 
-        const previewWindow = window.open('', '_blank', 'noopener,noreferrer');
-        if (!previewWindow) {
-            toast.error(t('toast.failed'));
-            return;
-        }
-
         await toast.promise(viewQuotation(quotation.quotationNo, true, false, language), {
             loading: t('toast.loading'),
             success: (response) => {
@@ -556,20 +550,30 @@ export default function QuotationDetail(): JSX.Element {
                     throw new Error('No file');
                 }
 
-                const file = data.files[0];
-                const blob = base64ToBlob(file.base64, file.contentType);
-                const url = URL.createObjectURL(blob);
+                if (isDownSm) {
+                    data.files.forEach((file) => {
+                        const blob = base64ToBlob(file.base64, file.contentType);
+                        const url = URL.createObjectURL(blob);
 
-                previewWindow.location.href = url;
-                previewWindow.focus();
-                setTimeout(() => URL.revokeObjectURL(url), 30_000);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = file.fileName || `${quotation.quotationNo}.pdf`;
+                        link.click();
+
+                        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+                    });
+                } else {
+                    const file = data.files[0];
+                    const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+                    const url = URL.createObjectURL(blob);
+
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+                }
 
                 return t('toast.success');
             },
-            error: () => {
-                previewWindow.close();
-                return t('toast.failed');
-            }
+            error: () => t('toast.failed')
         });
     };
 
@@ -705,7 +709,12 @@ export default function QuotationDetail(): JSX.Element {
             />
             <DocumentLanguageDialog
                 open={visibleQuotationLanguageDialog}
-                title={t('documentManagement.quotation.viewQuotation')}
+                title={isDownSm ? 'ดาวน์โหลดไฟล์ใบเสนอราคา' : t('documentManagement.quotation.viewQuotation')}
+                description={
+                    isDownSm
+                        ? 'เลือกภาษาเพื่อดาวน์โหลดไฟล์ลงเครื่อง'
+                        : 'กรุณาเลือกภาษาที่ต้องการดูเอกสาร'
+                }
                 onClose={handleCloseQuotationLanguageDialog}
                 onSelect={handleSelectQuotationLanguage}
             />
@@ -769,7 +778,13 @@ export default function QuotationDetail(): JSX.Element {
                                 <ListItemIcon>
                                     <Description fontSize="small" />
                                 </ListItemIcon>
-                                <ListItemText primary={t('documentManagement.quotation.viewQuotation')} />
+                                <ListItemText
+                                    primary={
+                                        isDownSm
+                                            ? 'ดาวน์โหลดไฟล์'
+                                            : t('documentManagement.quotation.viewQuotation')
+                                    }
+                                />
                             </MenuItem>
                             {canConfirmPriceAction ? (
                                 <MenuItem

@@ -19,7 +19,8 @@ import toast from 'react-hot-toast';
 import * as Yup from 'yup';
 import { GridTextField } from 'components/Styled';
 import LoadingDialog from 'components/LoadingDialog';
-import { getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
+import { getCountry, getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
+import { Country } from 'services/Address/address-type';
 import { GROUP_CODE } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import { createNewCustomer } from 'services/Customer/customer-api';
@@ -81,6 +82,11 @@ export default function CreateRFQCustomerDialog({
     enabled: open,
     refetchOnWindowFocus: false
   });
+  const { data: countries = [] } = useQuery('rfq-customer-country', () => getCountry(), {
+    enabled: open,
+    refetchOnWindowFocus: false
+  });
+  const showThaiAddressFields = formik.values.address.country === 'TH';
 
   const getSalesLabels = (salesIds: string[]) =>
     salesIds
@@ -149,10 +155,27 @@ export default function CreateRFQCustomerDialog({
         .of(Yup.string().trim())
         .min(1, t('customerManagement.message.validateSalesAccount')),
       address: Yup.object().shape({
-        addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
-        subdistrict: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
-        district: Yup.string().required(t('customerManagement.message.validateDistrict')),
-        province: Yup.string().required(t('customerManagement.message.validateProvince'))
+        country: Yup.string().required(t('customerManagement.column.address.country')),
+        addressLine1: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateAddress')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
+        subdistrict: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
+        district: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateDistrict')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
+        province: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateProvince')),
+          otherwise: Yup.string().nullable().notRequired()
+        })
       }),
       contacts: Yup.array()
         .of(
@@ -241,7 +264,7 @@ export default function CreateRFQCustomerDialog({
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
+                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 select
                 fullWidth
@@ -260,7 +283,7 @@ export default function CreateRFQCustomerDialog({
                 ))}
               </TextField>
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
+                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 required
@@ -312,7 +335,7 @@ export default function CreateRFQCustomerDialog({
                 </GridTextField>
               </>
             ) : null}
-            <GridTextField item xs={12} sm={6}>
+                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 label={t('customerManagement.column.email')}
@@ -321,7 +344,7 @@ export default function CreateRFQCustomerDialog({
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
+                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 select
                 fullWidth
@@ -464,6 +487,31 @@ export default function CreateRFQCustomerDialog({
             </GridTextField>
             <GridTextField item xs={12} sm={6}>
               <TextField
+                name="country"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.country')}
+                value={formik.values.address.country || 'TH'}
+                onChange={({ target }) => {
+                  formik.setFieldValue('address.country', target.value);
+                  formik.setFieldValue('address.province', '');
+                  formik.setFieldValue('address.district', '');
+                  formik.setFieldValue('address.subdistrict', '');
+                  formik.setFieldValue('address.postcode', '');
+                }}
+                error={Boolean(formik.touched.address?.country && addressErrors?.country)}
+                helperText={formik.touched.address?.country && addressErrors?.country}
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {countries.map((country: Country) => (
+                  <MenuItem key={country.code} value={country.code}>
+                    {country.nameTh || country.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </GridTextField>
+            <GridTextField item xs={12} sm={6}>
+              <TextField
                 select
                 fullWidth
                 label={t('customerManagement.column.address.province')}
@@ -542,16 +590,6 @@ export default function CreateRFQCustomerDialog({
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label={t('customerManagement.column.address.country')}
-                value={formik.values.address.country}
-                onChange={({ target }) => formik.setFieldValue('address.country', target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </GridTextField>
-
             <GridTextField item xs={12} sm={6} />
 
             <FieldArray name="contacts">

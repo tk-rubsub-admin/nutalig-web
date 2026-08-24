@@ -678,6 +678,7 @@ export default function SalesOrderDetail(): ReactElement {
 
     setVisibleSalesOrderLanguageDialog(false);
     setIsSalesOrderDocumentLoading(true);
+    const shouldDownloadFile = isDownSm;
 
     try {
       await toast.promise(downloadSaleOrder(salesOrder.salesOrderNo, 'PDF', true, false, language), {
@@ -690,12 +691,24 @@ export default function SalesOrderDetail(): ReactElement {
             throw new Error('No file');
           }
 
-          const file = files[0];
-          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-          const url = URL.createObjectURL(blob);
+          files.forEach((file) => {
+            const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+            const url = URL.createObjectURL(blob);
 
-          window.open(url, '_blank', 'noopener,noreferrer');
-          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            if (shouldDownloadFile) {
+              const anchor = document.createElement('a');
+              anchor.href = url;
+              anchor.download = file.fileName || `${salesOrder.salesOrderNo}.pdf`;
+              anchor.rel = 'noopener';
+              document.body.appendChild(anchor);
+              anchor.click();
+              anchor.remove();
+            } else {
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }
+
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          });
 
           return t('toast.success');
         },
@@ -957,7 +970,9 @@ export default function SalesOrderDetail(): ReactElement {
                   <ListItemIcon>
                     <Description fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary="ดูใบยืนยันสั่งซื้อ" />
+                  <ListItemText
+                    primary={isDownSm ? 'ดาวน์โหลดไฟล์ใบยืนยันสั่งซื้อ' : 'ดูใบยืนยันสั่งซื้อ'}
+                  />
                 </MenuItem>
                 <Can permission={PERMISSIONS.INVOICE_CREATE}>
                   <MenuItem
@@ -2050,7 +2065,7 @@ export default function SalesOrderDetail(): ReactElement {
 
       <DocumentLanguageDialog
         open={visibleSalesOrderLanguageDialog}
-        title="ดูใบยืนยันสั่งซื้อ"
+        title={isDownSm ? 'ดาวน์โหลดไฟล์ใบยืนยันสั่งซื้อ' : 'ดูใบยืนยันสั่งซื้อ'}
         onClose={handleCloseSalesOrderLanguageDialog}
         onSelect={handleSelectSalesOrderLanguage}
       />

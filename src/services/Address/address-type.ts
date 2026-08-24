@@ -47,3 +47,14 @@ export interface GetDistrict {
 export interface GetSubDistrict {
   data: SubDistrict[];
 }
+
+export interface Country {
+  code: string;
+  code3: string;
+  name: string;
+  nameTh: string;
+}
+
+export interface GetCountry {
+  data: Country[];
+}

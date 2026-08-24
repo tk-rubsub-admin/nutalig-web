@@ -31,7 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
-import { getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
+import { getCountry, getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
 import {
   addCustomerContact,
   addCustomerAddress,
@@ -49,6 +49,7 @@ import {
   Customer,
   UpdateCustomerRequest
 } from 'services/Customer/customer-type';
+import { Country } from 'services/Address/address-type';
 import { GROUP_CODE } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import { getSales } from 'services/Sales/sales-api';
@@ -181,6 +182,9 @@ export default function CustomerDetail(): JSX.Element {
     refetchOnWindowFocus: false
   });
   const { data: subdistricts = [] } = useQuery('subdistrict', () => getSubDistrict(), {
+    refetchOnWindowFocus: false
+  });
+  const { data: countries = [] } = useQuery('country', () => getCountry(), {
     refetchOnWindowFocus: false
   });
 
@@ -344,14 +348,31 @@ export default function CustomerDetail(): JSX.Element {
     enableReinitialize: true,
     validationSchema: Yup.object().shape({
       addressType: Yup.string().required(t('customerManagement.column.address.type')),
-      addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
-      province: Yup.string().required(t('customerManagement.message.validateProvince')),
-      district: Yup.string().required(t('customerManagement.message.validateDistrict')),
-      subdistrict: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
-      country: Yup.string().required(t('customerManagement.column.address.country'))
+      country: Yup.string().required(t('customerManagement.column.address.country')),
+      addressLine1: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(t('customerManagement.message.validateAddress')),
+        otherwise: Yup.string().nullable().notRequired()
+      }),
+      province: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(t('customerManagement.message.validateProvince')),
+        otherwise: Yup.string().nullable().notRequired()
+      }),
+      district: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(t('customerManagement.message.validateDistrict')),
+        otherwise: Yup.string().nullable().notRequired()
+      }),
+      subdistrict: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
+        otherwise: Yup.string().nullable().notRequired()
+      })
     }),
     onSubmit: () => undefined
   });
+  const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
 
   const openAddressDialog = () => {
     addressDialogFormik.resetForm({
@@ -1238,7 +1259,7 @@ export default function CustomerDetail(): JSX.Element {
         <DialogTitle>{t('customerManagement.column.address.addNew')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="addressType"
                 select
@@ -1265,7 +1286,7 @@ export default function CustomerDetail(): JSX.Element {
                 </MenuItem>
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="label"
                 type="text"
@@ -1310,7 +1331,37 @@ export default function CustomerDetail(): JSX.Element {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+              <TextField
+                name="country"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.country')}
+                value={addressDialogFormik.values.country || 'TH'}
+                onChange={(event) => {
+                  addressDialogFormik.setFieldValue('country', event.target.value);
+                  addressDialogFormik.setFieldValue('province', '');
+                  addressDialogFormik.setFieldValue('district', '');
+                  addressDialogFormik.setFieldValue('subdistrict', '');
+                  addressDialogFormik.setFieldValue('postcode', '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                )}
+                helperText={
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                }
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {countries.map((option: Country) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh || option.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="province"
                 select
@@ -1339,7 +1390,7 @@ export default function CustomerDetail(): JSX.Element {
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="district"
                 select
@@ -1369,7 +1420,7 @@ export default function CustomerDetail(): JSX.Element {
                   ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="subdistrict"
                 select
@@ -1399,7 +1450,7 @@ export default function CustomerDetail(): JSX.Element {
                   ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="postcode"
                 type="text"
@@ -1407,24 +1458,6 @@ export default function CustomerDetail(): JSX.Element {
                 fullWidth
                 disabled
                 value={addressDialogFormik.values.postcode}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                name="country"
-                type="text"
-                label={t('customerManagement.column.address.country')}
-                fullWidth
-                value={addressDialogFormik.values.country}
-                onChange={addressDialogFormik.handleChange}
-                onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(
-                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
-                )}
-                helperText={
-                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
-                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -1453,7 +1486,7 @@ export default function CustomerDetail(): JSX.Element {
         <DialogTitle>{t('customerManagement.addContact')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 name="contactName"
                 label={t('customerManagement.column.contactName')}

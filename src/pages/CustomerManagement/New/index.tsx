@@ -27,7 +27,8 @@ import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { GROUP_CODE } from 'services/Config/config-type';
 import { useQuery } from 'react-query';
-import { getProvince, getDistrict, getSubDistrict } from 'services/Address/address-api';
+import { getCountry, getProvince, getDistrict, getSubDistrict } from 'services/Address/address-api';
+import { Country } from 'services/Address/address-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import {
   CreateCustomerRequest,
@@ -103,6 +104,9 @@ export default function NewCustomer(): JSX.Element {
     refetchOnWindowFocus: false
   });
   const { data: subdistrict } = useQuery('subdistrict', () => getSubDistrict(), { refetchOnWindowFocus: false });
+  const { data: countries = [] } = useQuery('country', () => getCountry(), {
+    refetchOnWindowFocus: false
+  });
 
   const getSalesLabels = (salesIds: string[]) =>
     salesIds
@@ -171,10 +175,27 @@ export default function NewCustomer(): JSX.Element {
         .of(Yup.string().trim())
         .min(1, t('customerManagement.message.validateSalesAccount')),
       address: Yup.object().shape({
-        addressLine1: Yup.string().required(t('customerManagement.message.validateAddress')),
-        subdistrict: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
-        district: Yup.string().required(t('customerManagement.message.validateDistrict')),
-        province: Yup.string().required(t('customerManagement.message.validateProvince')),
+        country: Yup.string().required(t('customerManagement.column.address.country')),
+        addressLine1: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateAddress')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
+        subdistrict: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateSubdistrict')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
+        district: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateDistrict')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
+        province: Yup.string().when('country', {
+          is: 'TH',
+          then: Yup.string().required(t('customerManagement.message.validateProvince')),
+          otherwise: Yup.string().nullable().notRequired()
+        }),
       }),
       contacts: Yup.array()
         .of(
@@ -237,6 +258,7 @@ export default function NewCustomer(): JSX.Element {
       });
     }
   });
+  const showThaiAddressFields = formik.values.address.country === 'TH';
 
   return (
     <FormikProvider value={formik}>
@@ -276,7 +298,7 @@ export default function NewCustomer(): JSX.Element {
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 select
                 fullWidth
@@ -306,7 +328,7 @@ export default function NewCustomer(): JSX.Element {
                 )) || []}
               </TextField>
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 type="text"
                 label={t('customerManagement.column.taxId')}
@@ -392,7 +414,7 @@ export default function NewCustomer(): JSX.Element {
             ) : (
               <></>
             )}
-            <GridTextField item xs={12} sm={6}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 type="text"
                 label={t('customerManagement.column.email')}
@@ -405,7 +427,7 @@ export default function NewCustomer(): JSX.Element {
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-            <GridTextField item xs={12} sm={6}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 select
                 fullWidth
@@ -588,101 +610,117 @@ export default function NewCustomer(): JSX.Element {
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
+            {showThaiAddressFields && (
+              <>
+                <GridTextField item xs={12} sm={6}>
+                  <TextField
+                    name="addressProvince"
+                    select
+                    label={t('customerManagement.column.address.province')}
+                    fullWidth
+                    variant="outlined"
+                    value={formik.values.address.province}
+                    onChange={(e) =>
+                      formik.setFieldValue('address.province', e.target.value)
+                    }
+                    error={Boolean(formik.touched.address?.province && formik.errors.address?.province)}
+                    helperText={formik.touched.address?.province && formik.errors.address?.province}
+                    InputLabelProps={{ shrink: true }}>
+                    <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                    {provinces?.map((g) => (
+                      <MenuItem key={g.id} value={g.id}>
+                        {g.nameTh}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </GridTextField>
+                <GridTextField item xs={12} sm={6}>
+                  <TextField
+                    name="addressAmphure"
+                    select
+                    label={t('customerManagement.column.address.amphure')}
+                    fullWidth
+                    variant="outlined"
+                    value={formik.values.address.district}
+                    onChange={(e) =>
+                      formik.setFieldValue('address.district', e.target.value)
+                    }
+                    error={Boolean(formik.touched.address?.district && formik.errors.address?.district)}
+                    helperText={formik.touched.address?.district && formik.errors.address?.district}
+                    InputLabelProps={{ shrink: true }}>
+                    <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                    {districts
+                      ?.filter((a) => formik.values.address.province === a.provinceId)
+                      .map((g) => (
+                        <MenuItem key={g.id} value={g.id}>
+                          {g.nameTh}
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                </GridTextField>
+                <GridTextField item xs={12} sm={6}>
+                  <TextField
+                    name="addressTumbon"
+                    select
+                    label={t('customerManagement.column.address.tumbon')}
+                    fullWidth
+                    variant="outlined"
+                    value={formik.values.address.subdistrict} // <-- just the id
+                    error={Boolean(formik.touched.address?.subdistrict && formik.errors.address?.subdistrict)}
+                    helperText={formik.touched.address?.subdistrict && formik.errors.address?.subdistrict}
+                    onChange={({ target }) => {
+                      const selected = subdistrict?.find((t) => t.id === target.value);
+                      formik.setFieldValue('address.subdistrict', selected?.id ?? '');
+                      formik.setFieldValue('address.postcode', selected?.zipCode ?? '');
+                    }}
+                    onBlur={formik.handleBlur}
+                    InputLabelProps={{ shrink: true }}>
+                    <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                    {subdistrict
+                      ?.filter((t) => t.districtId === formik.values.address.district) // ← match amphure
+                      .map((t) => (
+                        <MenuItem key={t.id} value={t.id}>
+                          {t.nameTh}
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                </GridTextField>
+                <GridTextField item xs={12} sm={6}>
+                  <TextField
+                    name="postalCode"
+                    type="text"
+                    label={t('customerManagement.column.address.postalCode')}
+                    fullWidth
+                    disabled
+                    variant="outlined"
+                    value={formik.values.address.postcode}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </GridTextField>
+              </>
+            )}
             <GridTextField item xs={12} sm={6}>
               <TextField
-                name="addressProvince"
                 select
-                label={t('customerManagement.column.address.province')}
+                label={t('customerManagement.column.address.country')}
                 fullWidth
-                variant="outlined"
-                value={formik.values.address.province}
-                onChange={(e) =>
-                  formik.setFieldValue('address.province', e.target.value)
-                }
-                error={Boolean(formik.touched.address?.province && formik.errors.address?.province)}
-                helperText={formik.touched.address?.province && formik.errors.address?.province}
-                InputLabelProps={{ shrink: true }}>
+                value={formik.values.address.country || 'TH'}
+                onChange={(e) => {
+                  formik.setFieldValue('address.country', e.target.value);
+                  formik.setFieldValue('address.province', '');
+                  formik.setFieldValue('address.district', '');
+                  formik.setFieldValue('address.subdistrict', '');
+                  formik.setFieldValue('address.postcode', '');
+                }}
+                InputLabelProps={{ shrink: true }}
+              >
                 <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-                {provinces?.map((g) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.nameTh}
+                {countries.map((country: Country) => (
+                  <MenuItem key={country.code} value={country.code}>
+                    {country.nameTh || country.name}
                   </MenuItem>
                 ))}
               </TextField>
-            </GridTextField>
-            <GridTextField item xs={12} sm={6}>
-              <TextField
-                name="addressAmphure"
-                select
-                label={t('customerManagement.column.address.amphure')}
-                fullWidth
-                variant="outlined"
-                value={formik.values.address.district}
-                onChange={(e) =>
-                  formik.setFieldValue('address.district', e.target.value)
-                }
-                error={Boolean(formik.touched.address?.district && formik.errors.address?.district)}
-                helperText={formik.touched.address?.district && formik.errors.address?.district}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-                {districts
-                  ?.filter((a) => formik.values.address.province === a.provinceId)
-                  .map((g) => (
-                    <MenuItem key={g.id} value={g.id}>
-                      {g.nameTh}
-                    </MenuItem>
-                  ))}
-              </TextField>
-            </GridTextField>
-            <GridTextField item xs={12} sm={6}>
-              <TextField
-                name="addressTumbon"
-                select
-                label={t('customerManagement.column.address.tumbon')}
-                fullWidth
-                variant="outlined"
-                value={formik.values.address.subdistrict} // <-- just the id
-                error={Boolean(formik.touched.address?.subdistrict && formik.errors.address?.subdistrict)}
-                helperText={formik.touched.address?.subdistrict && formik.errors.address?.subdistrict}
-                onChange={({ target }) => {
-                  const selected = subdistrict?.find((t) => t.id === target.value);
-                  formik.setFieldValue('address.subdistrict', selected?.id ?? '');
-                  formik.setFieldValue('address.postcode', selected?.zipCode ?? '');
-                }}
-                onBlur={formik.handleBlur}
-                InputLabelProps={{ shrink: true }}>
-                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
-                {subdistrict
-                  ?.filter((t) => t.districtId === formik.values.address.district) // ← match amphure
-                  .map((t) => (
-                    <MenuItem key={t.id} value={t.id}>
-                      {t.nameTh}
-                    </MenuItem>
-                  ))}
-              </TextField>
-            </GridTextField>
-            <GridTextField item xs={12} sm={6}>
-              <TextField
-                name="postalCode"
-                type="text"
-                label={t('customerManagement.column.address.postalCode')}
-                fullWidth
-                disabled
-                variant="outlined"
-                value={formik.values.address.postcode}
-                InputLabelProps={{ shrink: true }}
-              />
-            </GridTextField>
-            <GridTextField item xs={12} sm={6}>
-              <TextField
-                label={t('customerManagement.column.address.country')}
-                fullWidth
-                value={formik.values.address.country || ''}
-                onChange={(e) =>
-                  formik.setFieldValue('address.country', e.target.value)
-                }
-                InputLabelProps={{ shrink: true }}
-              />
             </GridTextField>
             <GridTextField item sm={6} />
 

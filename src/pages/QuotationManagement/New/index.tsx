@@ -36,8 +36,8 @@ import { getRFQ } from "services/RFQ/rfq-api";
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from "services/RFQ/rfq-type";
 import { addCustomerAddress, addCustomerContact, getCustomer, updateCustomer } from "services/Customer/customer-api";
 import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from "services/Customer/customer-type";
-import { getDistrict, getProvince, getSubDistrict } from "services/Address/address-api";
-import { District, Province, SubDistrict } from "services/Address/address-type";
+import { getCountry, getDistrict, getProvince, getSubDistrict } from "services/Address/address-api";
+import { Country, District, Province, SubDistrict } from "services/Address/address-type";
 import { GROUP_CODE, SystemConfig } from "services/Config/config-type";
 import { getSystemConfig } from "services/Config/config-api";
 
@@ -646,6 +646,10 @@ export default function NewQuotation() {
     const { data: subdistricts = [] } = useQuery('quotation-subdistrict', () => getSubDistrict(), {
         refetchOnWindowFocus: false
     });
+    const { data: countries = [] } = useQuery('quotation-country', () => getCountry(), {
+        refetchOnWindowFocus: false
+    });
+    const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
     const { data: customerTypeList = [] } = useQuery(
         ['quotation-customer-type', GROUP_CODE.CUSTOMER_TYPE],
         () => getSystemConfig(GROUP_CODE.CUSTOMER_TYPE),
@@ -715,11 +719,27 @@ export default function NewQuotation() {
         enableReinitialize: true,
         validationSchema: Yup.object().shape({
             addressType: Yup.string().required(),
-            addressLine1: Yup.string().required(),
-            province: Yup.string().required(),
-            district: Yup.string().required(),
-            subdistrict: Yup.string().required(),
-            country: Yup.string().required()
+            country: Yup.string().required(),
+            addressLine1: Yup.string().when('country', {
+                is: 'TH',
+                then: Yup.string().required(),
+                otherwise: Yup.string().nullable().notRequired()
+            }),
+            province: Yup.string().when('country', {
+                is: 'TH',
+                then: Yup.string().required(),
+                otherwise: Yup.string().nullable().notRequired()
+            }),
+            district: Yup.string().when('country', {
+                is: 'TH',
+                then: Yup.string().required(),
+                otherwise: Yup.string().nullable().notRequired()
+            }),
+            subdistrict: Yup.string().when('country', {
+                is: 'TH',
+                then: Yup.string().required(),
+                otherwise: Yup.string().nullable().notRequired()
+            })
         }),
         onSubmit: () => undefined
     });
@@ -2454,7 +2474,7 @@ export default function NewQuotation() {
                 <DialogTitle>อัพเดตข้อมูลลูกค้า</DialogTitle>
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                        <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="customerName"
@@ -2474,7 +2494,7 @@ export default function NewQuotation() {
                                 sx={fieldSx}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="email"
@@ -2550,7 +2570,7 @@ export default function NewQuotation() {
                                 ))}
                             </TextField>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="taxId"
@@ -2562,7 +2582,7 @@ export default function NewQuotation() {
                                 sx={fieldSx}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="companyName"
@@ -2584,7 +2604,7 @@ export default function NewQuotation() {
                         </Grid>
                         {updateCustomerDialogFormik.values.type === 'COMPANY' ? (
                             <>
-                                <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6}>
                                     <TextField
                                         fullWidth
                                         name="companyBranchCode"
@@ -2604,7 +2624,7 @@ export default function NewQuotation() {
                                         sx={fieldSx}
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6}>
                                     <TextField
                                         fullWidth
                                         name="companyBranchName"
@@ -2626,7 +2646,7 @@ export default function NewQuotation() {
                                 </Grid>
                             </>
                         ) : null}
-                        <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6}>
                             <TextField
                                 select
                                 fullWidth
@@ -2653,7 +2673,7 @@ export default function NewQuotation() {
                                 ))}
                             </TextField>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                            <Grid item xs={12} sm={6}>
                             <TextField
                                 select
                                 fullWidth
@@ -2858,6 +2878,36 @@ export default function NewQuotation() {
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField
+                                name="country"
+                                select
+                                fullWidth
+                                label={t('customerManagement.column.address.country')}
+                                value={addressDialogFormik.values.country || 'TH'}
+                                onChange={(event) => {
+                                    addressDialogFormik.setFieldValue('country', event.target.value);
+                                    addressDialogFormik.setFieldValue('province', '');
+                                    addressDialogFormik.setFieldValue('district', '');
+                                    addressDialogFormik.setFieldValue('subdistrict', '');
+                                    addressDialogFormik.setFieldValue('postcode', '');
+                                }}
+                                onBlur={addressDialogFormik.handleBlur}
+                                error={Boolean(
+                                    addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                                )}
+                                helperText={
+                                    addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                                }
+                                InputLabelProps={{ shrink: true }}>
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {countries.map((country: Country) => (
+                                    <MenuItem key={country.code} value={country.code}>
+                                        {country.nameTh || country.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
                                 name="province"
                                 select
                                 fullWidth
@@ -2955,24 +3005,6 @@ export default function NewQuotation() {
                                 fullWidth
                                 disabled
                                 value={addressDialogFormik.values.postcode}
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                name="country"
-                                type="text"
-                                label={t('customerManagement.column.address.country')}
-                                fullWidth
-                                value={addressDialogFormik.values.country}
-                                onChange={addressDialogFormik.handleChange}
-                                onBlur={addressDialogFormik.handleBlur}
-                                error={Boolean(
-                                    addressDialogFormik.touched.country && addressDialogFormik.errors.country
-                                )}
-                                helperText={
-                                    addressDialogFormik.touched.country && addressDialogFormik.errors.country
-                                }
                                 InputLabelProps={{ shrink: true }}
                             />
                         </Grid>

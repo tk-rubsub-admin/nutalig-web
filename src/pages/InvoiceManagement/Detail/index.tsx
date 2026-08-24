@@ -454,6 +454,7 @@ export default function InvoiceDetail(): ReactElement {
 
     setVisibleInvoiceLanguageDialog(false);
     setIsInvoiceDocumentLoading(true);
+    const shouldDownloadFile = isDownSm;
 
     try {
       await toast.promise(viewInvoice(invoice.invoiceNo, true, false, language), {
@@ -466,12 +467,24 @@ export default function InvoiceDetail(): ReactElement {
             throw new Error('No file');
           }
 
-          const file = files[0];
-          const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-          const url = URL.createObjectURL(blob);
+          files.forEach((file) => {
+            const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+            const url = URL.createObjectURL(blob);
 
-          window.open(url, '_blank', 'noopener,noreferrer');
-          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            if (shouldDownloadFile) {
+              const anchor = document.createElement('a');
+              anchor.href = url;
+              anchor.download = file.fileName || `${invoice.invoiceNo}.pdf`;
+              anchor.rel = 'noopener';
+              document.body.appendChild(anchor);
+              anchor.click();
+              anchor.remove();
+            } else {
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }
+
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          });
 
           return t('toast.success');
         },
@@ -527,7 +540,7 @@ export default function InvoiceDetail(): ReactElement {
       <LoadingDialog open={isFetching || isActivityHistoryFetching || isSaving} />
       <DocumentLanguageDialog
         open={visibleInvoiceLanguageDialog}
-        title="ดูใบแจ้งหนี้"
+        title={isDownSm ? 'ดาวน์โหลดไฟล์ใบแจ้งหนี้' : 'ดูใบแจ้งหนี้'}
         onClose={handleCloseInvoiceLanguageDialog}
         onSelect={handleSelectInvoiceLanguage}
       />
@@ -588,7 +601,7 @@ export default function InvoiceDetail(): ReactElement {
               <ListItemIcon>
                 <Description fontSize="small" />
               </ListItemIcon>
-              <ListItemText primary="ดูใบแจ้งหนี้" />
+              <ListItemText primary={isDownSm ? 'ดาวน์โหลดไฟล์ใบแจ้งหนี้' : 'ดูใบแจ้งหนี้'} />
             </MenuItem>
             <Can permission={PERMISSIONS.RECEIVE_PAYMENT}>
               <MenuItem

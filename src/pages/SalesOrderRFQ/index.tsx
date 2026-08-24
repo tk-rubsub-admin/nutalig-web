@@ -62,8 +62,8 @@ import { createFreelanceSale, getFreelanceSales } from 'services/FreelanceSale/f
 import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
-import { getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
-import { District, Province, SubDistrict } from 'services/Address/address-type';
+import { getCountry, getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
+import { Country, District, Province, SubDistrict } from 'services/Address/address-type';
 import { createSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import {
   CreateSalesOrderRequestV1,
@@ -846,6 +846,10 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const { data: countries = [] } = useQuery('sale-order-rfq-country', () => getCountry(), {
+    refetchOnWindowFocus: false
+  });
+  const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
   const { data: salesOrderExpireDayConfig = [] } = useQuery(
     ['sale-order-rfq-expire-day', GROUP_CODE.SALES_ORDER_EXPIRE_DAY],
     () => getSystemConfig(GROUP_CODE.SALES_ORDER_EXPIRE_DAY),
@@ -985,11 +989,27 @@ export default function SalesOrderRFQ(): JSX.Element {
     enableReinitialize: true,
     validationSchema: Yup.object().shape({
       addressType: Yup.string().required(),
-      addressLine1: Yup.string().required(),
-      province: Yup.string().required(),
-      district: Yup.string().required(),
-      subdistrict: Yup.string().required(),
-      country: Yup.string().required()
+      country: Yup.string().required(),
+      addressLine1: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(),
+        otherwise: Yup.string().nullable().notRequired()
+      }),
+      province: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(),
+        otherwise: Yup.string().nullable().notRequired()
+      }),
+      district: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(),
+        otherwise: Yup.string().nullable().notRequired()
+      }),
+      subdistrict: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(),
+        otherwise: Yup.string().nullable().notRequired()
+      })
     }),
     onSubmit: () => undefined
   });
@@ -2028,7 +2048,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         <DialogTitle>อัพเดตข้อมูลลูกค้า</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 name="customerName"
@@ -2048,7 +2068,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                 sx={fieldSx}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 name="email"
@@ -2120,7 +2140,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 name="taxId"
@@ -2132,7 +2152,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                 sx={fieldSx}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 name="companyName"
@@ -2751,6 +2771,36 @@ export default function SalesOrderRFQ(): JSX.Element {
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
+                name="country"
+                select
+                fullWidth
+                label={t('customerManagement.column.address.country')}
+                value={addressDialogFormik.values.country || 'TH'}
+                onChange={(event) => {
+                  addressDialogFormik.setFieldValue('country', event.target.value);
+                  addressDialogFormik.setFieldValue('province', '');
+                  addressDialogFormik.setFieldValue('district', '');
+                  addressDialogFormik.setFieldValue('subdistrict', '');
+                  addressDialogFormik.setFieldValue('postcode', '');
+                }}
+                onBlur={addressDialogFormik.handleBlur}
+                error={Boolean(
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                )}
+                helperText={
+                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
+                }
+                InputLabelProps={{ shrink: true }}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {countries.map((country: Country) => (
+                  <MenuItem key={country.code} value={country.code}>
+                    {country.nameTh || country.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
                 name="province"
                 select
                 fullWidth
@@ -2853,24 +2903,6 @@ export default function SalesOrderRFQ(): JSX.Element {
                 fullWidth
                 disabled
                 value={addressDialogFormik.values.postcode}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                name="country"
-                type="text"
-                label={t('customerManagement.column.address.country')}
-                fullWidth
-                value={addressDialogFormik.values.country}
-                onChange={addressDialogFormik.handleChange}
-                onBlur={addressDialogFormik.handleBlur}
-                error={Boolean(
-                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
-                )}
-                helperText={
-                  addressDialogFormik.touched.country && addressDialogFormik.errors.country
-                }
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>

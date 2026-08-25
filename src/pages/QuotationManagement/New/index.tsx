@@ -649,7 +649,6 @@ export default function NewQuotation() {
     const { data: countries = [] } = useQuery('quotation-country', () => getCountry(), {
         refetchOnWindowFocus: false
     });
-    const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
     const { data: customerTypeList = [] } = useQuery(
         ['quotation-customer-type', GROUP_CODE.CUSTOMER_TYPE],
         () => getSystemConfig(GROUP_CODE.CUSTOMER_TYPE),
@@ -743,7 +742,7 @@ export default function NewQuotation() {
         }),
         onSubmit: () => undefined
     });
-
+    const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
     const contactDialogFormik = useFormik({
         initialValues: {
             contactName: '',
@@ -2474,7 +2473,7 @@ export default function NewQuotation() {
                 <DialogTitle>อัพเดตข้อมูลลูกค้า</DialogTitle>
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+                        <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="customerName"
@@ -2494,7 +2493,7 @@ export default function NewQuotation() {
                                 sx={fieldSx}
                             />
                         </Grid>
-                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+                        <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="email"
@@ -2570,7 +2569,7 @@ export default function NewQuotation() {
                                 ))}
                             </TextField>
                         </Grid>
-                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+                        <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="taxId"
@@ -2582,7 +2581,7 @@ export default function NewQuotation() {
                                 sx={fieldSx}
                             />
                         </Grid>
-                            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+                        <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
                             <TextField
                                 fullWidth
                                 name="companyName"
@@ -2604,7 +2603,7 @@ export default function NewQuotation() {
                         </Grid>
                         {updateCustomerDialogFormik.values.type === 'COMPANY' ? (
                             <>
-                            <Grid item xs={12} sm={6}>
+                                <Grid item xs={12} sm={6}>
                                     <TextField
                                         fullWidth
                                         name="companyBranchCode"
@@ -2624,7 +2623,7 @@ export default function NewQuotation() {
                                         sx={fieldSx}
                                     />
                                 </Grid>
-                            <Grid item xs={12} sm={6}>
+                                <Grid item xs={12} sm={6}>
                                     <TextField
                                         fullWidth
                                         name="companyBranchName"
@@ -2646,7 +2645,7 @@ export default function NewQuotation() {
                                 </Grid>
                             </>
                         ) : null}
-                            <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6}>
                             <TextField
                                 select
                                 fullWidth
@@ -2673,7 +2672,7 @@ export default function NewQuotation() {
                                 ))}
                             </TextField>
                         </Grid>
-                            <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6}>
                             <TextField
                                 select
                                 fullWidth

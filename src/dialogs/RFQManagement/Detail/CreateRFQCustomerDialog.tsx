@@ -86,7 +86,6 @@ export default function CreateRFQCustomerDialog({
     enabled: open,
     refetchOnWindowFocus: false
   });
-  const showThaiAddressFields = formik.values.address.country === 'TH';
 
   const getSalesLabels = (salesIds: string[]) =>
     salesIds
@@ -235,7 +234,7 @@ export default function CreateRFQCustomerDialog({
       }
     }
   });
-
+  const showThaiAddressFields = formik.values.address.country === 'TH';
   const addressErrors = formik.errors.address as any;
   const contactErrors = formik.errors.contacts as any;
 
@@ -264,7 +263,7 @@ export default function CreateRFQCustomerDialog({
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 select
                 fullWidth
@@ -283,7 +282,7 @@ export default function CreateRFQCustomerDialog({
                 ))}
               </TextField>
             </GridTextField>
-                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 required
@@ -335,7 +334,7 @@ export default function CreateRFQCustomerDialog({
                 </GridTextField>
               </>
             ) : null}
-                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 fullWidth
                 label={t('customerManagement.column.email')}
@@ -344,7 +343,7 @@ export default function CreateRFQCustomerDialog({
                 InputLabelProps={{ shrink: true }}
               />
             </GridTextField>
-                        <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <GridTextField item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
               <TextField
                 select
                 fullWidth

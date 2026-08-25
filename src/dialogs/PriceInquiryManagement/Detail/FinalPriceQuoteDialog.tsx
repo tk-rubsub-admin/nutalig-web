@@ -32,6 +32,7 @@ import {
   RFQSupplierQuoteAdditionalCost
 } from 'services/RFQ/rfq-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
+import { GridTextField } from 'components/Styled';
 
 const CONTAINER_SIZE_OPTIONS = ['20GP', '40HQ'] as const;
 
@@ -53,6 +54,7 @@ interface FinalPriceDraftTier {
 interface FinalPriceDraftDetail {
   id: number;
   optionName: string;
+  plan?: string | null;
   spec: string;
   tiers: FinalPriceDraftTier[];
 }
@@ -123,7 +125,7 @@ interface FinalPriceQuoteDialogProps {
   onTierCurrencyChange: (detailId: number, tierId: number, value: string) => void;
   onTierFclChange: (detailId: number, tierId: number, checked: boolean) => void;
   onTierShareFclChange: (detailId: number, tierId: number, checked: boolean) => void;
-  onDetailChange: (detailId: number, field: 'optionName' | 'spec', value: string) => void;
+  onDetailChange: (detailId: number, field: 'optionName' | 'plan' | 'spec', value: string) => void;
   onDuplicateDetail: (detailId: number) => void;
   onDeleteDetail: (detailId: number) => void;
   onDeleteTier: (detailId: number, tierId: number) => void;
@@ -212,6 +214,17 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     return quoteTier?.productPrice ?? null;
   };
 
+  const formatOptionNameWithPlan = (optionName?: string | null, plan?: string | null): string => {
+    const trimmedOptionName = optionName?.trim();
+    const trimmedPlan = plan?.trim();
+
+    if (!trimmedOptionName) {
+      return trimmedPlan || '-';
+    }
+
+    return trimmedPlan ? `${trimmedOptionName} (${trimmedPlan})` : trimmedOptionName;
+  };
+
   const getTierQuantity = (detailId: number, tierId: number): number => {
     const quoteDetail = finalPriceQuote?.details?.find((item) => item.id === detailId);
     const quoteTier = quoteDetail?.tiers?.find((item) => item.id === tierId);
@@ -262,7 +275,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
       <Stack spacing={1.25}>
         <Stack spacing={0.25}>
           <Typography variant="subtitle2" fontWeight={700}>
-            {detail.optionName}
+            {formatOptionNameWithPlan(detail.optionName, detail.plan)}
           </Typography>
           {detail.spec ? (
             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -367,14 +380,28 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
       <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
           <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-            <TextField
-              size="small"
-              label="Option Name"
-              value={detail.optionName}
-              onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
-              disabled={isSubmitting}
-              fullWidth
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  size="small"
+                  label="Option Name"
+                  value={detail.optionName}
+                  onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
+                  disabled={isSubmitting}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  size="small"
+                  label="Plan"
+                  value={detail.plan || ''}
+                  onChange={(event) => onDetailChange(detail.id, 'plan', event.target.value)}
+                  disabled={isSubmitting}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
             <TextField
               size="small"
               label="Spec"
@@ -495,6 +522,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         inputProps={{ min: 0, step: '1' }}
                         sx={{
                           width: '10ch',
+                          '& .MuiInputBase-input': {
+                            fontSize: '12px'
+                          },
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
                           {
                             WebkitAppearance: 'none',
@@ -539,6 +569,11 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                           onTierCurrencyChange(detail.id, tier.id, event.target.value)
                         }
                         fullWidth
+                        sx={{
+                          '& .MuiSelect-select': {
+                            fontSize: '12px'
+                          }
+                        }}
                       >
                         {currencyOptions.map((currencyOption) => (
                           <MenuItem key={currencyOption.code} value={currencyOption.code}>
@@ -721,6 +756,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         inputProps={{ min: 0, step: '1', max: 100 }}
                         sx={{
                           width: '10ch',
+                          '& .MuiInputBase-input': {
+                            fontSize: '12px'
+                          },
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
                           {
                             WebkitAppearance: 'none',
@@ -764,27 +802,44 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
         backgroundColor: '#fff'
       }}>
       <Stack spacing={1.5}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-          <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-            <TextField
-              size="small"
-              label="Option Name"
-              value={detail.optionName}
-              onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
-              disabled={isSubmitting}
-              fullWidth
-            />
-            <TextField
-              size="small"
-              label="Spec"
-              value={detail.spec}
-              onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
-              disabled={isSubmitting}
-              fullWidth
-              multiline
-              minRows={2}
-            />
-          </Stack>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+          {/* <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}> */}
+          <Grid container spacing={1}>
+            <GridTextField item xs={12} md={6}>
+              <TextField
+                size="small"
+                label="Option Name"
+                value={detail.optionName}
+                onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
+                disabled={isSubmitting}
+                fullWidth
+              />
+            </GridTextField>
+            <GridTextField item xs={12} md={6}>
+              <TextField
+                size="small"
+                label="Plan"
+                InputLabelProps={{ shrink: true }}
+                value={detail.plan || ''}
+                onChange={(event) => onDetailChange(detail.id, 'plan', event.target.value)}
+                disabled={isSubmitting}
+                fullWidth
+              />
+            </GridTextField>
+            <GridTextField item md={12}>
+              <TextField
+                size="small"
+                label="Spec"
+                value={detail.spec}
+                onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
+                disabled={isSubmitting}
+                fullWidth
+                multiline
+                minRows={2}
+              />
+            </GridTextField>
+          </Grid>
+          {/* </Stack> */}
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <Button
               size="small"
@@ -883,6 +938,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         inputProps={{ min: 0, step: '1' }}
                         sx={{
                           width: '10ch',
+                          '& .MuiInputBase-input': {
+                            fontSize: '12px'
+                          },
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
                           {
                             WebkitAppearance: 'none',
@@ -932,7 +990,12 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         onChange={(event) =>
                           onTierCurrencyChange(detail.id, tier.id, event.target.value)
                         }
-                        fullWidth>
+                        fullWidth
+                        sx={{
+                          '& .MuiSelect-select': {
+                            fontSize: '12px'
+                          }
+                        }}>
                         {currencyOptions.map((currencyOption) => (
                           <MenuItem key={currencyOption.code} value={currencyOption.code}>
                             {currencyOption.code}
@@ -1036,6 +1099,11 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                           error={Boolean(tierError.containerSize)}
                           helperText={tierError.containerSize}
                           fullWidth
+                          sx={{
+                            '& .MuiSelect-select': {
+                              fontSize: '12px'
+                            }
+                          }}
                         >
                           <MenuItem value="">
                             <em>เลือกขนาดตู้</em>
@@ -1069,14 +1137,18 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         inputProps={{ min: 0, step: '1', max: 100 }}
                         sx={{
                           width: '10ch',
+                          '& .MuiInputBase-input': {
+                            fontSize: '12px'
+                          },
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
                           {
                             WebkitAppearance: 'none',
-                            margin: 0
+                            margin: 0,
+                            fontSize: '12px'
                           },
                           '& input[type=number]': {
                             MozAppearance: 'textfield'
-                          }
+                          },
                         }}
                       />
                     </TableCell>
@@ -1099,7 +1171,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
           </Table>
         </Box>
       </Stack>
-    </Box>
+    </Box >
   );
 
   return (
@@ -1363,7 +1435,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
             />
 
             <TextField
-              label="คำแนะนำสำหรับ RFQ นี้"
+              label="คำแนะนำสำหรับ RFQ นี้ (ลูกค้า)"
               value={finalPriceDraft.recommend}
               onChange={(event) => onRecommendChange(event.target.value)}
               multiline

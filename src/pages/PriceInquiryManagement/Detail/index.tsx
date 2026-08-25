@@ -241,6 +241,7 @@ interface FinalPriceDraftTier {
 interface FinalPriceDraftDetail {
   id: number;
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark?: string | null;
@@ -286,6 +287,7 @@ interface DraftSupplierQuoteDetail {
   rfqDetailId?: number | null;
   supplier?: Supplier | null;
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string | null;
@@ -329,6 +331,7 @@ interface SelectedSupplierQuoteDetailToDelete {
 
 interface DetailEditDraft {
   optionName: string;
+  plan: string;
   spec: string;
   sortOrder: string;
   remark: string;
@@ -416,6 +419,10 @@ function getShippingMethodLabel(shippingMethod?: string | null): string {
   }
 
   return 'ทางรถ, ทางเรือ';
+}
+
+function formatContainerSizeLabel(containerSize?: string | null): string {
+  return containerSize?.trim().toUpperCase() || '-';
 }
 
 function getNamedCodeValueLabel<
@@ -886,6 +893,7 @@ function normalizeCommissionInput(value?: string | null): string {
 function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
   return {
     optionName: detail.optionName || '',
+    plan: detail.plan || '',
     spec: detail.spec || '',
     sortOrder: detail.sortOrder?.toString() || '',
     remark: detail.remark || '',
@@ -920,6 +928,7 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
     details: quote.details.map((detail, detailIndex) => ({
       id: detail.id || -(Date.now() + detailIndex + 1),
       optionName: detail.optionName || `Option ${detailIndex + 1}`,
+      plan: detail.plan || '',
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
       remark: detail.remark || null,
@@ -1131,6 +1140,17 @@ function getFirstPackageValue(
   return value || null;
 }
 
+function formatOptionNameWithPlan(optionName?: string | null, plan?: string | null): string {
+  const trimmedOptionName = optionName?.trim();
+  const trimmedPlan = plan?.trim();
+
+  if (!trimmedOptionName) {
+    return trimmedPlan || '-';
+  }
+
+  return trimmedPlan ? `${trimmedOptionName} (${trimmedPlan})` : trimmedOptionName;
+}
+
 function createDraftQuoteDetail(
   sortOrder: number,
   supplier?: Supplier | null
@@ -1141,6 +1161,7 @@ function createDraftQuoteDetail(
     rfqDetailId: null,
     supplier: supplier || null,
     optionName: `Option ${sortOrder}`,
+    plan: '',
     spec: '',
     sortOrder,
     remark: '',
@@ -1169,6 +1190,7 @@ function createDraftDetailOption(sortOrder: number): RFQDetailOption {
   return {
     id: -Date.now(),
     optionName: `Option ${sortOrder}`,
+    plan: '',
     spec: '',
     sortOrder,
     remark: '',
@@ -1238,6 +1260,7 @@ function isPackageDimensionComplete(packageItem: {
 function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailRequest {
   return {
     optionName: detail.optionName.trim(),
+    plan: detail.plan?.trim() || null,
     spec: detail.spec.trim(),
     sortOrder: detail.sortOrder,
     remark: detail.remark?.trim() || null,
@@ -1266,6 +1289,7 @@ function createSupplierQuoteDetailFromQuote(
     rfqDetailId: detail.rfqDetailId || null,
     supplier: supplier || null,
     optionName: detail.optionName || '',
+    plan: detail.plan || '',
     spec: detail.spec || '',
     sortOrder: detail.sortOrder,
     remark: detail.remark || '',
@@ -1336,6 +1360,7 @@ function buildSupplierQuotePayload(
       rfqDetailId: detail.rfqDetailId || null,
       supplierId: detail.supplier?.supplierId || detail.supplier?.id || supplier.supplierId || supplier.id,
       optionName: detail.optionName.trim(),
+      plan: detail.plan?.trim() || null,
       spec: detail.spec.trim(),
       sortOrder: index + 1,
       remark: detail.remark?.trim() || null,
@@ -1408,6 +1433,7 @@ function createDraftQuoteDetailFromExtractedPayload(
     rfqDetailId: detail.rfqDetailId || null,
     supplier: supplier || null,
     optionName: detail.optionName || `Option ${index + 1}`,
+    plan: detail.plan || '',
     spec: detail.spec || '',
     sortOrder: detail.sortOrder || index + 1,
     remark: detail.remark || '',
@@ -3390,7 +3416,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleFinalPriceDetailChange = (
     detailId: number,
-    field: 'optionName' | 'spec',
+    field: 'optionName' | 'plan' | 'spec',
     value: string
   ) => {
     setFinalPriceDraft((prev) => ({
@@ -3831,7 +3857,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleQuoteDetailChange = (
     detailId: number,
-    field: 'optionName' | 'spec' | 'remark',
+    field: 'optionName' | 'plan' | 'spec' | 'remark',
     value: string
   ) => {
     setQuoteDraftDetails((prev) =>
@@ -4330,7 +4356,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleDraftDetailChange = (
     detailId: number,
-    field: 'optionName' | 'spec' | 'remark',
+    field: 'optionName' | 'plan' | 'spec' | 'remark',
     value: string
   ) => {
     setDraftDetailOptions((prev) =>
@@ -5300,7 +5326,10 @@ export default function RFQDetail(): ReactElement {
                                       }}
                                     />
                                     <Typography fontWeight={700}>
-                                      {detail.optionName || `Option ${index + 1}`}
+                                      {formatOptionNameWithPlan(
+                                        detail.optionName || `Option ${index + 1}`,
+                                        detail.plan
+                                      )}
                                     </Typography>
                                   </Stack>
                                   <Stack spacing={0.75} sx={{ mt: 1 }}>
@@ -5343,6 +5372,7 @@ export default function RFQDetail(): ReactElement {
                                           <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
                                           <TableCell align="center">FCL</TableCell>
                                           <TableCell align="center">Share FCL</TableCell>
+                                          <TableCell align="center">ขนาดตู้</TableCell>
                                           <TableCell align="right">รวมทางรถ</TableCell>
                                           <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
                                           <TableCell align="right">รวมทางเรือ</TableCell>
@@ -5371,6 +5401,9 @@ export default function RFQDetail(): ReactElement {
                                             </TableCell>
                                             <TableCell align="center">
                                               {tier.isShareFCL ? 'ใช่' : '-'}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              {formatContainerSizeLabel(tier.containerSize)}
                                             </TableCell>
                                             <TableCell
                                               align="right"
@@ -5630,7 +5663,10 @@ export default function RFQDetail(): ReactElement {
                                       flexWrap="wrap">
                                       <Box>
                                         <Typography variant="body1" fontWeight={700}>
-                                          {snapshot?.optionName || record.optionName || '-'}
+                                          {formatOptionNameWithPlan(
+                                            snapshot?.optionName || record.optionName || '-',
+                                            snapshot?.plan || record.plan
+                                          )}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
                                           {snapshot?.archivedBy || record.archivedBy || '-'}{' '}
@@ -5753,12 +5789,24 @@ export default function RFQDetail(): ReactElement {
         <DialogTitle>แก้ไข Option</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField
-              fullWidth
-              label="Option Name"
-              value={detailEditDraft?.optionName || ''}
-              onChange={(event) => handleDetailEditDraftChange('optionName', event.target.value)}
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Option Name"
+                  value={detailEditDraft?.optionName || ''}
+                  onChange={(event) => handleDetailEditDraftChange('optionName', event.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Plan"
+                  value={detailEditDraft?.plan || ''}
+                  onChange={(event) => handleDetailEditDraftChange('plan', event.target.value)}
+                />
+              </Grid>
+            </Grid>
             <TextField
               fullWidth
               multiline
@@ -5802,7 +5850,10 @@ export default function RFQDetail(): ReactElement {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              {selectedTierForEdit?.detail.optionName || '-'}
+              {formatOptionNameWithPlan(
+                selectedTierForEdit?.detail.optionName || '-',
+                selectedTierForEdit?.detail.plan
+              )}
             </Typography>
             <Grid container spacing={2}>
               <GridTextField item xs={12} sm={4}>
@@ -5813,6 +5864,11 @@ export default function RFQDetail(): ReactElement {
                   value={tierEditDraft?.quantity || ''}
                   inputProps={{ inputMode: 'numeric' }}
                   onChange={(event) => handleTierEditDraftChange('quantity', event.target.value)}
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      fontSize: '12px'
+                    }
+                  }}
                 />
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
@@ -5822,15 +5878,25 @@ export default function RFQDetail(): ReactElement {
                   label="Commission"
                   value={tierEditDraft?.commission || ''}
                   onChange={(event) => handleTierEditDraftChange('commission', event.target.value)}
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      fontSize: '12px'
+                    }
+                  }}
                 />
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
-                <TextField
+              <TextField
                   select
                   fullWidth
                   label="Currency"
                   value={tierEditDraft?.currency || ''}
                   onChange={(event) => handleTierEditDraftChange('currency', event.target.value)}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      fontSize: '0.875rem'
+                    }
+                  }}
                 >
                   {currencyOptions.map((option: SystemConfig) => (
                     <MenuItem key={option.code} value={option.code}>

@@ -849,7 +849,6 @@ export default function SalesOrderRFQ(): JSX.Element {
   const { data: countries = [] } = useQuery('sale-order-rfq-country', () => getCountry(), {
     refetchOnWindowFocus: false
   });
-  const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
   const { data: salesOrderExpireDayConfig = [] } = useQuery(
     ['sale-order-rfq-expire-day', GROUP_CODE.SALES_ORDER_EXPIRE_DAY],
     () => getSystemConfig(GROUP_CODE.SALES_ORDER_EXPIRE_DAY),
@@ -1013,6 +1012,7 @@ export default function SalesOrderRFQ(): JSX.Element {
     }),
     onSubmit: () => undefined
   });
+  const showThaiAddressFields = addressDialogFormik.values.country === 'TH';
 
   const contactDialogFormik = useFormik({
     initialValues: {

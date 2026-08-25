@@ -198,6 +198,7 @@ export interface RFQDetailTier {
   commission?: number | null;
   currency?: string | null;
   exchangeRate?: number | null;
+  containerSize?: string | null;
   landFreightCost: number;
   seaFreightCost: number;
   isFcl?: boolean | null;
@@ -213,6 +214,7 @@ export interface RFQDetailTier {
 export interface RFQDetailOption {
   id: number;
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string | null;
@@ -241,6 +243,7 @@ export interface RFQDetailHistory {
   detailSetNo: number;
   sourceDetailId?: number | null;
   optionName?: string | null;
+  plan?: string | null;
   spec: string;
   sortOrder?: number | null;
   remark?: string | null;
@@ -265,6 +268,7 @@ export interface RFQDetailHistorySnapshotTier {
   productPrice?: number | null;
   commission?: number | null;
   currency?: string | null;
+  containerSize?: string | null;
   landFreightCost?: number | null;
   seaFreightCost?: number | null;
   isFcl?: boolean | null;
@@ -282,6 +286,7 @@ export interface RFQDetailHistorySnapshotTierSplit {
   sellPrice?: number | null;
   commission?: number | null;
   currency?: string | null;
+  containerSize?: string | null;
   landFreightCost?: number | null;
   landFreightQty?: number | null;
   seaFreightQty?: number | null;
@@ -296,6 +301,7 @@ export interface RFQDetailHistorySnapshot {
   archivedAt?: string | null;
   sourceDetailId?: number | null;
   optionName?: string | null;
+  plan?: string | null;
   spec?: string | null;
   sortOrder?: number | null;
   remark?: string | null;
@@ -535,6 +541,7 @@ export interface CreateRFQDetailTierSplitRequest {
 
 export interface CreateRFQDetailRequest {
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string | null;
@@ -547,6 +554,7 @@ export interface CreateRFQDetailRequest {
 
 export interface UpdateRFQDetailRequest {
   optionName?: string | null;
+  plan?: string | null;
   spec: string;
   sortOrder?: number | null;
   remark?: string | null;
@@ -645,6 +653,7 @@ export interface RFQSupplierQuoteDetail {
   id?: number;
   rfqDetailId?: number | null;
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string | null;
@@ -715,6 +724,7 @@ export interface UpsertRFQSupplierQuoteDetailRequest {
   rfqDetailId?: number | null;
   supplierId?: string | null;
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string | null;

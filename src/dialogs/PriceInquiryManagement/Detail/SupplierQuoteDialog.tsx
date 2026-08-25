@@ -171,6 +171,7 @@ export interface SupplierQuoteDialogDetail {
   rfqDetailId?: number | null;
   supplier?: Supplier | null;
   optionName: string;
+  plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string;
@@ -263,7 +264,7 @@ export interface SupplierQuoteDialogProps {
   onDeleteDetail: (detailId: number) => void;
   onDetailChange: (
     detailId: number,
-    field: 'optionName' | 'spec' | 'remark',
+    field: 'optionName' | 'plan' | 'spec' | 'remark',
     value: string
   ) => void;
   onAddPackage: () => void;
@@ -372,6 +373,16 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     quoteDraftLeadTimes.some(
       (leadTime) => leadTime.id !== currentLeadTimeId && leadTime.leadTimeCode === optionCode
     );
+  const formatOptionNameWithPlan = (optionName?: string | null, plan?: string | null): string => {
+    const trimmedOptionName = optionName?.trim();
+    const trimmedPlan = plan?.trim();
+
+    if (!trimmedOptionName) {
+      return trimmedPlan || '-';
+    }
+
+    return trimmedPlan ? `${trimmedOptionName} (${trimmedPlan})` : trimmedOptionName;
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -570,7 +581,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                       <Stack spacing={2}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Typography variant="subtitle1" fontWeight={700}>
-                            Option {detail.sortOrder}
+                            {formatOptionNameWithPlan(`Option ${detail.sortOrder}`, detail.plan)}
                           </Typography>
                           <Stack direction="row" spacing={0.5}>
                             <IconButton
@@ -590,7 +601,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                           </Stack>
                         </Stack>
                         <Grid container spacing={1.5}>
-                          <Grid item xs={12} md={4}>
+                          <Grid item xs={12} md={3}>
                             <TextField
                               fullWidth
                               size="small"
@@ -604,7 +615,19 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                               }
                             />
                           </Grid>
-                          <Grid item xs={12} md={8}>
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label="Plan"
+                              value={detail.plan || ''}
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(event) =>
+                                onDetailChange(detail.id, 'plan', event.target.value)
+                              }
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={6}>
                             <SupplierAutocompleteField
                               value={selectedSupplier}
                               onChange={(selected) => onDetailSupplierChange(detail.id, selected)}

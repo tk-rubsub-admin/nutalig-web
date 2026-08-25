@@ -286,6 +286,10 @@ function getShippingMethodLabel(shippingMethod?: string | null): string {
   return 'ทางรถ, ทางเรือ';
 }
 
+function formatContainerSizeLabel(containerSize?: string | null): string {
+  return containerSize?.trim().toUpperCase() || '-';
+}
+
 function getNamedCodeValueCode<T extends { code?: string }>(value?: T | string | null): string {
   if (!value) {
     return '';
@@ -803,6 +807,7 @@ function createDraftDetailOption(sortOrder: number): RFQDetailOption {
   return {
     id: -Date.now(),
     optionName: `Option ${sortOrder}`,
+    plan: '',
     spec: '',
     sortOrder,
     remark: '',
@@ -841,9 +846,21 @@ function isNonNegativeNumber(value: number): boolean {
   return Number.isFinite(value) && value >= 0;
 }
 
+function formatOptionNameWithPlan(optionName?: string | null, plan?: string | null): string {
+  const trimmedOptionName = optionName?.trim();
+  const trimmedPlan = plan?.trim();
+
+  if (!trimmedOptionName) {
+    return trimmedPlan || '-';
+  }
+
+  return trimmedPlan ? `${trimmedOptionName} (${trimmedPlan})` : trimmedOptionName;
+}
+
 function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailRequest {
   return {
     optionName: detail.optionName.trim(),
+    plan: detail.plan?.trim() || null,
     spec: detail.spec.trim(),
     sortOrder: detail.sortOrder,
     remark: detail.remark?.trim() || null,
@@ -2224,7 +2241,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleDraftDetailChange = (
     detailId: number,
-    field: 'optionName' | 'spec' | 'remark',
+    field: 'optionName' | 'plan' | 'spec' | 'remark',
     value: string
   ) => {
     setDraftDetailOptions((prev) =>
@@ -3804,27 +3821,48 @@ export default function RFQDetail(): ReactElement {
                                   }}
                                 />
                                 {isDraftDetail ? (
-                                  <Grid item xs={12} md={12}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      label={t('rfqManagement.detail.fields.optionName')}
-                                      value={detail.optionName}
-                                      InputLabelProps={{ shrink: true }}
-                                      error={Boolean(detailError.optionName)}
-                                      helperText={detailError.optionName}
-                                      onChange={(event) =>
-                                        handleDraftDetailChange(
-                                          detail.id,
-                                          'optionName',
-                                          event.target.value
-                                        )
-                                      }
-                                    />
+                                  <Grid container spacing={1.5} sx={{ mt: 0.5, maxWidth: 860 }}>
+                                    <Grid item xs={12} md={6}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        label={t('rfqManagement.detail.fields.optionName')}
+                                        value={detail.optionName}
+                                        InputLabelProps={{ shrink: true }}
+                                        error={Boolean(detailError.optionName)}
+                                        helperText={detailError.optionName}
+                                        onChange={(event) =>
+                                          handleDraftDetailChange(
+                                            detail.id,
+                                            'optionName',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        label="Plan"
+                                        value={detail.plan || ''}
+                                        InputLabelProps={{ shrink: true }}
+                                        onChange={(event) =>
+                                          handleDraftDetailChange(
+                                            detail.id,
+                                            'plan',
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                    </Grid>
                                   </Grid>
                                 ) : (
                                   <Typography>
-                                    {detail.optionName || `Option ${index + 1}`}
+                                    {formatOptionNameWithPlan(
+                                      detail.optionName || `Option ${index + 1}`,
+                                      detail.plan
+                                    )}
                                   </Typography>
                                 )}
                               </Stack>
@@ -3900,7 +3938,7 @@ export default function RFQDetail(): ReactElement {
                                         backgroundColor: '#e8f5e9'
                                       }}>
                                       <Typography variant="caption" color="text.secondary">
-                                        คำแนะนำ
+                                        คำแนะนำ (สำหรับลูกค้า)
                                       </Typography>
                                       <Typography variant="body2" fontWeight={600}>
                                         {detail.recommend}
@@ -3990,6 +4028,7 @@ export default function RFQDetail(): ReactElement {
                                         <TableCell>ค่าขนส่งทางรถ</TableCell>
                                         <TableCell>ค่าขนส่งทางเรือ</TableCell>
                                         <TableCell align="center">FCL</TableCell>
+                                        <TableCell align="center">ขนาดตู้</TableCell>
                                         <TableCell align="right">รวมทางรถ</TableCell>
                                         <TableCell align="right">รวมทางเรือ</TableCell>
                                         <TableCell align="center">จัดการ</TableCell>
@@ -4105,6 +4144,9 @@ export default function RFQDetail(): ReactElement {
                                                 label="FCL"
                                               />
                                             </TableCell>
+                                            <TableCell align="center">
+                                              {formatContainerSizeLabel(tier.containerSize)}
+                                            </TableCell>
                                             <TableCell
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#1565c0' }}>
@@ -4173,6 +4215,7 @@ export default function RFQDetail(): ReactElement {
                                       <TableCell align="right">รวมทางเรือ</TableCell>
                                       <TableCell align="center">ปิดตู้</TableCell>
                                       <TableCell align="center">ปิดตู้ (Share)</TableCell>
+                                      <TableCell align="center">ขนาดตู้</TableCell>
                                       <TableCell align="right">ค่าคอม</TableCell>
                                     </TableRow>
                                   </TableHead>
@@ -4210,6 +4253,9 @@ export default function RFQDetail(): ReactElement {
                                         </TableCell>
                                         <TableCell align="center">
                                           {tier.isShareFCL ? 'ใช่' : '-'}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          {formatContainerSizeLabel(tier.containerSize)}
                                         </TableCell>
                                         <TableCell align="right">
                                           {formatPercent(tier.commission)}
@@ -4306,6 +4352,9 @@ export default function RFQDetail(): ReactElement {
                                           </TableCell>
                                           <TableCell align="center">
                                             {tierSplit.isShareFCL ? 'ใช่' : '-'}
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            {formatContainerSizeLabel(tierSplit.containerSize)}
                                           </TableCell>
                                           <TableCell align="right">
                                             {formatPercent(tierSplit.commission)}
@@ -4603,6 +4652,14 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
+                                          ขนาดตู้
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={600}>
+                                          {formatContainerSizeLabel(tier.containerSize)}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={6}>
+                                        <Typography variant="caption" color="text.secondary">
                                           รวมทางเรือ
                                         </Typography>
                                         <Typography
@@ -4724,6 +4781,14 @@ export default function RFQDetail(): ReactElement {
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600}>
                                               {tierSplit.isShareFCL ? 'ใช่' : '-'}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ขนาดตู้
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatContainerSizeLabel(tierSplit.containerSize)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={6}>
@@ -5026,8 +5091,11 @@ export default function RFQDetail(): ReactElement {
                                       flexWrap="wrap">
                                       <Box>
                                         <Typography variant="body1" fontWeight={700}>
-                                          {snapshot?.optionName || record.optionName || '-'}
-                                        </Typography>
+                                        {formatOptionNameWithPlan(
+                                          snapshot?.optionName || record.optionName || '-',
+                                          snapshot?.plan || record.plan
+                                        )}
+                                      </Typography>
                                         <Typography variant="caption" color="text.secondary">
                                           {snapshot?.archivedBy || record.archivedBy || '-'}{' '}
                                           {snapshot?.archivedAt || record.archivedAt
@@ -5492,7 +5560,10 @@ export default function RFQDetail(): ReactElement {
                       const row = confirmQuotationRows[index];
                       const fallbackShippingMethod =
                         inferQuotationItemShippingMethod(quotationItem.name) || 'LAND';
-                      const optionLabel = row?.detail?.optionName || `Option ${index + 1}`;
+                      const optionLabel = formatOptionNameWithPlan(
+                        row?.detail?.optionName || `Option ${index + 1}`,
+                        row?.detail?.plan
+                      );
                       const shippingMethodLabel = getShippingMethodLabel(
                         row?.shippingMethod || fallbackShippingMethod
                       );

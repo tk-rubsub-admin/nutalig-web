@@ -89,6 +89,7 @@ interface SupplierQuoteSectionProps {
     detailId: number,
     field:
       | 'optionName'
+      | 'plan'
       | 'spec'
       | 'remark',
     value: string
@@ -185,6 +186,16 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
     quoteDraftLeadTimes.some(
       (leadTime) => leadTime.id !== currentLeadTimeId && leadTime.leadTimeCode === optionCode
     );
+  const formatOptionNameWithPlan = (optionName?: string | null, plan?: string | null): string => {
+    const trimmedOptionName = optionName?.trim();
+    const trimmedPlan = plan?.trim();
+
+    if (!trimmedOptionName) {
+      return trimmedPlan || '-';
+    }
+
+    return trimmedPlan ? `${trimmedOptionName} (${trimmedPlan})` : trimmedOptionName;
+  };
 
   useEffect(() => {
     setExpandedQuoteIds((prev) => {
@@ -409,24 +420,36 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                           </Stack>
                                         </Stack>
                                       </Grid>
-                                      <Grid item xs={12} md={4}>
-                                        <TextField
-                                          fullWidth
-                                          size="small"
-                                          label="Option"
-                                          value={detail.optionName || ''}
-                                          error={Boolean(detailError.optionName)}
-                                          helperText={detailError.optionName}
-                                          InputLabelProps={{ shrink: true }}
-                                          onChange={(event) =>
-                                            onDetailChange(detail.id, 'optionName', event.target.value)
-                                          }
-                                        />
-                                      </Grid>
-                                      <Grid item xs={12} md={8}>
-                                        <TextField
-                                          fullWidth
-                                          size="small"
+                              <Grid item xs={12} md={4}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  label="Option"
+                                  value={detail.optionName || ''}
+                                  error={Boolean(detailError.optionName)}
+                                  helperText={detailError.optionName}
+                                  InputLabelProps={{ shrink: true }}
+                                  onChange={(event) =>
+                                    onDetailChange(detail.id, 'optionName', event.target.value)
+                                  }
+                                />
+                              </Grid>
+                              <Grid item xs={12} md={4}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  label="Plan"
+                                  value={detail.plan || ''}
+                                  InputLabelProps={{ shrink: true }}
+                                  onChange={(event) =>
+                                    onDetailChange(detail.id, 'plan', event.target.value)
+                                  }
+                                />
+                              </Grid>
+                              <Grid item xs={12} md={4}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
                                           label="Spec"
                                           value={detail.spec || ''}
                                           error={Boolean(detailError.spec)}
@@ -466,9 +489,12 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                             flexShrink: 0
                                           }}
                                         />
-                                        <Typography variant="body2" fontWeight={700}>
-                                          {detail.optionName || `Option ${detailIndex + 1}`}
-                                        </Typography>
+                                      <Typography variant="body2" fontWeight={700}>
+                                          {formatOptionNameWithPlan(
+                                            detail.optionName || `Option ${detailIndex + 1}`,
+                                            detail.plan
+                                          )}
+                                      </Typography>
                                       </Stack>
                                       <Typography variant="body2" color="text.secondary">
                                         {detail.spec || '-'}

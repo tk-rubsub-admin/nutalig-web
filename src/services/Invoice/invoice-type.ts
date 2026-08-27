@@ -2,6 +2,8 @@ import { Address, Contact, Customer } from 'services/Customer/customer-type';
 import { EmployeeRecord } from 'services/Employee/employee-type';
 import { Pagination } from 'services/general-type';
 import { DocumentStatusProfile } from 'services/document-status-type';
+import { CustomerSnapshot } from 'services/SaleOrder/sale-order-type';
+import { SystemConfig } from 'services/Config/config-type';
 
 export interface CreateInvoiceRequest {
   salesOrderNo: string;
@@ -14,10 +16,14 @@ export interface CreateInvoiceRequest {
   amount?: number;
   vat?: number;
   grandTotal?: number;
+  customerPaymentTerm?: string;
+  customerSnapshot?: CustomerSnapshot;
 }
 
 export interface UpdateInvoiceRequest {
   deliveryDate?: string | null;
+  customerPaymentTerm?: string | null;
+  customerSnapshot?: CustomerSnapshot;
 }
 
 export interface CreateInvoiceResponse {
@@ -92,6 +98,7 @@ export interface InvoiceRecord {
   customer: Customer | null;
   customerAddress: Address | null;
   customerContact: Contact | null;
+  customerSnapshot?: CustomerSnapshot;
   saleAccount: EmployeeRecord | null;
   coSaleId: string | null;
   subTotal: number;
@@ -111,7 +118,18 @@ export interface InvoiceRecord {
   customerAddressSnapshot?: string | null;
   customerContactSnapshot?: string | null;
   customerPhoneSnapshot?: string | null;
+  customerPaymentTerm?: SystemConfig | null;
   salesNameSnapshot?: string | null;
+  requiredApprove?: boolean | null;
+  requiredApproveReason?: string | null;
+  requiredApproveStatus?: string | null;
+  requestRequiredApprovedBy?: string | null;
+  requestRequiredApprovedDate?: string | null;
+  approvedBy?: string | null;
+  approvedDate?: string | null;
+  rejectedBy?: string | null;
+  rejectedDate?: string | null;
+  rejectReason?: string | null;
   items: InvoiceItem[];
   payments?: InvoicePayment[];
 }

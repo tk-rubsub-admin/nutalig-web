@@ -6,6 +6,16 @@ import { ProductDto } from 'services/Product/product-type';
 import { Staff, StaffKPI } from 'services/Staff/staff-type';
 import { Supplier } from 'services/Supplier/supplier-type';
 
+export interface CustomerSnapshot {
+    customerName: string;
+    taxId: string;
+    branchCode: string;
+    branchName: string;
+    address: string;
+    contactName: string;
+    contactNumber: string;
+}
+
 export type ExportFormat = 'PDF' | 'PNG' | 'JPG';
 export interface CreateSaleOrderRequest {
     urgentOrder: boolean;
@@ -67,6 +77,8 @@ export interface CreateSalesOrderRequestV1 {
     customerId: string;
     customerAddressId?: string;
     customerContactId?: string;
+    customerBranchCode?: string;
+    customerSnapshot?: CustomerSnapshot;
     salesId: string;
     coSaleId?: string;
     coSaleCommission?: number;
@@ -107,6 +119,7 @@ export interface SalesOrderV1 {
     paymentStatus?: string | null;
     currency: string;
     customer: Customer | null;
+    customerSnapshot?: CustomerSnapshot;
     saleAccount: Staff | null;
     coSaleId: string | null;
     subTotal: number;
@@ -215,6 +228,7 @@ export interface UpdateSalesOrderRequestV1 {
     isVat?: boolean;
     shippingType?: string | null;
     shipping?: string | null;
+    customerSnapshot?: CustomerSnapshot;
     requestCoa?: boolean | null;
     requestPo?: boolean | null;
     requestPoReason?: string | null;

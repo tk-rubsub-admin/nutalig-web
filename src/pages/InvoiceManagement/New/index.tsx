@@ -4,6 +4,7 @@ import {
   Checkbox,
   FormControlLabel,
   Grid,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -31,7 +32,7 @@ import { createInvoice, getInvoicesBySalesOrderId } from 'services/Invoice/invoi
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
-import { SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
+import { CustomerSnapshot, SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { formatNumber } from 'utils/utils';
 
 interface InvoiceCreateParams {
@@ -46,9 +47,18 @@ interface InvoiceCreateDraft {
   subTotal: number;
   discount: number;
   isVat: boolean;
+  paymentTerm: string;
+  customerAddressId: string;
+  customerSnapshot: CustomerSnapshot;
 }
 
 const COUNTED_INVOICE_STATUSES = ['ISSUED', 'AWAITING_VALIDATION', 'PARTIALLY_PAID', 'PAID'];
+
+const PAYMENT_TERM_INSTALLMENTS: Record<string, number[]> = {
+  DEP50: [50, 50],
+  DEP30_BBS: [30, 70],
+  DEP35_35_30_BBS: [35, 35, 30]
+};
 
 function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 30): number {
   const parsedDays = Number(config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays);
@@ -66,7 +76,18 @@ function createDraft(salesOrder?: SalesOrderV1, expireDays = 30): InvoiceCreateD
     remark: salesOrder?.remark || '',
     subTotal: Number(salesOrder?.subTotal || 0),
     discount: Number(salesOrder?.discount || 0),
-    isVat: Number(salesOrder?.vatRate || 0) > 0
+    isVat: Number(salesOrder?.vatRate || 0) > 0,
+    paymentTerm: salesOrder?.customer?.customerPaymentTerm?.code || '',
+    customerAddressId: salesOrder?.customerAddress?.id ? String(salesOrder.customerAddress.id) : '',
+    customerSnapshot: {
+      customerName: salesOrder?.customerSnapshot?.customerName || salesOrder?.customer?.customerName || '',
+      taxId: salesOrder?.customerSnapshot?.taxId || salesOrder?.customer?.taxId || '',
+      branchCode: salesOrder?.customerSnapshot?.branchCode || salesOrder?.customer?.branchNumber || '',
+      branchName: salesOrder?.customerSnapshot?.branchName || salesOrder?.customer?.branchName || '',
+      address: salesOrder?.customerSnapshot?.address || getCustomerAddress(salesOrder),
+      contactName: salesOrder?.customerSnapshot?.contactName || getCustomerContactName(salesOrder),
+      contactNumber: salesOrder?.customerSnapshot?.contactNumber || getCustomerContactNumber(salesOrder)
+    }
   };
 }
 
@@ -248,6 +269,11 @@ export default function NewInvoice(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+  const { data: customerPaymentTermList = [] } = useQuery(
+    ['invoice-customer-payment-term', GROUP_CODE.CUSTOMER_PAYMENT_TERM],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+    { refetchOnWindowFocus: false }
+  );
   const invoiceExpireDays = getExpireDays(invoiceExpireDayConfig, 30);
 
   useEffect(() => {
@@ -264,6 +290,11 @@ export default function NewInvoice(): ReactElement {
     }, 0);
   }, [relatedInvoices]);
 
+  const openedInvoiceCount = useMemo(
+    () => relatedInvoices.filter((invoice) => COUNTED_INVOICE_STATUSES.includes(invoice.status)).length,
+    [relatedInvoices]
+  );
+
   const availableInvoiceBaseAmount = useMemo(() => {
     const subTotal = Number(draft.subTotal || 0);
     const discount = Number(draft.discount || 0);
@@ -271,19 +302,17 @@ export default function NewInvoice(): ReactElement {
   }, [draft.discount, draft.subTotal, openedInvoiceAmount]);
 
   const summary = useMemo(() => {
-    const paymentTerm = salesOrder?.customer?.customerPaymentTerm?.code;
+    const paymentTerm = draft.paymentTerm;
 
     const subTotal = Number(draft.subTotal || 0);
     const discount = Number(draft.discount || 0);
-    const remainingAmount = Math.max(subTotal - discount - openedInvoiceAmount, 0);
-    let depositAmount = 0;
-    if (paymentTerm === 'DEP50') {
-      depositAmount = (remainingAmount * 50) / 100;
-    } else if (paymentTerm === 'DEP30_BBS') {
-      depositAmount = (remainingAmount * 30) / 100;
-    } else {
-      depositAmount = remainingAmount;
-    }
+    const baseAmount = Math.max(subTotal - discount, 0);
+    const remainingAmount = Math.max(baseAmount - openedInvoiceAmount, 0);
+    const installments = PAYMENT_TERM_INSTALLMENTS[paymentTerm];
+    const installmentPercent = installments?.[openedInvoiceCount];
+    const depositAmount = installmentPercent === undefined
+      ? remainingAmount
+      : Math.min((baseAmount * installmentPercent) / 100, remainingAmount);
     const vat = draft.isVat ? depositAmount * 0.07 : 0;
 
     return {
@@ -295,7 +324,7 @@ export default function NewInvoice(): ReactElement {
       vat,
       grandTotal: depositAmount + vat
     };
-  }, [draft.discount, draft.isVat, draft.subTotal, openedInvoiceAmount, salesOrder?.customer?.customerPaymentTerm?.code]);
+  }, [draft.discount, draft.isVat, draft.paymentTerm, draft.subTotal, openedInvoiceAmount, openedInvoiceCount]);
 
   const handleSubmit = async () => {
     if (!salesOrder?.salesOrderNo) {
@@ -320,7 +349,9 @@ export default function NewInvoice(): ReactElement {
           discount: Number(draft.discount || 0),
           amount: Number(summary.depositAmount || 0),
           vat: Number(summary.vat || 0),
-          grandTotal: Number(summary.grandTotal || 0)
+          grandTotal: Number(summary.grandTotal || 0),
+          customerPaymentTerm: draft.paymentTerm || undefined,
+          customerSnapshot: draft.customerSnapshot
         }),
         {
           loading: t('toast.loading'),
@@ -426,23 +457,43 @@ export default function NewInvoice(): ReactElement {
               <Typography variant="h6">
                 {t('documentManagement.invoice.customerSection.title')}
               </Typography>
-              <Info label={t('customerManagement.customer')} value={getCustomerLabel(salesOrder)} />
-              <Info
-                label={t('documentManagement.invoice.customerSection.address')}
-                value={getCustomerAddress(salesOrder)}
-              />
-              <Info
-                label={t('documentManagement.invoice.customerSection.contactName')}
-                value={getCustomerContactName(salesOrder)}
-              />
-              <Info
-                label={t('documentManagement.invoice.customerSection.contactNumber')}
-                value={getCustomerContactNumber(salesOrder)}
-              />
-              <Info
-                label="เงื่อนไขการชำระเงิน"
-                value={salesOrder?.customer?.customerPaymentTerm?.nameTh}
-              />
+              <Info label={t('customerManagement.column.id')} value={salesOrder?.customer?.id || '-'} />
+              <TextField label="ชื่อลูกค้า" value={draft.customerSnapshot.customerName}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, customerName: event.target.value } }))} />
+              <TextField label="เลขประจำตัวผู้เสียภาษี" value={draft.customerSnapshot.taxId}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, taxId: event.target.value } }))} />
+              <TextField label="รหัสสาขา" value={draft.customerSnapshot.branchCode}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, branchCode: event.target.value } }))} />
+              <TextField label="ชื่อสาขา" value={draft.customerSnapshot.branchName}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, branchName: event.target.value } }))} />
+              <TextField label="ชื่อผู้ติดต่อ" value={draft.customerSnapshot.contactName}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, contactName: event.target.value } }))} />
+              <TextField label="เบอร์โทรผู้ติดต่อ" value={draft.customerSnapshot.contactNumber}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, contactNumber: event.target.value } }))} />
+              <TextField select label="เลือกที่อยู่ลูกค้า" value={draft.customerAddressId}
+                onChange={(event) => {
+                  const address = salesOrder?.customer?.addresses?.find((value) => String(value.id) === String(event.target.value));
+                  setDraft((previous) => ({ ...previous, customerAddressId: String(event.target.value), customerSnapshot: { ...previous.customerSnapshot, address: address?.fullAddress || '' } }));
+                }} InputLabelProps={{ shrink: true }}>
+                {(salesOrder?.customer?.addresses || []).map((address) => <MenuItem key={address.id} value={address.id}>{address.fullAddress}</MenuItem>)}
+              </TextField>
+              <TextField label="ที่อยู่" multiline minRows={2} value={draft.customerSnapshot.address}
+                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, address: event.target.value } }))} />
+              <TextField
+                select
+                disabled={summary.openedInvoiceAmount > 0}
+                label={t('customerManagement.column.paymentTerm')}
+                value={draft.paymentTerm}
+                onChange={(event) =>
+                  setDraft((previous) => ({ ...previous, paymentTerm: event.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}>
+                {customerPaymentTermList.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.nameTh || option.nameEn || option.code}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Stack>
           </Grid>
 

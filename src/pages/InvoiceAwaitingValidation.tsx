@@ -142,6 +142,24 @@ export default function InvoiceAwaitingValidationPage() {
     })[0];
   }, [invoice, paymentId]);
 
+  const paymentSlipFiles = useMemo(() => {
+    if (latestPayment?.slipFiles?.length) {
+      return latestPayment.slipFiles.filter((file) => Boolean(file.fileUrl));
+    }
+
+    return latestPayment?.slipFileUrl
+      ? [{
+        id: 0,
+        fileName: latestPayment.slipFileName,
+        originalFileName: latestPayment.slipFileName,
+        fileUrl: latestPayment.slipFileUrl,
+        contentType: null,
+        fileSize: null,
+        sortOrder: 0
+      }]
+      : [];
+  }, [latestPayment]);
+
   const canReview = Boolean(
     token &&
     latestPayment &&
@@ -253,19 +271,44 @@ export default function InvoiceAwaitingValidationPage() {
                   borderRadius: 2,
                   p: 2
                 }}>
-                {latestPayment?.slipFileUrl ? (
-                  <Box
-                    component="img"
-                    src={latestPayment.slipFileUrl}
-                    alt={latestPayment.slipFileName || 'payment-slip'}
-                    sx={{
-                      display: 'block',
-                      width: '100%',
-                      maxHeight: 560,
-                      objectFit: 'contain',
-                      bgcolor: '#f8fafc'
-                    }}
-                  />
+                {paymentSlipFiles.length ? (
+                  <Stack spacing={2}>
+                    {paymentSlipFiles.map((file, index) => {
+                      const isImage = !file.contentType || file.contentType.startsWith('image/');
+                      const fileName = file.originalFileName || file.fileName || `หลักฐานการชำระเงิน ${index + 1}`;
+
+                      return (
+                        <Box key={file.id}>
+                          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.75 }}>
+                            {fileName}
+                          </Typography>
+                          {isImage ? (
+                            <Box
+                              component="img"
+                              src={file.fileUrl || undefined}
+                              alt={fileName}
+                              sx={{
+                                display: 'block',
+                                width: '100%',
+                                maxHeight: 560,
+                                objectFit: 'contain',
+                                bgcolor: '#f8fafc'
+                              }}
+                            />
+                          ) : (
+                            <Button
+                              component="a"
+                              href={file.fileUrl || undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              variant="outlined">
+                              เปิดไฟล์แนบ
+                            </Button>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Stack>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
                     ไม่พบรูปภาพแนบ

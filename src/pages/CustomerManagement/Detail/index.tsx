@@ -26,7 +26,7 @@ import { GridTextField, Wrapper } from 'components/Styled';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { useEffect, useMemo, useState, SyntheticEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
@@ -128,6 +128,7 @@ export default function CustomerDetail(): JSX.Element {
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const branchInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const {
     data: customerData,
@@ -207,6 +208,9 @@ export default function CustomerDetail(): JSX.Element {
       companyName: customer?.companyName ?? '',
       companyBranchCode: customer?.branchNumber ?? '',
       companyBranchName: customer?.branchName ?? '',
+      branches: customer?.branches?.length
+        ? customer.branches.map((branch) => ({ branchCode: branch.branchCode, branchName: branch.branchName, isDefault: branch.isDefault }))
+        : [{ branchCode: customer?.branchNumber ?? '', branchName: customer?.branchName ?? '', isDefault: true }],
       creditTerm: customer?.customerCreditTerm?.code ?? '',
       paymentTerm: customer?.customerPaymentTerm?.code ?? '',
       billingCondition: customer?.customerBillingCondition ?? '',
@@ -223,7 +227,8 @@ export default function CustomerDetail(): JSX.Element {
 
   const formik = useFormik({
     initialValues,
-    enableReinitialize: true,
+    // Do not replace in-progress branch rows when React Query refreshes customer data.
+    enableReinitialize: !canEdit,
     validationSchema: Yup.object().shape({
       // customerName: Yup.string()
       //   .max(255)
@@ -261,6 +266,7 @@ export default function CustomerDetail(): JSX.Element {
         companyName: values.companyName || null,
         branchNumber: values.companyBranchCode || null,
         branchName: values.companyBranchName || null,
+        branches: values.type === 'COMPANY' ? values.branches : [],
         creditTerm: values.creditTerm || null,
         paymentTerm: values.paymentTerm || null,
         billingCondition: values.billingCondition || null,
@@ -290,12 +296,37 @@ export default function CustomerDetail(): JSX.Element {
 
   const isHeadOffice = formik.values.companyBranchCode === '00000';
 
+  const addBranchRow = () => {
+    formik.setFieldValue('branches', [
+      ...formik.values.branches,
+      { branchCode: '', branchName: '', isDefault: false }
+    ]);
+  };
+
+  const removeBranchRow = (index: number) => {
+    if (formik.values.branches.length <= 1) return;
+    formik.setFieldValue('branches', formik.values.branches.filter((_branch, branchIndex) => branchIndex !== index));
+  };
+
+  const updateBranchRow = (index: number, field: 'branchCode' | 'branchName', value: string) => {
+    const nextBranches = formik.values.branches.map((branch, branchIndex) =>
+      branchIndex === index ? { ...branch, [field]: value } : branch
+    );
+    // Update one immutable row at a time. This keeps the active input mounted
+    // and avoids Formik's nested-path update replacing the input while typing.
+    formik.setFieldValue('branches', nextBranches, false);
+    const inputKey = `${field}-${index}`;
+    requestAnimationFrame(() => branchInputRefs.current[inputKey]?.focus());
+  };
+
   useEffect(() => {
-    if (!customerData) return;
+    // Keep the form stable while the user is editing; otherwise a query refresh
+    // can reset an input after its first character.
+    if (!customerData || canEdit) return;
 
     setCustomer(customerData);
     setAddresses(customerData.addresses ?? []);
-  }, [customerData]);
+  }, [customerData, canEdit]);
 
   const handleStartEdit = () => {
     formik.resetForm();
@@ -750,7 +781,10 @@ export default function CustomerDetail(): JSX.Element {
                     variant="outlined"
                     disabled={!canEdit || formik.values.companyBranchCode === '00000'}
                     value={formik.values.companyBranchCode}
-                    onChange={formik.handleChange}
+                    onChange={(event) => {
+                      formik.handleChange(event);
+                      formik.setFieldValue('branches.0.branchCode', event.target.value);
+                    }}
                     onBlur={formik.handleBlur}
                     error={Boolean(
                       formik.touched.companyBranchCode && formik.errors.companyBranchCode
@@ -769,7 +803,10 @@ export default function CustomerDetail(): JSX.Element {
                     variant="outlined"
                     disabled={!canEdit || formik.values.companyBranchCode === '00000'}
                     value={formik.values.companyBranchName}
-                    onChange={formik.handleChange}
+                    onChange={(event) => {
+                      formik.handleChange(event);
+                      formik.setFieldValue('branches.0.branchName', event.target.value);
+                    }}
                     onBlur={formik.handleBlur}
                     error={Boolean(
                       formik.touched.companyBranchName && formik.errors.companyBranchName
@@ -777,6 +814,23 @@ export default function CustomerDetail(): JSX.Element {
                     helperText={formik.touched.companyBranchName && formik.errors.companyBranchName}
                     InputLabelProps={{ shrink: true }}
                   />
+                </GridTextField>
+                <GridTextField item xs={12}>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    <Typography variant="subtitle2">สาขา</Typography>
+                    {formik.values.branches.map((branch, index) => (
+                      <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
+                        <TextField name={`branch-code-${index}`} inputRef={(input) => { branchInputRefs.current[`branchCode-${index}`] = input; }} autoComplete="off" label={t('customerManagement.column.company.branchCode')} value={branch.branchCode}
+                          disabled={!canEdit} onChange={(event) => updateBranchRow(index, 'branchCode', event.target.value)} fullWidth />
+                        <TextField name={`branch-name-${index}`} inputRef={(input) => { branchInputRefs.current[`branchName-${index}`] = input; }} autoComplete="off" label={t('customerManagement.column.company.branchName')} value={branch.branchName}
+                          disabled={!canEdit} onChange={(event) => updateBranchRow(index, 'branchName', event.target.value)} fullWidth />
+                        <Chip label={branch.isDefault ? 'Default' : 'Set default'} clickable={canEdit}
+                          color={branch.isDefault ? 'primary' : 'default'} onClick={() => canEdit && formik.setFieldValue('branches', formik.values.branches.map((item, itemIndex) => ({ ...item, isDefault: itemIndex === index })))} />
+                        {canEdit && <IconButton type="button" disabled={formik.values.branches.length === 1} onClick={() => removeBranchRow(index)}><DeleteOutline /></IconButton>}
+                      </Stack>
+                    ))}
+                    {canEdit && <Button type="button" size="small" startIcon={<Add />} onClick={addBranchRow}>เพิ่มสาขา</Button>}
+                  </Stack>
                 </GridTextField>
               </>
             ) : null}

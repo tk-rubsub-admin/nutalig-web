@@ -33,6 +33,23 @@ export const updateInvoice = async (
   return response.data;
 };
 
+export const approveInvoiceRequiredApprove = async (id: string): Promise<InvoiceRecord> => {
+  const response = await api
+    .patch(`/v1/invoices/${id}/required-approve/approve`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const rejectInvoiceRequiredApprove = async (
+  id: string,
+  reason: string
+): Promise<InvoiceRecord> => {
+  const response = await api
+    .patch(`/v1/invoices/${id}/required-approve/reject`, { reason })
+    .then((result) => result.data);
+  return response.data;
+};
+
 export const resolveAwaitingValidationInvoice = async (token: string): Promise<InvoiceAwaitingValidationResponse> => {
   const response = await api
     .get('/v1/invoices/awaiting-validation', {

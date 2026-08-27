@@ -12,6 +12,7 @@ import {
   CreateCustomerResponseV2,
   UploadCustomerResponse,
   CustomerDashboard
+  , CustomerBranchRequest
 } from './customer-type';
 import { AxiosProgressEvent } from 'axios';
 
@@ -122,6 +123,18 @@ export const removeCustomerContact = async (id: string, contactId: string) => {
     .then((response) => response.data);
   return response;
 };
+
+export const addCustomerBranch = async (id: string, data: CustomerBranchRequest) =>
+  api.post(`/v1/customers/${id}/branches`, data).then((response) => response.data.data);
+
+export const updateCustomerBranch = async (id: string, branchCode: string, data: CustomerBranchRequest) =>
+  api.patch(`/v1/customers/${id}/branches/${encodeURIComponent(branchCode)}`, data).then((response) => response.data.data);
+
+export const removeCustomerBranch = async (id: string, branchCode: string) =>
+  api.delete(`/v1/customers/${id}/branches/${encodeURIComponent(branchCode)}`).then((response) => response.data.data);
+
+export const setCustomerDefaultBranch = async (id: string, branchCode: string) =>
+  api.patch(`/v1/customers/${id}/branches/${encodeURIComponent(branchCode)}/default`).then((response) => response.data.data);
 
 export const uploadCustomers = async (
   file: File,

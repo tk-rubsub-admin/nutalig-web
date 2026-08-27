@@ -1,6 +1,34 @@
 {
   "notes": [
     {
+      "version": "0.1.4",
+      "publishedAt": "28/08/2026 01:19",
+      "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",
+      "titleEn": "What's New in This Release",
+      "summaryTh": "ปรับปรุงประสบการณ์ใช้งาน",
+      "summaryEn": "Improved the user experience.",
+      "itemsTh": [
+        "เพิ่มปุ่ม ขอข้อมูลเพิ่มเติม ในหน้าจอสอบถามราคา",
+        "ปรับให้แก้ไขข้อมูลลูกค้าในเอกสารใบเสนอราคา, ใบยืนยันสั่งสินค้า, ใบแจ้งหนี้ได้",
+        "เพิ่มให้สามารถเลือกเงื่อนไขการชำระเงินได้ตอนสร้างใบแจ้งหนี้/แก้ไขใบแจ้งหนี้",
+        "เพิ่มข้อมูลสาขา (รหัสสาขาและชื่อสาขา) ในลูกค้า กรณีเป็นนิติบุคคล",
+        "เพิ่ม flow ขออนุมัติการเปลี่ยนเงื่อนไขการชำระเงินของลูกค้า ในตอนสร้าง/แก้ไขใบแจ้งหนี้",
+        "แก้ไขปัญหาแจ้งเตือนไปที่ SUPER ADMIN",
+        "เพิ่มเงื่อนไขการดึงข้อมูล RFQ ในการสร้างใบเสนอราคาใหม่ โดยดึง RFQ ที่มีสถานะเป็น QUOTED, COMPLETED",
+        "ปรับให้สามารถอัพโหลด Slip โอนเงินได้มากกว่า 1 slip(s) และ สามารถแก้ไขจำนวนเงินโอนได้"
+      ],
+      "itemsEn": [
+        "Add a “Request More Information” button to the RFQ inquiry screen.",
+        "Allow customer information to be edited in Quotations, Sales Order Confirmations, and Invoices.",
+        "Allow users to select Payment Terms when creating or editing an Invoice.",
+        "Add Branch Information (Branch Code and Branch Name) to customer profiles for corporate customers.",
+        "Add an approval flow for changes to customer Payment Terms when creating or editing an Invoice.",
+        "Fix the issue with notifications being sent to SUPER ADMIN.",
+        "Update the RFQ retrieval criteria when creating a new Quotation to include RFQs with QUOTED and COMPLETED statuses.",
+        "Allow users to upload multiple payment slips and edit the transferred amount for each payment."
+      ]
+    },
+    {
       "version": "0.1.3",
       "publishedAt": "25/08/2026 23:28",
       "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",

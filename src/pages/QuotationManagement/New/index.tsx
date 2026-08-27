@@ -874,6 +874,8 @@ export default function NewQuotation() {
             customerId: '',
             customerAddressId: '',
             customerContactId: '',
+            customerBranchCode: '',
+            customerSnapshot: { customerName: '', taxId: '', branchCode: '', branchName: '', address: '', contactName: '', contactNumber: '' },
             docDate: today.format(DEFAULT_DATE_FORMAT),
             effectiveDate: quotationDefaultEffectiveDate.format(DEFAULT_DATE_FORMAT),
             salesId: '',
@@ -1011,6 +1013,13 @@ export default function NewQuotation() {
             customerId: rfq.customer?.id || '',
             customerAddressId: defaultAddress?.id || '',
             customerContactId: defaultContact?.id || '',
+            customerBranchCode: rfq.customer?.branches?.find((branch) => branch.isDefault)?.branchCode || rfq.customer?.branchNumber || '',
+            customerSnapshot: {
+                customerName: rfq.customer?.customerName || '', taxId: rfq.customer?.taxId || '',
+                branchCode: rfq.customer?.branches?.find((branch) => branch.isDefault)?.branchCode || rfq.customer?.branchNumber || '',
+                branchName: rfq.customer?.branches?.find((branch) => branch.isDefault)?.branchName || rfq.customer?.branchName || '',
+                address: defaultAddress?.fullAddress || '', contactName: defaultContact?.contactName || '', contactNumber: defaultContact?.contactNumber || ''
+            },
             docDate: today.format(DEFAULT_DATE_FORMAT),
             effectiveDate: quotationDefaultEffectiveDate.format(DEFAULT_DATE_FORMAT),
             salesId,
@@ -1628,24 +1637,7 @@ export default function NewQuotation() {
                 title={t('documentManagement.quotation.customerSection.title')}
                 isCompleted={isCustomerSectionCompleted}
                 defaultExpanded={true}
-                action={
-                    customer?.id ? (
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={handleOpenUpdateCustomer}
-                            sx={{
-                                borderRadius: '999px',
-                                px: 2,
-                                py: 0.75,
-                                fontWeight: 700,
-                                whiteSpace: 'nowrap'
-                            }}
-                        >
-                            อัพเดตข้อมูล
-                        </Button>
-                    ) : null
-                }
+                action={null}
             >
                 <Grid container spacing={1}>
                     {/* customerName */}
@@ -1661,140 +1653,192 @@ export default function NewQuotation() {
                             InputProps={{ readOnly: true }}
                         />
                     </GridTextField>
-                    <GridTextField item xs={12} sm={6}>
-                        <TextField
-                            name="customerName"
-                            type="text"
-                            label={t('customerManagement.column.name')}
-                            fullWidth
-                            variant="outlined"
-                            value={customer?.customerName}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </GridTextField>
-                    <GridTextField item xs={12} sm={6}>
-                        <TextField
-                            name="taxId"
-                            type="text"
-                            label={t('customerManagement.column.taxId')}
-                            fullWidth
-                            variant="outlined"
-                            value={customer?.taxId}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </GridTextField>
-                    {customer?.customerType?.code === 'COMPANY' ?
-                        <>
-                            <GridTextField item xs={12} sm={6}>
-                                <TextField
-                                    name="taxId"
-                                    type="text"
-                                    label={t('documentManagement.quotation.customerSection.branch')}
-                                    fullWidth
-                                    variant="outlined"
-                                    value={'(' + customer?.branchNumber + ') ' + customer?.branchName}
-                                    InputLabelProps={{ shrink: true }}
-                                />
-                            </GridTextField>
-                        </> :
-                        <> </>
-                    }
-                    <GridTextField item xs={12} sm={6}>
-                        <TextField
-                            name="customerPaymentTerm"
-                            type="text"
-                            label={t('customerManagement.column.paymentTerm')}
-                            fullWidth
-                            variant="outlined"
-                            value={
-                                customer?.customerPaymentTerm?.nameTh ||
-                                customer?.customerPaymentTerm?.nameEn ||
-                                customer?.customerPaymentTerm?.code ||
-                                ''
-                            }
-                            InputLabelProps={{ shrink: true }}
-                            InputProps={{ readOnly: true }}
-                        />
-                    </GridTextField>
-                    <GridTextField item xs={12} sm={12}>
+                    {false && <>
+                        <GridTextField item xs={12} sm={6}>
+                            <TextField
+                                name="customerName"
+                                type="text"
+                                label={t('customerManagement.column.name')}
+                                fullWidth
+                                variant="outlined"
+                                value={customer?.customerName}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </GridTextField>
+                        <GridTextField item xs={12} sm={6}>
+                            <TextField
+                                name="taxId"
+                                type="text"
+                                label={t('customerManagement.column.taxId')}
+                                fullWidth
+                                variant="outlined"
+                                value={customer?.taxId}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </GridTextField>
+                        {customer?.customerType?.code === 'COMPANY' ?
+                            <>
+                                <GridTextField item xs={12} sm={6}>
+                                    <TextField
+                                        select
+                                        name="customerBranchCode"
+                                        label={t('documentManagement.quotation.customerSection.branch')}
+                                        fullWidth
+                                        variant="outlined"
+                                        value={formik.values.customerBranchCode || customer?.branchNumber || ''}
+                                        onChange={(event) => {
+                                            const branch = customer?.branches?.find((value) => value.branchCode === event.target.value);
+                                            formik.setFieldValue('customerBranchCode', event.target.value);
+                                            formik.setFieldValue('customerSnapshot', { ...formik.values.customerSnapshot, branchCode: event.target.value, branchName: branch?.branchName || customer?.branchName || '' });
+                                        }}
+                                        InputLabelProps={{ shrink: true }}
+                                    >
+                                        {(customer?.branches?.length ? customer.branches : [{ branchCode: customer?.branchNumber || '', branchName: customer?.branchName || '' }]).map((branch) => (
+                                            <MenuItem key={branch.branchCode} value={branch.branchCode}>
+                                                ({branch.branchCode}) {branch.branchName}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </GridTextField>
+                            </> :
+                            <> </>
+                        }
+                        <GridTextField item xs={12} sm={6}>
+                            <TextField
+                                name="customerPaymentTerm"
+                                type="text"
+                                label={t('customerManagement.column.paymentTerm')}
+                                fullWidth
+                                variant="outlined"
+                                value={
+                                    customer?.customerPaymentTerm?.nameTh ||
+                                    customer?.customerPaymentTerm?.nameEn ||
+                                    customer?.customerPaymentTerm?.code ||
+                                    ''
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                InputProps={{ readOnly: true }}
+                            />
+                        </GridTextField>
+                        <GridTextField item xs={12} sm={12}>
+                            <TextField
+                                select
+                                name="customerAddressId"
+                                label={t('customerManagement.column.address.title')}
+                                fullWidth
+                                variant="outlined"
+                                value={formik.values.customerAddressId || ''}
+                                onChange={(e) => {
+                                    if (e.target.value === ADD_NEW_ADDRESS_VALUE) {
+                                        handleOpenAddCustomerAddressDialog();
+                                        return;
+                                    }
+                                    const address = customer?.addresses?.find((value) => String(value.id) === String(e.target.value));
+                                    formik.setFieldValue('customerAddressId', e.target.value);
+                                    formik.setFieldValue('customerSnapshot', { ...formik.values.customerSnapshot, address: address?.fullAddress || '' });
+                                }}
+                                InputLabelProps={{ shrink: true }}
+                                helperText={
+                                    (customer?.addresses || []).length
+                                        ? undefined
+                                        : t('customerManagement.column.address.noAddress')
+                                }
+                            >
+                                {(customer?.addresses || []).map((address: Address) => (
+                                    <MenuItem key={address.id} value={address.id}>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+
+                                            {/* Address Type Tag */}
+                                            <Chip
+                                                size="small"
+                                                label={t(`customerManagement.column.addressType.${address.addressType.toLowerCase()}`)}
+                                                variant="outlined"
+                                            />
+
+                                            {/* Address */}
+                                            <span>{address.fullAddress}</span>
+
+                                        </Stack>
+                                    </MenuItem>
+                                ))}
+                                <MenuItem value={ADD_NEW_ADDRESS_VALUE}>
+                                    <ListItemIcon sx={{ minWidth: 32 }}>
+                                        <Add fontSize="small" />
+                                    </ListItemIcon>
+                                    {t('customerManagement.column.address.addNew')}
+                                </MenuItem>
+                            </TextField>
+                        </GridTextField>
+                        <GridTextField item xs={12} sm={12}>
+                            <TextField
+                                select
+                                name="customerContactId"
+                                label={t('customerManagement.column.contact')}
+                                fullWidth
+                                variant="outlined"
+                                value={formik.values.customerContactId || ''}
+                                onChange={(e) => {
+                                    if (e.target.value === ADD_NEW_CONTACT_VALUE) {
+                                        handleOpenAddCustomerContactDialog();
+                                        return;
+                                    }
+                                    const contact = customer?.contacts?.find((value) => String(value.id) === String(e.target.value));
+                                    formik.setFieldValue('customerContactId', e.target.value);
+                                    formik.setFieldValue('customerSnapshot', { ...formik.values.customerSnapshot, contactName: contact?.contactName || '', contactNumber: contact?.contactNumber || '' });
+                                }}
+                                InputLabelProps={{ shrink: true }}
+                            >
+                                {(customer?.contacts || []).map((contact: Contact) => (
+                                    <MenuItem key={contact.id} value={contact.id}>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <span>{contact.contactName + " : " + contact.contactNumber}</span>
+                                        </Stack>
+                                    </MenuItem>
+                                ))}
+                                <MenuItem value={ADD_NEW_CONTACT_VALUE}>
+                                    <ListItemIcon sx={{ minWidth: 32 }}>
+                                        <Add fontSize="small" />
+                                    </ListItemIcon>
+                                    {t('customerManagement.addContact')}
+                                </MenuItem>
+                            </TextField>
+                        </GridTextField>
+                    </>}
+                    <GridTextField item xs={12} sm={6}><TextField label="ชื่อลูกค้า"
+                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.customerName} onChange={(event) => formik.setFieldValue('customerSnapshot.customerName', event.target.value)} /></GridTextField>
+                    <GridTextField item xs={12} sm={6}><TextField label="เลขประจำตัวผู้เสียภาษี"
+                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.taxId} onChange={(event) => formik.setFieldValue('customerSnapshot.taxId', event.target.value)} /></GridTextField>
+                    <GridTextField item xs={12} sm={6}><TextField label="รหัสสาขา"
+                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.branchCode} onChange={(event) => formik.setFieldValue('customerSnapshot.branchCode', event.target.value)} /></GridTextField>
+                    <GridTextField item xs={12} sm={6}><TextField label="ชื่อสาขา"
+                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.branchName} onChange={(event) => formik.setFieldValue('customerSnapshot.branchName', event.target.value)} /></GridTextField>
+                    <GridTextField item xs={12} sm={6}><TextField label="ชื่อผู้ติดต่อ"
+                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.contactName} onChange={(event) => formik.setFieldValue('customerSnapshot.contactName', event.target.value)} /></GridTextField>
+                    <GridTextField item xs={12} sm={6}><TextField label="เบอร์โทรผู้ติดต่อ"
+                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.contactNumber} onChange={(event) => formik.setFieldValue('customerSnapshot.contactNumber', event.target.value)} /></GridTextField>
+                    <GridTextField item xs={12}>
                         <TextField
                             select
-                            name="customerAddressId"
-                            label={t('customerManagement.column.address.title')}
+                            label="เลือกที่อยู่ลูกค้า"
                             fullWidth
-                            variant="outlined"
                             value={formik.values.customerAddressId || ''}
-                            onChange={(e) => {
-                                if (e.target.value === ADD_NEW_ADDRESS_VALUE) {
-                                    handleOpenAddCustomerAddressDialog();
-                                    return;
-                                }
-                                formik.setFieldValue('customerAddressId', e.target.value);
+                            onChange={(event) => {
+                                const address = customer?.addresses?.find((value) => String(value.id) === String(event.target.value));
+                                formik.setFieldValue('customerAddressId', event.target.value);
+                                formik.setFieldValue('customerSnapshot.address', address?.fullAddress || '');
                             }}
                             InputLabelProps={{ shrink: true }}
-                            helperText={
-                                (customer?.addresses || []).length
-                                    ? undefined
-                                    : t('customerManagement.column.address.noAddress')
-                            }
+                            disabled={!customer?.id}
                         >
                             {(customer?.addresses || []).map((address: Address) => (
                                 <MenuItem key={address.id} value={address.id}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-
-                                        {/* Address Type Tag */}
-                                        <Chip
-                                            size="small"
-                                            label={t(`customerManagement.column.addressType.${address.addressType.toLowerCase()}`)}
-                                            variant="outlined"
-                                        />
-
-                                        {/* Address */}
-                                        <span>{address.fullAddress}</span>
-
-                                    </Stack>
+                                    {address.fullAddress}
                                 </MenuItem>
                             ))}
-                            <MenuItem value={ADD_NEW_ADDRESS_VALUE}>
-                                <ListItemIcon sx={{ minWidth: 32 }}>
-                                    <Add fontSize="small" />
-                                </ListItemIcon>
-                                {t('customerManagement.column.address.addNew')}
-                            </MenuItem>
                         </TextField>
                     </GridTextField>
-                    <GridTextField item xs={12} sm={12}>
-                        <TextField
-                            select
-                            name="customerContactId"
-                            label={t('customerManagement.column.contact')}
-                            fullWidth
-                            variant="outlined"
-                            value={formik.values.customerContactId || ''}
-                            onChange={(e) => {
-                                if (e.target.value === ADD_NEW_CONTACT_VALUE) {
-                                    handleOpenAddCustomerContactDialog();
-                                    return;
-                                }
-                                formik.setFieldValue('customerContactId', e.target.value);
-                            }}
-                            InputLabelProps={{ shrink: true }}
-                        >
-                            {(customer?.contacts || []).map((contact: Contact) => (
-                                <MenuItem key={contact.id} value={contact.id}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        <span>{contact.contactName + " : " + contact.contactNumber}</span>
-                                    </Stack>
-                                </MenuItem>
-                            ))}
-                            <MenuItem value={ADD_NEW_CONTACT_VALUE}>
-                                <ListItemIcon sx={{ minWidth: 32 }}>
-                                    <Add fontSize="small" />
-                                </ListItemIcon>
-                                {t('customerManagement.addContact')}
-                            </MenuItem>
-                        </TextField>
-                    </GridTextField>
+                    <GridTextField item xs={12}><TextField label="ที่อยู่"
+                        InputLabelProps={{ shrink: true }} fullWidth multiline minRows={2} value={formik.values.customerSnapshot.address} onChange={(event) => formik.setFieldValue('customerSnapshot.address', event.target.value)} /></GridTextField>
                 </Grid>
             </CollapsibleWrapper>
             <CollapsibleWrapper
@@ -2413,11 +2457,24 @@ export default function NewQuotation() {
                     setOpenSearchCustomerAndDocDialog(false)
                 }}
                 onSelect={(payload) => {
+                    const defaultAddress = payload.customer.addresses?.find((address) => address.isDefault) || payload.customer.addresses?.[0];
+                    const defaultContact = payload.customer.contacts?.find((contact) => contact.isDefault) || payload.customer.contacts?.[0];
+                    const defaultBranch = payload.customer.branches?.find((branch) => branch.isDefault);
                     setCustomer(payload.customer);
                     formik.setValues({
                         ...formik.values,
                         salesId: payload.customer.salesAccounts?.[0] || payload.customer.salesAccount,
                         customerId: payload.customer.id,
+                        customerAddressId: defaultAddress?.id || '',
+                        customerContactId: defaultContact?.id || '',
+                        customerBranchCode: defaultBranch?.branchCode || payload.customer.branchNumber || '',
+                        customerSnapshot: {
+                            customerName: payload.customer.customerName || '', taxId: payload.customer.taxId || '',
+                            branchCode: defaultBranch?.branchCode || payload.customer.branchNumber || '',
+                            branchName: defaultBranch?.branchName || payload.customer.branchName || '',
+                            address: defaultAddress?.fullAddress || '',
+                            contactName: defaultContact?.contactName || '', contactNumber: defaultContact?.contactNumber || ''
+                        },
                         remark: buildPaymentTermRemark(payload.customer.customerPaymentTerm),
                         docDate: today,
                         effectiveDate: quotationDefaultEffectiveDate

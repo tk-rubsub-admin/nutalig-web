@@ -72,7 +72,8 @@ export default function SearchRfqDialog({
     () =>
       getRFQList(page, pageSize, {
         customerId,
-        status: 'QUOTED'
+        statuses: ['QUOTED', 'COMPLETED'],
+        sortBy: 'id'
       }),
     {
       enabled: open && Boolean(customerId),
@@ -143,14 +144,11 @@ export default function SearchRfqDialog({
               <TableHead>
                 <TableRow>
                   <TableCell align="center" className={classes.tableHeader} width={70} />
-                  <TableCell align="center" className={classes.tableHeader} width={160}>
+                  <TableCell align="center" className={classes.tableHeader} width={200}>
                     เลข RFQ
                   </TableCell>
                   <TableCell align="center" className={classes.tableHeader}>
                     สินค้า
-                  </TableCell>
-                  <TableCell align="center" className={classes.tableHeader} width={180}>
-                    ความจุ
                   </TableCell>
                   <TableCell align="center" className={classes.tableHeader} width={240}>
                     รูปภาพอ้างอิง
@@ -195,9 +193,6 @@ export default function SearchRfqDialog({
                           <TableCell align="center">{rfq.id}</TableCell>
                           <TableCell>
                             <TextLineClamp>{getProductLabel(rfq)}</TextLineClamp>
-                          </TableCell>
-                          <TableCell align="center">
-                            <TextLineClamp>{rfq.capacity || '-'}</TextLineClamp>
                           </TableCell>
                           <TableCell align="center">
                             <Box

@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   AddComment,
   ArrowBackIos,
@@ -62,7 +63,8 @@ import {
   ReactElement,
   SyntheticEvent,
   useMemo,
-  useState
+  useState,
+  useEffect
 } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -149,6 +151,7 @@ import { NewSupplierDialog } from 'dialogs/PriceInquiryManagement/Detail/NewSupp
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
 import config from 'config';
+import { RequestedInformationDialog } from 'dialogs/RFQManagement/Detail/RequestedInformationDialog';
 
 interface RFQDetailParam {
   id: string;
@@ -876,7 +879,9 @@ function formatTargetPrice(value?: number | null): string {
 }
 
 function parsePriceInput(value?: string | null): number | null {
-  const normalizedValue = String(value ?? '').replace(/,/g, '').trim();
+  const normalizedValue = String(value ?? '')
+    .replace(/,/g, '')
+    .trim();
   if (!normalizedValue) {
     return null;
   }
@@ -907,9 +912,10 @@ function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
 
 function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
   return {
-    quantity: tier.quantity !== null && tier.quantity !== undefined
-      ? quantityFormatter.format(tier.quantity)
-      : '',
+    quantity:
+      tier.quantity !== null && tier.quantity !== undefined
+        ? quantityFormatter.format(tier.quantity)
+        : '',
     productPrice: tier.productPrice?.toString() || '',
     commission: tier.commission?.toString() || '',
     currency: tier.currency || 'THB',
@@ -1358,7 +1364,8 @@ function buildSupplierQuotePayload(
     remark: quote?.remark || null,
     details: details.map((detail, index) => ({
       rfqDetailId: detail.rfqDetailId || null,
-      supplierId: detail.supplier?.supplierId || detail.supplier?.id || supplier.supplierId || supplier.id,
+      supplierId:
+        detail.supplier?.supplierId || detail.supplier?.id || supplier.supplierId || supplier.id,
       optionName: detail.optionName.trim(),
       plan: detail.plan?.trim() || null,
       spec: detail.spec.trim(),
@@ -1407,11 +1414,12 @@ function buildSupplierQuotePayload(
         sortOrder: index + 1
       })),
     leadTimes: leadTimes
-      .filter((leadTime) =>
-        leadTime.leadTimeCode.trim() ||
-        leadTime.leadTimeDayMin.trim() ||
-        leadTime.leadTimeDayMax.trim() ||
-        leadTime.remark.trim()
+      .filter(
+        (leadTime) =>
+          leadTime.leadTimeCode.trim() ||
+          leadTime.leadTimeDayMin.trim() ||
+          leadTime.leadTimeDayMax.trim() ||
+          leadTime.remark.trim()
       )
       .map((leadTime, index) => ({
         leadTimeCode: leadTime.leadTimeCode.trim(),
@@ -1546,10 +1554,9 @@ function mergeFinalPriceDraftFromExtractedPayload(
   payload: UpsertRFQSupplierQuoteRequest
 ): FinalPriceDraft {
   const extractedDetails = payload.details || [];
-  const extractedPackages =
-    payload.packages?.length
-      ? payload.packages.map(createDraftPackageFromExtractedPayload)
-      : mapSupplierQuotePackages(undefined, payload.details);
+  const extractedPackages = payload.packages?.length
+    ? payload.packages.map(createDraftPackageFromExtractedPayload)
+    : mapSupplierQuotePackages(undefined, payload.details);
 
   return {
     ...currentDraft,
@@ -1564,7 +1571,9 @@ function mergeFinalPriceDraftFromExtractedPayload(
             return true;
           }
 
-          return Number(detail.sortOrder || 0) === Number(currentDetail.sortOrder || detailIndex + 1);
+          return (
+            Number(detail.sortOrder || 0) === Number(currentDetail.sortOrder || detailIndex + 1)
+          );
         }) || null;
 
       if (!matchedExtractedDetail) {
@@ -1744,9 +1753,7 @@ function validateSupplierQuoteDraftDetail(
   return nextErrors;
 }
 
-function validateSupplierQuotePackagesDraft(
-  packages: DraftSupplierQuotePackage[]
-): string | null {
+function validateSupplierQuotePackagesDraft(packages: DraftSupplierQuotePackage[]): string | null {
   if (!packages.length) {
     return 'กรุณาเพิ่ม Packing List อย่างน้อย 1 รายการ';
   }
@@ -1823,6 +1830,9 @@ export default function RFQDetail(): ReactElement {
   const [selectedSupplierQuoteToDelete, setSelectedSupplierQuoteToDelete] =
     useState<RFQSupplierQuote | null>(null);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [lastShownRequestedInformationKey, setLastShownRequestedInformationKey] = useState<
+    string | null
+  >(null);
   const [inlineEditingSupplierQuoteId, setInlineEditingSupplierQuoteId] = useState<string | null>(
     null
   );
@@ -1871,9 +1881,14 @@ export default function RFQDetail(): ReactElement {
   const [visibleTierEditDialog, setVisibleTierEditDialog] = useState(false);
   const [visibleTierEditConfirmDialog, setVisibleTierEditConfirmDialog] = useState(false);
   const [isTierEditSubmitting, setIsTierEditSubmitting] = useState(false);
+  const [visibleRequestedInformationDialog, setVisibleRequestedInformationDialog] = useState(false);
   const [selectedTierForEdit, setSelectedTierForEdit] =
     useState<SelectedDetailTierEditTarget | null>(null);
   const [tierEditDraft, setTierEditDraft] = useState<TierEditDraft | null>(null);
+
+  const handleOpenRequestedInformationDialog = () => {
+    setVisibleRequestedInformationDialog(true);
+  };
 
   const handleBackToPriceInquiryList = () => {
     const returnToList = location.state?.returnToList;
@@ -2003,7 +2018,12 @@ export default function RFQDetail(): ReactElement {
     });
 
     return Array.from(supplierMap.values());
-  }, [quoteDialogQuote?.supplier, quoteDialogSupplier, quoteDraftDetails, quoteSupplierSearchResult]);
+  }, [
+    quoteDialogQuote?.supplier,
+    quoteDialogSupplier,
+    quoteDraftDetails,
+    quoteSupplierSearchResult
+  ]);
   const { data: leadTimeOptions = [] } = useQuery<LeadTimeConfig[]>(
     ['lead-time-configs'],
     () => getLeadTimeConfigs(),
@@ -2041,8 +2061,8 @@ export default function RFQDetail(): ReactElement {
 
   const detailHistoryGroups = useMemo(
     () =>
-      [...detailHistory].reduce<Array<{ detailSetNo: number; records: RFQDetailHistory[] }>>(
-        (groups, record) => {
+      [...detailHistory]
+        .reduce<Array<{ detailSetNo: number; records: RFQDetailHistory[] }>>((groups, record) => {
           const detailSetNo = record.detailSetNo || 0;
           const existingGroup = groups.find((group) => group.detailSetNo === detailSetNo);
           if (existingGroup) {
@@ -2051,9 +2071,8 @@ export default function RFQDetail(): ReactElement {
             groups.push({ detailSetNo, records: [record] });
           }
           return groups;
-        },
-        []
-      ).sort((left, right) => right.detailSetNo - left.detailSetNo),
+        }, [])
+        .sort((left, right) => right.detailSetNo - left.detailSetNo),
     [detailHistory]
   );
   const [collapsedDetailHistoryGroupIds, setCollapsedDetailHistoryGroupIds] = useState<
@@ -2289,17 +2308,15 @@ export default function RFQDetail(): ReactElement {
     return Object.entries(supplierQuotesBySupplierId).reduce<Record<string, RFQSupplierQuote>>(
       (accumulator, [supplierId, quotes]) => {
         const latestQuote =
-          quotes
-            .slice()
-            .sort((left, right) => {
-              const leftRevision = left.revisionNo || 0;
-              const rightRevision = right.revisionNo || 0;
-              if (rightRevision !== leftRevision) {
-                return rightRevision - leftRevision;
-              }
+          quotes.slice().sort((left, right) => {
+            const leftRevision = left.revisionNo || 0;
+            const rightRevision = right.revisionNo || 0;
+            if (rightRevision !== leftRevision) {
+              return rightRevision - leftRevision;
+            }
 
-              return dayjs(right.updatedDate).valueOf() - dayjs(left.updatedDate).valueOf();
-            })[0] || null;
+            return dayjs(right.updatedDate).valueOf() - dayjs(left.updatedDate).valueOf();
+          })[0] || null;
 
         if (latestQuote) {
           accumulator[supplierId] = latestQuote;
@@ -2553,10 +2570,7 @@ export default function RFQDetail(): ReactElement {
     setDetailEditDraft(null);
   };
 
-  const handleDetailEditDraftChange = (
-    field: keyof DetailEditDraft,
-    value: string
-  ) => {
+  const handleDetailEditDraftChange = (field: keyof DetailEditDraft, value: string) => {
     setDetailEditDraft((previous) =>
       previous
         ? {
@@ -2584,6 +2598,30 @@ export default function RFQDetail(): ReactElement {
 
     setVisibleDetailEditConfirmDialog(true);
   };
+
+
+  const requestedInformationAlertKey = useMemo(() => {
+    if (!rfq?.id || !rfq?.requestInformation) {
+      return null;
+    }
+
+    return `${rfq.id}:${rfq.updatedDate || ''}:${rfq.requestInformation}`;
+  }, [rfq?.id, rfq?.requestInformation, rfq?.updatedDate]);
+
+  useEffect(() => {
+    if (
+      rfq?.status === 'REQUESTED_INFO' &&
+      rfq.requestInformation &&
+      requestedInformationAlertKey &&
+      requestedInformationAlertKey !== lastShownRequestedInformationKey
+    ) {
+      setVisibleRequestedInformationDialog(true);
+      setLastShownRequestedInformationKey(requestedInformationAlertKey);
+    }
+  }, [
+    rfq?.requestInformation,
+    rfq?.status
+  ]);
 
   const handleConfirmSaveDetailEdit = async () => {
     if (!params.id || !selectedDetailForEdit || !detailEditDraft) {
@@ -2649,10 +2687,7 @@ export default function RFQDetail(): ReactElement {
     setTierEditDraft(null);
   };
 
-  const handleTierEditDraftChange = (
-    field: keyof TierEditDraft,
-    value: string | boolean
-  ) => {
+  const handleTierEditDraftChange = (field: keyof TierEditDraft, value: string | boolean) => {
     setTierEditDraft((previous) => {
       if (!previous) {
         return previous;
@@ -2749,7 +2784,12 @@ export default function RFQDetail(): ReactElement {
       };
 
       await toast.promise(
-        updateRFQDetailTier(params.id, selectedTierForEdit.detail.id, selectedTierForEdit.tier.id, payload),
+        updateRFQDetailTier(
+          params.id,
+          selectedTierForEdit.detail.id,
+          selectedTierForEdit.tier.id,
+          payload
+        ),
         {
           loading: t('toast.loading'),
           success: t('toast.success'),
@@ -2777,7 +2817,9 @@ export default function RFQDetail(): ReactElement {
         )
         : [createDraftQuoteDetail(1, supplier)]
     );
-    setQuoteDraftPackages(mapSupplierQuotePackages(existingQuote?.packages, existingQuote?.details));
+    setQuoteDraftPackages(
+      mapSupplierQuotePackages(existingQuote?.packages, existingQuote?.details)
+    );
     setQuoteDraftAdditionalCosts(
       existingQuote?.additionalCosts?.length
         ? existingQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
@@ -2806,7 +2848,9 @@ export default function RFQDetail(): ReactElement {
         )
         : [createDraftQuoteDetail(1, supplier)]
     );
-    setQuoteDraftPackages(mapSupplierQuotePackages(templateQuote?.packages, templateQuote?.details));
+    setQuoteDraftPackages(
+      mapSupplierQuotePackages(templateQuote?.packages, templateQuote?.details)
+    );
     setQuoteDraftAdditionalCosts(
       templateQuote?.additionalCosts?.length
         ? templateQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
@@ -2940,10 +2984,9 @@ export default function RFQDetail(): ReactElement {
       const nextDetails = (extractedQuote.details || []).map((detail, index) =>
         createDraftQuoteDetailFromExtractedPayload(detail, index, quoteDialogSupplier)
       );
-      const nextPackages =
-        extractedQuote.packages?.length
-          ? extractedQuote.packages.map(createDraftPackageFromExtractedPayload)
-          : mapSupplierQuotePackages(undefined, extractedQuote.details);
+      const nextPackages = extractedQuote.packages?.length
+        ? extractedQuote.packages.map(createDraftPackageFromExtractedPayload)
+        : mapSupplierQuotePackages(undefined, extractedQuote.details);
       const nextAdditionalCosts = (extractedQuote.additionalCosts || []).map(
         (additionalCost, index) =>
           createDraftAdditionalCostFromExtractedPayload(additionalCost, index)
@@ -3155,9 +3198,7 @@ export default function RFQDetail(): ReactElement {
         error: t('toast.failed')
       });
 
-      setFinalPriceDraft((prev) =>
-        mergeFinalPriceDraftFromExtractedPayload(prev, extractedQuote)
-      );
+      setFinalPriceDraft((prev) => mergeFinalPriceDraftFromExtractedPayload(prev, extractedQuote));
       setVisibleFinalExtractDialog(false);
       setFinalExtractMessage('');
     } finally {
@@ -3771,6 +3812,10 @@ export default function RFQDetail(): ReactElement {
           : detail
       )
     }));
+  };
+
+  const handleCloseRequestedInformationDialog = () => {
+    setVisibleRequestedInformationDialog(false);
   };
 
   const handleRequestDeleteQuoteDetail = (detailId: number) => {
@@ -4625,6 +4670,25 @@ export default function RFQDetail(): ReactElement {
               }}
             />
           ) : null}
+          {rfq?.status === 'REQUESTED_INFO' ? (
+            <Chip
+              icon={<InfoOutlined />}
+              label="ข้อมูลเพิ่มเติม"
+              size="small"
+              variant="outlined"
+              color="info"
+              clickable
+              onClick={handleOpenRequestedInformationDialog}
+              sx={{
+                height: 28,
+                fontWeight: 700,
+                alignSelf: 'center',
+                '& .MuiChip-label': {
+                  px: 1.25
+                }
+              }}
+            />
+          ) : null}
           {rfq?.slaDate && ['NEW', 'IN_PROGRESS'].includes(rfq.status || '') ? (
             <Chip
               label={slaPresentation.caption}
@@ -4694,7 +4758,8 @@ export default function RFQDetail(): ReactElement {
                       <ListItemText primary="Final ราคา" />
                     </MenuItem>
                   </Can>
-                  {(rfq?.status === 'SUPPLIER_QUOTED' || rfq?.status === 'SPECIAL_PRICE_REVIEW') && hasRole(ROLES.SUPER_ADMIN) ? (
+                  {(rfq?.status === 'SUPPLIER_QUOTED' || rfq?.status === 'SPECIAL_PRICE_REVIEW') &&
+                    hasRole(ROLES.SUPER_ADMIN) ? (
                     <MenuItem
                       disabled={isRequestInformationSubmitting}
                       onClick={() => handleRequestInformationFromMenu('PROCUREMENT')}>
@@ -5068,9 +5133,7 @@ export default function RFQDetail(): ReactElement {
                     <TextField
                       fullWidth
                       label={t('rfqManagement.form.targetPrice')}
-                      value={
-                        rfq?.targetPrice != null ? formatTargetPrice(rfq.targetPrice) : ''
-                      }
+                      value={rfq?.targetPrice != null ? formatTargetPrice(rfq.targetPrice) : ''}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
                     />
@@ -5424,7 +5487,9 @@ export default function RFQDetail(): ReactElement {
                                             <TableCell align="center">
                                               <IconButton
                                                 size="small"
-                                                onClick={() => handleOpenTierEditDialog(detail, tier)}
+                                                onClick={() =>
+                                                  handleOpenTierEditDialog(detail, tier)
+                                                }
                                                 sx={{
                                                   border: '1px solid #cbd5e1',
                                                   borderRadius: 2
@@ -5735,12 +5800,19 @@ export default function RFQDetail(): ReactElement {
                                         </TableHead>
                                         <TableBody>
                                           {tierSplits.map((tierSplit) => (
-                                            <TableRow key={tierSplit.sourceTierSplitId ?? tierSplit.quantity}>
+                                            <TableRow
+                                              key={
+                                                tierSplit.sourceTierSplitId ?? tierSplit.quantity
+                                              }>
                                               <TableCell>{tierSplit.quantity ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.sellPrice ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.commission ?? '-'}</TableCell>
-                                              <TableCell>{tierSplit.landFreightCost ?? '-'}</TableCell>
-                                              <TableCell>{tierSplit.seaFreightCost ?? '-'}</TableCell>
+                                              <TableCell>
+                                                {tierSplit.landFreightCost ?? '-'}
+                                              </TableCell>
+                                              <TableCell>
+                                                {tierSplit.seaFreightCost ?? '-'}
+                                              </TableCell>
                                             </TableRow>
                                           ))}
                                         </TableBody>
@@ -5795,7 +5867,9 @@ export default function RFQDetail(): ReactElement {
                   fullWidth
                   label="Option Name"
                   value={detailEditDraft?.optionName || ''}
-                  onChange={(event) => handleDetailEditDraftChange('optionName', event.target.value)}
+                  onChange={(event) =>
+                    handleDetailEditDraftChange('optionName', event.target.value)
+                  }
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -5886,7 +5960,7 @@ export default function RFQDetail(): ReactElement {
                 />
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
-              <TextField
+                <TextField
                   select
                   fullWidth
                   label="Currency"
@@ -5896,8 +5970,7 @@ export default function RFQDetail(): ReactElement {
                     '& .MuiSelect-select': {
                       fontSize: '0.875rem'
                     }
-                  }}
-                >
+                  }}>
                   {currencyOptions.map((option: SystemConfig) => (
                     <MenuItem key={option.code} value={option.code}>
                       {getNamedCodeValueLabel(option)}
@@ -6228,7 +6301,8 @@ export default function RFQDetail(): ReactElement {
       <ConfirmDialog
         open={Boolean(selectedFinalPriceDetailToDelete)}
         title="ยืนยันลบ option"
-        message={`คุณยืนยันลบ ${selectedFinalPriceDetailToDelete?.optionName || 'option นี้'} ใช่หรือไม่`}
+        message={`คุณยืนยันลบ ${selectedFinalPriceDetailToDelete?.optionName || 'option นี้'
+          } ใช่หรือไม่`}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -6402,7 +6476,8 @@ export default function RFQDetail(): ReactElement {
       <ConfirmDialog
         open={Boolean(selectedSupplierQuoteDetailToDelete)}
         title="ยืนยันลบ option"
-        message={`คุณยืนยันลบ ${selectedSupplierQuoteDetailToDelete?.optionName || 'option นี้'} ใช่หรือไม่`}
+        message={`คุณยืนยันลบ ${selectedSupplierQuoteDetailToDelete?.optionName || 'option นี้'
+          } ใช่หรือไม่`}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}
         isShowCancelButton
@@ -6450,6 +6525,11 @@ export default function RFQDetail(): ReactElement {
         message={generatedFinalInquiryMessage}
         onClose={() => setGeneratedFinalInquiryMessage('')}
         t={t}
+      />
+      <RequestedInformationDialog
+        open={visibleRequestedInformationDialog}
+        requestInformation={rfq?.requestInformation}
+        onClose={handleCloseRequestedInformationDialog}
       />
     </Page>
   );

@@ -89,6 +89,7 @@ import {
 } from 'services/SaleOrder/sale-order-api';
 import {
   SalesOrderAttachment,
+  CustomerSnapshot,
   SalesOrderDetailV1,
   SalesOrderV1,
   UpdateSalesOrderRequestV1
@@ -122,6 +123,7 @@ interface SalesOrderDraft {
   requestCoa: boolean;
   requestPo: boolean;
   remark: string;
+  customerSnapshot: CustomerSnapshot;
   items: SalesOrderDetailV1[];
 }
 
@@ -141,15 +143,18 @@ function getEmployeeName(salesOrder?: SalesOrderV1): string {
 
 function getCustomerLabel(salesOrder?: SalesOrderV1): string {
   const customer = salesOrder?.customer as any;
-  if (!customer) return '-';
+  const snapshot = salesOrder?.customerSnapshot;
   return (
-    [customer.id ? `(${customer.id})` : '', customer.customerName || customer.companyName || '']
+    [customer?.id ? `(${customer.id})` : '', snapshot?.customerName || customer?.customerName || customer?.companyName || '']
       .filter(Boolean)
       .join(' ') || '-'
   );
 }
 
 function getCustomerAddress(salesOrder?: SalesOrderV1): string {
+  if (salesOrder?.customerSnapshot?.address) {
+    return salesOrder.customerSnapshot.address;
+  }
   const customer = salesOrder?.customer as any;
   const address =
     customer?.addresses?.find((item: any) => item.isDefault) || customer?.addresses?.[0];
@@ -243,6 +248,9 @@ function TabPanel({
 }
 
 function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
+  const customer = salesOrder?.customer as any;
+  const fallbackAddress = getCustomerAddress(salesOrder);
+  const fallbackContact = salesOrder?.customerContact || customer?.contacts?.[0];
   return {
     docDate: toDateInput(salesOrder?.docDate),
     expireDate: toDateInput(salesOrder?.expireDate),
@@ -260,6 +268,15 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     requestCoa: Boolean(salesOrder?.requestCoa),
     requestPo: Boolean(salesOrder?.requestPo),
     remark: salesOrder?.remark || '',
+    customerSnapshot: {
+      customerName: salesOrder?.customerSnapshot?.customerName || customer?.customerName || customer?.companyName || '',
+      taxId: salesOrder?.customerSnapshot?.taxId || customer?.taxId || '',
+      branchCode: salesOrder?.customerSnapshot?.branchCode || customer?.branchNumber || '',
+      branchName: salesOrder?.customerSnapshot?.branchName || customer?.branchName || '',
+      address: fallbackAddress === '-' ? '' : fallbackAddress,
+      contactName: salesOrder?.customerSnapshot?.contactName || fallbackContact?.contactName || '',
+      contactNumber: salesOrder?.customerSnapshot?.contactNumber || fallbackContact?.contactNumber || ''
+    },
     items: (salesOrder?.items || []).map((item) => ({ ...item }))
   };
 }
@@ -501,6 +518,19 @@ export default function SalesOrderDetail(): ReactElement {
     setDraft((previous) => ({
       ...previous,
       [field]: value
+    }));
+  };
+
+  const updateCustomerSnapshotField = <K extends keyof CustomerSnapshot>(
+    field: K,
+    value: CustomerSnapshot[K]
+  ) => {
+    setDraft((previous) => ({
+      ...previous,
+      customerSnapshot: {
+        ...previous.customerSnapshot,
+        [field]: value
+      }
     }));
   };
 
@@ -795,6 +825,7 @@ export default function SalesOrderDetail(): ReactElement {
       isVat: draft.isVat,
       shippingType: draft.shippingType || null,
       shipping: draft.shipping || null,
+      customerSnapshot: draft.customerSnapshot,
       requestCoa: draft.requestCoa,
       requestPo: draft.requestPo,
       remark: draft.remark,
@@ -1187,21 +1218,32 @@ export default function SalesOrderDetail(): ReactElement {
                     label={t('customerManagement.customer')}
                     value={getCustomerLabel(salesOrder)}
                   />
-                  <Info
-                    label={t('documentManagement.quotation.customerSection.contactName')}
-                    value={
-                      salesOrder?.customerContact?.contactName ||
-                      salesOrder?.customer?.contacts?.[0]?.contactName
-                    }
-                  />
-                  <Info
-                    label={t('documentManagement.quotation.customerSection.contactNumber')}
-                    value={
-                      salesOrder?.customerContact?.contactNumber ||
-                      salesOrder?.customer?.contacts?.[0]?.contactNumber
-                    }
-                  />
-                  <Info label="ที่อยู่" value={getCustomerAddress(salesOrder)} />
+                  {isEditing ? (
+                    <>
+                      <TextField label="ชื่อลูกค้า" value={draft.customerSnapshot.customerName}
+                        onChange={(event) => updateCustomerSnapshotField('customerName', event.target.value)} />
+                      <TextField label="เลขประจำตัวผู้เสียภาษี" value={draft.customerSnapshot.taxId}
+                        onChange={(event) => updateCustomerSnapshotField('taxId', event.target.value)} />
+                      <TextField label="รหัสสาขา" value={draft.customerSnapshot.branchCode}
+                        onChange={(event) => updateCustomerSnapshotField('branchCode', event.target.value)} />
+                      <TextField label="ชื่อสาขา" value={draft.customerSnapshot.branchName}
+                        onChange={(event) => updateCustomerSnapshotField('branchName', event.target.value)} />
+                      <TextField label="ชื่อผู้ติดต่อ" value={draft.customerSnapshot.contactName}
+                        onChange={(event) => updateCustomerSnapshotField('contactName', event.target.value)} />
+                      <TextField label="เบอร์โทรผู้ติดต่อ" value={draft.customerSnapshot.contactNumber}
+                        onChange={(event) => updateCustomerSnapshotField('contactNumber', event.target.value)} />
+                      <TextField label="ที่อยู่" multiline minRows={2} value={draft.customerSnapshot.address}
+                        onChange={(event) => updateCustomerSnapshotField('address', event.target.value)} />
+                    </>
+                  ) : (
+                    <>
+                      <Info label="เลขประจำตัวผู้เสียภาษี" value={salesOrder?.customerSnapshot?.taxId || salesOrder?.customer?.taxId} />
+                      <Info label="สาขา" value={[salesOrder?.customerSnapshot?.branchCode, salesOrder?.customerSnapshot?.branchName].filter(Boolean).join(' ') || '-'} />
+                      <Info label={t('documentManagement.quotation.customerSection.contactName')} value={salesOrder?.customerSnapshot?.contactName || salesOrder?.customerContact?.contactName || salesOrder?.customer?.contacts?.[0]?.contactName} />
+                      <Info label={t('documentManagement.quotation.customerSection.contactNumber')} value={salesOrder?.customerSnapshot?.contactNumber || salesOrder?.customerContact?.contactNumber || salesOrder?.customer?.contacts?.[0]?.contactNumber} />
+                      <Info label="ที่อยู่" value={getCustomerAddress(salesOrder)} />
+                    </>
+                  )}
                 </Stack>
               </Grid>
               <Grid item xs={12} md={4}>

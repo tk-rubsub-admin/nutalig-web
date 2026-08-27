@@ -16,6 +16,7 @@ export interface CreateCustomerRequest {
   companyName: string;
   branchNumber: string;
   branchName: string;
+  branches?: CustomerBranchRequest[];
   creditTerm: string;
   paymentTerm: string;
   billingCondition?: string;
@@ -156,6 +157,7 @@ export interface UpdateCustomerRequest {
   companyName: string | null;
   branchNumber: string | null;
   branchName: string | null;
+  branches?: CustomerBranchRequest[] | null;
   creditTerm: string | null;
   paymentTerm: string | null;
   billingCondition?: string | null;
@@ -179,6 +181,7 @@ export interface Customer {
   companyName: string;
   branchNumber: string;
   branchName: string;
+  branches: CustomerBranch[];
   taxId: string;
   addresses: Address[];
   contacts: Contact[];
@@ -191,6 +194,19 @@ export interface Customer {
   createdDate: string;
   updatedBy: string;
   updatedDate: string;
+}
+
+export interface CustomerBranchRequest {
+  branchCode: string;
+  branchName: string;
+  isDefault: boolean;
+}
+
+export interface CustomerBranch extends CustomerBranchRequest {
+  createdBy?: string;
+  updatedBy?: string;
+  createdDate?: string;
+  updatedDate?: string;
 }
 
 export interface Address {

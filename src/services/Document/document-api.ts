@@ -58,6 +58,9 @@ export const updateQuotation = async (id: string, data: UpdateQuotationRequest) 
     return response;
 };
 
+export const syncQuotationCustomerSnapshot = async (id: string) =>
+    api.post(`/v1/quotations/${id}/sync-customer-snapshot`).then((response) => response.data);
+
 export const viewQuotation = async (
     id: string,
     original: boolean,

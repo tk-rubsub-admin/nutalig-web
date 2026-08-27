@@ -48,8 +48,8 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
-import { getQuotation, updateQuotation, viewQuotation } from 'services/Document/document-api';
-import { Quotation, QuotationItem, TemplateLanguage } from 'services/Document/document-type';
+import { getQuotation, syncQuotationCustomerSnapshot, updateQuotation, viewQuotation } from 'services/Document/document-api';
+import { Quotation, QuotationCustomerSnapshot, QuotationItem, TemplateLanguage } from 'services/Document/document-type';
 import { searchInvoices } from 'services/Invoice/invoice-api';
 import { searchReceipts } from 'services/Receipt/receipt-api';
 import { getRFQ } from 'services/RFQ/rfq-api';
@@ -71,6 +71,9 @@ const getEmployeeName = (quotation?: Quotation) => {
 };
 
 const getCustomerAddress = (quotation?: Quotation): string => {
+    if (quotation?.customerSnapshot?.address) {
+        return quotation.customerSnapshot.address;
+    }
     const address = quotation?.customerAddress;
     if (!address) {
         return '-';
@@ -327,6 +330,7 @@ export default function QuotationDetail(): JSX.Element {
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
     const [draftIsVat, setDraftIsVat] = useState(false);
+    const [draftCustomerSnapshot, setDraftCustomerSnapshot] = useState<QuotationCustomerSnapshot>({ customerName: '', taxId: '', branchCode: '', branchName: '', address: '', contactName: '', contactNumber: '' });
     const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [visibleConfirmPriceDialog, setVisibleConfirmPriceDialog] = useState(false);
     const [selectedConfirmQuotationRowKeys, setSelectedConfirmQuotationRowKeys] = useState<string[]>([]);
@@ -474,6 +478,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
+        setDraftCustomerSnapshot(quotation.customerSnapshot || { customerName: quotation.customer?.customerName || '', taxId: quotation.customer?.taxId || '', branchCode: quotation.customer?.branchNumber || '', branchName: quotation.customer?.branchName || '', address: getCustomerAddress(quotation), contactName: quotation.customerContact?.contactName || '', contactNumber: quotation.customerContact?.contactNumber || '' });
         setIsEditing(false);
     }, [quotation]);
 
@@ -485,6 +490,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
+        setDraftCustomerSnapshot(quotation.customerSnapshot || { customerName: quotation.customer?.customerName || '', taxId: quotation.customer?.taxId || '', branchCode: quotation.customer?.branchNumber || '', branchName: quotation.customer?.branchName || '', address: getCustomerAddress(quotation), contactName: quotation.customerContact?.contactName || '', contactNumber: quotation.customerContact?.contactNumber || '' });
         setIsEditing(true);
     };
 
@@ -493,6 +499,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation?.remark || '');
         setDraftItems(quotation?.items || []);
         setDraftIsVat(Number(quotation?.vatRate || 0) > 0);
+        setDraftCustomerSnapshot(quotation?.customerSnapshot || { customerName: quotation?.customer?.customerName || '', taxId: quotation?.customer?.taxId || '', branchCode: quotation?.customer?.branchNumber || '', branchName: quotation?.customer?.branchName || '', address: getCustomerAddress(quotation), contactName: quotation?.customerContact?.contactName || '', contactNumber: quotation?.customerContact?.contactNumber || '' });
         setIsEditing(false);
     };
 
@@ -695,6 +702,7 @@ export default function QuotationDetail(): JSX.Element {
                     remark: draftRemark,
                     items: draftItems,
                     isVat: draftIsVat
+                    , customerSnapshot: draftCustomerSnapshot
                 }),
                 {
                     loading: t('toast.loading'),
@@ -867,6 +875,18 @@ export default function QuotationDetail(): JSX.Element {
                         }}>
                         <Button
                             fullWidth={isDownSm}
+                            variant="outlined"
+                            onClick={() => {
+                                if (!quotationNo) return;
+                                void toast.promise(syncQuotationCustomerSnapshot(quotationNo), {
+                                    loading: t('toast.loading'), success: t('toast.success'), error: t('toast.failed')
+                                }).then(() => refetchQuotation());
+                            }}
+                            disabled={isUpdating}>
+                            ดึงข้อมูลลูกค้ากลางมาใช้กับใบนี้
+                        </Button>
+                        <Button
+                            fullWidth={isDownSm}
                             variant="contained"
                             className="btn-cool-grey"
                             startIcon={<Cancel />}
@@ -932,13 +952,28 @@ export default function QuotationDetail(): JSX.Element {
                             <Grid item xs={12} md={4}>
                                 <Stack spacing={1.25} className={classes.section}>
                                     <Typography variant="h6">{t('customerManagement.customer')}</Typography>
-                                    <Info
-                                        label={t('customerManagement.customer')}
-                                        value={quotation?.customer ? `(${quotation.customer.id}) ${quotation.customer.customerName}` : '-'}
-                                    />
-                                    <Info label={t('documentManagement.quotation.customerSection.contactName')} value={quotation?.customerContact?.contactName} />
-                                    <Info label={t('documentManagement.quotation.customerSection.contactNumber')} value={quotation?.customerContact?.contactNumber} />
-                                    <Info label="ที่อยู่" value={getCustomerAddress(quotation)} />
+                                    {isEditing ? (
+                                        <Stack spacing={1} sx={{ mt: 1 }}>
+                                            <TextField size="small" label="ชื่อลูกค้า" value={draftCustomerSnapshot.customerName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, customerName: event.target.value })} />
+                                            <TextField size="small" label="เลขประจำตัวผู้เสียภาษี" value={draftCustomerSnapshot.taxId} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, taxId: event.target.value })} />
+                                            <TextField size="small" label="รหัสสาขา" value={draftCustomerSnapshot.branchCode} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, branchCode: event.target.value })} />
+                                            <TextField size="small" label="ชื่อสาขา" value={draftCustomerSnapshot.branchName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, branchName: event.target.value })} />
+                                            <TextField size="small" label="ผู้ติดต่อ" value={draftCustomerSnapshot.contactName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, contactName: event.target.value })} />
+                                            <TextField size="small" label="เบอร์โทร" value={draftCustomerSnapshot.contactNumber} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, contactNumber: event.target.value })} />
+                                            <TextField size="small" multiline minRows={2} label="ที่อยู่" value={draftCustomerSnapshot.address} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, address: event.target.value })} />
+                                        </Stack>
+                                    ) : (
+                                        <>
+                                            <Info
+                                                label={t('customerManagement.customer')}
+                                                value={quotation?.customer ? `(${quotation.customer.id}) ${quotation.customerSnapshot?.customerName || quotation.customer.customerName}` : '-'}
+                                            />
+                                            <Info label="สาขา" value={quotation?.customerSnapshot?.branchCode ? `(${quotation.customerSnapshot.branchCode}) ${quotation.customerSnapshot.branchName || ''}` : '-'} />
+                                            <Info label={t('documentManagement.quotation.customerSection.contactName')} value={quotation?.customerSnapshot?.contactName || quotation?.customerContact?.contactName} />
+                                            <Info label={t('documentManagement.quotation.customerSection.contactNumber')} value={quotation?.customerSnapshot?.contactNumber || quotation?.customerContact?.contactNumber} />
+                                            <Info label="ที่อยู่" value={getCustomerAddress(quotation)} />
+                                        </>
+                                    )}
                                 </Stack>
                             </Grid>
                             <Grid item xs={12} md={4}>

@@ -128,6 +128,7 @@ export default function NewCustomer(): JSX.Element {
       companyName: '',
       companyBranchCode: '',
       companyBranchName: '',
+      branches: [{ branchCode: '', branchName: '', isDefault: true }],
       creditTerm: 'NON',
       paymentTerm: 'DEP50',
       billingCondition: '',
@@ -168,6 +169,16 @@ export default function NewCustomer(): JSX.Element {
         is: 'COMPANY',
         then: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
         otherwise: Yup.string().nullable()
+      }),
+      branches: Yup.array().when('type', {
+        is: 'COMPANY',
+        then: Yup.array().of(Yup.object().shape({
+          branchCode: Yup.string().required(t('customerManagement.message.validateCompanyBranchCode')),
+          branchName: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
+          isDefault: Yup.boolean()
+        })).min(1).test('one-default', 'A company must have one default branch', (branches) =>
+          Boolean(branches?.some((branch) => branch.isDefault))),
+        otherwise: Yup.array().notRequired()
       }),
       creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
       paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm')),
@@ -219,6 +230,7 @@ export default function NewCustomer(): JSX.Element {
         companyName: values.companyName,
         branchNumber: values.companyBranchCode,
         branchName: values.companyBranchName,
+        branches: values.type === 'COMPANY' ? values.branches : [],
         creditTerm: values.creditTerm,
         paymentTerm: values.paymentTerm,
         billingCondition: values.billingCondition,
@@ -346,69 +358,45 @@ export default function NewCustomer(): JSX.Element {
             </GridTextField>
             {formik.values.type === 'COMPANY' ? (
               <>
-                <GridTextField item xs={12} sm={12}>
-                  <Typography>{t('customerManagement.column.company.title')}</Typography>
-                </GridTextField>
-                <GridTextField item xs={6} sm={6}>
-                  <Grid container>
-                    <Grid item sm={3}>
-                      <FormControlLabel
-                        sx={{ display: { xs: 'none', sm: 'block' } }}
-                        control={
-                          <Switch
-                            onChange={(e) => {
-                              if (e.target.checked === true) {
-                                formik.setFieldValue('companyBranchCode', '00000');
-                                formik.setFieldValue('companyBranchName', 'สำนักงานใหญ่');
-                              } else {
-                                formik.setFieldValue('companyBranchCode', '');
-                                formik.setFieldValue('companyBranchName', '');
+                <GridTextField item xs={12}>
+                  <FieldArray name="branches">
+                    {({ push, remove }) => (
+                      <Stack spacing={1} sx={{ mt: 1 }}>
+                        <Typography variant="subtitle1">สาขา</Typography>
+                        {formik.values.branches.map((branch, index) => (
+                          <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
+                            <FormControlLabel
+                              sx={{ display: { xs: 'none', sm: 'block' } }}
+                              control={
+                                <Switch
+                                  onChange={(e) => {
+                                    if (e.target.checked === true) {
+                                      formik.setFieldValue('companyBranchCode', '00000');
+                                      formik.setFieldValue('companyBranchName', 'สำนักงานใหญ่');
+                                      formik.setFieldValue('branches.0.branchCode', '00000');
+                                      formik.setFieldValue('branches.0.branchName', 'สำนักงานใหญ่');
+                                    } else {
+                                      formik.setFieldValue('companyBranchCode', '');
+                                      formik.setFieldValue('companyBranchName', '');
+                                      formik.setFieldValue('branches.0.branchCode', '');
+                                      formik.setFieldValue('branches.0.branchName', '');
+                                    }
+                                  }}
+                                />
                               }
-                            }}
-                          />
-                        }
-                        label={t('customerManagement.column.company.headOffice')}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={9}>
-                      <TextField
-                        type="text"
-                        label={t('customerManagement.column.company.branchCode')}
-                        fullWidth
-                        onChange={({ target }) => {
-                          formik.setFieldValue('branchNumber', target.value);
-                        }}
-                        variant="outlined"
-                        disabled={formik.values.companyBranchCode === '00000'}
-                        value={formik.values.companyBranchCode}
-                        error={Boolean(
-                          formik.touched.companyBranchCode && formik.errors.companyBranchCode
-                        )}
-                        helperText={
-                          formik.touched.companyBranchCode && formik.errors.companyBranchCode
-                        }
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    </Grid>
-                  </Grid>
-                </GridTextField>
-                <GridTextField item xs={6} sm={6}>
-                  <TextField
-                    type="text"
-                    label={t('customerManagement.column.company.branchName')}
-                    fullWidth
-                    onChange={({ target }) => {
-                      formik.setFieldValue('companyBranchName', target.value);
-                    }}
-                    variant="outlined"
-                    disabled={formik.values.companyBranchCode === '00000'}
-                    value={formik.values.companyBranchName}
-                    error={Boolean(
-                      formik.touched.companyBranchName && formik.errors.companyBranchName
+                              label={t('customerManagement.column.company.headOffice')}
+                            />
+                            <TextField label={t('customerManagement.column.company.branchCode')} value={branch.branchCode} InputLabelProps={{ shrink: true }}
+                              onChange={(event) => formik.setFieldValue(`branches.${index}.branchCode`, event.target.value)} fullWidth />
+                            <TextField label={t('customerManagement.column.company.branchName')} value={branch.branchName} InputLabelProps={{ shrink: true }}
+                              onChange={(event) => formik.setFieldValue(`branches.${index}.branchName`, event.target.value)} fullWidth />
+                            <IconButton disabled={formik.values.branches.length === 1} onClick={() => remove(index)}><Delete /></IconButton>
+                          </Stack>
+                        ))}
+                        <Button size="small" startIcon={<Add />} onClick={() => push({ branchCode: '', branchName: '', isDefault: false })}>เพิ่มสาขา</Button>
+                      </Stack>
                     )}
-                    helperText={formik.touched.companyBranchName && formik.errors.companyBranchName}
-                    InputLabelProps={{ shrink: true }}
-                  />
+                  </FieldArray>
                 </GridTextField>
               </>
             ) : (

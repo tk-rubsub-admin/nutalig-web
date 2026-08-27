@@ -1,17 +1,23 @@
 import {
   ArrowBackIos,
   ArrowDropDown,
+  Cancel,
   Description,
   FilePresent,
   Menu as MenuIcon,
   NoteAdd,
   NotificationsActive,
-  Payment
+  Payment,
+  Save
 } from '@mui/icons-material';
 import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   ListItemIcon,
   ListItemText,
@@ -26,6 +32,7 @@ import {
   TableHead,
   TableRow,
   Tabs,
+  TextField,
   Tooltip,
   Typography,
   useMediaQuery,
@@ -57,27 +64,30 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
+import { getSystemConfig } from 'services/Config/config-api';
+import { GROUP_CODE } from 'services/Config/config-type';
 import { TemplateLanguage } from 'services/Document/document-type';
 import {
   getInvoice,
   receiveInvoicePayment,
+  approveInvoiceRequiredApprove,
+  rejectInvoiceRequiredApprove,
   sendAwaitingValidationNotification,
   updateInvoice,
   viewInvoice
 } from 'services/Invoice/invoice-api';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
-import {
-  InvoiceItem,
-  InvoiceRecord,
-  UpdateInvoiceRequest
-} from 'services/Invoice/invoice-type';
+import { InvoiceItem, InvoiceRecord, UpdateInvoiceRequest } from 'services/Invoice/invoice-type';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
+import { CustomerSnapshot } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 import { base64ToBlob, DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF, formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber } from 'utils/utils';
 import Can from 'auth/Can';
+import { useAuth } from 'auth/AuthContext';
 import { PERMISSIONS } from 'auth/permissions';
+import { ROLES } from 'auth/roles';
 import { buildInvoiceDocumentFlowItems } from 'utils/documentFlow';
 
 interface InvoiceDetailParams {
@@ -86,6 +96,8 @@ interface InvoiceDetailParams {
 
 interface InvoiceDraft {
   deliveryDate: string;
+  paymentTerm: string;
+  customerSnapshot: CustomerSnapshot;
 }
 
 const getTodayDateInputValue = () => new Date().toISOString().slice(0, 10);
@@ -100,8 +112,37 @@ const toDateInputValue = (value?: string | null) => {
 };
 
 const createDraft = (invoice?: InvoiceRecord | null): InvoiceDraft => {
+  const customer = invoice?.customer as any;
   return {
-    deliveryDate: toDateInputValue(invoice?.deliveryDate)
+    deliveryDate: toDateInputValue(invoice?.deliveryDate),
+    paymentTerm: invoice?.customerPaymentTerm?.code || customer?.customerPaymentTerm?.code || '',
+    customerSnapshot: {
+      customerName:
+        invoice?.customerSnapshot?.customerName ||
+        invoice?.customerNameSnapshot ||
+        customer?.customerName ||
+        customer?.companyName ||
+        '',
+      taxId:
+        invoice?.customerSnapshot?.taxId || invoice?.customerTaxIdSnapshot || customer?.taxId || '',
+      branchCode: invoice?.customerSnapshot?.branchCode || '',
+      branchName: invoice?.customerSnapshot?.branchName || '',
+      address:
+        invoice?.customerSnapshot?.address ||
+        invoice?.customerAddressSnapshot ||
+        invoice?.customerAddress?.fullAddress ||
+        '',
+      contactName:
+        invoice?.customerSnapshot?.contactName ||
+        invoice?.customerContactSnapshot ||
+        invoice?.customerContact?.contactName ||
+        '',
+      contactNumber:
+        invoice?.customerSnapshot?.contactNumber ||
+        invoice?.customerPhoneSnapshot ||
+        invoice?.customerContact?.contactNumber ||
+        ''
+    }
   };
 };
 
@@ -156,9 +197,15 @@ function getEmployeeName(invoice?: InvoiceRecord): string {
 
 function getCustomerLabel(invoice?: InvoiceRecord): string {
   const customer = invoice?.customer as any;
-  if (!customer) return '-';
   return (
-    [customer.id ? `(${customer.id})` : '', customer.customerName || customer.companyName || '']
+    [
+      customer?.id ? `(${customer.id})` : '',
+      invoice?.customerSnapshot?.customerName ||
+      invoice?.customerNameSnapshot ||
+      customer?.customerName ||
+      customer?.companyName ||
+      ''
+    ]
       .filter(Boolean)
       .join(' ') || '-'
   );
@@ -198,6 +245,7 @@ function Summary({
 
 export default function InvoiceDetail(): ReactElement {
   const { id } = useParams<InvoiceDetailParams>();
+  const { getRole } = useAuth();
   const history = useHistory();
   const { t } = useTranslation();
   const theme = useTheme();
@@ -218,6 +266,9 @@ export default function InvoiceDetail(): ReactElement {
   const [paymentSlipFiles, setPaymentSlipFiles] = useState<File[]>([]);
   const [visibleInvoiceLanguageDialog, setVisibleInvoiceLanguageDialog] = useState(false);
   const [isInvoiceDocumentLoading, setIsInvoiceDocumentLoading] = useState(false);
+  const [urgentRejectReason, setUrgentRejectReason] = useState('');
+  const [isRequiredApproveDialogOpen, setIsRequiredApproveDialogOpen] = useState(false);
+  const [isRejectReasonDialogOpen, setIsRejectReasonDialogOpen] = useState(false);
   const useStyles = makeStyles({
     tableHeader: {
       border: '2px solid #e0e0e0',
@@ -263,11 +314,24 @@ export default function InvoiceDetail(): ReactElement {
     enabled: Boolean(id),
     refetchOnWindowFocus: false
   });
+  const shouldShowRequiredApproveDialog =
+    getRole() === ROLES.SUPER_ADMIN &&
+    invoice?.requiredApprove === true &&
+    invoice?.requiredApproveStatus === 'PENDING_APPROVAL';
+  const { data: customerPaymentTermList = [] } = useQuery(
+    ['invoice-customer-payment-term', GROUP_CODE.CUSTOMER_PAYMENT_TERM],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+    { refetchOnWindowFocus: false }
+  );
 
   useEffect(() => {
     setDraft(createDraft(invoice));
     setIsEditing(false);
   }, [invoice]);
+
+  useEffect(() => {
+    setIsRequiredApproveDialogOpen(shouldShowRequiredApproveDialog);
+  }, [shouldShowRequiredApproveDialog]);
 
   const {
     data: activityHistory = [],
@@ -278,10 +342,7 @@ export default function InvoiceDetail(): ReactElement {
     refetchOnWindowFocus: false
   });
 
-  const {
-    data: relatedReceiptsResponse,
-    isFetching: isReceiptFlowFetching
-  } = useQuery(
+  const { data: relatedReceiptsResponse, isFetching: isReceiptFlowFetching } = useQuery(
     ['invoice-receipts', invoice?.invoiceNo],
     () =>
       searchReceipts(
@@ -297,10 +358,7 @@ export default function InvoiceDetail(): ReactElement {
     }
   );
 
-  const {
-    data: relatedSalesOrder,
-    isFetching: isSalesOrderFlowFetching
-  } = useQuery(
+  const { data: relatedSalesOrder, isFetching: isSalesOrderFlowFetching } = useQuery(
     ['invoice-sales-order', invoice?.salesOrderNo],
     () => getSalesOrderV1(invoice?.salesOrderNo as string),
     {
@@ -324,10 +382,13 @@ export default function InvoiceDetail(): ReactElement {
   const isReceivePaymentEnabled = Boolean(
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
   );
-  const canEditInvoice = Boolean(invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status));
+  const canEditInvoice = Boolean(invoice && ['DRAFT', 'ISSUED', 'PARTIALLY_PAID'].includes(invoice.status));
+  const canDownloadInvoice = Boolean(invoice && ['DRAFT'].includes(invoice.status) && isInvoiceDocumentLoading);
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestReceipt =
-    relatedReceipts.find((record) => record.invoiceNo === invoice?.invoiceNo) || relatedReceipts[0] || null;
+    relatedReceipts.find((record) => record.invoiceNo === invoice?.invoiceNo) ||
+    relatedReceipts[0] ||
+    null;
 
   const documentFlowItems = buildInvoiceDocumentFlowItems({
     rfqId: relatedSalesOrder?.rfqId || null,
@@ -377,7 +438,9 @@ export default function InvoiceDetail(): ReactElement {
     }
 
     const payload: UpdateInvoiceRequest = {
-      deliveryDate: draft.deliveryDate || null
+      deliveryDate: draft.deliveryDate || null,
+      customerPaymentTerm: draft.paymentTerm || null,
+      customerSnapshot: draft.customerSnapshot
     };
 
     setIsSaving(true);
@@ -432,14 +495,16 @@ export default function InvoiceDetail(): ReactElement {
       });
     }
 
-    void toast.promise(receiveInvoicePayment(invoice.invoiceNo, formData), {
-      loading: t('toast.loading'),
-      success: () => t('toast.success'),
-      error: (error) => error?.response?.data?.message || t('toast.failed')
-    }).then(async () => {
-      setReceivePaymentDialogOpen(false);
-      await Promise.all([refetchInvoice(), refetchActivityHistory()]);
-    });
+    void toast
+      .promise(receiveInvoicePayment(invoice.invoiceNo, formData), {
+        loading: t('toast.loading'),
+        success: () => t('toast.success'),
+        error: (error) => error?.response?.data?.message || t('toast.failed')
+      })
+      .then(async () => {
+        setReceivePaymentDialogOpen(false);
+        await Promise.all([refetchInvoice(), refetchActivityHistory()]);
+      });
   };
 
   const handleOpenInvoiceLanguageDialog = () => {
@@ -539,15 +604,52 @@ export default function InvoiceDetail(): ReactElement {
     await Promise.all([refetchInvoice(), refetchActivityHistory()]);
   };
 
+  const handleApproveUrgent = async () => {
+    if (!invoice?.invoiceNo) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(approveInvoiceRequiredApprove(invoice.invoiceNo), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: (error) => error?.response?.data?.message || t('toast.failed')
+      });
+      handleCloseUrgentDetailDialog();
+      await Promise.all([refetchInvoice(), refetchActivityHistory()]);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRejectUrgent = async () => {
+    if (!invoice?.invoiceNo || !urgentRejectReason.trim()) {
+      toast.error('กรุณาระบุเหตุผลที่ไม่อนุมัติ');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(rejectInvoiceRequiredApprove(invoice.invoiceNo, urgentRejectReason.trim()), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: (error) => error?.response?.data?.message || t('toast.failed')
+      });
+      setUrgentRejectReason('');
+      handleCloseUrgentDetailDialog();
+      await Promise.all([refetchInvoice(), refetchActivityHistory()]);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCloseUrgentDetailDialog = () => {
+    setIsRequiredApproveDialogOpen(false);
+  };
+
   return (
-      <Page>
-      <LoadingDialog open={isFetching || isActivityHistoryFetching || isSaving} />
-      <DocumentLanguageDialog
-        open={visibleInvoiceLanguageDialog}
-        title={isDownSm ? 'ดาวน์โหลดไฟล์ใบแจ้งหนี้' : 'ดูใบแจ้งหนี้'}
-        onClose={handleCloseInvoiceLanguageDialog}
-        onSelect={handleSelectInvoiceLanguage}
-      />
+    <Page>
       <PageTitle
         title={
           invoice?.invoiceNo
@@ -561,6 +663,19 @@ export default function InvoiceDetail(): ReactElement {
             sx={getDocumentStatusChipSx(invoice.status, invoice.statusProfile)}
           />
         ) : null}
+        {invoice?.requiredApproveStatus === 'PENDING_APPROVAL' ? (
+          <Chip label="รออนุมัติ" size="small" color="warning" />
+        ) : null}
+        {invoice?.requiredApproveStatus === 'REJECTED' ? (
+          <Chip
+            label="ไม่อนุมัติ"
+            size="small"
+            color="error"
+            onClick={() => setIsRejectReasonDialogOpen(true)}
+            sx={{ cursor: 'pointer' }}
+          />
+        ) : null}
+
       </PageTitle>
       <Wrapper>
         <Stack
@@ -599,8 +714,17 @@ export default function InvoiceDetail(): ReactElement {
             }}
             keepMounted>
             <MenuItem
+              onClick={handleSelectEditInvoice}
+              disabled={!canEditInvoice}
+              sx={{ width: '100%' }}>
+              <ListItemIcon>
+                <IoPencil />
+              </ListItemIcon>
+              <ListItemText primary="แก้ไขใบแจ้งหนี้" />
+            </MenuItem>
+            <MenuItem
               onClick={handleOpenInvoiceLanguageDialog}
-              disabled={!invoice || isInvoiceDocumentLoading}
+              disabled={!canDownloadInvoice}
               sx={{ width: '100%' }}>
               <ListItemIcon>
                 <Description fontSize="small" />
@@ -618,15 +742,6 @@ export default function InvoiceDetail(): ReactElement {
                 <ListItemText primary="รับชำระเงิน" />
               </MenuItem>
             </Can>
-            <MenuItem
-              onClick={handleSelectEditInvoice}
-              disabled={!canEditInvoice}
-              sx={{ width: '100%' }}>
-              <ListItemIcon>
-                <IoPencil />
-              </ListItemIcon>
-              <ListItemText primary="แก้ไขใบแจ้งหนี้" />
-            </MenuItem>
           </Menu>
           <Button
             fullWidth={isDownSm}
@@ -663,6 +778,39 @@ export default function InvoiceDetail(): ReactElement {
             <Tab value="history" label="ประวัติ" />
           </Tabs>
         </Box>
+
+        {isEditing ? (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            useFlexGap
+            sx={{
+              justifyContent: 'flex-end',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              mt: 2
+            }}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-cool-grey"
+              startIcon={<Cancel />}
+              onClick={handleCancelEditInvoice}
+              disabled={isSaving}>
+              {t('button.cancel')}
+            </Button>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              startIcon={<Save />}
+              onClick={() => {
+                void handleSaveInvoice();
+              }}
+              disabled={isSaving}>
+              {t('button.save')}
+            </Button>
+          </Stack>
+        ) : null}
 
         <TabPanel value="detail" currentTab={tab}>
           <>
@@ -716,27 +864,8 @@ export default function InvoiceDetail(): ReactElement {
                       />
                     </Stack>
                   ) : (
-                    <Info
-                      label="วันที่ส่งสินค้า"
-                      value={invoice?.deliveryDate || '-'}
-                    />
+                    <Info label="วันที่ส่งสินค้า" value={invoice?.deliveryDate || '-'} />
                   )}
-                  {isEditing ? (
-                    <Stack direction="row" spacing={1} justifyContent="flex-end" useFlexGap>
-                      <Button variant="outlined" onClick={handleCancelEditInvoice}>
-                        ยกเลิก
-                      </Button>
-                      <Button
-                        variant="contained"
-                        className="btn-indigo-blue"
-                        onClick={() => {
-                          void handleSaveInvoice();
-                        }}
-                        disabled={isSaving}>
-                        บันทึก
-                      </Button>
-                    </Stack>
-                  ) : null}
                 </Stack>
               </Grid>
 
@@ -746,21 +875,179 @@ export default function InvoiceDetail(): ReactElement {
                     {t('documentManagement.invoice.customerSection.title')}
                   </Typography>
                   <Info
-                    label={t('customerManagement.customer')}
-                    value={getCustomerLabel(invoice)}
+                    label={t('customerManagement.column.id')}
+                    value={invoice?.customer?.id || '-'}
                   />
-                  <Info
-                    label={t('documentManagement.invoice.customerSection.address')}
-                    value={invoice?.customerAddress?.fullAddress || '-'}
-                  />
-                  <Info
-                    label={t('documentManagement.invoice.customerSection.contactName')}
-                    value={invoice?.customerContact?.contactName || '-'}
-                  />
-                  <Info
-                    label={t('documentManagement.invoice.customerSection.contactNumber')}
-                    value={invoice?.customerContact?.contactNumber || '-'}
-                  />
+                  {isEditing ? (
+                    <>
+                      <TextField
+                        label="ชื่อลูกค้า"
+                        value={draft.customerSnapshot.customerName}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              customerName: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="เลขประจำตัวผู้เสียภาษี"
+                        value={draft.customerSnapshot.taxId}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              taxId: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="รหัสสาขา"
+                        value={draft.customerSnapshot.branchCode}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              branchCode: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="ชื่อสาขา"
+                        value={draft.customerSnapshot.branchName}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              branchName: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="ชื่อผู้ติดต่อ"
+                        value={draft.customerSnapshot.contactName}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              contactName: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="เบอร์โทรผู้ติดต่อ"
+                        value={draft.customerSnapshot.contactNumber}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              contactNumber: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        label="ที่อยู่"
+                        multiline
+                        minRows={2}
+                        value={draft.customerSnapshot.address}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            customerSnapshot: {
+                              ...previous.customerSnapshot,
+                              address: event.target.value
+                            }
+                          }))
+                        }
+                      />
+                      <TextField
+                        select
+                        label={t('customerManagement.column.paymentTerm')}
+                        value={draft.paymentTerm}
+                        onChange={(event) =>
+                          setDraft((previous) => ({ ...previous, paymentTerm: event.target.value }))
+                        }>
+                        {customerPaymentTermList.map((option) => (
+                          <MenuItem key={option.code} value={option.code}>
+                            {option.nameTh || option.nameEn || option.code}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </>
+                  ) : (
+                    <>
+                      <Info
+                        label="เลขประจำตัวผู้เสียภาษี"
+                        value={
+                          invoice?.customerSnapshot?.taxId ||
+                          invoice?.customerTaxIdSnapshot ||
+                          invoice?.customer?.taxId
+                        }
+                      />
+                      <Info
+                        label="สาขา"
+                        value={
+                          [
+                            invoice?.customerSnapshot?.branchCode,
+                            invoice?.customerSnapshot?.branchName
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || '-'
+                        }
+                      />
+                      <Info
+                        label={t('documentManagement.invoice.customerSection.address')}
+                        value={
+                          invoice?.customerSnapshot?.address ||
+                          invoice?.customerAddressSnapshot ||
+                          invoice?.customerAddress?.fullAddress ||
+                          '-'
+                        }
+                      />
+                      <Info
+                        label={t('documentManagement.invoice.customerSection.contactName')}
+                        value={
+                          invoice?.customerSnapshot?.contactName ||
+                          invoice?.customerContactSnapshot ||
+                          invoice?.customerContact?.contactName ||
+                          '-'
+                        }
+                      />
+                      <Info
+                        label={t('documentManagement.invoice.customerSection.contactNumber')}
+                        value={
+                          invoice?.customerSnapshot?.contactNumber ||
+                          invoice?.customerPhoneSnapshot ||
+                          invoice?.customerContact?.contactNumber ||
+                          '-'
+                        }
+                      />
+                      <Info
+                        label={t('customerManagement.column.paymentTerm')}
+                        value={
+                          invoice?.customerPaymentTerm?.nameTh ||
+                          invoice?.customerPaymentTerm?.nameEn ||
+                          invoice?.customerPaymentTerm?.code ||
+                          invoice?.customer?.customerPaymentTerm?.nameTh ||
+                          invoice?.customer?.customerPaymentTerm?.code ||
+                          '-'
+                        }
+                      />
+                    </>
+                  )}
                 </Stack>
               </Grid>
 
@@ -801,27 +1088,55 @@ export default function InvoiceDetail(): ReactElement {
                 <Stack spacing={1.25} sx={{ width: '100%' }}>
                   {invoice?.items?.length ? (
                     invoice.items.map((item: InvoiceItem, index: number) => (
-                      <Stack key={item.id || index} spacing={1.25} className={classes.mobileItemCard}>
+                      <Stack
+                        key={item.id || index}
+                        spacing={1.25}
+                        className={classes.mobileItemCard}>
                         <Stack spacing={0.35} className={classes.mobileItemHeader}>
                           <Typography variant="caption" color="text.secondary" fontWeight={700}>
                             รายการที่ {item.lineNo || index + 1}
                           </Typography>
-                          <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
+                          <Typography
+                            variant="body2"
+                            fontWeight={700}
+                            sx={{ wordBreak: 'break-word' }}>
                             {item.name || '-'}
                           </Typography>
                         </Stack>
                         <Stack spacing={1}>
-                          <Info label={t('documentManagement.invoice.itemSection.spec')} value={item.spec || '-'} />
+                          <Info
+                            label={t('documentManagement.invoice.itemSection.spec')}
+                            value={item.spec || '-'}
+                          />
                           <Grid container spacing={1.25}>
                             <Grid item xs={6}>
-                              <Info label={t('documentManagement.invoice.itemSection.unitPrice')} value={formatNumber(item.unitPrice || 0)} />
+                              <Info
+                                label={t('documentManagement.invoice.itemSection.unitPrice')}
+                                value={formatNumber(item.unitPrice || 0)}
+                              />
                             </Grid>
                             <Grid item xs={6}>
-                              <Info label={t('documentManagement.invoice.itemSection.quantity')} value={formatNumber(item.quantity || 0)} />
+                              <Info
+                                label={t('documentManagement.invoice.itemSection.quantity')}
+                                value={formatNumber(item.quantity || 0)}
+                              />
                             </Grid>
                             <Grid item xs={12}>
-                              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                sx={{
+                                  px: 1.25,
+                                  py: 1,
+                                  borderRadius: 2,
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0'
+                                }}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  fontWeight={700}>
                                   {t('documentManagement.invoice.itemSection.totalAmount')}
                                 </Typography>
                                 <Typography variant="body2" fontWeight={700}>
@@ -842,29 +1157,61 @@ export default function InvoiceDetail(): ReactElement {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
-                        <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.invoice.itemSection.name')}</TableCell>
-                        <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>{t('documentManagement.invoice.itemSection.spec')}</TableCell>
-                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.invoice.itemSection.unitPrice')}</TableCell>
-                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.invoice.itemSection.quantity')}</TableCell>
-                        <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.invoice.itemSection.totalAmount')}</TableCell>
+                        <TableCell
+                          align="center"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          #
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          {t('documentManagement.invoice.itemSection.name')}
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.specCell}`}>
+                          {t('documentManagement.invoice.itemSection.spec')}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          {t('documentManagement.invoice.itemSection.unitPrice')}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          {t('documentManagement.invoice.itemSection.quantity')}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                          {t('documentManagement.invoice.itemSection.totalAmount')}
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {invoice?.items?.length ? (
                         invoice.items.map((item: InvoiceItem, index: number) => (
                           <TableRow key={item.id || index}>
-                            <TableCell align="center" className={classes.fitContentCell}>{item.lineNo || index + 1}</TableCell>
-                            <TableCell className={classes.fitContentCell}>{item.name || '-'}</TableCell>
+                            <TableCell align="center" className={classes.fitContentCell}>
+                              {item.lineNo || index + 1}
+                            </TableCell>
+                            <TableCell className={classes.fitContentCell}>
+                              {item.name || '-'}
+                            </TableCell>
                             <TableCell className={classes.specCell}>{item.spec || '-'}</TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.unitPrice || 0)}</TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.quantity || 0)}</TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.amount || 0)}</TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>
+                              {formatNumber(item.unitPrice || 0)}
+                            </TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>
+                              {formatNumber(item.quantity || 0)}
+                            </TableCell>
+                            <TableCell align="right" className={classes.fitContentCell}>
+                              {formatNumber(item.amount || 0)}
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} align="center">{t('warning.noResultList')}</TableCell>
+                          <TableCell colSpan={6} align="center">
+                            {t('warning.noResultList')}
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -976,7 +1323,11 @@ export default function InvoiceDetail(): ReactElement {
                               </TableCell>
                               <TableCell align="center">
                                 {payment.slipFiles?.length ? (
-                                  <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap">
+                                  <Stack
+                                    direction="row"
+                                    spacing={0.5}
+                                    justifyContent="center"
+                                    flexWrap="wrap">
                                     {payment.slipFiles.map((file) => (
                                       <Tooltip
                                         key={file.id}
@@ -1013,7 +1364,9 @@ export default function InvoiceDetail(): ReactElement {
                                     <Button
                                       size="small"
                                       variant="text"
-                                      onClick={() => handleViewReceipt(payment.receiptNo as string)}>
+                                      onClick={() =>
+                                        handleViewReceipt(payment.receiptNo as string)
+                                      }>
                                       <Description />
                                     </Button>
                                   </Tooltip>
@@ -1088,6 +1441,74 @@ export default function InvoiceDetail(): ReactElement {
           onChequeBranchChange={setChequeBranch}
           onSlipFilesChange={setPaymentSlipFiles}
           onSubmit={handleSubmitReceivePayment}
+        />
+        <LoadingDialog open={isFetching || isActivityHistoryFetching || isSaving} />
+        <Dialog open={isRequiredApproveDialogOpen} fullWidth maxWidth="sm">
+          <DialogTitle>{'มีคำขออนุมัติ'}</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                label="เหตุผล"
+                value={[
+                  invoice?.requiredApproveReason,
+                  'จาก ',
+                  invoice?.customer?.customerPaymentTerm?.nameTh,
+                  ' เป็น ',
+                  invoice?.customerPaymentTerm?.nameTh
+                ]
+                  .filter(Boolean)
+                  .join(' ') || '-'}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: true }}
+              />
+              <TextField
+                fullWidth
+                label="เหตุผลที่ไม่อนุมัติ"
+                onChange={(event) => setUrgentRejectReason(event.target.value)}
+                multiline
+                minRows={3}
+                InputLabelProps={{ shrink: true }}
+                helperText={'จำเป็นต้องกรอกเมื่อกดไม่อนุมัติ'}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button className="btn-crimson-red" onClick={() => void handleRejectUrgent()}>
+              ไม่อนุมัติคำขอ
+            </Button>
+            <Button className="btn-indigo-blue" onClick={() => void handleApproveUrgent()}>
+              อนุมัติคำขอ
+            </Button>
+            <Button onClick={handleCloseUrgentDetailDialog}>{t('button.close')}</Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={isRejectReasonDialogOpen}
+          onClose={() => setIsRejectReasonDialogOpen(false)}
+          fullWidth
+          maxWidth="sm">
+          <DialogTitle>เหตุผลที่ไม่อนุมัติ</DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              value={invoice?.rejectReason || '-'}
+              InputProps={{ readOnly: true }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setIsRejectReasonDialogOpen(false)}>{t('button.close')}</Button>
+          </DialogActions>
+        </Dialog>
+        <DocumentLanguageDialog
+          open={visibleInvoiceLanguageDialog}
+          title={isDownSm ? 'ดาวน์โหลดไฟล์ใบแจ้งหนี้' : 'ดูใบแจ้งหนี้'}
+          onClose={handleCloseInvoiceLanguageDialog}
+          onSelect={handleSelectInvoiceLanguage}
         />
       </Wrapper>
     </Page>

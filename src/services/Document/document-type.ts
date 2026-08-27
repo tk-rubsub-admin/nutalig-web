@@ -14,6 +14,8 @@ export interface CreateQuotationRequest {
     customerId: string;
     customerAddressId: string;
     customerContactId: string;
+    customerBranchCode?: string;
+    customerSnapshot?: QuotationCustomerSnapshot;
     salesId: string;
     coSalesId: string;
     remark: string;
@@ -51,6 +53,7 @@ export interface Quotation {
     customer: Customer;
     customerAddress: Address;
     customerContact: Contact;
+    customerSnapshot?: QuotationCustomerSnapshot;
     saleAccount?: EmployeeRecord;
     salesAccount: EmployeeRecord;
     coSalesId: string;
@@ -66,6 +69,16 @@ export interface Quotation {
     vatRate: number;
     grandTotal: number;
     items: QuotationItem[];
+}
+
+export interface QuotationCustomerSnapshot {
+    customerName: string;
+    taxId: string;
+    branchCode: string;
+    branchName: string;
+    address: string;
+    contactName: string;
+    contactNumber: string;
 }
 
 export interface QuotationItem {
@@ -87,6 +100,7 @@ export interface UpdateQuotationRequest {
     remark: string;
     items: QuotationItem[];
     isVat?: boolean;
+    customerSnapshot?: QuotationCustomerSnapshot;
 }
 
 export interface SearchQuotationRequest {

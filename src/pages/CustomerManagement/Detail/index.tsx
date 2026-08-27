@@ -1259,7 +1259,7 @@ export default function CustomerDetail(): JSX.Element {
         <DialogTitle>{t('customerManagement.column.address.addNew')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 name="addressType"
                 select
@@ -1286,7 +1286,7 @@ export default function CustomerDetail(): JSX.Element {
                 </MenuItem>
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 name="label"
                 type="text"
@@ -1331,7 +1331,7 @@ export default function CustomerDetail(): JSX.Element {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6} sx={{ display: showThaiAddressFields ? 'block' : 'none' }}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 name="country"
                 select

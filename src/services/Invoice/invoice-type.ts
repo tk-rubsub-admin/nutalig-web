@@ -36,7 +36,20 @@ export interface InvoicePayment {
   chequeBranch: string | null;
   slipFileName: string | null;
   slipFileUrl: string | null;
+  slipFiles?: InvoicePaymentSlipFile[];
   receiptNo: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
+}
+
+export interface InvoicePaymentSlipFile {
+  id: number;
+  fileName: string | null;
+  originalFileName: string | null;
+  fileUrl: string | null;
+  contentType: string | null;
+  fileSize: number | null;
+  sortOrder: number | null;
   createdDate?: string | null;
   updatedDate?: string | null;
 }

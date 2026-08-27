@@ -1995,8 +1995,8 @@ export default function RFQDetail(): ReactElement {
   const canRequestSpecialPriceAction =
     hasPermission(PERMISSIONS.RFQ_EDIT) && rfq?.status === 'NEW';
   const canConfirmPriceAction = rfq?.status === 'QUOTED' && hasPermission(PERMISSIONS.RFQ_CONFIRM);
-  const canRequestQuotationAction =
-    rfq?.status === 'QUOTED' && !rfq?.saleOrderId && quotationOptions.length === 0;
+  // const canRequestQuotationAction =
+  //   rfq?.status === 'QUOTED' && !rfq?.saleOrderId && quotationOptions.length === 0;
   const canReviewSpecialPriceAction = rfq?.status === 'QUOTED';
   const canViewQuotationAction = quotationOptions.length > 0;
   const canDownloadQuotationAction = quotationOptions.length > 0;
@@ -2006,7 +2006,7 @@ export default function RFQDetail(): ReactElement {
     canRejectAction ||
     canCopyRfqAction ||
     canConfirmPriceAction ||
-    canRequestQuotationAction ||
+    // canRequestQuotationAction ||
     canViewQuotationAction ||
     canDownloadQuotationAction ||
     canDownloadSalesOrderAction;
@@ -2698,19 +2698,17 @@ export default function RFQDetail(): ReactElement {
                       <ListItemText primary={t('rfqManagement.detail.actions.confirmPrice')} />
                     </MenuItem>
                   ) : null}
-                  {canRequestQuotationAction ? (
-                    <MenuItem
-                      onClick={() => {
-                        handleCloseDownloadMenu();
-                        handleOpenRequestQuotationChoiceDialog();
-                      }}
-                      sx={{ width: '100%' }}>
-                      <ListItemIcon>
-                        <FilePresent fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={t('rfqManagement.detail.actions.requestQuotation')} />
-                    </MenuItem>
-                  ) : null}
+                  <MenuItem
+                    onClick={() => {
+                      handleCloseDownloadMenu();
+                      handleOpenRequestQuotationChoiceDialog();
+                    }}
+                    sx={{ width: '100%' }}>
+                    <ListItemIcon>
+                      <FilePresent fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={t('rfqManagement.detail.actions.requestQuotation')} />
+                  </MenuItem>
                   {canCopyRfqAction ? (
                     <MenuItem
                       onClick={() => {
@@ -2743,15 +2741,15 @@ export default function RFQDetail(): ReactElement {
                     </ListItemIcon>
                     <ListItemText primary="เพิ่มโน้ต" />
                   </MenuItem>
-                  {canDownloadQuotationAction ? (
+                  {/* {canDownloadQuotationAction ? (
                     <MenuItem onClick={handleViewQuotation} sx={{ width: '100%' }}>
                       <ListItemIcon>
                         <OpenInNew fontSize="small" />
                       </ListItemIcon>
                       <ListItemText primary="ดูใบเสนอราคา" />
                     </MenuItem>
-                  ) : null}
-                  {canDownloadQuotationAction ? (
+                  ) : null} */}
+                  {/* {canDownloadQuotationAction ? (
                     <MenuItem onClick={handleDownloadQuotation} sx={{ width: '100%' }}>
                       <ListItemIcon>
                         <Download fontSize="small" />
@@ -2760,7 +2758,7 @@ export default function RFQDetail(): ReactElement {
                         primary={t('rfqManagement.detail.actions.downloadQuotation')}
                       />
                     </MenuItem>
-                  ) : null}
+                  ) : null} */}
                   {canDownloadSalesOrderAction ? (
                     <MenuItem
                       onClick={handleOpenSalesOrderLanguageDialog}

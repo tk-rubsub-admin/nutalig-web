@@ -209,6 +209,7 @@ export default function InvoiceDetail(): ReactElement {
   const [draft, setDraft] = useState<InvoiceDraft>(createDraft());
   const [receivePaymentDialogOpen, setReceivePaymentDialogOpen] = useState(false);
   const [paymentDate, setPaymentDate] = useState(getTodayDateInputValue);
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'TRANSFER' | 'CHEQUE' | 'CASH'>('TRANSFER');
   const [chequeBank, setChequeBank] = useState('');
   const [chequeNo, setChequeNo] = useState('');
@@ -396,6 +397,7 @@ export default function InvoiceDetail(): ReactElement {
   const handleOpenReceivePaymentDialog = () => {
     handleCloseActionMenu();
     setPaymentDate(getTodayDateInputValue());
+    setPaymentAmount(summary.outstandingTotal || 0);
     setPaymentMethod('TRANSFER');
     setChequeBank('');
     setChequeNo('');
@@ -410,13 +412,13 @@ export default function InvoiceDetail(): ReactElement {
   };
 
   const handleSubmitReceivePayment = () => {
-    if (!invoice?.invoiceNo || !paymentDate || paymentSlipFiles.length === 0) {
+    if (!invoice?.invoiceNo || !paymentDate || paymentAmount <= 0) {
       return;
     }
 
     const formData = new FormData();
     formData.append('paymentDate', toPaymentDateTimeIso(paymentDate));
-    formData.append('amount', String(summary.outstandingTotal || 0));
+    formData.append('amount', String(paymentAmount));
     formData.append('paymentMethod', paymentMethod);
     if (paymentMethod === 'CHEQUE') {
       formData.append('chequeBank', chequeBank);
@@ -424,8 +426,10 @@ export default function InvoiceDetail(): ReactElement {
       formData.append('chequeDate', chequeDate);
       formData.append('chequeBranch', chequeBranch);
     }
-    if (paymentMethod === 'TRANSFER' && paymentSlipFiles[0]) {
-      formData.append('slipFile', paymentSlipFiles[0]);
+    if (paymentMethod === 'TRANSFER') {
+      paymentSlipFiles.forEach((file) => {
+        formData.append('slipFiles', file);
+      });
     }
 
     void toast.promise(receiveInvoicePayment(invoice.invoiceNo, formData), {
@@ -971,7 +975,25 @@ export default function InvoiceDetail(): ReactElement {
                                 {formatNumber(payment.amount || 0)}
                               </TableCell>
                               <TableCell align="center">
-                                {payment.slipFileUrl ? (
+                                {payment.slipFiles?.length ? (
+                                  <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap">
+                                    {payment.slipFiles.map((file) => (
+                                      <Tooltip
+                                        key={file.id}
+                                        title={file.originalFileName || file.fileName || 'ดูสลิป'}>
+                                        <Button
+                                          size="small"
+                                          variant="text"
+                                          component="a"
+                                          href={file.fileUrl || undefined}
+                                          target="_blank"
+                                          rel="noopener noreferrer">
+                                          <FilePresent />
+                                        </Button>
+                                      </Tooltip>
+                                    ))}
+                                  </Stack>
+                                ) : payment.slipFileUrl ? (
                                   <Tooltip title="ดูสลิป">
                                     <Button
                                       size="small"
@@ -1048,7 +1070,8 @@ export default function InvoiceDetail(): ReactElement {
           open={receivePaymentDialogOpen}
           invoiceNo={invoice?.invoiceNo}
           paymentDate={paymentDate}
-          amount={summary.outstandingTotal}
+          amount={paymentAmount}
+          maxAmount={summary.outstandingTotal}
           paymentMethod={paymentMethod}
           chequeBank={chequeBank}
           chequeNo={chequeNo}
@@ -1057,6 +1080,7 @@ export default function InvoiceDetail(): ReactElement {
           slipFiles={paymentSlipFiles}
           onClose={handleCloseReceivePaymentDialog}
           onPaymentDateChange={setPaymentDate}
+          onAmountChange={setPaymentAmount}
           onPaymentMethodChange={setPaymentMethod}
           onChequeBankChange={setChequeBank}
           onChequeNoChange={setChequeNo}

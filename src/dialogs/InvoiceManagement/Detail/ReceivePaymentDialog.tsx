@@ -10,13 +10,13 @@ import {
 } from '@mui/material';
 import FancyFileInput from 'components/FancyFileInput';
 import { ReactElement } from 'react';
-import { formatNumber } from 'utils/utils';
 
 type ReceivePaymentDialogProps = {
   open: boolean;
   invoiceNo: string;
   paymentDate: string;
   amount: number;
+  maxAmount: number;
   paymentMethod: 'TRANSFER' | 'CHEQUE' | 'CASH';
   chequeBank: string;
   chequeNo: string;
@@ -25,6 +25,7 @@ type ReceivePaymentDialogProps = {
   slipFiles: File[];
   onClose: () => void;
   onPaymentDateChange: (value: string) => void;
+  onAmountChange: (value: number) => void;
   onPaymentMethodChange: (value: 'TRANSFER' | 'CHEQUE' | 'CASH') => void;
   onChequeBankChange: (value: string) => void;
   onChequeNoChange: (value: string) => void;
@@ -39,6 +40,7 @@ export default function ReceivePaymentDialog({
   invoiceNo,
   paymentDate,
   amount,
+  maxAmount,
   paymentMethod,
   chequeBank,
   chequeNo,
@@ -47,6 +49,7 @@ export default function ReceivePaymentDialog({
   slipFiles,
   onClose,
   onPaymentDateChange,
+  onAmountChange,
   onPaymentMethodChange,
   onChequeBankChange,
   onChequeNoChange,
@@ -57,8 +60,10 @@ export default function ReceivePaymentDialog({
 }: ReceivePaymentDialogProps): ReactElement {
   const isTransfer = paymentMethod === 'TRANSFER';
   const isCheque = paymentMethod === 'CHEQUE';
+  const isAmountInvalid = amount <= 0 || amount > maxAmount;
   const isSubmitDisabled =
     !paymentDate ||
+    isAmountInvalid ||
     (isTransfer && slipFiles.length === 0) ||
     (isCheque && (!chequeBank || !chequeNo || !chequeDate));
 
@@ -89,10 +94,11 @@ export default function ReceivePaymentDialog({
           </TextField>
           <TextField
             fullWidth
+            type="number"
             label="จำนวนยอดเงิน"
-            value={formatNumber(amount || 0)}
-            InputProps={{ readOnly: true }}
-            InputLabelProps={{ shrink: true }}
+            value={amount}
+            onChange={(event) => onAmountChange(Number(event.target.value || 0))}
+            inputProps={{ min: 0, step: '0.01' }}
           />
           {isCheque ? (
             <>
@@ -128,6 +134,7 @@ export default function ReceivePaymentDialog({
             <FancyFileInput
               fullWidth
               accept="image/*,.pdf"
+              multiple
               value={slipFiles}
               onChange={onSlipFilesChange}
               helperText="แนบไฟล์สลิปโอนเงิน"

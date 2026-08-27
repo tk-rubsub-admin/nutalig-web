@@ -105,6 +105,18 @@ type ConfirmQuotationRow = {
     isShareFCL: boolean;
 };
 
+const recalculateQuotationItem = (item: QuotationItem): QuotationItem => {
+    const quantity = Number(item.quantity || 0);
+    const unitPrice = Number(item.unitPrice || 0);
+
+    return {
+        ...item,
+        quantity,
+        unitPrice,
+        amount: quantity * unitPrice
+    };
+};
+
 const inferQuotationItemShippingMethod = (name?: string | null): 'LAND' | 'SEA' | null => {
     const normalizedName = (name || '').toLowerCase();
 
@@ -496,7 +508,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftItems((prev) =>
             prev.map((item, itemIndex) => {
                 if (itemIndex !== index) {
-                    return item;
+                    return recalculateQuotationItem(item);
                 }
 
                 if (field === 'unitPrice' || field === 'quantity') {
@@ -506,10 +518,7 @@ export default function QuotationDetail(): JSX.Element {
                         [field]: nextValue
                     };
 
-                    return {
-                        ...nextItem,
-                        amount: (nextItem.unitPrice || 0) * (nextItem.quantity || 0)
-                    };
+                    return recalculateQuotationItem(nextItem);
                 }
 
                 return {
@@ -519,6 +528,15 @@ export default function QuotationDetail(): JSX.Element {
             })
         );
     };
+
+    const draftSubTotal = useMemo(
+        () => draftItems.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+        [draftItems]
+    );
+    const draftDiscount = Number(quotation?.discount || 0);
+    const draftFreight = Number(quotation?.freight || 0);
+    const draftVatAmount = draftIsVat ? Math.max(draftSubTotal - draftDiscount, 0) * 0.07 : 0;
+    const draftGrandTotal = Math.max(draftSubTotal - draftDiscount, 0) + draftVatAmount + draftFreight;
 
     const handleOpenQuotationLanguageDialog = () => {
         handleCloseActionMenu();
@@ -631,6 +649,8 @@ export default function QuotationDetail(): JSX.Element {
             toast.error('ไม่พบข้อมูลรายการใบเสนอราคาที่เลือก');
             return;
         }
+
+        console.log('selectedRows', selectedRows);
 
         if (selectedRows.some((row) => !row.detailId)) {
             toast.error('ไม่สามารถจับคู่รายการใบเสนอราคากับ RFQ เดิมได้ครบทุกแถว');
@@ -1181,10 +1201,23 @@ export default function QuotationDetail(): JSX.Element {
                             <GridSearchSection container spacing={2} justifyContent="flex-end">
                                 <Grid item xs={12} md={4}>
                                     <Stack spacing={1.25} className={classes.section}>
-                                        <Summary label={t('documentManagement.quotation.summarySection.subtotal')} value={quotation?.subTotal} />
-                                        <Summary label={t('documentManagement.quotation.summarySection.discount')} value={quotation?.discount} />
-                                        <Summary label={t('documentManagement.quotation.summarySection.vat')} value={quotation?.vat} />
-                                        <Summary label={t('documentManagement.quotation.summarySection.grandTotal')} value={quotation?.grandTotal} strong />
+                                        <Summary
+                                            label={t('documentManagement.quotation.summarySection.subtotal')}
+                                            value={isEditing ? draftSubTotal : quotation?.subTotal}
+                                        />
+                                        <Summary
+                                            label={t('documentManagement.quotation.summarySection.discount')}
+                                            value={quotation?.discount}
+                                        />
+                                        <Summary
+                                            label={t('documentManagement.quotation.summarySection.vat')}
+                                            value={isEditing ? draftVatAmount : quotation?.vat}
+                                        />
+                                        <Summary
+                                            label={t('documentManagement.quotation.summarySection.grandTotal')}
+                                            value={isEditing ? draftGrandTotal : quotation?.grandTotal}
+                                            strong
+                                        />
                                     </Stack>
                                 </Grid>
                             </GridSearchSection>

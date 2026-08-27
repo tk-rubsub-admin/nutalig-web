@@ -162,6 +162,20 @@ function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
   };
 }
 
+function recalculateSaleOrderItem(item: SaleOrderRFQItem): SaleOrderRFQItem {
+  const quantity = Number(item.quantity || 0);
+  const unitPrice = Number(item.unitPrice || 0);
+  const shippingCost = Number(item.supplierShippingCost || 0);
+
+  return {
+    ...item,
+    quantity,
+    unitPrice,
+    amount: quantity * unitPrice,
+    totalFreight: quantity * shippingCost
+  };
+}
+
 function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 7): number {
   const parsedDays = Number(
     config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays
@@ -1684,8 +1698,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       ...items[index],
       [field]: value
     };
-    items[index].amount = Number(items[index].quantity || 0) * Number(items[index].unitPrice || 0);
-    formik.setFieldValue('items', items);
+    formik.setFieldValue('items', items.map((item) => recalculateSaleOrderItem(item)));
   };
 
   const handleAddManualItem = () => {

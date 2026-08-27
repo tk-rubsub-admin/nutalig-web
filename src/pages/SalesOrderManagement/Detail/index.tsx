@@ -264,6 +264,27 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
   };
 }
 
+function recalculateSalesOrderItem(item: SalesOrderDetailV1): SalesOrderDetailV1 {
+  const quantity = Number(item.quantity || 0);
+  const unitPrice = Number(item.unitPrice || 0);
+
+  return {
+    ...item,
+    quantity,
+    unitPrice,
+    amount: quantity * unitPrice
+  };
+}
+
+function calculateSalesOrderFreight(items: SalesOrderDetailV1[]): number {
+  return items.reduce((sum, item) => {
+    const quantity = Number(item.quantity || 0);
+    const shippingCost = Number(item.supplierShippingCost || 0);
+
+    return sum + quantity * shippingCost;
+  }, 0);
+}
+
 export default function SalesOrderDetail(): ReactElement {
   const { id } = useParams<SalesOrderDetailParams>();
   const history = useHistory();
@@ -488,11 +509,10 @@ export default function SalesOrderDetail(): ReactElement {
     field: keyof SalesOrderDetailV1,
     value: string | number
   ) => {
-    setDraft((previous) => ({
-      ...previous,
-      items: previous.items.map((item, itemIndex) => {
+    setDraft((previous) => {
+      const updatedItems = previous.items.map((item, itemIndex) => {
         if (itemIndex !== index) {
-          return item;
+          return recalculateSalesOrderItem(item);
         }
 
         const nextItem = {
@@ -500,17 +520,22 @@ export default function SalesOrderDetail(): ReactElement {
           [field]: value
         };
 
-        const unitPrice = Number(field === 'unitPrice' ? value : nextItem.unitPrice || 0);
-        const quantity = Number(field === 'quantity' ? value : nextItem.quantity || 0);
+        return recalculateSalesOrderItem(nextItem);
+      });
+      const updatedSubTotal = updatedItems.reduce(
+        (sum, item) => sum + Number(item.amount || 0),
+        0
+      );
+      const updatedFreight = calculateSalesOrderFreight(updatedItems);
 
-        return {
-          ...nextItem,
-          unitPrice,
-          quantity,
-          amount: unitPrice * quantity
-        };
-      })
-    }));
+      return {
+        ...previous,
+        items: updatedItems,
+        subTotal: updatedSubTotal,
+        freight: updatedFreight,
+        amount: Math.max(updatedSubTotal - updatedFreight, 0)
+      };
+    });
   };
 
   const handleEdit = () => {

@@ -58,6 +58,18 @@ const createEmptyRow = (): CreateQuotationItem => ({
     imageUrl: ''
 });
 
+const recalculateQuotationItem = (item: CreateQuotationItem): CreateQuotationItem => {
+    const quantity = Number(item.quantity || 0);
+    const unitPrice = Number(item.unitPrice || 0);
+
+    return {
+        ...item,
+        quantity,
+        unitPrice,
+        amount: quantity * unitPrice
+    };
+};
+
 const fieldSx = {
     '& .MuiOutlinedInput-root': {
         borderRadius: '12px',
@@ -1281,13 +1293,7 @@ export default function NewQuotation() {
         const items = [...formik.values.items];
 
         items[index][field] = value;
-
-        const quantity = Number(items[index].quantity || 0);
-        const unitPrice = Number(items[index].unitPrice || 0);
-
-        items[index].amount = quantity * unitPrice;
-
-        formik.setFieldValue('items', items);
+        formik.setFieldValue('items', items.map((item) => recalculateQuotationItem(item)));
     };
 
     const addNewRow = () => {

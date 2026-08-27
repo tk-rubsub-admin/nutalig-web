@@ -5600,7 +5600,7 @@ export default function RFQDetail(): ReactElement {
                                   variant="caption"
                                   color="text.secondary"
                                   sx={{ whiteSpace: 'pre-line' }}>
-                                  {row?.detail.spec}
+                                  {row?.detail?.spec || ''}
                                 </Typography>
                               ) : null}
                             </Stack>

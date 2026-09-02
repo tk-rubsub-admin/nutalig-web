@@ -9,7 +9,8 @@ import {
   Menu as MenuIcon,
   NoteAdd,
   ReceiptLong,
-  Save
+  Save,
+  Search
 } from '@mui/icons-material';
 import {
   Box,
@@ -22,6 +23,7 @@ import {
   DialogTitle,
   FormControlLabel,
   Grid,
+  IconButton,
   InputAdornment,
   ListItemIcon,
   ListItemText,
@@ -54,6 +56,8 @@ import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
 import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import CreateFreelanceSaleDialog from 'dialogs/QuotationManagement/New/CreateFreelanceSaleDialog';
+import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
 import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
@@ -73,6 +77,8 @@ import { ROUTE_PATHS } from 'routes';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
+import { getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
+import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
 import { ReceiptRecord } from 'services/Receipt/receipt-type';
 import { getRFQ, getRFQQuotationNos } from 'services/RFQ/rfq-api';
@@ -118,7 +124,9 @@ interface SalesOrderDraft {
   freight: number;
   amount: number;
   commission: number;
-  coSaleCommission: number;
+  // Keep this as text while editing so an in-progress decimal value (e.g. "12.")
+  // is not converted back to an integer before the user finishes typing.
+  coSaleCommission: string;
   isVat: boolean;
   requestCoa: boolean;
   requestPo: boolean;
@@ -263,7 +271,7 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     freight: Number(salesOrder?.freight || 0),
     amount: Number(salesOrder?.amount || 0),
     commission: Number(salesOrder?.commission || 0),
-    coSaleCommission: Number(salesOrder?.coSaleCommission || 0),
+    coSaleCommission: String(salesOrder?.coSaleCommission ?? 0),
     isVat: Number(salesOrder?.vatRate || 0) > 0,
     requestCoa: Boolean(salesOrder?.requestCoa),
     requestPo: Boolean(salesOrder?.requestPo),
@@ -314,6 +322,10 @@ export default function SalesOrderDetail(): ReactElement {
   const [isSaving, setIsSaving] = useState(false);
   const [quotationNoError, setQuotationNoError] = useState(false);
   const [draft, setDraft] = useState<SalesOrderDraft>(createDraft());
+  const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
+  const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
+  const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
+  const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [requestPoConfirmOpen, setRequestPoConfirmOpen] = useState(false);
   const [requestPoReason, setRequestPoReason] = useState('');
   const [requestPoPaymentScheduleDate, setRequestPoPaymentScheduleDate] = useState('');
@@ -438,8 +450,16 @@ export default function SalesOrderDetail(): ReactElement {
     }
   );
 
+  const { data: freelanceSales = [] } = useQuery(
+    'sales-order-detail-freelance-sales',
+    () => getFreelanceSales(),
+    { enabled: isEditing, refetchOnWindowFocus: false }
+  );
+
   useEffect(() => {
     setDraft(createDraft(salesOrder));
+    setSelectedFreelanceSaleItem(null);
+    setSelectedFreelanceSaleLabel('');
     setIsEditing(false);
   }, [salesOrder]);
 
@@ -454,6 +474,13 @@ export default function SalesOrderDetail(): ReactElement {
     relatedReceipts[0] ||
     null;
   const rfq = rfqResponse as RFQRecord | undefined;
+  const selectedFreelanceSale =
+    selectedFreelanceSaleItem || freelanceSales.find((item) => item.id === draft.coSaleId) || null;
+  const selectedFreelanceSaleDisplay =
+    selectedFreelanceSaleLabel ||
+    (selectedFreelanceSale ? `${selectedFreelanceSale.id} - ${selectedFreelanceSale.name}` : '') ||
+    draft.coSaleId;
+  const salesId = salesOrder?.saleAccount?.employeeId || '';
   const quotationNo =
     salesOrder?.quotationNo ||
     latestInvoice?.quotationNo ||
@@ -570,6 +597,8 @@ export default function SalesOrderDetail(): ReactElement {
 
   const handleEdit = () => {
     setDraft(createDraft(salesOrder));
+    setSelectedFreelanceSaleItem(null);
+    setSelectedFreelanceSaleLabel('');
     setQuotationNoError(false);
     setIsEditing(true);
   };
@@ -713,6 +742,8 @@ export default function SalesOrderDetail(): ReactElement {
   const handleCancel = () => {
     handleCloseActionMenu();
     setDraft(createDraft(salesOrder));
+    setSelectedFreelanceSaleItem(null);
+    setSelectedFreelanceSaleLabel('');
     setQuotationNoError(false);
     setIsEditing(false);
   };
@@ -1258,10 +1289,20 @@ export default function SalesOrderDetail(): ReactElement {
                   {isEditing ? (
                     <TextField
                       label={t('documentManagement.quotation.coSalesAccount')}
-                      value={draft.coSaleId}
+                      value={selectedFreelanceSaleDisplay}
                       variant="outlined"
+                      fullWidth
                       InputLabelProps={{ shrink: true }}
-                      onChange={(event) => updateDraftField('coSaleId', event.target.value)}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                          <IconButton
+                            edge="end"
+                            onClick={() => setOpenSearchFreelanceSalesDialog(true)}>
+                            <Search />
+                          </IconButton>
+                        )
+                      }}
                     />
                   ) : (
                     <Info
@@ -1768,14 +1809,11 @@ export default function SalesOrderDetail(): ReactElement {
                         <TextField
                           type="number"
                           value={draft.coSaleCommission}
-                          onChange={(event) => {
-                            const rawValue = event.target.value;
-                            const parsedValue = Math.trunc(Number(rawValue || 0));
-                            const safeValue = Number.isNaN(parsedValue) ? 0 : parsedValue;
-                            updateDraftField('coSaleCommission', safeValue);
-                          }}
+                          onChange={(event) =>
+                            updateDraftField('coSaleCommission', event.target.value)
+                          }
                           inputProps={{
-                            step: 1
+                            step: 'any'
                           }}
                           sx={{
                             width: { xs: '100%', sm: 180 },
@@ -2135,6 +2173,34 @@ export default function SalesOrderDetail(): ReactElement {
         title={isDownSm ? 'ดาวน์โหลดไฟล์ใบยืนยันสั่งซื้อ' : 'ดูใบยืนยันสั่งซื้อ'}
         onClose={handleCloseSalesOrderLanguageDialog}
         onSelect={handleSelectSalesOrderLanguage}
+      />
+      <SearchFreelanceSalesDialog
+        open={openSearchFreelanceSalesDialog}
+        onClose={() => setOpenSearchFreelanceSalesDialog(false)}
+        onAddNew={() => {
+          setOpenSearchFreelanceSalesDialog(false);
+          setOpenCreateFreelanceSaleDialog(true);
+        }}
+        salesId={salesId}
+        initialFreelanceSale={selectedFreelanceSale}
+        onSelect={({ freelanceSale }) => {
+          updateDraftField('coSaleId', freelanceSale.id || '');
+          setSelectedFreelanceSaleItem(freelanceSale);
+          setSelectedFreelanceSaleLabel(`${freelanceSale.id} - ${freelanceSale.name}`);
+          setOpenSearchFreelanceSalesDialog(false);
+        }}
+      />
+      <CreateFreelanceSaleDialog
+        open={openCreateFreelanceSaleDialog}
+        onClose={() => setOpenCreateFreelanceSaleDialog(false)}
+        defaultSaleCoverage={salesId}
+        customerLabel={draft.customerSnapshot.customerName || salesOrder?.customer?.customerName || ''}
+        onCreated={(freelanceSale) => {
+          updateDraftField('coSaleId', freelanceSale.id || '');
+          setSelectedFreelanceSaleItem(freelanceSale);
+          setSelectedFreelanceSaleLabel(`${freelanceSale.id} - ${freelanceSale.name}`);
+          setOpenCreateFreelanceSaleDialog(false);
+        }}
       />
       <Dialog
         open={visibleUrgentDetailDialog}

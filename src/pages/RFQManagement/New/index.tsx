@@ -298,8 +298,7 @@ export default function NewRFQ(): JSX.Element {
       material: string;
       capacity: string;
       capacityUnit: string;
-      targetPrice: string;
-      requestedMoqs: string[];
+      requestedMoqs: { moq: string; targetPrice: string }[];
       requestSample: boolean;
       description: string;
     },
@@ -333,11 +332,11 @@ export default function NewRFQ(): JSX.Element {
         capacity: selectedCapacityUnit
           ? `${values.capacity.trim()} ${selectedCapacityUnit}`.trim()
           : values.capacity,
-        targetPrice: values.targetPrice ? Number(values.targetPrice) : undefined,
         requestedMoqs: values.requestedMoqs
-          .map((value) => value.trim())
-          .filter((value) => value.length > 0)
-          .map((value) => Number(value)),
+          .map((value) => ({
+            moq: Number(value.moq),
+            targetPrice: value.targetPrice.trim() ? Number(value.targetPrice) : null
+          })),
         urgentRequest: isUrgentRequest,
         urgentRequestReason: isUrgentRequest ? urgentReason.trim() : undefined,
         description: values.description,
@@ -386,8 +385,7 @@ export default function NewRFQ(): JSX.Element {
       material: '',
       capacity: '',
       capacityUnit: '',
-      targetPrice: '',
-      requestedMoqs: [''],
+      requestedMoqs: [{ moq: '', targetPrice: '' }],
       description: ''
     },
     validationSchema: Yup.object().shape({
@@ -420,18 +418,20 @@ export default function NewRFQ(): JSX.Element {
       systemMechanic: Yup.string().max(255),
       material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
-      targetPrice: Yup.string().test(
-        'target-price-format',
-        t('rfqManagement.validation.targetPrice'),
-        (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
-      ),
       requestedMoqs: Yup.array()
         .of(
-          Yup.string().test(
-            'requested-moq-format',
-            t('rfqManagement.validation.requestedMoqs'),
-            (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
-          )
+          Yup.object().shape({
+            moq: Yup.string().test(
+              'requested-moq-format',
+              t('rfqManagement.validation.requestedMoqs'),
+              (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+            ),
+            targetPrice: Yup.string().test(
+              'requested-moq-target-price-format',
+              t('rfqManagement.validation.targetPrice'),
+              (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+            )
+          })
         )
         .test(
           'requested-moq-required',
@@ -441,7 +441,7 @@ export default function NewRFQ(): JSX.Element {
               return false;
             }
 
-            return values.every((value) => value && value.trim().length > 0);
+            return values.every((value) => value?.moq && value.moq.trim().length > 0);
           }
         ),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
@@ -459,8 +459,11 @@ export default function NewRFQ(): JSX.Element {
     appliedCopiedRfqIdRef.current = copiedRfq.id;
     const parsedCapacity = parseCapacityValue(copiedRfq.capacity, unitOptions);
     const requestedMoqs = copiedRfq.requestedMoqs?.length
-      ? copiedRfq.requestedMoqs.map((value) => `${value}`)
-      : [''];
+      ? copiedRfq.requestedMoqs.map((value) => ({
+          moq: `${value.moq}`,
+          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+        }))
+      : [{ moq: '', targetPrice: '' }];
     const customerId = copiedRfq.customer?.id || '';
     const customerName = copiedRfq.customer?.customerName || '';
     const copiedSalesId =
@@ -490,10 +493,6 @@ export default function NewRFQ(): JSX.Element {
       material: getNamedCode(copiedRfq.material),
       capacity: parsedCapacity.capacity,
       capacityUnit: parsedCapacity.capacityUnit,
-      targetPrice:
-        copiedRfq.targetPrice === null || copiedRfq.targetPrice === undefined
-          ? ''
-          : String(copiedRfq.targetPrice),
       requestedMoqs,
       description: copiedRfq.description || ''
     });
@@ -503,9 +502,10 @@ export default function NewRFQ(): JSX.Element {
   }, [defaultSalesId, formik, location.state, unitOptions]);
 
   const { data: parentRfqOptions = [], isFetching: isParentRfqFetching } = useQuery(
-    ['rfq-parent-options', formik.values.rfqTypeCode],
+    ['rfq-parent-options', formik.values.rfqTypeCode, formik.values.customerId],
     () =>
       getRFQList(1, 100, {
+        customerId: formik.values.customerId || undefined,
         isCreatedPurchaseOrder: formik.values.rfqTypeCode === 'REORDER' ? true : null
       }).then((response) => response.records || []),
     {
@@ -647,8 +647,11 @@ export default function NewRFQ(): JSX.Element {
     appliedParentRfqIdRef.current = parentRfqDetail.id;
     const parsedCapacity = parseCapacityValue(parentRfqDetail.capacity, unitOptions);
     const requestedMoqs = parentRfqDetail.requestedMoqs?.length
-      ? parentRfqDetail.requestedMoqs.map((value) => `${value}`)
-      : [''];
+      ? parentRfqDetail.requestedMoqs.map((value) => ({
+          moq: `${value.moq}`,
+          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+        }))
+      : [{ moq: '', targetPrice: '' }];
 
     formik.setValues((prevValues) => ({
       ...prevValues,
@@ -668,10 +671,6 @@ export default function NewRFQ(): JSX.Element {
       material: getNamedCode(parentRfqDetail.material),
       capacity: parsedCapacity.capacity,
       capacityUnit: parsedCapacity.capacityUnit,
-      targetPrice:
-        parentRfqDetail.targetPrice === null || parentRfqDetail.targetPrice === undefined
-          ? ''
-          : String(parentRfqDetail.targetPrice),
       requestedMoqs,
       description: parentRfqDetail.description || ''
     }));
@@ -727,7 +726,6 @@ export default function NewRFQ(): JSX.Element {
       material: true,
       capacity: true,
       capacityUnit: true,
-      targetPrice: true,
       requestedMoqs: formik.values.requestedMoqs.map(() => true),
       description: true
     } as const;
@@ -961,6 +959,7 @@ export default function NewRFQ(): JSX.Element {
                       value?.contacts?.[0];
 
                     formik.setFieldValue('customerId', value?.id || '');
+                    formik.setFieldValue('parentRfqId', '');
                     formik.setFieldValue('contactName', defaultContact?.contactName || '');
                     formik.setFieldValue('contactPhone', defaultContact?.contactNumber || '');
                     formik.setFieldValue('contactChannel', '');
@@ -974,6 +973,7 @@ export default function NewRFQ(): JSX.Element {
                       setCustomerKeyword('');
                       setSelectedCustomer(null);
                       formik.setFieldValue('customerId', '');
+                      formik.setFieldValue('parentRfqId', '');
                       formik.setFieldValue('contactName', '');
                       formik.setFieldValue('contactPhone', '');
                       formik.setFieldValue('contactChannel', '');
@@ -1417,23 +1417,7 @@ export default function NewRFQ(): JSX.Element {
             ) : null}
           </GridTextField>
 
-          <GridTextField item xs={6} sm={3}>
-            <TextField
-              fullWidth
-              type="number"
-              label={t('rfqManagement.form.targetPrice')}
-              InputLabelProps={{ shrink: true }}
-              name="targetPrice"
-              value={formik.values.targetPrice}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.targetPrice && Boolean(formik.errors.targetPrice)}
-              helperText={formik.touched.targetPrice && formik.errors.targetPrice}
-              inputProps={{ min: 0, step: '0.0001' }}
-            />
-          </GridTextField>
-
-          <GridTextField item xs={6} sm={3} style={{ paddingLeft: '25px' }}>
+          <GridTextField item xs={12} sm={4} style={{ paddingLeft: '25px' }}>
             <Box>
               <Typography
                 variant="body2"
@@ -1482,16 +1466,15 @@ export default function NewRFQ(): JSX.Element {
                     <Stack spacing={1.25}>
                       {formik.values.requestedMoqs.map((requestedMoq, index) => {
                         const requestedMoqErrors = formik.errors.requestedMoqs;
-                        const requestedMoqTouched = formik.touched.requestedMoqs;
-                        const helperText =
-                          Array.isArray(requestedMoqTouched) &&
-                            requestedMoqTouched[index] &&
-                            Array.isArray(requestedMoqErrors) &&
-                            typeof requestedMoqErrors[index] === 'string'
+                        const itemErrors =
+                          Array.isArray(requestedMoqErrors) &&
+                          typeof requestedMoqErrors[index] === 'object'
                             ? requestedMoqErrors[index]
                             : undefined;
+                        const helperText = itemErrors?.moq;
+                        const targetPriceHelperText = itemErrors?.targetPrice;
                         const fieldError =
-                          Boolean(helperText) || (shouldShowGroupError && !requestedMoq?.trim());
+                          Boolean(helperText) || (shouldShowGroupError && !requestedMoq.moq?.trim());
 
                         return (
                           <Stack
@@ -1500,28 +1483,40 @@ export default function NewRFQ(): JSX.Element {
                             spacing={1}
                             alignItems="flex-start"
                             sx={{ width: '100%' }}>
-                            <TextField
-                              fullWidth
-                              type="number"
-                              label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
-                              InputLabelProps={{ shrink: true }}
-                              value={requestedMoq}
-                              onChange={(event) => {
-                                const nextValues = [...formik.values.requestedMoqs];
-                                nextValues[index] = event.target.value;
-                                formik.setFieldValue('requestedMoqs', nextValues);
-                              }}
-                              onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}`, true)}
-                              error={fieldError}
-                              helperText={helperText}
-                              inputProps={{ min: 0, step: '1' }}
-                              sx={{
-                                width: '100%',
-                                '& .MuiInputBase-root': {
-                                  backgroundColor: 'common.white'
-                                }
-                              }}
-                            />
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%', flex: 1 }}>
+                              <TextField
+                                fullWidth
+                                type="number"
+                                label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                                InputLabelProps={{ shrink: true }}
+                                value={requestedMoq.moq}
+                                onChange={(event) => {
+                                  const nextValues = [...formik.values.requestedMoqs];
+                                  nextValues[index] = { ...nextValues[index], moq: event.target.value };
+                                  formik.setFieldValue('requestedMoqs', nextValues);
+                                }}
+                                onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}.moq`, true)}
+                                error={fieldError}
+                                helperText={helperText}
+                                inputProps={{ min: 0, step: '1' }}
+                              />
+                              <TextField
+                                fullWidth
+                                type="number"
+                                label={t('rfqManagement.form.targetPrice')}
+                                InputLabelProps={{ shrink: true }}
+                                value={requestedMoq.targetPrice}
+                                onChange={(event) => {
+                                  const nextValues = [...formik.values.requestedMoqs];
+                                  nextValues[index] = { ...nextValues[index], targetPrice: event.target.value };
+                                  formik.setFieldValue('requestedMoqs', nextValues);
+                                }}
+                                onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}.targetPrice`, true)}
+                                error={Boolean(targetPriceHelperText)}
+                                helperText={targetPriceHelperText}
+                                inputProps={{ min: 0, step: '0.0001' }}
+                              />
+                            </Stack>
                             <Stack
                               direction="row"
                               spacing={0.75}
@@ -1545,7 +1540,7 @@ export default function NewRFQ(): JSX.Element {
                                 onClick={() =>
                                   formik.setFieldValue('requestedMoqs', [
                                     ...formik.values.requestedMoqs,
-                                    ''
+                                    { moq: '', targetPrice: '' }
                                   ])
                                 }>
                                 <AddCircleOutline />
@@ -1571,7 +1566,7 @@ export default function NewRFQ(): JSX.Element {
                                   );
                                   formik.setFieldValue(
                                     'requestedMoqs',
-                                    nextValues.length ? nextValues : ['']
+                                    nextValues.length ? nextValues : [{ moq: '', targetPrice: '' }]
                                   );
                                 }}>
                                 <RemoveCircleOutline />

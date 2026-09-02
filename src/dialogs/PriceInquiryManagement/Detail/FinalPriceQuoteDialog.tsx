@@ -97,7 +97,7 @@ interface FinalPriceQuoteDialogProps {
       value: string;
       unit: string;
     }[];
-    remark: string;
+    internalRemark: string;
     recommend: string;
   };
   finalPriceErrors: FinalPriceDraftErrors;
@@ -1426,7 +1426,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
 
             <TextField
               label="Internal Remark"
-              value={finalPriceDraft.remark}
+              value={finalPriceDraft.internalRemark}
               onChange={(event) => onRemarkChange(event.target.value)}
               multiline
               minRows={4}

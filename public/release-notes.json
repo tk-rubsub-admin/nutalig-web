@@ -1,6 +1,31 @@
 {
   "notes": [
     {
+      "version": "0.1.5",
+      "publishedAt": "01/09/2026 23:33",
+      "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",
+      "titleEn": "What's New in This Release",
+      "summaryTh": "ปรับปรุงประสบการณ์ใช้งาน",
+      "summaryEn": "Improved the user experience.",
+      "itemsTh": [
+        "เพิ่มปุ่ม ดึงข้อมูล RFQ (PDF) ในหน้าจอคำขอราคา และ หน้าจอสอบถามราคา",
+        "เพิ่ม Dialog สร้างข้อมูล Freelance Sale",
+        "แก้บัคหน้าจอ Dashboard",
+        "แก้บัคไม่สามารถระบุตัวเลขทศนิยมได้ในหน้าจอใบเสนอราคา,ใบยืนยันสั่งซื้อสินค้า",
+        "แสดงข้อมูล RFQ ตัวหลัก เฉพาะของลูกค้าที่เลือกเท่านั้น"
+      ],
+      "itemsEn": [
+        "Add a “Request More Information” button to the RFQ inquiry screen.",
+        "Allow customer information to be edited in Quotations, Sales Order Confirmations, and Invoices.",
+        "Allow users to select Payment Terms when creating or editing an Invoice.",
+        "Add Branch Information (Branch Code and Branch Name) to customer profiles for corporate customers.",
+        "Add an approval flow for changes to customer Payment Terms when creating or editing an Invoice.",
+        "Fix the issue with notifications being sent to SUPER ADMIN.",
+        "Update the RFQ retrieval criteria when creating a new Quotation to include RFQs with QUOTED and COMPLETED statuses.",
+        "Allow users to upload multiple payment slips and edit the transferred amount for each payment."
+      ]
+    },
+    {
       "version": "0.1.4",
       "publishedAt": "28/08/2026 01:19",
       "titleTh": "มีอะไรใหม่ในเวอร์ชันนี้",

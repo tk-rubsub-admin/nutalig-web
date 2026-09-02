@@ -264,7 +264,7 @@ interface FinalPriceDraft {
   details: FinalPriceDraftDetail[];
   packages: FinalPriceDraftPackage[];
   additionalCosts: DraftAdditionalCost[];
-  remark: string;
+  internalRemark: string;
   recommend: string;
 }
 
@@ -338,6 +338,7 @@ interface DetailEditDraft {
   spec: string;
   sortOrder: string;
   remark: string;
+  internalRemark: string;
   recommend: string;
   commission: string;
   packageDimension: string;
@@ -902,6 +903,7 @@ function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
     spec: detail.spec || '',
     sortOrder: detail.sortOrder?.toString() || '',
     remark: detail.remark || '',
+    internalRemark: detail.internalRemark || '',
     recommend: detail.recommend || '',
     commission: detail.commission?.toString() || '',
     packageDimension: detail.packageDimension || '',
@@ -955,7 +957,7 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
     })),
     packages: mapSupplierQuotePackages(quote.packages, quote.details),
     additionalCosts: [],
-    remark: '',
+    internalRemark: '',
     recommend: ''
   };
 }
@@ -1643,7 +1645,7 @@ function mergeFinalPriceDraftFromExtractedPayload(
       }))
       : currentDraft.additionalCosts,
     packages: extractedPackages.length ? extractedPackages : currentDraft.packages,
-    remark: payload.remark || currentDraft.remark,
+    internalRemark: currentDraft.internalRemark,
     recommend: payload.recommend || currentDraft.recommend
   };
 }
@@ -1913,7 +1915,7 @@ export default function RFQDetail(): ReactElement {
     details: [],
     packages: [],
     additionalCosts: [],
-    remark: '',
+    internalRemark: '',
     recommend: ''
   });
   const [finalPriceErrors, setFinalPriceErrors] = useState<FinalPriceDraftErrors>({});
@@ -2151,7 +2153,7 @@ export default function RFQDetail(): ReactElement {
   }, [formik.values.orderTypeCode, orderTypeList]);
 
   const requestedMoqDisplayValues = useMemo(() => {
-    return (rfq?.requestedMoqs || []).map((item) => `${item}`);
+    return rfq?.requestedMoqs || [];
   }, [rfq?.requestedMoqs]);
 
   const selectedProductFamily = useMemo(
@@ -2507,7 +2509,8 @@ export default function RFQDetail(): ReactElement {
     try {
       await toast.promise(
         addRFQNote(params.id, {
-          note: noteText.trim()
+          note: noteText.trim(),
+          noteTo: 'SALES'
         }),
         {
           loading: t('toast.loading'),
@@ -2637,6 +2640,7 @@ export default function RFQDetail(): ReactElement {
         spec: detailEditDraft.spec.trim(),
         sortOrder: detailEditDraft.sortOrder ? Number(detailEditDraft.sortOrder) : null,
         remark: detailEditDraft.remark.trim() || null,
+        internalRemark: detailEditDraft.internalRemark.trim() || null,
         recommend: detailEditDraft.recommend.trim() || null,
         commission: parsePriceInput(detailEditDraft.commission),
         packageDimension: detailEditDraft.packageDimension.trim() || null,
@@ -3123,14 +3127,14 @@ export default function RFQDetail(): ReactElement {
       details: [],
       packages: [],
       additionalCosts: [],
-      remark: '',
+      internalRemark: '',
       recommend: ''
     });
     setFinalPriceErrors({});
   };
 
   const handleFinalPriceRemarkChange = (value: string) => {
-    setFinalPriceDraft((prev) => ({ ...prev, remark: value }));
+    setFinalPriceDraft((prev) => ({ ...prev, internalRemark: value }));
   };
 
   const handleFinalPriceRecommendChange = (value: string) => {
@@ -3657,7 +3661,8 @@ export default function RFQDetail(): ReactElement {
           optionName: detail.optionName,
           spec: detail.spec,
           sortOrder: detailIndex + 1,
-          remark: finalPriceDraft.remark.trim() || null,
+          remark: detail.remark?.trim() || null,
+          internalRemark: finalPriceDraft.internalRemark.trim() || null,
           commission: null,
           recommend: finalPriceDraft.recommend.trim() || null,
           supplierId,
@@ -5129,16 +5134,7 @@ export default function RFQDetail(): ReactElement {
                     />
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={3}>
-                    <TextField
-                      fullWidth
-                      label={t('rfqManagement.form.targetPrice')}
-                      value={rfq?.targetPrice != null ? formatTargetPrice(rfq.targetPrice) : ''}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: true }}
-                    />
-                  </GridTextField>
-                  <Grid item xs={12} sm={3}>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
                       label="การขนส่ง"
@@ -5166,21 +5162,33 @@ export default function RFQDetail(): ReactElement {
                         <Stack spacing={1.25}>
                           {(requestedMoqDisplayValues.length
                             ? requestedMoqDisplayValues
-                            : ['-']
+                            : [{ moq: '-', targetPrice: null }]
                           ).map((requestedMoq, index) => (
-                            <TextField
-                              key={`requested-moq-display-${index}`}
-                              fullWidth
-                              label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
-                              value={requestedMoq}
-                              InputLabelProps={{ shrink: true }}
-                              InputProps={{ readOnly: true }}
-                              sx={{
-                                '& .MuiInputBase-root': {
-                                  backgroundColor: 'common.white'
+                            <Stack key={`requested-moq-display-${index}`} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                              <TextField
+                                fullWidth
+                                label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                                value={requestedMoq.moq}
+                                InputLabelProps={{ shrink: true }}
+                                InputProps={{ readOnly: true }}
+                                sx={{
+                                  '& .MuiInputBase-root': {
+                                    backgroundColor: 'common.white'
+                                  }
+                                }}
+                              />
+                              <TextField
+                                fullWidth
+                                label={t('rfqManagement.form.targetPrice')}
+                                value={
+                                  requestedMoq.targetPrice == null
+                                    ? '-'
+                                    : formatTargetPrice(requestedMoq.targetPrice)
                                 }
-                              }}
-                            />
+                                InputLabelProps={{ shrink: true }}
+                                InputProps={{ readOnly: true }}
+                              />
+                            </Stack>
                           ))}
                         </Stack>
                       </Box>
@@ -5404,6 +5412,11 @@ export default function RFQDetail(): ReactElement {
                                     {detail.remark ? (
                                       <Typography variant="body2" color="text.secondary">
                                         Remark: {detail.remark}
+                                      </Typography>
+                                    ) : null}
+                                    {detail.internalRemark ? (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Internal Remark: {detail.internalRemark}
                                       </Typography>
                                     ) : null}
                                   </Stack>
@@ -5749,6 +5762,11 @@ export default function RFQDetail(): ReactElement {
                                     <Typography variant="body2" color="text.secondary">
                                       {snapshot?.remark || record.remark || '-'}
                                     </Typography>
+                                    {(snapshot?.internalRemark || record.internalRemark) ? (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Internal Remark: {snapshot?.internalRemark || record.internalRemark}
+                                      </Typography>
+                                    ) : null}
                                     {tiers.length ? (
                                       <Table size="small">
                                         <TableHead>
@@ -5897,6 +5915,16 @@ export default function RFQDetail(): ReactElement {
               label="Remark"
               value={detailEditDraft?.remark || ''}
               onChange={(event) => handleDetailEditDraftChange('remark', event.target.value)}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Internal Remark"
+              value={detailEditDraft?.internalRemark || ''}
+              onChange={(event) =>
+                handleDetailEditDraftChange('internalRemark', event.target.value)
+              }
             />
             <TextField
               fullWidth

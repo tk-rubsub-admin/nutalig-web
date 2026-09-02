@@ -23,12 +23,14 @@ export interface CreateQuotationRequest {
     freight: number;
     isVat: boolean;
     rfqId: string;
+    rfqIds?: string[];
     items: CreateQuotationItem[];
 };
 
 export interface CreateQuotationItem {
     id: number;
     tierId?: string;
+    sourceRfqId?: string;
     name: string;
     type: string;
     capacity: string;
@@ -46,6 +48,7 @@ export interface CreateQuotationItem {
 export interface Quotation {
     quotationNo: string;
     rfqId?: string | null;
+    rfqIds?: string[];
     referenceRfqId?: string | null;
     referenceRfq?: RFQReference | null;
     docDate: string;
@@ -84,6 +87,7 @@ export interface QuotationCustomerSnapshot {
 export interface QuotationItem {
     id: number | string;
     tierId?: string;
+    sourceRfqId?: string;
     name: string;
     type: string;
     capacity: string;
@@ -101,6 +105,7 @@ export interface UpdateQuotationRequest {
     items: QuotationItem[];
     isVat?: boolean;
     customerSnapshot?: QuotationCustomerSnapshot;
+    coSaleId?: string;
 }
 
 export interface SearchQuotationRequest {

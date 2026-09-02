@@ -9,6 +9,11 @@ export const RequestInfoTo = {
   PROCUREMENT: 'PROCUREMENT'
 } as const;
 
+export const NoteTo = {
+  SALES: 'SALES',
+  PROCUREMENT: 'PROCUREMENT'
+} as const;
+
 export type RequestInfoTo = (typeof RequestInfoTo)[keyof typeof RequestInfoTo];
 
 export interface RFQProductFamily {
@@ -195,6 +200,7 @@ export interface RFQDetailTier {
   id: number;
   quantity: number;
   productPrice: number;
+  targetPrice?: number | null;
   commission?: number | null;
   currency?: string | null;
   exchangeRate?: number | null;
@@ -218,6 +224,7 @@ export interface RFQDetailOption {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  internalRemark?: string | null;
   commission?: number | null;
   recommend?: string | null;
   packageDimension?: string | null;
@@ -247,6 +254,7 @@ export interface RFQDetailHistory {
   spec: string;
   sortOrder?: number | null;
   remark?: string | null;
+  internalRemark?: string | null;
   recommend?: string | null;
   commission?: number | null;
   packageDimension?: string | null;
@@ -305,6 +313,7 @@ export interface RFQDetailHistorySnapshot {
   spec?: string | null;
   sortOrder?: number | null;
   remark?: string | null;
+  internalRemark?: string | null;
   recommend?: string | null;
   commission?: number | null;
   packageDimension?: string | null;
@@ -372,8 +381,7 @@ export interface RFQRecord {
   productSubType2?: RFQProductSubtype2 | null;
   material: RFQProductMaterial | string | null;
   capacity: string;
-  targetPrice?: number | null;
-  requestedMoqs?: number[] | null;
+  requestedMoqs?: RFQRequestedMoq[] | null;
   requestSample?: boolean | null;
   urgentRequest?: boolean | null;
   urgentRequestReason?: string | null;
@@ -396,6 +404,11 @@ export interface RFQRecord {
   finalSeaFreightCost?: number | null;
   finalRemark?: string | null;
   finalPriceDate?: string | null;
+}
+
+export interface RFQRequestedMoq {
+  moq: number;
+  targetPrice?: number | null;
 }
 
 export interface SearchRFQResponse {
@@ -425,8 +438,7 @@ export interface CreateRFQRequest {
   systemMechanic: string;
   material: string;
   capacity: string;
-  targetPrice?: number | null;
-  requestedMoqs?: number[];
+  requestedMoqs?: RFQRequestedMoq[];
   requestSample?: boolean;
   urgentRequest?: boolean;
   urgentRequestReason?: string;
@@ -457,8 +469,7 @@ export interface UpdateRFQRequest {
   systemMechanic: string;
   material: string;
   capacity: string;
-  targetPrice?: number | null;
-  requestedMoqs?: number[];
+  requestedMoqs?: RFQRequestedMoq[];
   requestSample?: boolean;
   description: string;
   requestInformation?: string;
@@ -473,6 +484,7 @@ export interface RequestRFQInformationRequest {
 
 export interface AddRFQNoteRequest {
   note: string;
+  noteTo: NoteTo | null;
 }
 
 export interface RejectUrgentRFQRequest {
@@ -480,7 +492,10 @@ export interface RejectUrgentRFQRequest {
 }
 
 export interface RequestSpecialPriceRFQRequest {
-  targetPrice: number;
+  tiers: {
+    tierId: number;
+    targetPrice: number;
+  }[];
 }
 
 export interface RequestUrgentRFQApproveRequest {
@@ -545,6 +560,7 @@ export interface CreateRFQDetailRequest {
   spec: string;
   sortOrder: number;
   remark: string | null;
+  internalRemark?: string | null;
   commission?: number | null;
   recommend?: string | null;
   supplierId?: string;
@@ -558,6 +574,7 @@ export interface UpdateRFQDetailRequest {
   spec: string;
   sortOrder?: number | null;
   remark?: string | null;
+  internalRemark?: string | null;
   recommend?: string | null;
   commission?: number | null;
   packageDimension?: string | null;

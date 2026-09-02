@@ -179,6 +179,14 @@ function createDefaultFilter(salesId = '', procurementId = '') {
 
 type PriceInquiryFilter = ReturnType<typeof createDefaultFilter>;
 
+function getStatusesFromRequestParams(params: URLSearchParams): string[] {
+  return params
+    .getAll('statuses')
+    .reduce<string[]>((statuses, value) => statuses.concat(value.split(',')), [])
+    .map((status) => status.trim())
+    .filter(Boolean);
+}
+
 function createFilterFromRequestParams(
   search: string,
   salesId = '',
@@ -206,7 +214,7 @@ function createFilterFromRequestParams(
 
   filterKeys.forEach((key) => {
     if (key === 'statuses') {
-      const values = params.getAll('statuses');
+      const values = getStatusesFromRequestParams(params);
       if (values.length) {
         defaultFilter.statuses = values;
       }

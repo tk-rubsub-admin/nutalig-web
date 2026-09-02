@@ -27,6 +27,7 @@ export interface SearchFreelanceSalesResponse {
 }
 
 export interface CreateFreelanceSaleRequest {
+  id?: string | null;
   name: string;
   contactNumber?: string | null;
   saleCoverage?: string | null;

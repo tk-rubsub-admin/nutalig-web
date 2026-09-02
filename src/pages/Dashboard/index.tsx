@@ -87,15 +87,6 @@ export default function Dashboard(): JSX.Element {
     }),
     [dateRange.procurementId, dateRange.salesId, selectedMonth]
   );
-  const currentMonthRange = useMemo<DashboardDateRange>(
-    () => ({
-      dateFrom: dayjs().startOf('month').format(DEFAULT_DATE_FORMAT_BFF),
-      dateTo: dayjs().endOf('month').format(DEFAULT_DATE_FORMAT_BFF),
-      salesId: dateRange.salesId,
-      procurementId: dateRange.procurementId
-    }),
-    [dateRange.procurementId, dateRange.salesId]
-  );
 
   const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
     ['dashboard-sales-options'],
@@ -128,21 +119,6 @@ export default function Dashboard(): JSX.Element {
     }
   );
 
-  const { data: currentMonthData } = useQuery<DashboardData>(
-    [
-      'dashboard-current-month-volume',
-      role,
-      currentMonthRange.dateFrom,
-      currentMonthRange.dateTo,
-      currentMonthRange.salesId,
-      currentMonthRange.procurementId
-    ],
-    () => getDashboard(currentMonthRange),
-    {
-      refetchOnWindowFocus: false
-    }
-  );
-
   const canSee = (visibleTo?: string[]) => !visibleTo?.length || visibleTo.includes(role);
   const translateLabel = (value?: string) =>
     value && value.startsWith('dashboard.') ? t(value) : value || '';
@@ -155,28 +131,28 @@ export default function Dashboard(): JSX.Element {
     () => (data?.trendCharts || []).filter((item) => canSee(item.visibleTo)),
     [data?.trendCharts, role]
   );
-  const currentMonthVolumeChart = useMemo(
+  const selectedMonthVolumeChart = useMemo(
     () =>
-      (currentMonthData?.trendCharts || [])
+      trendCharts
         .find((item) => item.id === 'rfq-volume' && canSee(item.visibleTo)) ||
       null,
-    [currentMonthData?.trendCharts, role]
+    [trendCharts, role]
   );
-  const currentMonthVolumeChartData = useMemo(() => {
-    if (!currentMonthVolumeChart) {
+  const selectedMonthVolumeChartData = useMemo(() => {
+    if (!selectedMonthVolumeChart) {
       return null;
     }
 
     return [
-      ['Day', ...currentMonthVolumeChart.series.map((series) => series.name), { role: 'annotation' }],
-      ...currentMonthVolumeChart.labels.map((label, index) => {
-        const values = currentMonthVolumeChart.series.map((series) => series.data[index] || 0);
+      ['Day', ...selectedMonthVolumeChart.series.map((series) => series.name), { role: 'annotation' }],
+      ...selectedMonthVolumeChart.labels.map((label, index) => {
+        const values = selectedMonthVolumeChart.series.map((series) => series.data[index] || 0);
         const total = values.reduce((sum, value) => sum + value, 0);
 
         return [label, ...values, total ? String(total) : null];
       })
     ];
-  }, [currentMonthVolumeChart]);
+  }, [selectedMonthVolumeChart]);
   const acceptWorkDurationChart = useMemo(
     () => (data?.acceptWorkDurationChart && canSee(data.acceptWorkDurationChart.visibleTo) ? data.acceptWorkDurationChart : null),
     [data?.acceptWorkDurationChart, role]
@@ -529,19 +505,19 @@ export default function Dashboard(): JSX.Element {
               </Wrapper>
             </Grid>
           ))}
-        {currentMonthVolumeChart ? (
-          <Grid item xs={12} lg={12} key={currentMonthVolumeChart.id}>
+        {selectedMonthVolumeChart ? (
+          <Grid item xs={12} lg={12} key={selectedMonthVolumeChart.id}>
             <Wrapper>
-              <Typography variant="h6">{translateLabel(currentMonthVolumeChart.title)}</Typography>
+              <Typography variant="h6">{translateLabel(selectedMonthVolumeChart.title)}</Typography>
               <Chart
                 chartType="ColumnChart"
                 width="100%"
                 height="280px"
                 loader={chartLoader}
-                data={currentMonthVolumeChartData || []}
+                data={selectedMonthVolumeChartData || []}
                 options={{
                   backgroundColor: 'transparent',
-                  colors: currentMonthVolumeChart.series.map(
+                  colors: selectedMonthVolumeChart.series.map(
                     (series, index) => getRfqVolumeSeriesColor(series, index)
                   ),
                   legend: { position: 'top' },

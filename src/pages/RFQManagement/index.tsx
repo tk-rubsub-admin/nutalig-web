@@ -377,6 +377,14 @@ interface RFQManagementLocationState {
   };
 }
 
+function getStatusesFromRequestParams(params: URLSearchParams): string[] {
+  return params
+    .getAll('statuses')
+    .reduce<string[]>((statuses, value) => statuses.concat(value.split(',')), [])
+    .map((status) => status.trim())
+    .filter(Boolean);
+}
+
 function createFilterFromRequestParams(search: string, salesId = ''): RFQManagementFilter {
   const defaultFilter = createDefaultFilter(salesId);
   const params = new URLSearchParams(search);
@@ -401,7 +409,7 @@ function createFilterFromRequestParams(search: string, salesId = ''): RFQManagem
 
   filterKeys.forEach((key) => {
     if (key === 'statuses') {
-      const values = params.getAll('statuses');
+      const values = getStatusesFromRequestParams(params);
       if (values.length) {
         defaultFilter.statuses = values;
       }

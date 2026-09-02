@@ -20,7 +20,10 @@ import {
   Save,
   DisabledByDefault,
   Cancel,
-  Calculate
+  Calculate,
+  ErrorOutline,
+  GetApp,
+  PriceChange
 } from '@mui/icons-material';
 import {
   Box,
@@ -49,6 +52,7 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme
@@ -86,6 +90,7 @@ import { useQuery } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
 import { copyTextSilent } from 'utils/copyContent';
+import { downloadRfqPdf } from 'utils/rfq-pdf';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { SystemConfig } from 'services/Config/config-type';
@@ -189,8 +194,7 @@ interface RFQEditableFormValues {
   systemMechanic: string;
   material: string;
   capacity: string;
-  targetPrice: string;
-  requestedMoqs: string[];
+  requestedMoqs: { moq: string; targetPrice: string }[];
   description: string;
 }
 
@@ -591,11 +595,12 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
       getNamedCodeValueCode<RFQProductSubtype2>(rfq?.productSubType2) || rfq?.systemMechanic || '',
     material: getNamedCodeValueCode<RFQProductMaterial>(rfq?.material),
     capacity: rfq?.capacity || '',
-    targetPrice:
-      rfq?.targetPrice === null || rfq?.targetPrice === undefined
-        ? ''
-        : formatTargetPrice(rfq.targetPrice),
-    requestedMoqs: rfq?.requestedMoqs?.length ? rfq.requestedMoqs.map((item) => `${item}`) : [''],
+    requestedMoqs: rfq?.requestedMoqs?.length
+      ? rfq.requestedMoqs.map((item) => ({
+        moq: `${item.moq}`,
+        targetPrice: item.targetPrice == null ? '' : formatTargetPrice(item.targetPrice)
+      }))
+      : [{ moq: '', targetPrice: '' }],
     description: rfq?.description || ''
   };
 }
@@ -981,9 +986,12 @@ export default function RFQDetail(): ReactElement {
   const [urgentReason, setUrgentReason] = useState('');
   const [noteText, setNoteText] = useState('');
   const [isAddNoteSubmitting, setIsAddNoteSubmitting] = useState(false);
-  const [requestSpecialPriceTargetPrice, setRequestSpecialPriceTargetPrice] = useState('');
-  const [requestSpecialPriceTargetPriceError, setRequestSpecialPriceTargetPriceError] =
-    useState('');
+  const [requestSpecialPriceTargetPrices, setRequestSpecialPriceTargetPrices] = useState<
+    Record<number, string>
+  >({});
+  const [requestSpecialPriceTargetPriceErrors, setRequestSpecialPriceTargetPriceErrors] = useState<
+    Record<number, string>
+  >({});
   const [closeRfqRemark, setCloseRfqRemark] = useState('');
   const [lastShownRequestedInformationKey, setLastShownRequestedInformationKey] = useState<
     string | null
@@ -1006,6 +1014,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleSalesOrderLanguageDialog, setVisibleSalesOrderLanguageDialog] = useState(false);
   const [isSalesOrderDocumentLoading, setIsSalesOrderDocumentLoading] = useState(false);
   const [isCustomerQuotedCopying, setIsCustomerQuotedCopying] = useState(false);
+  const [isRfqPdfPreparing, setIsRfqPdfPreparing] = useState(false);
   const [downloadMenuAnchorEl, setDownloadMenuAnchorEl] = useState<null | HTMLElement>(null);
   const isSalesPermission = hasPermission(PERMISSIONS.RFQ_EDIT);
   const isAllowUploadAttachment = hasPermission(PERMISSIONS.RFQ_UPLOAD_FILE);
@@ -1020,18 +1029,26 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleOpenRequestSpecialPriceDialog = () => {
-    setRequestSpecialPriceTargetPrice(
-      rfq?.targetPrice === null || rfq?.targetPrice === undefined
-        ? ''
-        : formatTargetPrice(rfq.targetPrice)
+    const targetPrices = (rfq?.details || []).reduce<Record<number, string>>(
+      (prices, detail) => {
+        detail.tiers.forEach((tier) => {
+          const targetPrice = tier.targetPrice;
+          prices[tier.id] = targetPrice === null || targetPrice === undefined
+            ? ''
+            : formatTargetPrice(targetPrice);
+        });
+        return prices;
+      },
+      {}
     );
-    setRequestSpecialPriceTargetPriceError('');
+    setRequestSpecialPriceTargetPrices(targetPrices);
+    setRequestSpecialPriceTargetPriceErrors({});
     setVisibleRequestSpecialPriceDialog(true);
   };
 
   const handleCloseRequestSpecialPriceDialog = () => {
     setVisibleRequestSpecialPriceDialog(false);
-    setRequestSpecialPriceTargetPriceError('');
+    setRequestSpecialPriceTargetPriceErrors({});
   };
 
   const handleCopyCustomerQuoted = async () => {
@@ -1065,6 +1082,35 @@ export default function RFQDetail(): ReactElement {
       toast.error('คัดลอกราคาไม่สำเร็จ');
     } finally {
       setIsCustomerQuotedCopying(false);
+    }
+  };
+
+  const handleDownloadRfqPdf = async () => {
+    if (!params.id) {
+      return;
+    }
+
+    setIsRfqPdfPreparing(true);
+    handleCloseDownloadMenu();
+
+    try {
+      await toast.promise(
+        (async () => {
+          const quotedText = await getCustomerQuoted(params.id);
+          if (!quotedText) {
+            throw new Error('ไม่พบข้อมูล RFQ');
+          }
+
+          downloadRfqPdf(params.id, quotedText);
+        })(),
+        {
+          loading: 'กำลังสร้าง PDF',
+          success: 'ดาวน์โหลด PDF เรียบร้อย',
+          error: 'สร้าง PDF ไม่สำเร็จ'
+        }
+      );
+    } finally {
+      setIsRfqPdfPreparing(false);
     }
   };
 
@@ -1157,6 +1203,19 @@ export default function RFQDetail(): ReactElement {
       }
     }
   });
+  const requestSpecialPriceTiers = useMemo(() => {
+    const uniqueMoqs = new Set<number>();
+    return (rfq?.details || [])
+      .flatMap((detail) => detail.tiers)
+      .filter((tier) => {
+        const moq = Number(tier.quantity);
+        if (uniqueMoqs.has(moq)) {
+          return false;
+        }
+        uniqueMoqs.add(moq);
+        return true;
+      });
+  }, [rfq?.details]);
   const quotationOptions = useMemo(() => rfq?.quotations || [], [rfq?.quotations]);
   const latestQuotationNo = useMemo(() => {
     if (!quotationOptions.length) {
@@ -1378,18 +1437,20 @@ export default function RFQDetail(): ReactElement {
       systemMechanic: Yup.string().max(255),
       material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
-      targetPrice: Yup.string().test(
-        'is-valid-target-price',
-        t('rfqManagement.validation.targetPrice'),
-        (value) => !value || !Number.isNaN(Number(value))
-      ),
       requestedMoqs: Yup.array()
         .of(
-          Yup.string().test(
-            'is-valid-requested-moq',
-            t('rfqManagement.validation.requestedMoqs'),
-            (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
-          )
+          Yup.object().shape({
+            moq: Yup.string().test(
+              'is-valid-requested-moq',
+              t('rfqManagement.validation.requestedMoqs'),
+              (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+            ),
+            targetPrice: Yup.string().test(
+              'is-valid-requested-moq-target-price',
+              t('rfqManagement.validation.targetPrice'),
+              (value) => !value || (!Number.isNaN(Number(value)) && Number(value) > 0)
+            )
+          })
         )
         .min(1, t('rfqManagement.validation.requestedMoqsRequired')),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
@@ -1416,11 +1477,11 @@ export default function RFQDetail(): ReactElement {
             systemMechanic: values.systemMechanic,
             material: values.material,
             capacity: values.capacity,
-            targetPrice: values.targetPrice ? Number(values.targetPrice) : undefined,
             requestedMoqs: values.requestedMoqs
-              .map((value) => value.trim())
-              .filter((value) => value.length > 0)
-              .map((value) => Number(value)),
+              .map((value) => ({
+                moq: Number(value.moq),
+                targetPrice: value.targetPrice.trim() ? Number(value.targetPrice) : null
+              })),
             description: values.description
           }),
           {
@@ -1452,7 +1513,9 @@ export default function RFQDetail(): ReactElement {
   }, [formik.values.orderTypeCode, orderTypeList]);
 
   const requestedMoqDisplayValues = useMemo(() => {
-    return formik.values.requestedMoqs.length ? formik.values.requestedMoqs : [''];
+    return formik.values.requestedMoqs.length
+      ? formik.values.requestedMoqs
+      : [{ moq: '', targetPrice: '' }];
   }, [formik.values.requestedMoqs]);
 
   const selectedProductFamily = useMemo(
@@ -1684,7 +1747,8 @@ export default function RFQDetail(): ReactElement {
     try {
       await toast.promise(
         addRFQNote(params.id, {
-          note: noteText.trim()
+          note: noteText.trim(),
+          noteTo: 'PROCUREMENT'
         }),
         {
           loading: t('toast.loading'),
@@ -2195,15 +2259,28 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    const normalizedTargetPrice = requestSpecialPriceTargetPrice.trim();
+    const targetPriceErrors: Record<number, string> = {};
+    const tiers = (rfq?.details || []).reduce<{ tierId: number; targetPrice: number }[]>(
+      (items, detail) => {
+        detail.tiers.forEach((tier) => {
+          const value = requestSpecialPriceTargetPrices[tier.id]?.trim() || '';
+          if (!value) {
+            targetPriceErrors[tier.id] = 'กรุณากรอกราคาที่ต้องการ';
+            return;
+          }
+          if (Number.isNaN(Number(value))) {
+            targetPriceErrors[tier.id] = t('rfqManagement.validation.targetPrice');
+            return;
+          }
+          items.push({ tierId: tier.id, targetPrice: Number(value) });
+        });
+        return items;
+      },
+      []
+    );
 
-    if (!normalizedTargetPrice) {
-      setRequestSpecialPriceTargetPriceError('กรุณากรอกราคาที่ต้องการ');
-      return;
-    }
-
-    if (Number.isNaN(Number(normalizedTargetPrice))) {
-      setRequestSpecialPriceTargetPriceError(t('rfqManagement.validation.targetPrice'));
+    if (Object.keys(targetPriceErrors).length) {
+      setRequestSpecialPriceTargetPriceErrors(targetPriceErrors);
       return;
     }
 
@@ -2211,7 +2288,7 @@ export default function RFQDetail(): ReactElement {
       setIsPictureSubmitting(true);
       await toast.promise(
         requestSpecialPriceRFQ(params.id, {
-          targetPrice: Number(normalizedTargetPrice)
+          tiers
         }),
         {
           loading: t('toast.loading'),
@@ -2221,7 +2298,7 @@ export default function RFQDetail(): ReactElement {
       );
       await refetchRFQ();
       setVisibleRequestSpecialPriceDialog(false);
-      setRequestSpecialPriceTargetPriceError('');
+      setRequestSpecialPriceTargetPriceErrors({});
     } finally {
       setIsPictureSubmitting(false);
     }
@@ -2356,7 +2433,6 @@ export default function RFQDetail(): ReactElement {
       material: true,
       capacity: true,
       capacityUnit: true,
-      targetPrice: true,
       requestedMoqs: formik.values.requestedMoqs.map(() => true),
       description: true
     } as const;
@@ -2675,7 +2751,7 @@ export default function RFQDetail(): ReactElement {
                   keepMounted>
                   {canReviewSpecialPriceAction ? (
                     <MenuItem
-                      onClick={() => setVisibleRequestSpecialPriceDialog(true)}
+                      onClick={handleOpenRequestSpecialPriceDialog}
                       sx={{ width: '100%' }}>
                       <ListItemIcon>
                         <Calculate fontSize="small" />
@@ -2708,6 +2784,17 @@ export default function RFQDetail(): ReactElement {
                       <FilePresent fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary={t('rfqManagement.detail.actions.requestQuotation')} />
+                  </MenuItem>
+                  <MenuItem
+                    disabled={isRfqPdfPreparing}
+                    onClick={() => {
+                      void handleDownloadRfqPdf();
+                    }}
+                    sx={{ width: '100%' }}>
+                    <ListItemIcon>
+                      <GetApp fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="ดึงข้อมูล RFQ (PDF)" />
                   </MenuItem>
                   {canCopyRfqAction ? (
                     <MenuItem
@@ -3133,7 +3220,14 @@ export default function RFQDetail(): ReactElement {
                       error={Boolean(formik.touched.contactName && formik.errors.contactName)}
                       helperText={formik.touched.contactName && formik.errors.contactName}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: !isSalesPermission }}
+                      InputProps={{
+                        readOnly: !isSalesPermission,
+                        endAdornment: rfq?.customer?.id ? (
+                          <InputAdornment position="end">
+                            <Chip size="small" label={rfq.customer.id} variant="outlined" />
+                          </InputAdornment>
+                        ) : undefined
+                      }}
                     />
                   </GridTextField>
 
@@ -3479,21 +3573,7 @@ export default function RFQDetail(): ReactElement {
                       InputProps={{ readOnly: !isSalesPermission }}
                     />
                   </GridTextField>
-                  <GridTextField item xs={12} sm={3}>
-                    <TextField
-                      fullWidth
-                      label={t('rfqManagement.form.targetPrice')}
-                      name="targetPrice"
-                      value={formik.values.targetPrice}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      error={Boolean(formik.touched.targetPrice && formik.errors.targetPrice)}
-                      helperText={formik.touched.targetPrice && formik.errors.targetPrice}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: !isSalesPermission }}
-                    />
-                  </GridTextField>
-                  <Grid item xs={12} sm={3}>
+                  <Grid item xs={12} sm={6}>
                     <TextField
                       select
                       fullWidth
@@ -3528,77 +3608,98 @@ export default function RFQDetail(): ReactElement {
                           backgroundColor: 'background.paper'
                         }}>
                         <Stack spacing={1.25}>
-                          {(requestedMoqDisplayValues.length ? requestedMoqDisplayValues : ['']).map(
-                            (requestedMoq, index) => {
-                              const requestedMoqErrors = formik.errors.requestedMoqs;
-                              const requestedMoqTouched = formik.touched.requestedMoqs;
-                              const itemError =
-                                Array.isArray(requestedMoqTouched) &&
+                          {(requestedMoqDisplayValues.length
+                            ? requestedMoqDisplayValues
+                            : [{ moq: '', targetPrice: '' }]).map(
+                              (requestedMoq, index) => {
+                                const requestedMoqErrors = formik.errors.requestedMoqs;
+                                const itemErrors =
                                   Array.isArray(requestedMoqErrors) &&
-                                  requestedMoqTouched[index]
-                                  ? requestedMoqErrors[index]
-                                  : undefined;
+                                    typeof requestedMoqErrors[index] === 'object'
+                                    ? requestedMoqErrors[index]
+                                    : undefined;
+                                const itemError = itemErrors?.moq;
+                                const targetPriceError = itemErrors?.targetPrice;
 
-                              return (
-                                <Stack
-                                  key={`requested-moq-display-${index}`}
-                                  direction={{ xs: 'column', sm: 'row' }}
-                                  spacing={1}
-                                  alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
-                                  <TextField
-                                    fullWidth
-                                    size={isDownSm ? 'small' : 'medium'}
-                                    label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
-                                    value={requestedMoq}
-                                    onChange={(event) => {
-                                      const nextValues = [...formik.values.requestedMoqs];
-                                      nextValues[index] = event.target.value;
-                                      formik.setFieldValue('requestedMoqs', nextValues);
-                                    }}
-                                    onBlur={() =>
-                                      formik.setFieldTouched(`requestedMoqs.${index}`, true)
-                                    }
-                                    error={Boolean(itemError)}
-                                    helperText={itemError}
-                                    InputLabelProps={{ shrink: true }}
-                                    InputProps={{ readOnly: !isSalesPermission }}
-                                    sx={{
-                                      '& .MuiInputBase-root': {
-                                        backgroundColor: 'common.white'
-                                      }
-                                    }}
-                                  />
-                                  {isSalesPermission ? (
-                                    <Stack direction="row" spacing={1}>
-                                      <IconButton
-                                        color="primary"
-                                        onClick={() =>
-                                          formik.setFieldValue('requestedMoqs', [
-                                            ...formik.values.requestedMoqs,
-                                            ''
-                                          ])
-                                        }>
-                                        <Add />
-                                      </IconButton>
-                                      <IconButton
-                                        color="error"
-                                        disabled={formik.values.requestedMoqs.length === 1}
-                                        onClick={() =>
-                                          formik.setFieldValue(
-                                            'requestedMoqs',
-                                            formik.values.requestedMoqs.filter(
-                                              (_, itemIndex) => itemIndex !== index
-                                            )
-                                          )
-                                        }>
-                                        <DeleteOutline />
-                                      </IconButton>
+                                return (
+                                  <Stack
+                                    key={`requested-moq-display-${index}`}
+                                    direction={{ xs: 'column', sm: 'row' }}
+                                    spacing={1}
+                                    alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flex: 1 }}>
+                                      <TextField
+                                        fullWidth
+                                        size={isDownSm ? 'small' : 'medium'}
+                                        type="number"
+                                        label={`${t('rfqManagement.form.requestedMoq')} ${index + 1}`}
+                                        value={requestedMoq.moq}
+                                        onChange={(event) => {
+                                          const nextValues = [...formik.values.requestedMoqs];
+                                          nextValues[index] = { ...nextValues[index], moq: event.target.value };
+                                          formik.setFieldValue('requestedMoqs', nextValues);
+                                        }}
+                                        onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}.moq`, true)}
+                                        error={Boolean(itemError)}
+                                        helperText={itemError}
+                                        InputLabelProps={{ shrink: true }}
+                                        InputProps={{ readOnly: !isSalesPermission }}
+                                        inputProps={{ min: 0, step: '1' }}
+                                      />
+                                      <TextField
+                                        fullWidth
+                                        size={isDownSm ? 'small' : 'medium'}
+                                        type="number"
+                                        label={t('rfqManagement.form.targetPrice')}
+                                        value={requestedMoq.targetPrice}
+                                        onChange={(event) => {
+                                          const nextValues = [...formik.values.requestedMoqs];
+                                          nextValues[index] = { ...nextValues[index], targetPrice: event.target.value };
+                                          formik.setFieldValue('requestedMoqs', nextValues);
+                                        }}
+                                        onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}.targetPrice`, true)}
+                                        error={Boolean(targetPriceError)}
+                                        helperText={targetPriceError}
+                                        InputLabelProps={{ shrink: true }}
+                                        InputProps={{ readOnly: !isSalesPermission }}
+                                        inputProps={{ min: 0, step: '0.0001' }}
+                                      />
                                     </Stack>
-                                  ) : null}
-                                </Stack>
-                              );
-                            }
-                          )}
+                                    {isSalesPermission ? (
+                                      <Stack direction="row" spacing={1}>
+                                        <IconButton
+                                          color="primary"
+                                          onClick={() =>
+                                            formik.setFieldValue('requestedMoqs', [
+                                              ...formik.values.requestedMoqs,
+                                              { moq: '', targetPrice: '' }
+                                            ])
+                                          }>
+                                          <Add />
+                                        </IconButton>
+                                        <IconButton
+                                          color="error"
+                                          disabled={formik.values.requestedMoqs.length === 1}
+                                          onClick={() =>
+                                            formik.setFieldValue(
+                                              'requestedMoqs',
+                                              formik.values.requestedMoqs.filter(
+                                                (_, itemIndex) => itemIndex !== index
+                                              ).length
+                                                ? formik.values.requestedMoqs.filter(
+                                                  (_, itemIndex) => itemIndex !== index
+                                                )
+                                                : [{ moq: '', targetPrice: '' }]
+                                            )
+                                          }>
+                                          <DeleteOutline />
+                                        </IconButton>
+                                      </Stack>
+                                    ) : null}
+                                  </Stack>
+                                );
+                              }
+                            )}
                         </Stack>
                       </Box>
                     </Stack>
@@ -3919,7 +4020,7 @@ export default function RFQDetail(): ReactElement {
                                         backgroundColor: '#fff8e1'
                                       }}>
                                       <Typography variant="caption" color="text.secondary">
-                                        หมายเหตุ
+                                        หมายเหตุ (สำหรับภายในบริษัท)
                                       </Typography>
                                       <Typography variant="body2" fontWeight={600}>
                                         {detail.remark}
@@ -4225,7 +4326,20 @@ export default function RFQDetail(): ReactElement {
                                           '&:last-child td': { borderBottom: 0 }
                                         }}>
                                         <TableCell sx={{ fontWeight: 600 }}>
-                                          {formatQuantity(tier.quantity)}
+                                          <Stack direction="row" spacing={0.5} alignItems="center">
+                                            <span>{formatQuantity(tier.quantity)}</span>
+                                            {tier.targetPrice !== null &&
+                                              tier.targetPrice !== undefined &&
+                                              Number(tier.targetPrice) > 0 ? (
+                                              <Tooltip
+                                                title={`Target Price: ${formatPrice(
+                                                  tier.targetPrice,
+                                                  tier.currency
+                                                )}`}>
+                                                <PriceChange color="error" />
+                                              </Tooltip>
+                                            ) : null}
+                                          </Stack>
                                         </TableCell>
                                         <TableCell align="right">
                                           {formatPrice(tier.productPrice, tier.currency)}
@@ -5422,20 +5536,48 @@ export default function RFQDetail(): ReactElement {
             <Typography variant="body2" color="text.secondary">
               กรุณาระบุราคาที่ต้องการก่อนส่งคำขอทบทวนราคาพิเศษ
             </Typography>
-            <TextField
-              fullWidth
-              label={t('rfqManagement.form.targetPrice')}
-              value={requestSpecialPriceTargetPrice}
-              onChange={(event) => {
-                setRequestSpecialPriceTargetPrice(event.target.value);
-                if (requestSpecialPriceTargetPriceError) {
-                  setRequestSpecialPriceTargetPriceError('');
-                }
-              }}
-              error={Boolean(requestSpecialPriceTargetPriceError)}
-              helperText={requestSpecialPriceTargetPriceError}
-              InputLabelProps={{ shrink: true }}
-            />
+            {requestSpecialPriceTiers.map((tier) => (
+              <Stack key={tier.id} direction="row" spacing={1.5} alignItems="flex-start">
+                <TextField
+                  label="MOQ"
+                  value={tier.quantity}
+                  InputProps={{ readOnly: true }}
+                  sx={{ width: 150 }}
+                />
+                <TextField
+                  fullWidth
+                  type="number"
+                  label={t('rfqManagement.form.targetPrice')}
+                  value={requestSpecialPriceTargetPrices[tier.id] || ''}
+                  onChange={(event) => {
+                    setRequestSpecialPriceTargetPrices((previous) => {
+                      const next = { ...previous };
+                      (rfq?.details || []).forEach((detail) => {
+                        detail.tiers.forEach((candidateTier) => {
+                          if (Number(candidateTier.quantity) === Number(tier.quantity)) {
+                            next[candidateTier.id] = event.target.value;
+                          }
+                        });
+                      });
+                      return next;
+                    });
+                    setRequestSpecialPriceTargetPriceErrors((previous) => ({
+                      ...previous,
+                      ...Object.fromEntries(
+                        (rfq?.details || [])
+                          .flatMap((detail) => detail.tiers)
+                          .filter((candidateTier) => Number(candidateTier.quantity) === Number(tier.quantity))
+                          .map((candidateTier) => [candidateTier.id, ''])
+                      )
+                    }));
+                  }}
+                  error={Boolean(requestSpecialPriceTargetPriceErrors[tier.id])}
+                  helperText={requestSpecialPriceTargetPriceErrors[tier.id]}
+                  inputProps={{ min: 0, step: 'any' }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Stack>
+            ))}
           </Stack>
         </DialogContent>
         <DialogActions>

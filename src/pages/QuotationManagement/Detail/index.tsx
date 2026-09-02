@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { ArrowBackIos, ArrowDropDown, Cancel, Description, Menu as MenuIcon, Save } from '@mui/icons-material';
+import { ArrowBackIos, ArrowDropDown, Cancel, Description, Menu as MenuIcon, Save, Search } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -11,6 +11,7 @@ import {
     DialogContent,
     DialogTitle,
     Grid,
+    IconButton,
     ListItemIcon,
     ListItemText,
     Menu,
@@ -36,6 +37,8 @@ import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
 import DocumentFlow from 'components/DocumentFlow';
 import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
+import CreateFreelanceSaleDialog from 'dialogs/QuotationManagement/New/CreateFreelanceSaleDialog';
+import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -51,6 +54,8 @@ import { getActivityHistory } from 'services/ActivityHistory/activity-history-ap
 import { getQuotation, syncQuotationCustomerSnapshot, updateQuotation, viewQuotation } from 'services/Document/document-api';
 import { Quotation, QuotationCustomerSnapshot, QuotationItem, TemplateLanguage } from 'services/Document/document-type';
 import { searchInvoices } from 'services/Invoice/invoice-api';
+import { getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
+import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { searchReceipts } from 'services/Receipt/receipt-api';
 import { getRFQ } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
@@ -330,7 +335,12 @@ export default function QuotationDetail(): JSX.Element {
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
     const [draftIsVat, setDraftIsVat] = useState(false);
+    const [draftCoSaleId, setDraftCoSaleId] = useState('');
     const [draftCustomerSnapshot, setDraftCustomerSnapshot] = useState<QuotationCustomerSnapshot>({ customerName: '', taxId: '', branchCode: '', branchName: '', address: '', contactName: '', contactNumber: '' });
+    const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
+    const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
+    const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
+    const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
     const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [visibleConfirmPriceDialog, setVisibleConfirmPriceDialog] = useState(false);
     const [selectedConfirmQuotationRowKeys, setSelectedConfirmQuotationRowKeys] = useState<string[]>([]);
@@ -394,6 +404,16 @@ export default function QuotationDetail(): JSX.Element {
     );
 
     const quotation = quotationResponse?.data;
+    const { data: freelanceSales = [], isFetching: isFreelanceSalesFetching } = useQuery(
+        'quotation-detail-freelance-sales',
+        () => getFreelanceSales(),
+        { enabled: isEditing, refetchOnWindowFocus: false }
+    );
+    const selectedFreelanceSale = selectedFreelanceSaleItem || freelanceSales.find((item) => item.id === draftCoSaleId) || null;
+    const selectedFreelanceSaleDisplay = selectedFreelanceSaleLabel
+        || (selectedFreelanceSale ? `${selectedFreelanceSale.id} - ${selectedFreelanceSale.name}` : '')
+        || draftCoSaleId;
+    const salesId = quotation?.saleAccount?.employeeId || quotation?.salesAccount?.employeeId || '';
     const displayItems = isEditing ? draftItems : quotation?.items || [];
     const isActionMenuOpen = Boolean(actionMenuAnchorEl);
     const invoiceRecords = invoiceSearchResponse?.data?.records || [];
@@ -478,6 +498,9 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
+        setDraftCoSaleId(quotation.coSaleId || quotation.coSalesId || '');
+        setSelectedFreelanceSaleItem(null);
+        setSelectedFreelanceSaleLabel('');
         setDraftCustomerSnapshot(quotation.customerSnapshot || { customerName: quotation.customer?.customerName || '', taxId: quotation.customer?.taxId || '', branchCode: quotation.customer?.branchNumber || '', branchName: quotation.customer?.branchName || '', address: getCustomerAddress(quotation), contactName: quotation.customerContact?.contactName || '', contactNumber: quotation.customerContact?.contactNumber || '' });
         setIsEditing(false);
     }, [quotation]);
@@ -490,6 +513,9 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
+        setDraftCoSaleId(quotation.coSaleId || quotation.coSalesId || '');
+        setSelectedFreelanceSaleItem(null);
+        setSelectedFreelanceSaleLabel('');
         setDraftCustomerSnapshot(quotation.customerSnapshot || { customerName: quotation.customer?.customerName || '', taxId: quotation.customer?.taxId || '', branchCode: quotation.customer?.branchNumber || '', branchName: quotation.customer?.branchName || '', address: getCustomerAddress(quotation), contactName: quotation.customerContact?.contactName || '', contactNumber: quotation.customerContact?.contactNumber || '' });
         setIsEditing(true);
     };
@@ -499,6 +525,9 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation?.remark || '');
         setDraftItems(quotation?.items || []);
         setDraftIsVat(Number(quotation?.vatRate || 0) > 0);
+        setDraftCoSaleId(quotation?.coSaleId || quotation?.coSalesId || '');
+        setSelectedFreelanceSaleItem(null);
+        setSelectedFreelanceSaleLabel('');
         setDraftCustomerSnapshot(quotation?.customerSnapshot || { customerName: quotation?.customer?.customerName || '', taxId: quotation?.customer?.taxId || '', branchCode: quotation?.customer?.branchNumber || '', branchName: quotation?.customer?.branchName || '', address: getCustomerAddress(quotation), contactName: quotation?.customerContact?.contactName || '', contactNumber: quotation?.customerContact?.contactNumber || '' });
         setIsEditing(false);
     };
@@ -685,7 +714,7 @@ export default function QuotationDetail(): JSX.Element {
                 : `เลือกรายการสำหรับคอนเฟิร์มราคาแล้ว ${selectedRows.length} รายการ`
         );
         history.push(
-            `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', quotation.rfqId)}?selectedItems=${serializedSelections}`
+            `${ROUTE_PATHS.SALE_ORDER_CREATE_FROM_RFQ.replace(':rfqId', quotation.rfqId)}?quotationNo=${encodeURIComponent(quotation.quotationNo)}&selectedItems=${serializedSelections}`
         );
     };
 
@@ -701,8 +730,9 @@ export default function QuotationDetail(): JSX.Element {
                 updateQuotation(quotationNo, {
                     remark: draftRemark,
                     items: draftItems,
-                    isVat: draftIsVat
-                    , customerSnapshot: draftCustomerSnapshot
+                    isVat: draftIsVat,
+                    customerSnapshot: draftCustomerSnapshot,
+                    coSaleId: draftCoSaleId
                 }),
                 {
                     loading: t('toast.loading'),
@@ -980,7 +1010,28 @@ export default function QuotationDetail(): JSX.Element {
                                 <Stack spacing={1.25} className={classes.section}>
                                     <Typography variant="h6">{t('documentManagement.quotation.salesAccount')}</Typography>
                                     <Info label={t('documentManagement.quotation.salesAccount')} value={getEmployeeName(quotation)} />
-                                    <Info label={t('documentManagement.quotation.coSalesAccount')} value={quotation?.coSaleId || quotation?.coSalesId} />
+                                    {isEditing ? (
+                                        <TextField
+                                            size="small"
+                                            label="เซลล์นอก/เซลล์ฟรีแลนซ์"
+                                            value={selectedFreelanceSaleDisplay}
+                                            fullWidth
+                                            InputLabelProps={{ shrink: true }}
+                                            InputProps={{
+                                                readOnly: true,
+                                                endAdornment: (
+                                                    <IconButton
+                                                        edge="end"
+                                                        onClick={() => setOpenSearchFreelanceSalesDialog(true)}
+                                                        disabled={isFreelanceSalesFetching}>
+                                                        <Search />
+                                                    </IconButton>
+                                                )
+                                            }}
+                                        />
+                                    ) : (
+                                        <Info label={t('documentManagement.quotation.coSalesAccount')} value={quotation?.coSaleId || quotation?.coSalesId} />
+                                    )}
                                 </Stack>
                             </Grid>
                             <Grid item xs={12}>
@@ -1345,6 +1396,34 @@ export default function QuotationDetail(): JSX.Element {
                     </Button>
                 </DialogActions>
             </Dialog>
+            <SearchFreelanceSalesDialog
+                open={openSearchFreelanceSalesDialog}
+                onClose={() => setOpenSearchFreelanceSalesDialog(false)}
+                onAddNew={() => {
+                    setOpenSearchFreelanceSalesDialog(false);
+                    setOpenCreateFreelanceSaleDialog(true);
+                }}
+                salesId={salesId}
+                initialFreelanceSale={selectedFreelanceSale}
+                onSelect={({ freelanceSale }) => {
+                    setDraftCoSaleId(freelanceSale.id || '');
+                    setSelectedFreelanceSaleItem(freelanceSale);
+                    setSelectedFreelanceSaleLabel(`${freelanceSale.id} - ${freelanceSale.name}`);
+                    setOpenSearchFreelanceSalesDialog(false);
+                }}
+            />
+            <CreateFreelanceSaleDialog
+                open={openCreateFreelanceSaleDialog}
+                onClose={() => setOpenCreateFreelanceSaleDialog(false)}
+                defaultSaleCoverage={salesId}
+                customerLabel={draftCustomerSnapshot.customerName || quotation?.customer?.customerName || ''}
+                onCreated={(freelanceSale) => {
+                    setDraftCoSaleId(freelanceSale.id || '');
+                    setSelectedFreelanceSaleItem(freelanceSale);
+                    setSelectedFreelanceSaleLabel(`${freelanceSale.id} - ${freelanceSale.name}`);
+                    setOpenCreateFreelanceSaleDialog(false);
+                }}
+            />
         </Page>
     );
 }

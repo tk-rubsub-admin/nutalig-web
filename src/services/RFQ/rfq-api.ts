@@ -449,14 +449,14 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
   formData.append('systemMechanic', payload.systemMechanic);
   formData.append('material', payload.material);
   formData.append('capacity', payload.capacity);
-  if (payload.targetPrice !== undefined && payload.targetPrice !== null) {
-    formData.append('targetPrice', String(payload.targetPrice));
-  }
   if (payload.requestSample !== undefined) {
     formData.append('requestSample', String(payload.requestSample));
   }
-  payload.requestedMoqs?.forEach((requestedMoq) => {
-    formData.append('requestedMoqs', String(requestedMoq));
+  payload.requestedMoqs?.forEach((requestedMoq, index) => {
+    formData.append(`requestedMoqs[${index}].moq`, String(requestedMoq.moq));
+    if (requestedMoq.targetPrice !== undefined && requestedMoq.targetPrice !== null) {
+      formData.append(`requestedMoqs[${index}].targetPrice`, String(requestedMoq.targetPrice));
+    }
   });
   if (payload.urgentRequest !== undefined) {
     formData.append('urgentRequest', String(payload.urgentRequest));

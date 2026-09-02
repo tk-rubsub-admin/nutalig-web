@@ -8,7 +8,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Radio,
+  Checkbox,
   Stack,
   Table,
   TableBody,
@@ -34,7 +34,7 @@ interface SearchRfqDialogProps {
   open: boolean;
   onClose: () => void;
   customerId: string;
-  onSelect: (rfq: RFQRecord) => void;
+  onSelect: (rfqs: RFQRecord[]) => void;
 }
 
 export default function SearchRfqDialog({
@@ -61,7 +61,7 @@ export default function SearchRfqDialog({
   const classes = useStyles();
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
-  const [selectedRfq, setSelectedRfq] = useState<RFQRecord | null>(null);
+  const [selectedRfqIds, setSelectedRfqIds] = useState<string[]>([]);
 
   const {
     data: rfqResponse,
@@ -95,7 +95,7 @@ export default function SearchRfqDialog({
 
     setPage(1);
     setPageSize(10);
-    setSelectedRfq(null);
+    setSelectedRfqIds([]);
   }, [open, customerId]);
 
   const rfqList = rfqResponse?.records || [];
@@ -167,13 +167,15 @@ export default function SearchRfqDialog({
                 <TableBody>
                   {rfqList.length > 0 ? (
                     rfqList.map((rfq) => {
-                      const isSelected = selectedRfq?.id === rfq.id;
+                      const isSelected = selectedRfqIds.includes(rfq.id);
 
                       return (
                         <TableRow
                           key={rfq.id}
                           hover
-                          onClick={() => setSelectedRfq(rfq)}
+                          onClick={() => setSelectedRfqIds((ids) =>
+                            ids.includes(rfq.id) ? ids.filter((id) => id !== rfq.id) : [...ids, rfq.id]
+                          )}
                           sx={{
                             cursor: 'pointer',
                             backgroundColor: isSelected ? 'rgba(25, 118, 210, 0.08)' : 'inherit',
@@ -188,7 +190,7 @@ export default function SearchRfqDialog({
                           }}
                         >
                           <TableCell align="center">
-                            <Radio checked={isSelected} />
+                            <Checkbox checked={isSelected} />
                           </TableCell>
                           <TableCell align="center">{rfq.id}</TableCell>
                           <TableCell>
@@ -292,16 +294,17 @@ export default function SearchRfqDialog({
         <Button
           variant="contained"
           color="primary"
-          disabled={!selectedRfq}
+          disabled={selectedRfqIds.length === 0}
           onClick={() => {
-            if (!selectedRfq) {
+            const selectedRfqs = rfqList.filter((rfq) => selectedRfqIds.includes(rfq.id));
+            if (selectedRfqs.length === 0) {
               return;
             }
 
-            onSelect(selectedRfq);
+            onSelect(selectedRfqs);
           }}
         >
-          เลือกรายการ RFQ
+          เพิ่มรายการ RFQ
         </Button>
       </DialogActions>
     </Dialog>

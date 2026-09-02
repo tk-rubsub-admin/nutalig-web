@@ -104,6 +104,7 @@ interface SaleOrderRFQItem {
   spec: string;
   quantity: number;
   unitPrice: number;
+  unitPriceInput?: string;
   amount: number;
   totalFreight: number;
   remark: string;
@@ -165,7 +166,10 @@ function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
 
 function recalculateSaleOrderItem(item: SaleOrderRFQItem): SaleOrderRFQItem {
   const quantity = Number(item.quantity || 0);
-  const unitPrice = Number(item.unitPrice || 0);
+  const parsedUnitPrice = Number(
+    item.unitPriceInput === undefined ? item.unitPrice || 0 : item.unitPriceInput
+  );
+  const unitPrice = Number.isFinite(parsedUnitPrice) ? parsedUnitPrice : 0;
   const shippingCost = Number(item.supplierShippingCost || 0);
 
   return {
@@ -591,13 +595,25 @@ function createSaleOrderItemsFromQuotation(
     });
   });
 
+  // A quotation may split one RFQ detail into several quotation details.
+  // In that case every quotation detail must be able to reference the same RFQ row.
+  const canReuseRfqRows = (rfq.details || []).length === 1;
   const availableRfqRows = [...rfqRows];
 
   return (quotation.items || []).map((item, index) => {
     const inferredShippingMethod = inferQuotationItemShippingMethod(item.name);
     const quantity = Number(item.quantity || 1);
     const unitPrice = Number(item.unitPrice || 0);
-    const exactMatchIndex = availableRfqRows.findIndex((row) => {
+    const candidateRfqRows = canReuseRfqRows ? rfqRows : availableRfqRows;
+    const quotationTierId = Number(item.tierId || 0);
+    const tierMatchIndex = quotationTierId
+      ? candidateRfqRows.findIndex(
+          (row) =>
+            row.tierId === quotationTierId &&
+            (!inferredShippingMethod || row.shippingMethod === inferredShippingMethod)
+        )
+      : -1;
+    const exactMatchIndex = candidateRfqRows.findIndex((row) => {
       if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
         return false;
       }
@@ -623,7 +639,7 @@ function createSaleOrderItemsFromQuotation(
     const quantityMatchIndex =
       exactMatchIndex >= 0
         ? exactMatchIndex
-        : availableRfqRows.findIndex((row) => {
+        : candidateRfqRows.findIndex((row) => {
           if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
             return false;
           }
@@ -639,10 +655,16 @@ function createSaleOrderItemsFromQuotation(
     const fallbackIndex =
       quantityMatchIndex >= 0
         ? quantityMatchIndex
-        : availableRfqRows.findIndex((row) =>
+        : candidateRfqRows.findIndex((row) =>
           inferredShippingMethod ? row.shippingMethod === inferredShippingMethod : true
         );
-    const mappedRow = fallbackIndex >= 0 ? availableRfqRows.splice(fallbackIndex, 1)[0] : undefined;
+    const resolvedRowIndex = tierMatchIndex >= 0 ? tierMatchIndex : fallbackIndex;
+    const mappedRow =
+      resolvedRowIndex >= 0
+        ? canReuseRfqRows
+          ? candidateRfqRows[resolvedRowIndex]
+          : availableRfqRows.splice(resolvedRowIndex, 1)[0]
+        : undefined;
     const numericItemId = Number(item.id);
     const mappedDetail = rfq.details?.find((detail) => detail.id === mappedRow?.optionId);
     const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === mappedRow?.tierId);
@@ -717,11 +739,13 @@ export default function SalesOrderRFQ(): JSX.Element {
   const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
   const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [newFreelanceSale, setNewFreelanceSale] = useState<{
+    id: string;
     name: string;
     contactNumber: string;
     saleCoverage: string;
     additional: string;
   }>({
+    id: '',
     name: '',
     contactNumber: '',
     saleCoverage: '',
@@ -1217,6 +1241,7 @@ export default function SalesOrderRFQ(): JSX.Element {
 
   const handleOpenCreateFreelanceSaleDialog = () => {
     setNewFreelanceSale({
+      id: '',
       name: '',
       contactNumber: '',
       saleCoverage: formik.values.salesId || '',
@@ -1233,6 +1258,7 @@ export default function SalesOrderRFQ(): JSX.Element {
 
     setIsLoading(true);
     const request = createFreelanceSale({
+      id: newFreelanceSale.id.trim() || undefined,
       name: newFreelanceSale.name.trim(),
       contactNumber: newFreelanceSale.contactNumber?.trim() || '',
       saleCoverage: newFreelanceSale.saleCoverage?.trim() || '',
@@ -1550,18 +1576,19 @@ export default function SalesOrderRFQ(): JSX.Element {
 
   useEffect(() => {
     if (!rfq) return;
+    if (hasSelectedRFQParams && !quotation?.data) return;
 
     const applyRFQ = async () => {
       const allItems = quotation
         ? createSaleOrderItemsFromQuotation(rfq, quotation?.data)
         : createSaleOrderItemsFromRFQ(rfq);
-      const selectedItemFromDialog = allItems.filter((item) =>
-        selectedRFQParams.some(
-          (selectedItem) =>
-            item.optionId === selectedItem.detailId &&
-            String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId) &&
-            item.shippingMethod === selectedItem.shippingMethod
-        )
+      const selectedItemFromDialog = selectedRFQParams.flatMap((selectedItem) =>
+        allItems
+          .filter(
+            (item) =>
+              String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId)
+          )
+          .map((item) => ({ ...item, shippingMethod: selectedItem.shippingMethod }))
       );
       const items = hasSelectedRFQParams ? selectedItemFromDialog : allItems.slice(0, 1);
       const itemsWithImage = items.map((item) => ({
@@ -2397,10 +2424,11 @@ export default function SalesOrderRFQ(): JSX.Element {
                   </TableCell>
                   <TableCell align="center">
                     <TextField
-                      type="number"
-                      value={row.unitPrice}
+                      type="text"
+                      inputMode="decimal"
+                      value={row.unitPriceInput ?? String(row.unitPrice)}
                       onChange={(event) =>
-                        updateItem(index, 'unitPrice', Number(event.target.value || 0))
+                        updateItem(index, 'unitPriceInput', event.target.value)
                       }
                       inputProps={{ min: 0, style: { textAlign: 'right' } }}
                       sx={{ maxWidth: 155, mx: 'auto' }}
@@ -2972,11 +3000,14 @@ export default function SalesOrderRFQ(): JSX.Element {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                disabled
-                label="ID"
-                placeholder="ระบบจะทำการ Generate ให้อัตโนมัติ"
-                value=""
+                label="ID (ไม่บังคับ)"
+                placeholder="เว้นว่างเพื่อให้ระบบสร้าง NTL-FS อัตโนมัติ"
+                value={newFreelanceSale.id}
+                onChange={(event) =>
+                  setNewFreelanceSale((prev) => ({ ...prev, id: event.target.value }))
+                }
                 InputLabelProps={{ shrink: true }}
+                helperText="ระบุได้ เช่น NTL-MC-00001 หรือรหัสที่กำหนดเอง"
               />
             </Grid>
             <Grid item xs={12} sm={6}>

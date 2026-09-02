@@ -5,7 +5,7 @@ import { makeStyles } from "@mui/styles";
 import PageTitle from "components/PageTitle";
 import { GridTextField, Wrapper } from "components/Styled";
 import { Page } from "layout/LayoutRoute";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "react-query";
 import { useHistory, useParams } from "react-router-dom";
@@ -60,7 +60,10 @@ const createEmptyRow = (): CreateQuotationItem => ({
 
 const recalculateQuotationItem = (item: CreateQuotationItem): CreateQuotationItem => {
     const quantity = Number(item.quantity || 0);
-    const unitPrice = Number(item.unitPrice || 0);
+    const parsedUnitPrice = Number(
+        item.unitPriceInput === undefined ? item.unitPrice || 0 : item.unitPriceInput
+    );
+    const unitPrice = Number.isFinite(parsedUnitPrice) ? parsedUnitPrice : 0;
 
     return {
         ...item,
@@ -404,8 +407,8 @@ function QuotationItemMobileCard({
                             type="text"
                             inputMode="decimal"
                             label={t('documentManagement.quotation.itemSection.unitPrice')}
-                            value={row.unitPrice}
-                            onChange={(e) => onUpdateItem(index, 'unitPrice', e.target.value)}
+                            value={row.unitPriceInput ?? String(row.unitPrice)}
+                            onChange={(e) => onUpdateItem(index, 'unitPriceInput', e.target.value)}
                             variant="outlined"
                             sx={{
                                 '& .MuiOutlinedInput-root': {
@@ -503,6 +506,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
     if (!rfq.details?.length) {
         return [{
             ...createEmptyRow(),
+            sourceRfqId: rfq.id,
             name: productFamily,
             type,
             capacity,
@@ -527,6 +531,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                 shippingMethodLabel?: string
             ): CreateQuotationItem => ({
                 ...createEmptyRow(),
+                sourceRfqId: rfq.id,
                 tierId: tier?.id ? String(tier.id) : '',
                 name: shippingMethodLabel ? `${baseName} (${shippingMethodLabel})` : baseName,
                 type,
@@ -632,7 +637,7 @@ export default function NewQuotation() {
     const [msg, setMsg] = useState<string>('')
     const [action, setAction] = useState<string>('')
     const [customer, setCustomer] = useState<Customer | null>(null);
-    const [selectedRfqFromDialog, setSelectedRfqFromDialog] = useState<RFQRecord | null>(null);
+    const [selectedRfqsFromDialog, setSelectedRfqsFromDialog] = useState<RFQRecord[]>([]);
     const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
     const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState<string>('');
     const today = dayjs();
@@ -871,6 +876,7 @@ export default function NewQuotation() {
     const formik = useFormik({
         initialValues: {
             rfqId: rfqId || '',
+            rfqIds: rfqId ? [rfqId] : [],
             customerId: '',
             customerAddressId: '',
             customerContactId: '',
@@ -1010,6 +1016,7 @@ export default function NewQuotation() {
         formik.setValues({
             ...formik.values,
             rfqId: rfqId || '',
+            rfqIds: rfqId ? [rfqId] : [],
             customerId: rfq.customer?.id || '',
             customerAddressId: defaultAddress?.id || '',
             customerContactId: defaultContact?.id || '',
@@ -1375,16 +1382,23 @@ export default function NewQuotation() {
         setOpenSearchRfqDialog(true);
     };
 
-    const handleSelectRfq = async (selectedRfq: RFQRecord) => {
+    const handleSelectRfq = async (selectedRfqs: RFQRecord[]) => {
         setIsLoading(true);
 
         try {
-            const fullRfq = await getRFQ(selectedRfq.id);
-            setSelectedRfqFromDialog(fullRfq);
-            formik.setFieldValue('rfqId', fullRfq.id);
-            formik.setFieldValue('items', createQuotationItemsFromRFQ(fullRfq));
+            const fullRfqs = await Promise.all(selectedRfqs.map((selectedRfq) => getRFQ(selectedRfq.id)));
+            const existingIds = new Set(formik.values.rfqIds || []);
+            const newRfqs = fullRfqs.filter((fullRfq) => !existingIds.has(fullRfq.id));
+            if (newRfqs.length === 0) {
+                toast.error('RFQ ที่เลือกถูกเพิ่มในใบเสนอราคานี้แล้ว');
+                return;
+            }
+            setSelectedRfqsFromDialog((current) => [...current, ...newRfqs]);
+            formik.setFieldValue('rfqIds', [...existingIds, ...newRfqs.map((fullRfq) => fullRfq.id)]);
+            formik.setFieldValue('rfqId', formik.values.rfqId || newRfqs[0].id);
+            formik.setFieldValue('items', [...formik.values.items, ...newRfqs.flatMap(createQuotationItemsFromRFQ)]);
             setOpenSearchRfqDialog(false);
-            toast.success('ดึงรายการสินค้าจาก RFQ เรียบร้อย');
+            toast.success(`เพิ่มรายการสินค้าจาก ${newRfqs.length} RFQ เรียบร้อย`);
         } catch (error) {
             toast.error('ไม่สามารถดึงข้อมูล RFQ ได้');
         } finally {
@@ -1419,7 +1433,33 @@ export default function NewQuotation() {
     const vatAmount = formik.values.isVat ? taxableAmount * vatRate : 0;
 
     const grandTotal = taxableAmount + vatAmount + freight;
-    const activeRfq = rfq || selectedRfqFromDialog;
+    const activeRfq = rfq || selectedRfqsFromDialog[0];
+    const rfqsById = new Map<string, RFQRecord>(
+        [rfq, ...selectedRfqsFromDialog]
+            .filter((value): value is RFQRecord => Boolean(value?.id))
+            .map((value) => [value.id, value])
+    );
+    const itemGroups = (formik.values.items || []).reduce<Array<{
+        key: string;
+        label: string;
+        rfq?: RFQRecord;
+        items: Array<{ row: CreateQuotationItem; index: number }>;
+    }>>((groups, row, index) => {
+        const key = row.sourceRfqId || 'manual';
+        const rfqForItem = row.sourceRfqId ? rfqsById.get(row.sourceRfqId) : undefined;
+        let group = groups.find((value) => value.key === key);
+        if (!group) {
+            group = {
+                key,
+                label: rfqForItem ? `RFQ: ${rfqForItem.id}` : 'รายการเพิ่มเติม',
+                rfq: rfqForItem,
+                items: []
+            };
+            groups.push(group);
+        }
+        group.items.push({ row, index });
+        return groups;
+    }, []);
 
     return (
         <Page>
@@ -1845,13 +1885,13 @@ export default function NewQuotation() {
                 title={t('documentManagement.quotation.itemSection.title')}
                 isCompleted={isItemSectionCompleted}
                 defaultExpanded={true}
-                action={!isCreateFromRFQ ? (
+                action={(
                     <Button
                         variant="outlined"
                         size="small"
                         startIcon={<Replay />}
                         onClick={handleLoadItemsFromRfq}
-                        disabled={rfq}
+                        disabled={!customer?.id}
                         sx={{
                             borderRadius: '999px',
                             px: 2,
@@ -1860,34 +1900,39 @@ export default function NewQuotation() {
                             whiteSpace: 'nowrap'
                         }}
                     >
-                        ดึงรายการสินค้าจาก RFQ
+                        เพิ่มรายการจาก RFQ{formik.values.rfqIds?.length ? ` (${formik.values.rfqIds.length})` : ''}
                     </Button>
-                ) : null}
+                )}
             >
                 {isDownSm ? (
                     <Stack spacing={1.5}>
-                        {formik.values.items.map((row, index) => {
-                            const itemErrors = getItemErrorState(index);
-                            const showItemErrors = formik.submitCount > 0;
+                        {itemGroups.map((group) => (
+                            <Stack key={group.key} spacing={1.5}>
+                                <Typography fontWeight={700} color="primary">{group.label}</Typography>
+                                {group.items.map(({ row, index }) => {
+                                    const itemErrors = getItemErrorState(index);
+                                    const showItemErrors = formik.submitCount > 0;
 
-                            return (
-                                <QuotationItemMobileCard
-                                    key={index}
-                                    row={row}
-                                    index={index}
-                                    activeRfqPictures={activeRfq?.pictures}
-                                    t={t}
-                                    fieldSx={fieldSx}
-                                    showItemErrors={showItemErrors}
-                                    itemErrors={itemErrors}
-                                    onUpdateItem={updateItem}
-                                    onUploadImage={handleUploadImage}
-                                    onRemoveImage={removeImage}
-                                    onSelectRfqPicture={handleSelectRfqPicture}
-                                    onRemoveRow={removeRow}
-                                />
-                            );
-                        })}
+                                    return (
+                                        <QuotationItemMobileCard
+                                            key={index}
+                                            row={row}
+                                            index={index}
+                                            activeRfqPictures={group.rfq?.pictures || activeRfq?.pictures}
+                                            t={t}
+                                            fieldSx={fieldSx}
+                                            showItemErrors={showItemErrors}
+                                            itemErrors={itemErrors}
+                                            onUpdateItem={updateItem}
+                                            onUploadImage={handleUploadImage}
+                                            onRemoveImage={removeImage}
+                                            onSelectRfqPicture={handleSelectRfqPicture}
+                                            onRemoveRow={removeRow}
+                                        />
+                                    );
+                                })}
+                            </Stack>
+                        ))}
                     </Stack>
                 ) : (
                     <Paper
@@ -1948,7 +1993,16 @@ export default function NewQuotation() {
                             </TableHead>
 
                             <TableBody>
-                                {formik.values.items.map((row, index) => {
+                                {itemGroups.map((group) => (
+                                    <Fragment key={group.key}>
+                                        <TableRow sx={{ backgroundColor: '#EEF3F8' }}>
+                                            <TableCell colSpan={7} sx={{ py: 1.25 }}>
+                                                <Typography fontWeight={700} color="primary">
+                                                    {group.label}
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                        {group.items.map(({ row, index }) => {
                                     const itemErrors = getItemErrorState(index);
                                     const showItemErrors = formik.submitCount > 0;
 
@@ -2084,7 +2138,7 @@ export default function NewQuotation() {
                                                         }}
                                                     />
 
-                                                    {(activeRfq?.pictures || []).length > 1 ? (
+                                                    {(group.rfq?.pictures || activeRfq?.pictures || []).length > 1 ? (
                                                         <Stack spacing={0.75}>
                                                             <Typography variant="caption" color="text.secondary">
                                                                 {t('documentManagement.quotation.itemSection.image')}
@@ -2097,7 +2151,7 @@ export default function NewQuotation() {
                                                                     pb: 0.5
                                                                 }}
                                                             >
-                                                                {(activeRfq?.pictures || []).map((picture, pictureIndex) => {
+                                                                {(group.rfq?.pictures || activeRfq?.pictures || []).map((picture, pictureIndex) => {
                                                                     const isSelected = row.imagePreview === picture.pictureUrl;
 
                                                                     return (
@@ -2181,8 +2235,8 @@ export default function NewQuotation() {
                                                     fullWidth
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={row.unitPrice}
-                                                    onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
+                                                    value={row.unitPriceInput ?? String(row.unitPrice)}
+                                                    onChange={(e) => updateItem(index, 'unitPriceInput', e.target.value)}
                                                     variant="outlined"
                                                     sx={{
                                                         maxWidth: 155,
@@ -2245,7 +2299,9 @@ export default function NewQuotation() {
                                             </TableCell>
                                         </TableRow>
                                     );
-                                })}
+                                        })}
+                                    </Fragment>
+                                ))}
                             </TableBody>
                         </Table>
                     </Paper>

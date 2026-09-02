@@ -49,6 +49,7 @@ export default function CreateFreelanceSaleDialog(props: CreateFreelanceSaleDial
 
     setIsSubmitting(true);
     const request = createFreelanceSale({
+      id: newFreelanceSale.id?.trim() || undefined,
       name: newFreelanceSale.name.trim(),
       contactNumber: newFreelanceSale.contactNumber?.trim() || '',
       saleCoverage: newFreelanceSale.saleCoverage?.trim() || '',
@@ -96,12 +97,12 @@ export default function CreateFreelanceSaleDialog(props: CreateFreelanceSaleDial
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              disabled
-              label="ID"
-              placeholder="ระบบจะทำการ Generate ให้อัตโนมัติ"
+              label="ID (ไม่บังคับ)"
+              placeholder="เว้นว่างเพื่อให้ระบบสร้าง NTL-FS อัตโนมัติ"
               value={newFreelanceSale.id}
               onChange={(event) => setNewFreelanceSale((prev) => ({ ...prev, id: event.target.value }))}
               InputLabelProps={{ shrink: true }}
+              helperText="ระบุได้ เช่น NTL-MC-00001 หรือรหัสที่กำหนดเอง"
             />
           </Grid>
           <Grid item xs={12} sm={6}>

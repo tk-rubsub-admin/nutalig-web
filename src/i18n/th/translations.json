@@ -327,6 +327,10 @@
           "title": "สัดส่วนตาม Product Family",
           "subtitle": "กลุ่มสินค้าที่ถูกสอบถามบ่อยที่สุด"
         },
+        "subtype1": {
+          "title": "สัดส่วนตาม Product Subtype 1",
+          "subtitle": "กลุ่มสินค้าย่อยที่ถูกสอบถามบ่อยที่สุด"
+        },
         "channel": {
           "title": "สัดส่วนตามช่องทางติดต่อ",
           "subtitle": "จำนวน RFQ แยกตาม contact channel"
@@ -346,10 +350,6 @@
         "byCustomerTypeCount": {
           "title": "จำนวน RFQ แยกตามประเภทลูกค้า",
           "subtitle": "นับ RFQ ตามประเภทลูกค้า และรวมรายการที่ยังไม่เป็นลูกค้าไว้ด้วย"
-        },
-        "sla": {
-          "title": "สถานะ SLA",
-          "subtitle": "เฉพาะงานที่ยังต้องติดตามและมี SLA"
         },
         "acceptWorkDuration": {
           "title": "สัดส่วนเวลารับงาน",

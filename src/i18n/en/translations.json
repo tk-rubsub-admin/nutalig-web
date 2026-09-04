@@ -649,6 +649,10 @@
           "title": "Product Family Distribution",
           "subtitle": "Most frequently requested product groups"
         },
+        "subtype1": {
+          "title": "Product Subtype 1 Distribution",
+          "subtitle": "Most frequently requested product subtypes"
+        },
         "channel": {
           "title": "Contact Channel Distribution",
           "subtitle": "RFQs grouped by contact channel"
@@ -668,10 +672,6 @@
         "byCustomerTypeCount": {
           "title": "RFQ Count by Customer Type",
           "subtitle": "Count RFQs by customer type and include records that are not yet customers"
-        },
-        "sla": {
-          "title": "SLA Status",
-          "subtitle": "Only tracked jobs with active SLA"
         },
         "acceptWorkDuration": {
           "title": "Accept time distribution",

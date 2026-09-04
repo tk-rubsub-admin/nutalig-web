@@ -626,6 +626,18 @@
         "overdueSla": {
           "title": "Overdue SLA",
           "subtitle": "Applies to NEW and IN_PROGRESS only"
+        },
+        "requestedInfo": {
+          "title": "Information Requested",
+          "subtitle": "RFQs waiting for additional information"
+        },
+        "canceled": {
+          "title": "Canceled",
+          "subtitle": "Canceled RFQs"
+        },
+        "closed": {
+          "title": "Closed",
+          "subtitle": "Closed RFQs"
         }
       },
       "charts": {

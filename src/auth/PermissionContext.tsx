@@ -33,8 +33,37 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     };
 
     useEffect(() => {
-        if (!authReady) return;
-        refresh().catch(() => setReady(true));
+        if (!authReady) return undefined;
+        let cancelled = false;
+
+        const loadPermissions = async () => {
+            const token = getToken();
+            if (!token) {
+                if (!cancelled) {
+                    setPermissions(new Set());
+                    setReady(true);
+                }
+                return;
+            }
+
+            try {
+                const res = await api.get('/v1/me/permissions');
+                const list: string[] = res.data?.data ?? res.data ?? [];
+                if (!cancelled) {
+                    setPermissions(new Set(list));
+                    setReady(true);
+                }
+            } catch {
+                if (!cancelled) {
+                    setReady(true);
+                }
+            }
+        };
+
+        void loadPermissions();
+        return () => {
+            cancelled = true;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authReady]);
 

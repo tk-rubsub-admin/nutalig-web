@@ -335,6 +335,7 @@ export default function QuotationDetail(): JSX.Element {
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
     const [draftIsVat, setDraftIsVat] = useState(false);
+    const [draftShipping, setDraftShipping] = useState<'ALL' | 'LAND' | 'SEA'>('ALL');
     const [draftCoSaleId, setDraftCoSaleId] = useState('');
     const [draftCustomerSnapshot, setDraftCustomerSnapshot] = useState<QuotationCustomerSnapshot>({ customerName: '', taxId: '', branchCode: '', branchName: '', address: '', contactName: '', contactNumber: '' });
     const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
@@ -498,6 +499,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
+        setDraftShipping(quotation.shipping === 'LAND' || quotation.shipping === 'SEA' ? quotation.shipping : 'ALL');
         setDraftCoSaleId(quotation.coSaleId || quotation.coSalesId || '');
         setSelectedFreelanceSaleItem(null);
         setSelectedFreelanceSaleLabel('');
@@ -513,6 +515,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
+        setDraftShipping(quotation.shipping === 'LAND' || quotation.shipping === 'SEA' ? quotation.shipping : 'ALL');
         setDraftCoSaleId(quotation.coSaleId || quotation.coSalesId || '');
         setSelectedFreelanceSaleItem(null);
         setSelectedFreelanceSaleLabel('');
@@ -525,6 +528,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation?.remark || '');
         setDraftItems(quotation?.items || []);
         setDraftIsVat(Number(quotation?.vatRate || 0) > 0);
+        setDraftShipping(quotation?.shipping === 'LAND' || quotation?.shipping === 'SEA' ? quotation.shipping : 'ALL');
         setDraftCoSaleId(quotation?.coSaleId || quotation?.coSalesId || '');
         setSelectedFreelanceSaleItem(null);
         setSelectedFreelanceSaleLabel('');
@@ -732,7 +736,8 @@ export default function QuotationDetail(): JSX.Element {
                     items: draftItems,
                     isVat: draftIsVat,
                     customerSnapshot: draftCustomerSnapshot,
-                    coSaleId: draftCoSaleId
+                    coSaleId: draftCoSaleId,
+                    shipping: draftShipping
                 }),
                 {
                     loading: t('toast.loading'),
@@ -953,6 +958,23 @@ export default function QuotationDetail(): JSX.Element {
                                     />
                                     <Info label={"Revision "} value={quotation?.revNo ?? '-'} />
                                     <Info label="อ้างอิง RFQ " value={quotation?.rfqId} />
+                                    {isEditing ? (
+                                        <TextField
+                                            select
+                                            size="small"
+                                            label="การขนส่ง"
+                                            value={draftShipping}
+                                            onChange={(event) => setDraftShipping(event.target.value as 'ALL' | 'LAND' | 'SEA')}>
+                                            <MenuItem value="ALL">ทางรถ / ทางเรือ</MenuItem>
+                                            <MenuItem value="LAND">ทางรถ</MenuItem>
+                                            <MenuItem value="SEA">ทางเรือ</MenuItem>
+                                        </TextField>
+                                    ) : (
+                                        <Info
+                                            label="การขนส่ง"
+                                            value={quotation?.shipping === 'LAND' ? 'ทางรถ' : quotation?.shipping === 'SEA' ? 'ทางเรือ' : 'ทางรถ / ทางเรือ'}
+                                        />
+                                    )}
                                     {isEditing ? (
                                         <FormControlLabel
                                             control={

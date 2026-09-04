@@ -92,7 +92,7 @@ interface SaleOrderRFQItem {
   tierId?: number;
   supplierQuoteTierId?: number;
   quotationDetailId?: number | string;
-  shippingMethod: 'LAND' | 'SEA' | null;
+  shippingMethod: string | null;
   isFcl?: boolean;
   isShareFCL?: boolean;
   supplierCurrency?: string | null;
@@ -146,7 +146,7 @@ interface SaleOrderRFQFormValues {
 interface SelectedRFQQueryItem {
   detailId: number;
   quotationDetailId: string;
-  shippingMethod: 'LAND' | 'SEA';
+  shippingMethod: string;
 }
 
 function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
@@ -285,8 +285,12 @@ function getShippingTypeLabel(shippingType?: string | null): string {
   return '';
 }
 
+function isSeaShippingMethod(shippingMethod?: string | null): boolean {
+  return Boolean(shippingMethod?.startsWith('SEA'));
+}
+
 function getShippingMethodIcon(shippingMethod?: string | null): JSX.Element | null {
-  if (shippingMethod === 'SEA') {
+  if (isSeaShippingMethod(shippingMethod)) {
     return <DirectionsBoat sx={{ color: '#00897b', fontSize: 30 }} />;
   }
 
@@ -298,7 +302,7 @@ function getShippingMethodIcon(shippingMethod?: string | null): JSX.Element | nu
 }
 
 function getShippingMethodColor(shippingMethod?: string | null): string {
-  if (shippingMethod === 'SEA') return '#00897b';
+  if (isSeaShippingMethod(shippingMethod)) return '#00897b';
   if (shippingMethod === 'LAND') return '#1565c0';
   return '#64748b';
 }
@@ -348,22 +352,22 @@ function detectCoSaleMode(
   return CO_SALE_MODE_NONE;
 }
 
-function getShippingPrice(tier: RFQDetailTier, shippingMethod: 'LAND' | 'SEA'): number {
+function getShippingPrice(tier: RFQDetailTier, shippingMethod: string): number {
   return Number(
-    shippingMethod === 'SEA'
+    isSeaShippingMethod(shippingMethod)
       ? tier.seaTotalPrice || tier.productPrice || 0
       : tier.landTotalPrice || tier.productPrice || 0
   );
 }
 
-function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: 'LAND' | 'SEA'): number {
+function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: string): number {
   if (!tier) {
     return 0;
   }
 
   const quantity = Number(tier.quantity || 0);
   const freightCost = Number(
-    shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
+    isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
   );
 
   return quantity * freightCost;
@@ -387,7 +391,7 @@ function formatApiDate(value: dayjs.Dayjs | string): string | undefined {
 }
 
 function getShippingDisplayLabel(
-  shippingMethod: 'LAND' | 'SEA' | null,
+  shippingMethod: string | null,
   isFcl?: boolean | null,
   isShareFCL?: boolean | null
 ): string {
@@ -395,9 +399,9 @@ function getShippingDisplayLabel(
     return '';
   }
 
-  const shippingLabel = shippingMethod === 'SEA' ? 'ส่งทางเรือ' : 'ส่งทางรถ';
+  const shippingLabel = isSeaShippingMethod(shippingMethod) ? 'ส่งทางเรือ' : 'ส่งทางรถ';
 
-  if (shippingMethod === 'SEA') {
+  if (isSeaShippingMethod(shippingMethod)) {
     if (Boolean(isShareFCL)) {
       return `${shippingLabel} แบบแชร์ปิดตู้`;
     }
@@ -413,7 +417,7 @@ function getShippingDisplayLabel(
 function hasFclShippingTag(
   item: Pick<SaleOrderRFQItem, 'shippingMethod' | 'isFcl' | 'isShareFCL' | 'name' | 'remark'>
 ): boolean {
-  if (item.shippingMethod !== 'SEA') {
+  if (!isSeaShippingMethod(item.shippingMethod)) {
     return false;
   }
 
@@ -483,7 +487,8 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
         ];
       }
 
-      return (['LAND', 'SEA'] as const).map((shippingMethod, shippingIndex) => {
+      const tierShippingMethods = tier.shippingMethod ? [tier.shippingMethod] : ['LAND', 'SEA'];
+      return tierShippingMethods.map((shippingMethod, shippingIndex) => {
         const quantity = Number(tier.quantity || 1);
         const unitPrice = getShippingPrice(tier, shippingMethod);
         const shippingDisplayLabel = getShippingDisplayLabel(
@@ -504,11 +509,11 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           supplierUnitPrice: Number(tier.productPrice || 0),
           exchangeRate: Number(tier.exchangeRate || 0),
           supplierShippingCost: Number(
-            shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
+            isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
           ),
           supplierTotalUnitCost:
             Number(tier.productPrice || 0) +
-            Number(shippingMethod === 'SEA' ? tier.seaFreightCost || 0 : tier.landFreightCost || 0),
+            Number(isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0),
           name: `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
             quantity
           )} - ${shippingDisplayLabel}`,

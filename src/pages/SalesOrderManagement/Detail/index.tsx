@@ -196,9 +196,13 @@ function getShippingTypeLabel(shippingType?: string | null): string {
     return 'ทางรถ';
   }
 
-  if (shippingType === 'SEA') {
-    return 'ทางเรือ';
-  }
+    if (shippingType === 'SEA') {
+      return 'ทางเรือ';
+    }
+
+    if (shippingType === 'ALL') {
+      return 'ทางรถ / ทางเรือ';
+    }
 
   if (shippingType === 'FULL_CONTAINER_LOAD') {
     return 'ทางเรือแบบปิดตู้';
@@ -1230,9 +1234,9 @@ export default function SalesOrderDetail(): ReactElement {
                       label="วิธีขนส่ง"
                       value={draft.shippingType}
                       onChange={(event) => updateDraftField('shippingType', event.target.value)}>
+                      <MenuItem value="ALL">ทางรถ / ทางเรือ</MenuItem>
                       <MenuItem value="LAND">ทางรถ</MenuItem>
                       <MenuItem value="SEA">ทางเรือ</MenuItem>
-                      <MenuItem value="FULL_CONTAINER_LOAD">ทางเรือแบบปิดตู้</MenuItem>
                     </TextField>
                   ) : (
                     <Info

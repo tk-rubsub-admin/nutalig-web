@@ -1,12 +1,10 @@
 /* eslint-disable prettier/prettier */
-import { Description, DisabledByDefault, OpenInNew, Search } from '@mui/icons-material';
+import { OpenInNew } from '@mui/icons-material';
 import {
-    Button,
     Chip,
     CircularProgress,
     Grid,
     IconButton,
-    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -14,7 +12,6 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    TextField,
     Tooltip,
     Typography,
     useMediaQuery,
@@ -25,7 +22,7 @@ import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
-import { GridSearchSection, GridTextField, Wrapper } from 'components/Styled';
+import { GridSearchSection, Wrapper } from 'components/Styled';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
 import { ReactElement, useEffect, useMemo, useState } from 'react';
@@ -65,9 +62,13 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
 function getDefaultDocDateRange() {
     const now = dayjs();
 
+    // return {
+    //     docDateStart: now.startOf('month').format('YYYY-MM-DD'),
+    //     docDateEnd: now.endOf('month').format('YYYY-MM-DD')
+    // };
     return {
-        docDateStart: now.startOf('month').format('YYYY-MM-DD'),
-        docDateEnd: now.endOf('month').format('YYYY-MM-DD')
+        docDateStart: '',
+        docDateEnd: ''
     };
 }
 
@@ -117,7 +118,7 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
         [currentSalesId, isSalesRole]
     );
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(50);
     const [filter, setFilter] = useState<SearchSalesOrderRequestV1>(roleDefaultFilter);
 
     const { data: visibleSearchFields = [] } = useQuery(

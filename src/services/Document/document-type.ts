@@ -71,6 +71,7 @@ export interface Quotation {
     vat: number;
     vatRate: number;
     grandTotal: number;
+    shipping?: string | null;
     items: QuotationItem[];
 }
 
@@ -106,6 +107,7 @@ export interface UpdateQuotationRequest {
     isVat?: boolean;
     customerSnapshot?: QuotationCustomerSnapshot;
     coSaleId?: string;
+    shipping?: 'ALL' | 'LAND' | 'SEA' | null;
 }
 
 export interface SearchQuotationRequest {

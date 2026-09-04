@@ -25,9 +25,50 @@ export const createPurchaseOrder = async (
   if (data.shippingLeadTimeDay !== undefined && data.shippingLeadTimeDay !== null) {
     formData.append('shippingLeadTimeDay', String(data.shippingLeadTimeDay));
   }
+  if (data.paymentTerm) {
+    formData.append('paymentTerm', data.paymentTerm);
+  }
+  if (data.shippingMethodSnapshot) {
+    formData.append('shippingMethodSnapshot', data.shippingMethodSnapshot);
+  }
+  if (data.containerSizeSnapshot) {
+    formData.append('containerSizeSnapshot', data.containerSizeSnapshot);
+  }
+  if (data.supplierContactSnapshot !== undefined && data.supplierContactSnapshot !== null) {
+    formData.append('supplierContactSnapshot', data.supplierContactSnapshot);
+  }
+  if (data.supplierContactNoSnapshot !== undefined && data.supplierContactNoSnapshot !== null) {
+    formData.append('supplierContactNoSnapshot', data.supplierContactNoSnapshot);
+  }
+  if (data.supplierAddressSnapshot !== undefined && data.supplierAddressSnapshot !== null) {
+    formData.append('supplierAddressSnapshot', data.supplierAddressSnapshot);
+  }
   if (data.remark) {
     formData.append('remark', data.remark);
   }
+  (data.items || []).forEach((item, index) => {
+    if (item.salesOrderDetailId !== undefined && item.salesOrderDetailId !== null) {
+      formData.append(`items[${index}].salesOrderDetailId`, String(item.salesOrderDetailId));
+    }
+    if (item.name !== undefined && item.name !== null) {
+      formData.append(`items[${index}].name`, item.name);
+    }
+    if (item.spec !== undefined && item.spec !== null) {
+      formData.append(`items[${index}].spec`, item.spec);
+    }
+    if (item.quantity !== undefined && item.quantity !== null) {
+      formData.append(`items[${index}].quantity`, String(item.quantity));
+    }
+    if (item.supplierCurrency) {
+      formData.append(`items[${index}].supplierCurrency`, item.supplierCurrency);
+    }
+    if (item.supplierUnitPrice !== undefined && item.supplierUnitPrice !== null) {
+      formData.append(`items[${index}].supplierUnitPrice`, String(item.supplierUnitPrice));
+    }
+    if (item.supplierShippingCost !== undefined && item.supplierShippingCost !== null) {
+      formData.append(`items[${index}].supplierShippingCost`, String(item.supplierShippingCost));
+    }
+  });
   attachments.forEach((file) => {
     formData.append('attachments', file);
   });

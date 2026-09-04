@@ -429,6 +429,13 @@ function formatContainerSizeLabel(containerSize?: string | null): string {
   return containerSize?.trim().toUpperCase() || '-';
 }
 
+function getTierShippingMethod(tier: Pick<FinalPriceDraftTier, 'isFcl' | 'isShareFCL' | 'containerSize'>): string {
+  const containerSize = tier.containerSize.trim().toUpperCase();
+  if (tier.isShareFCL && containerSize) return `SEA_SHARE_FCL_${containerSize}`;
+  if (tier.isFcl && containerSize) return `SEA_FCL_${containerSize}`;
+  return 'SEA';
+}
+
 function getNamedCodeValueLabel<
   T extends { code?: string; nameTh?: string | null; nameEn?: string | null }
 >(value?: T | string | null): string {
@@ -3687,6 +3694,7 @@ export default function RFQDetail(): ReactElement {
                 productPrice,
                 commission: commission ?? 100,
                 currency: tier.currency || 'THB',
+                shippingMethod: getTierShippingMethod(tier),
                 containerSize:
                   tier.isFcl || tier.isShareFCL ? tier.containerSize.trim() || null : null,
                 landFreightCost,
@@ -3713,6 +3721,7 @@ export default function RFQDetail(): ReactElement {
                 sellPrice,
                 commission: commission ?? 100,
                 currency: tier.currency || 'THB',
+                shippingMethod: getTierShippingMethod(tier),
                 containerSize:
                   tier.isFcl || tier.isShareFCL ? tier.containerSize.trim() || null : null,
                 landFreightCost,

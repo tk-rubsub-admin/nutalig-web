@@ -60,7 +60,7 @@ export interface CreateSalesOrderDetailRequest {
     rfqDetailId?: number | null;
     rfqTierId?: number | null;
     quotationDetailId?: number | null;
-    shippingMethod?: 'LAND' | 'SEA' | null;
+    shippingMethod?: string | null;
     supplierCurrency?: string | null;
     supplierUnitPrice?: number | null;
     exchangeRate?: number | null;
@@ -110,6 +110,7 @@ export interface SearchSalesOrderRequestV1 {
 
 export interface SalesOrderV1 {
     salesOrderNo: string;
+    rfqId: string | null;
     quotationNo: string | null;
     docDate: string | null;
     expireDate: string | null;

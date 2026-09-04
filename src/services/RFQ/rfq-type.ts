@@ -188,6 +188,7 @@ export interface RFQDetailTierSplit {
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;
+  shippingMethod?: string | null;
   containerSize?: string | null;
   landFreightQty: number;
   landFreightCost: number;
@@ -203,6 +204,7 @@ export interface RFQDetailTier {
   targetPrice?: number | null;
   commission?: number | null;
   currency?: string | null;
+  shippingMethod?: string | null;
   exchangeRate?: number | null;
   containerSize?: string | null;
   landFreightCost: number;
@@ -353,6 +355,7 @@ export interface RFQRecord {
   note?: string | null;
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
+  confirmedSupplierQuoteId?: string | null;
   confirmedShippingMethod?: string | null;
   confirmedPrice?: number | null;
   confirmedDate?: string | null;
@@ -511,7 +514,7 @@ export interface LinkRFQSalesOrderRequest {
   saleOrderId: string;
   detailId?: number;
   tierId?: number;
-  shippingMethod?: 'LAND' | 'SEA';
+  shippingMethod?: string;
   price?: number | null;
   selections?: LinkRFQSalesOrderSelectionRequest[];
 }
@@ -519,7 +522,7 @@ export interface LinkRFQSalesOrderRequest {
 export interface LinkRFQSalesOrderSelectionRequest {
   detailId: number;
   tierId: number;
-  shippingMethod: 'LAND' | 'SEA';
+  shippingMethod: string;
   price?: number | null;
 }
 
@@ -528,6 +531,7 @@ export interface CreateRFQDetailTierRequest {
   productPrice: number;
   commission?: number | null;
   currency?: string | null;
+  shippingMethod?: string | null;
   containerSize?: string | null;
   exchangeRate?: number | null;
   landFreightCost: number;
@@ -545,6 +549,7 @@ export interface CreateRFQDetailTierSplitRequest {
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;
+  shippingMethod?: string | null;
   containerSize?: string | null;
   landFreightCost?: number | null;
   landFreightQty?: number | null;

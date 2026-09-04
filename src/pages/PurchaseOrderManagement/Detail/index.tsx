@@ -657,9 +657,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA' ? 'ทางเรือ' : 'ทางรถ'} | ${
-                              purchaseOrder.supplierShipping.shippingName || `Shipping #${purchaseOrder.supplierShipping.id}`
-                            }`
+                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA' ? 'ทางเรือ' : 'ทางรถ'} | ${purchaseOrder.supplierShipping.shippingName || `Shipping #${purchaseOrder.supplierShipping.id}`
+                          }`
                           : '-'
                       }
                     />
@@ -693,8 +692,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       value={
                         purchaseOrder?.supplierShipping?.destinations?.length
                           ? purchaseOrder.supplierShipping.destinations
-                              .map((item) => item.destinationName || item.fullAddress || '-')
-                              .join(', ')
+                            .map((item) => item.destinationName || item.fullAddress || '-')
+                            .join(', ')
                           : '-'
                       }
                     />
@@ -717,10 +716,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                         <TableCell className={classes.tableHeader}>รายละเอียด</TableCell>
                         <TableCell className={classes.tableHeader}>จำนวน</TableCell>
                         <TableCell className={classes.tableHeader}>ราคาสินค้า</TableCell>
-                        <TableCell className={classes.tableHeader}>ค่าขนส่ง/หน่วย</TableCell>
-                        <TableCell className={classes.tableHeader}>ต้นทุนรวม/หน่วย</TableCell>
                         <TableCell className={classes.tableHeader}>รวม</TableCell>
-                        <TableCell className={classes.tableHeader}>รวม (บาท)</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -770,31 +766,13 @@ export default function PurchaseOrderDetail(): ReactElement {
                               )}
                             </TableCell>
                             <TableCell align="right">
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  value={item.supplierShippingCost ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(index, 'supplierShippingCost', Number(event.target.value || 0))
-                                  }
-                                />
-                              ) : (
-                                `${formatNumber(item.supplierShippingCost || 0)} ${item.supplierCurrency || ''}`
-                              )}
-                            </TableCell>
-                            <TableCell align="right">
-                              {formatNumber(item.supplierTotalUnitCost || 0)} {item.supplierCurrency || ''}
-                            </TableCell>
-                            <TableCell align="right">
                               {formatNumber(item.amountSupplierCurrency || 0)} {item.supplierCurrency || ''}
                             </TableCell>
-                            <TableCell align="right">{formatNumber(item.amountThb || 0)}</TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={9} align="center">
+                          <TableCell colSpan={6} align="center">
                             {t('warning.noResultList')}
                           </TableCell>
                         </TableRow>
@@ -883,10 +861,11 @@ export default function PurchaseOrderDetail(): ReactElement {
             <Grid item xs={12} md={5}>
               <Stack className={classes.section} spacing={1.25}>
                 <Typography variant="h6">สรุปยอด</Typography>
-                <Summary label="ยอดรวม" value={summary.subTotal} suffix={purchaseOrder?.currency || ''} />
-                <Summary label="ยอดรวม (บาท)" value={summary.subTotalThb} suffix="THB" />
-                <Summary label="จำนวนเงินทั้งสิ้น" value={summary.grandTotal} suffix={purchaseOrder?.currency || ''} />
-                <Summary label="จำนวนเงินทั้งสิ้น (บาท)" value={summary.grandTotalThb} suffix="THB" />
+                <Summary
+                  label="จำนวนเงินทั้งสิ้น"
+                  value={summary.grandTotal}
+                  suffix={purchaseOrder?.currency || ''}
+                />
               </Stack>
             </Grid>
           </Grid>

@@ -1,4 +1,5 @@
 import { Supplier, SupplierShipping } from 'services/Supplier/supplier-type';
+import { SystemConfig } from 'services/Config/config-type';
 import { DocumentStatusProfile } from 'services/document-status-type';
 import { Pagination } from 'services/general-type';
 
@@ -9,7 +10,24 @@ export interface CreatePurchaseOrderRequest {
   docDate?: string;
   productionLeadTimeDay?: number | null;
   shippingLeadTimeDay?: number | null;
+  paymentTerm?: string | null;
+  shippingMethodSnapshot?: string | null;
+  containerSizeSnapshot?: string | null;
+  supplierContactSnapshot?: string | null;
+  supplierContactNoSnapshot?: string | null;
+  supplierAddressSnapshot?: string | null;
   remark?: string;
+  items?: CreatePurchaseOrderItemRequest[];
+}
+
+export interface CreatePurchaseOrderItemRequest {
+  salesOrderDetailId?: number | null;
+  name?: string | null;
+  spec?: string | null;
+  quantity?: number | null;
+  supplierCurrency?: string | null;
+  supplierUnitPrice?: number | null;
+  supplierShippingCost?: number | null;
 }
 
 export interface CreatePurchaseOrderResponse {
@@ -106,6 +124,7 @@ export interface PurchaseOrderRecord {
   exchangeRate: number | null;
   supplier: Supplier | null;
   supplierShipping: SupplierShipping | null;
+  paymentTerm: SystemConfig | null;
   subTotal: number;
   subTotalThb: number;
   grandTotal: number;
@@ -116,6 +135,9 @@ export interface PurchaseOrderRecord {
   supplierAddressSnapshot: string | null;
   supplierContactSnapshot: string | null;
   supplierPhoneSnapshot: string | null;
+  supplierContactNoSnapshot: string | null;
+  shippingMethodSnapshot: string | null;
+  containerSizeSnapshot: string | null;
   attachments: PurchaseOrderAttachment[];
   items: PurchaseOrderItem[];
 }

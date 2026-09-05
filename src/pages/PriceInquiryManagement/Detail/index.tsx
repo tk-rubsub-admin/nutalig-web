@@ -430,7 +430,7 @@ function formatContainerSizeLabel(containerSize?: string | null): string {
 }
 
 function getTierShippingMethod(tier: Pick<FinalPriceDraftTier, 'isFcl' | 'isShareFCL' | 'containerSize'>): string {
-  const containerSize = tier.containerSize.trim().toUpperCase();
+  const containerSize = tier.containerSize?.trim().toUpperCase();
   if (tier.isShareFCL && containerSize) return `SEA_SHARE_FCL_${containerSize}`;
   if (tier.isFcl && containerSize) return `SEA_FCL_${containerSize}`;
   return 'SEA';

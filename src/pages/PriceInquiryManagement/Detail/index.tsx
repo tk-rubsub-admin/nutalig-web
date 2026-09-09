@@ -72,6 +72,7 @@ import { useQuery } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
 import { ROUTE_PATHS } from 'routes';
+import { getShippingMethodLabel } from 'utils/shipping';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
@@ -79,6 +80,7 @@ import { getProductFamilies } from 'services/Product/product-api';
 import { ProductFamily, ProductSubtype1, ProductSubtype2 } from 'services/Product/product-type';
 import {
   createRFQAdditionalCosts,
+  syncRFQAdditionalCosts,
   addRFQAttachments,
   addRFQPictures,
   createRFQDetails,
@@ -111,6 +113,7 @@ import { getLeadTimeConfigs, searchSupplier } from 'services/Supplier/supplier-a
 import {
   RFQAdditionalCost,
   CreateRFQAdditionalCostRequest,
+  SyncRFQAdditionalCostRequest,
   CreateRFQDetailRequest,
   ExtractRFQSupplierQuoteRequest,
   RFQDetailHistory,
@@ -411,18 +414,6 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   }
 
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
-}
-
-function getShippingMethodLabel(shippingMethod?: string | null): string {
-  if (shippingMethod === 'LAND') {
-    return 'ทางรถ';
-  }
-
-  if (shippingMethod === 'SEA') {
-    return 'ทางเรือ';
-  }
-
-  return 'ทางรถ, ทางเรือ';
 }
 
 function formatContainerSizeLabel(containerSize?: string | null): string {
@@ -938,7 +929,10 @@ function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
   };
 }
 
-function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraft {
+function createFinalPriceDraftFromQuote(
+  quote: RFQSupplierQuote,
+  additionalCosts: RFQAdditionalCost[] = []
+): FinalPriceDraft {
   return {
     details: quote.details.map((detail, detailIndex) => ({
       id: detail.id || -(Date.now() + detailIndex + 1),
@@ -963,7 +957,15 @@ function createFinalPriceDraftFromQuote(quote: RFQSupplierQuote): FinalPriceDraf
       }))
     })),
     packages: mapSupplierQuotePackages(quote.packages, quote.details),
-    additionalCosts: [],
+    additionalCosts: additionalCosts
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((additionalCost) => ({
+        id: additionalCost.id,
+        description: additionalCost.description || '',
+        value: additionalCost.value || '',
+        unit: additionalCost.unit || ''
+      })),
     internalRemark: '',
     recommend: ''
   };
@@ -3053,7 +3055,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleOpenFinalPriceDialog = (quote: RFQSupplierQuote) => {
     setFinalPriceQuote(quote);
-    setFinalPriceDraft(createFinalPriceDraftFromQuote(quote));
+    setFinalPriceDraft(createFinalPriceDraftFromQuote(quote, rfq?.additionalCosts || []));
     setFinalPriceErrors({});
   };
 
@@ -3736,20 +3738,24 @@ export default function RFQDetail(): ReactElement {
             : []
         })
       );
-      const addedAdditionalCostPayload: CreateRFQAdditionalCostRequest[] =
-        finalPriceDraft.additionalCosts
-          .filter(
-            (additionalCost) => additionalCost.description.trim() && additionalCost.value.trim()
-          )
-          .map((additionalCost, index) => ({
-            costTypeCode: '',
-            description: additionalCost.description.trim(),
-            value: additionalCost.value.trim(),
-            unit: additionalCost.unit.trim(),
-            sortOrder: index + 1,
-            supplierId
-          }));
-      const additionalCostPayload = addedAdditionalCostPayload;
+      const incompleteAdditionalCost = finalPriceDraft.additionalCosts.find(
+        (additionalCost) =>
+          Boolean(additionalCost.description.trim() || additionalCost.value.trim() || additionalCost.unit.trim()) &&
+          (!additionalCost.description.trim() || !additionalCost.value.trim())
+      );
+      if (incompleteAdditionalCost) {
+        toast.error('กรุณาระบุชื่อและมูลค่าของรายละเอียดเพิ่มเติมให้ครบ');
+        return;
+      }
+      const additionalCostPayload: SyncRFQAdditionalCostRequest[] = finalPriceDraft.additionalCosts
+        .filter((additionalCost) => additionalCost.description.trim() && additionalCost.value.trim())
+        .map((additionalCost, index) => ({
+          id: additionalCost.id > 0 ? additionalCost.id : undefined,
+          description: additionalCost.description.trim(),
+          value: additionalCost.value.trim(),
+          unit: additionalCost.unit.trim(),
+          sortOrder: index + 1
+        }));
 
       await toast.promise(
         (async () => {
@@ -3760,9 +3766,7 @@ export default function RFQDetail(): ReactElement {
             additionalCostPayload
           });
           await createRFQDetails(params.id, detailPayload);
-          if (additionalCostPayload.length) {
-            await createRFQAdditionalCosts(params.id, additionalCostPayload);
-          }
+          await syncRFQAdditionalCosts(params.id, additionalCostPayload);
         })(),
         {
           loading: 'กำลังบันทึกราคาสุดท้าย...',
@@ -5454,13 +5458,12 @@ export default function RFQDetail(): ReactElement {
                                           }}>
                                           <TableCell>MOQ</TableCell>
                                           <TableCell align="right">ราคาสินค้า</TableCell>
-                                          <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
-                                          <TableCell align="center">FCL</TableCell>
+                                          <TableCell align="center">วิธีการขนส่ง</TableCell>
+                                          <TableCell align="right">ค่าขนส่ง</TableCell>
+                                          {/* <TableCell align="center">FCL</TableCell>
                                           <TableCell align="center">Share FCL</TableCell>
-                                          <TableCell align="center">ขนาดตู้</TableCell>
-                                          <TableCell align="right">รวมทางรถ</TableCell>
-                                          <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
-                                          <TableCell align="right">รวมทางเรือ</TableCell>
+                                          <TableCell align="center">ขนาดตู้</TableCell> */}
+                                          <TableCell align="right">ราคารวม</TableCell>
                                           <TableCell align="right">ค่าคอม</TableCell>
                                           <TableCell align="center">Action</TableCell>
                                         </TableRow>
@@ -5478,10 +5481,13 @@ export default function RFQDetail(): ReactElement {
                                             <TableCell align="right">
                                               {formatPrice(tier.productPrice, tier.currency)}
                                             </TableCell>
-                                            <TableCell align="right">
-                                              {formatPrice(tier.landFreightCost, tier.currency)}
-                                            </TableCell>
                                             <TableCell align="center">
+                                              {getShippingMethodLabel(tier.shippingMethod)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(tier.shippingCost, tier.currency)}
+                                            </TableCell>
+                                            {/* <TableCell align="center">
                                               {tier.isFcl ? 'ใช่' : '-'}
                                             </TableCell>
                                             <TableCell align="center">
@@ -5489,19 +5495,11 @@ export default function RFQDetail(): ReactElement {
                                             </TableCell>
                                             <TableCell align="center">
                                               {formatContainerSizeLabel(tier.containerSize)}
-                                            </TableCell>
+                                            </TableCell> */}
                                             <TableCell
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#1565c0' }}>
-                                              {formatPrice(tier.landTotalPrice, tier.currency)}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                              {formatPrice(tier.seaFreightCost, tier.currency)}
-                                            </TableCell>
-                                            <TableCell
-                                              align="right"
-                                              sx={{ fontWeight: 700, color: '#00897b' }}>
-                                              {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                              {formatPrice(tier.totalPrice, tier.currency)}
                                             </TableCell>
                                             <TableCell align="center">
                                               {tier.commission + '%'}

@@ -12,14 +12,29 @@ export const SHIPPING_METHOD_LABELS: Record<string, string> = {
 /** Returns the Thai label for a persisted shipping-method code. */
 export function getShippingMethodLabel(
   shippingMethod?: string | null,
-  fallback = '-'
+  fallback = '-',
+  isFcl = false,
+  isShareFCL = false
 ): string {
   const normalized = shippingMethod?.trim().toUpperCase();
   if (!normalized) {
     return fallback;
   }
 
+  if (normalized === 'SEA' && isShareFCL) return 'ขนส่งทางเรือ ปิดตู้แบบแชร์';
+  if (normalized === 'SEA' && isFcl) return 'ขนส่งทางเรือ ปิดตู้';
+  if (normalized.startsWith('SEA_SHARE_FCL_')) {
+    return `ขนส่งทางเรือ ปิดตู้ ${normalized.substring('SEA_SHARE_FCL_'.length)} แบบแชร์`;
+  }
+  if (normalized.startsWith('SEA_FCL_')) {
+    return `ขนส่งทางเรือ ปิดตู้ ${normalized.substring('SEA_FCL_'.length)}`;
+  }
+
   return SHIPPING_METHOD_LABELS[normalized] || shippingMethod;
+}
+
+export function isSeaShippingMethod(shippingMethod?: string | null): boolean {
+  return Boolean(shippingMethod?.startsWith('SEA'));
 }
 
 /** Extracts a container size from an FCL shipping-method code. */

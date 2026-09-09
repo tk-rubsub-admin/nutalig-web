@@ -301,6 +301,7 @@ export default function NewRFQ(): JSX.Element {
       requestedMoqs: { moq: string; targetPrice: string }[];
       requestSample: boolean;
       description: string;
+      project: string;
     },
     actions: { setSubmitting: (isSubmitting: boolean) => void }
   ) => {
@@ -340,6 +341,7 @@ export default function NewRFQ(): JSX.Element {
         urgentRequest: isUrgentRequest,
         urgentRequestReason: isUrgentRequest ? urgentReason.trim() : undefined,
         description: values.description,
+        project: values.project.trim() || undefined,
         pictures: pictureFiles
       });
 
@@ -386,7 +388,8 @@ export default function NewRFQ(): JSX.Element {
       capacity: '',
       capacityUnit: '',
       requestedMoqs: [{ moq: '', targetPrice: '' }],
-      description: ''
+      description: '',
+      project: ''
     },
     validationSchema: Yup.object().shape({
       customerMode: Yup.string().oneOf(['NEW', 'EXISTING']).required(),
@@ -444,7 +447,8 @@ export default function NewRFQ(): JSX.Element {
             return values.every((value) => value?.moq && value.moq.trim().length > 0);
           }
         ),
-      description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
+      description: Yup.string().max(1000).required(t('rfqManagement.validation.description')),
+      project: Yup.string().max(255)
     }),
     onSubmit: submitCreateRFQ
   });
@@ -494,7 +498,8 @@ export default function NewRFQ(): JSX.Element {
       capacity: parsedCapacity.capacity,
       capacityUnit: parsedCapacity.capacityUnit,
       requestedMoqs,
-      description: copiedRfq.description || ''
+      description: copiedRfq.description || '',
+      project: copiedRfq.project || ''
     });
 
     setSelectedCustomer(copiedRfq.customer || null);
@@ -672,7 +677,8 @@ export default function NewRFQ(): JSX.Element {
       capacity: parsedCapacity.capacity,
       capacityUnit: parsedCapacity.capacityUnit,
       requestedMoqs,
-      description: parentRfqDetail.description || ''
+      description: parentRfqDetail.description || '',
+      project: parentRfqDetail.project || prevValues.project
     }));
   }, [formik, formik.values.rfqTypeCode, parentRfqDetail, unitOptions]);
 
@@ -1101,6 +1107,19 @@ export default function NewRFQ(): JSX.Element {
                 label="ขอราคาค่าตีตัวอย่าง"
               />
             </Box>
+          </GridTextField>
+          <GridTextField item xs={12} sm={4}>
+            <TextField
+              fullWidth
+              label="โครงการ"
+              InputLabelProps={{ shrink: true }}
+              name="project"
+              value={formik.values.project}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.project && Boolean(formik.errors.project)}
+              helperText={formik.touched.project && formik.errors.project}
+            />
           </GridTextField>
           {PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ? (
             <GridTextField item xs={12} sm={4}>

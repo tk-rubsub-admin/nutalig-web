@@ -189,6 +189,8 @@ export interface RFQDetailTierSplit {
   commission?: number | null;
   currency?: string | null;
   shippingMethod?: string | null;
+  shippingCost?: number | null;
+  totalPrice?: number | null;
   containerSize?: string | null;
   landFreightQty: number;
   landFreightCost: number;
@@ -205,6 +207,8 @@ export interface RFQDetailTier {
   commission?: number | null;
   currency?: string | null;
   shippingMethod?: string | null;
+  shippingCost?: number | null;
+  totalPrice?: number | null;
   exchangeRate?: number | null;
   containerSize?: string | null;
   landFreightCost: number;
@@ -397,6 +401,7 @@ export interface RFQRecord {
   urgentRejectedDate?: string | null;
   urgentRejectReason?: string | null;
   description: string;
+  project?: string | null;
   createdBy: string;
   updatedBy: string;
   createdDate: string;
@@ -446,6 +451,7 @@ export interface CreateRFQRequest {
   urgentRequest?: boolean;
   urgentRequestReason?: string;
   description: string;
+  project?: string;
   note?: string;
   pictures: File[];
 }
@@ -475,6 +481,7 @@ export interface UpdateRFQRequest {
   requestedMoqs?: RFQRequestedMoq[];
   requestSample?: boolean;
   description: string;
+  project?: string;
   requestInformation?: string;
   note?: string;
 }
@@ -498,6 +505,7 @@ export interface RequestSpecialPriceRFQRequest {
   tiers: {
     tierId: number;
     targetPrice: number;
+    shippingMethod: 'LAND' | 'SEA';
   }[];
 }
 
@@ -613,6 +621,14 @@ export interface CreateRFQAdditionalCostRequest {
   value: string;
   sortOrder: number;
   supplierId?: string;
+}
+
+export interface SyncRFQAdditionalCostRequest {
+  id?: number;
+  description: string;
+  unit: string;
+  value: string;
+  sortOrder: number;
 }
 
 export interface UpdateRFQResponse {

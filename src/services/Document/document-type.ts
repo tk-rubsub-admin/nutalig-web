@@ -9,6 +9,7 @@ import { DocumentStatusProfile } from "services/document-status-type";
 export type TemplateLanguage = 'TH' | 'EN';
 
 export interface CreateQuotationRequest {
+    status?: 'DRAFT' | 'ISSUED';
     docDate: string;
     effectiveDate: string;
     customerId: string;
@@ -24,12 +25,19 @@ export interface CreateQuotationRequest {
     isVat: boolean;
     rfqId: string;
     rfqIds?: string[];
+    sampleLeadTime?: string;
+    productionLeadTime?: string;
+    moldLeadTime?: string;
+    shippingLeadTime?: string;
+    productQtyTolerance?: string;
+    project?: string;
     items: CreateQuotationItem[];
 };
 
 export interface CreateQuotationItem {
     id: number;
     tierId?: string;
+    rfqDetailId?: number;
     sourceRfqId?: string;
     name: string;
     type: string;
@@ -72,6 +80,12 @@ export interface Quotation {
     vatRate: number;
     grandTotal: number;
     shipping?: string | null;
+    project?: string | null;
+    sampleLeadTime?: string | null;
+    productionLeadTime?: string | null;
+    moldLeadTime?: string | null;
+    shippingLeadTime?: string | null;
+    productQtyTolerance?: string | null;
     items: QuotationItem[];
 }
 
@@ -88,6 +102,7 @@ export interface QuotationCustomerSnapshot {
 export interface QuotationItem {
     id: number | string;
     tierId?: string;
+    rfqDetailId?: number;
     sourceRfqId?: string;
     name: string;
     type: string;
@@ -108,6 +123,12 @@ export interface UpdateQuotationRequest {
     customerSnapshot?: QuotationCustomerSnapshot;
     coSaleId?: string;
     shipping?: 'ALL' | 'LAND' | 'SEA' | null;
+    project?: string;
+    sampleLeadTime?: string;
+    productionLeadTime?: string;
+    moldLeadTime?: string;
+    shippingLeadTime?: string;
+    productQtyTolerance?: string;
 }
 
 export interface SearchQuotationRequest {

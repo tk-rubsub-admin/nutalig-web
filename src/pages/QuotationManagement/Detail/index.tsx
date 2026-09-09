@@ -1,11 +1,9 @@
 /* eslint-disable prettier/prettier */
-import { ArrowBackIos, ArrowDropDown, Cancel, Description, Menu as MenuIcon, Save, Search } from '@mui/icons-material';
+import { ArrowBackIos, ArrowDropDown, Cancel, CloudUpload, Description, DirectionsBoat, LocalShipping, Menu as MenuIcon, Save, Search } from '@mui/icons-material';
 import {
     Box,
     Button,
     Chip,
-    Checkbox,
-    FormControlLabel,
     Dialog,
     DialogActions,
     DialogContent,
@@ -28,7 +26,8 @@ import {
     TextField,
     Typography,
     useMediaQuery,
-    useTheme
+    useTheme,
+    Checkbox
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import Can from 'auth/Can';
@@ -50,6 +49,7 @@ import { IoPencil } from 'react-icons/io5';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import { getShippingMethodLabel, isSeaShippingMethod } from 'utils/shipping';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getQuotation, syncQuotationCustomerSnapshot, updateQuotation, viewQuotation } from 'services/Document/document-api';
 import { Quotation, QuotationCustomerSnapshot, QuotationItem, TemplateLanguage } from 'services/Document/document-type';
@@ -61,6 +61,7 @@ import { getRFQ } from 'services/RFQ/rfq-api';
 import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { DownloadDocumentResponse } from 'services/general-type';
+import { uploadFile } from 'services/general-api';
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber, formatNumberWithDigit } from 'utils/utils';
@@ -105,7 +106,7 @@ type ConfirmQuotationRow = {
     quotationItem: QuotationItem;
     detailId: number | null;
     tierId: string | null;
-    shippingMethod: 'LAND' | 'SEA';
+    shippingMethod: string;
     optionName: string;
     quantity: number;
     unitPrice: number;
@@ -136,24 +137,12 @@ const inferQuotationItemShippingMethod = (name?: string | null): 'LAND' | 'SEA' 
     return null;
 };
 
-const getShippingMethodLabel = (
-    shippingMethod: 'LAND' | 'SEA',
-    isFcl = false,
-    isShareFCL = false
-): string => {
-    if (shippingMethod === 'SEA') {
-        if (isShareFCL) {
-            return 'ส่งทางเรือ แบบแชร์ปิดตู้';
-        }
-
-        if (isFcl) {
-            return 'ส่งทางเรือ แบบปิดตู้';
-        }
-
-        return 'ส่งทางเรือ';
+const matchesShippingMethod = (shippingMethod: string, expectedMethod: 'LAND' | 'SEA' | null) => {
+    if (!expectedMethod) {
+        return true;
     }
 
-    return 'ส่งทางรถ';
+    return expectedMethod === 'SEA' ? shippingMethod.startsWith('SEA') : shippingMethod === expectedMethod;
 };
 
 const isQuotationNotFoundError = (error: any): boolean => {
@@ -170,42 +159,30 @@ const isQuotationNotFoundError = (error: any): boolean => {
 const findMatchingTier = (
     detailOptions: RFQDetailOption[],
     quotationItem: QuotationItem
-): { detail: RFQDetailOption | null; tier: RFQDetailTier | null; shippingMethod: 'LAND' | 'SEA' } => {
+): { detail: RFQDetailOption | null; tier: RFQDetailTier | null; shippingMethod: string } => {
     const tierId = quotationItem.tierId ? String(quotationItem.tierId) : '';
+    const rfqDetailId = quotationItem.rfqDetailId;
     const inferredShippingMethod = inferQuotationItemShippingMethod(quotationItem.name);
     const quantity = Number(quotationItem.quantity || 0);
     const unitPrice = Number(quotationItem.unitPrice || 0);
 
     const allRows = detailOptions.flatMap((detail) =>
-        (detail.tiers || []).flatMap((tier) => {
-            const shippingOptions: ('LAND' | 'SEA')[] = [];
-
-            if (Number(tier.landTotalPrice || 0) > 0) {
-                shippingOptions.push('LAND');
-            }
-            if (Number(tier.seaTotalPrice || 0) > 0) {
-                shippingOptions.push('SEA');
-            }
-            if (!shippingOptions.length) {
-                shippingOptions.push('LAND');
-            }
-
-            return shippingOptions.map((shippingMethod) => ({
-                detail,
-                tier,
-                shippingMethod,
-                price: Number(
-                    shippingMethod === 'SEA' ? tier.seaTotalPrice || 0 : tier.landTotalPrice || 0
-                )
-            }));
-        })
+        (detail.tiers || []).map((tier) => ({
+            detail,
+            tier,
+            shippingMethod: tier.shippingMethod || 'LAND',
+            price: Number(tier.totalPrice || 0)
+        }))
     );
 
     const exactTierMatch = allRows.find((row) => {
+        if (rfqDetailId !== undefined && rfqDetailId !== null && row.detail.id !== rfqDetailId) {
+            return false;
+        }
         if (tierId && String(row.tier.id) !== tierId) {
             return false;
         }
-        if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+        if (!matchesShippingMethod(row.shippingMethod, inferredShippingMethod)) {
             return false;
         }
         return Number(row.tier.quantity || 0) === quantity && Math.abs(row.price - unitPrice) < 0.0001;
@@ -216,10 +193,13 @@ const findMatchingTier = (
     }
 
     const quantityTierMatch = allRows.find((row) => {
+        if (rfqDetailId !== undefined && rfqDetailId !== null && row.detail.id !== rfqDetailId) {
+            return false;
+        }
         if (tierId && String(row.tier.id) !== tierId) {
             return false;
         }
-        if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+        if (!matchesShippingMethod(row.shippingMethod, inferredShippingMethod)) {
             return false;
         }
         return Number(row.tier.quantity || 0) === quantity;
@@ -230,10 +210,13 @@ const findMatchingTier = (
     }
 
     const tierOnlyMatch = allRows.find((row) => {
+        if (rfqDetailId !== undefined && rfqDetailId !== null && row.detail.id !== rfqDetailId) {
+            return false;
+        }
         if (tierId && String(row.tier.id) !== tierId) {
             return false;
         }
-        return inferredShippingMethod ? row.shippingMethod === inferredShippingMethod : true;
+        return matchesShippingMethod(row.shippingMethod, inferredShippingMethod);
     });
 
     if (tierOnlyMatch) {
@@ -336,6 +319,12 @@ export default function QuotationDetail(): JSX.Element {
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
     const [draftIsVat, setDraftIsVat] = useState(false);
     const [draftShipping, setDraftShipping] = useState<'ALL' | 'LAND' | 'SEA'>('ALL');
+    const [draftProject, setDraftProject] = useState('');
+    const [draftSampleLeadTime, setDraftSampleLeadTime] = useState('');
+    const [draftProductionLeadTime, setDraftProductionLeadTime] = useState('');
+    const [draftMoldLeadTime, setDraftMoldLeadTime] = useState('');
+    const [draftShippingLeadTime, setDraftShippingLeadTime] = useState('');
+    const [draftProductQtyTolerance, setDraftProductQtyTolerance] = useState('');
     const [draftCoSaleId, setDraftCoSaleId] = useState('');
     const [draftCustomerSnapshot, setDraftCustomerSnapshot] = useState<QuotationCustomerSnapshot>({ customerName: '', taxId: '', branchCode: '', branchName: '', address: '', contactName: '', contactNumber: '' });
     const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
@@ -469,13 +458,12 @@ export default function QuotationDetail(): JSX.Element {
     });
     const confirmQuotationRows: ConfirmQuotationRow[] = (quotation?.items || []).map((item, index) => {
         const matched = findMatchingTier(rfq?.details || [], item);
-
         return {
             key: `${item.id || index}:${matched.shippingMethod}`,
             quotationItem: item,
-            detailId: matched.detail?.id || null,
+            detailId: item.rfqDetailId ?? matched.detail?.id ?? null,
             tierId: matched.tier ? String(matched.tier.id) : item.tierId || null,
-            shippingMethod: matched.shippingMethod,
+            shippingMethod: matched.tier?.shippingMethod || matched.shippingMethod,
             optionName: matched.detail?.optionName || item.name || `รายการที่ ${index + 1}`,
             quantity: Number(item.quantity || 0),
             unitPrice: Number(item.unitPrice || 0),
@@ -483,6 +471,13 @@ export default function QuotationDetail(): JSX.Element {
             isShareFCL: Boolean(matched.tier?.isShareFCL)
         };
     });
+    const selectableConfirmQuotationRowKeys = useMemo(
+        () => confirmQuotationRows.filter((row) => Boolean(row.detailId)).map((row) => row.key),
+        [confirmQuotationRows]
+    );
+    const isAllConfirmQuotationRowsSelected =
+        selectableConfirmQuotationRowKeys.length > 0 &&
+        selectableConfirmQuotationRowKeys.every((key) => selectedConfirmQuotationRowKeys.includes(key));
     // const canConfirmPriceAction = Boolean(quotation?.rfqId && quotation?.quotationNo && !salesOrder?.salesOrderNo);
     const canConfirmPriceAction = true;
     useEffect(() => {
@@ -500,6 +495,12 @@ export default function QuotationDetail(): JSX.Element {
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
         setDraftShipping(quotation.shipping === 'LAND' || quotation.shipping === 'SEA' ? quotation.shipping : 'ALL');
+        setDraftProject(quotation.project || '');
+        setDraftSampleLeadTime(quotation.sampleLeadTime || '');
+        setDraftProductionLeadTime(quotation.productionLeadTime || '');
+        setDraftMoldLeadTime(quotation.moldLeadTime || '');
+        setDraftShippingLeadTime(quotation.shippingLeadTime || '');
+        setDraftProductQtyTolerance(quotation.productQtyTolerance || '');
         setDraftCoSaleId(quotation.coSaleId || quotation.coSalesId || '');
         setSelectedFreelanceSaleItem(null);
         setSelectedFreelanceSaleLabel('');
@@ -516,6 +517,12 @@ export default function QuotationDetail(): JSX.Element {
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
         setDraftShipping(quotation.shipping === 'LAND' || quotation.shipping === 'SEA' ? quotation.shipping : 'ALL');
+        setDraftProject(quotation.project || '');
+        setDraftSampleLeadTime(quotation.sampleLeadTime || '');
+        setDraftProductionLeadTime(quotation.productionLeadTime || '');
+        setDraftMoldLeadTime(quotation.moldLeadTime || '');
+        setDraftShippingLeadTime(quotation.shippingLeadTime || '');
+        setDraftProductQtyTolerance(quotation.productQtyTolerance || '');
         setDraftCoSaleId(quotation.coSaleId || quotation.coSalesId || '');
         setSelectedFreelanceSaleItem(null);
         setSelectedFreelanceSaleLabel('');
@@ -529,6 +536,12 @@ export default function QuotationDetail(): JSX.Element {
         setDraftItems(quotation?.items || []);
         setDraftIsVat(Number(quotation?.vatRate || 0) > 0);
         setDraftShipping(quotation?.shipping === 'LAND' || quotation?.shipping === 'SEA' ? quotation.shipping : 'ALL');
+        setDraftProject(quotation?.project || '');
+        setDraftSampleLeadTime(quotation?.sampleLeadTime || '');
+        setDraftProductionLeadTime(quotation?.productionLeadTime || '');
+        setDraftMoldLeadTime(quotation?.moldLeadTime || '');
+        setDraftShippingLeadTime(quotation?.shippingLeadTime || '');
+        setDraftProductQtyTolerance(quotation?.productQtyTolerance || '');
         setDraftCoSaleId(quotation?.coSaleId || quotation?.coSalesId || '');
         setSelectedFreelanceSaleItem(null);
         setSelectedFreelanceSaleLabel('');
@@ -566,6 +579,49 @@ export default function QuotationDetail(): JSX.Element {
                     [field]: value
                 };
             })
+        );
+    };
+
+    const handleUploadQuotationItemImage = async (index: number, file?: File | null) => {
+        if (!file) {
+            return;
+        }
+
+        setIsUpdating(true);
+        try {
+            const uploadResult = await uploadFile(file);
+            setDraftItems((items) =>
+                items.map((item, itemIndex) =>
+                    itemIndex === index
+                        ? { ...item, imagePreview: uploadResult.url, imageUrl: uploadResult.url }
+                        : item
+                )
+            );
+            toast.success(t('toast.success'));
+        } catch {
+            toast.error(t('toast.failed'));
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleSelectQuotationItemRfqPicture = (index: number, pictureUrl: string) => {
+        setDraftItems((items) =>
+            items.map((item, itemIndex) =>
+                itemIndex === index
+                    ? { ...item, imagePreview: pictureUrl, imageUrl: pictureUrl }
+                    : item
+            )
+        );
+    };
+
+    const handleRemoveQuotationItemImage = (index: number) => {
+        setDraftItems((items) =>
+            items.map((item, itemIndex) =>
+                itemIndex === index
+                    ? { ...item, imagePreview: '', imageUrl: '' }
+                    : item
+            )
         );
     };
 
@@ -670,6 +726,12 @@ export default function QuotationDetail(): JSX.Element {
         );
     };
 
+    const toggleSelectAllConfirmQuotationRows = () => {
+        setSelectedConfirmQuotationRowKeys(
+            isAllConfirmQuotationRowsSelected ? [] : selectableConfirmQuotationRowKeys
+        );
+    };
+
     const handleConfirmQuotationPrice = () => {
         if (!quotation?.rfqId) {
             toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
@@ -712,6 +774,7 @@ export default function QuotationDetail(): JSX.Element {
             selectedRows.length === 1
                 ? `เลือก ${selectedRows[0].optionName} จำนวน ${formatNumber(selectedRows[0].quantity)} ${getShippingMethodLabel(
                     selectedRows[0].shippingMethod,
+                    '-',
                     selectedRows[0].isFcl,
                     selectedRows[0].isShareFCL
                 )}`
@@ -737,7 +800,13 @@ export default function QuotationDetail(): JSX.Element {
                     isVat: draftIsVat,
                     customerSnapshot: draftCustomerSnapshot,
                     coSaleId: draftCoSaleId,
-                    shipping: draftShipping
+                    shipping: draftShipping,
+                    project: draftProject,
+                    sampleLeadTime: draftSampleLeadTime,
+                    productionLeadTime: draftProductionLeadTime,
+                    moldLeadTime: draftMoldLeadTime,
+                    shippingLeadTime: draftShippingLeadTime,
+                    productQtyTolerance: draftProductQtyTolerance
                 }),
                 {
                     loading: t('toast.loading'),
@@ -946,22 +1015,23 @@ export default function QuotationDetail(): JSX.Element {
                 <TabPanel value="detail" currentTab={tab}>
                     <>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={6}>
                                 <Stack spacing={1.25} className={classes.section}>
                                     <Typography variant="h6">{t('documentManagement.quotation.title')}</Typography>
-                                    <Info label={t('documentManagement.quotation.docNo')} value={quotation?.quotationNo} />
-                                    <Info label={t('documentManagement.quotation.docDate')} value={quotation?.docDate} />
-                                    <Info label={t('documentManagement.quotation.expectiveDate')} value={quotation?.effectiveDate} />
+                                    <Info label={t('documentManagement.quotation.docNo')} value={quotation?.quotationNo} asTextField={isEditing} />
+                                    <Info label={t('documentManagement.quotation.docDate')} value={quotation?.docDate} asTextField={isEditing} />
+                                    <Info label={t('documentManagement.quotation.expectiveDate')} value={quotation?.effectiveDate} asTextField={isEditing} />
                                     <Info
                                         label={t('documentManagement.quotation.status')}
                                         value={getDocumentStatusLabel(quotation?.status, quotation?.statusProfile)}
+                                        asTextField={isEditing}
                                     />
-                                    <Info label={"Revision "} value={quotation?.revNo ?? '-'} />
-                                    <Info label="อ้างอิง RFQ " value={quotation?.rfqId} />
+                                    <Info label={"Revision "} value={quotation?.revNo ?? '-'} asTextField={isEditing} />
+                                    <Info label="อ้างอิง RFQ " value={quotation?.rfqId} asTextField={isEditing} />
                                     {isEditing ? (
                                         <TextField
                                             select
-                                            size="small"
+
                                             label="การขนส่ง"
                                             value={draftShipping}
                                             onChange={(event) => setDraftShipping(event.target.value as 'ALL' | 'LAND' | 'SEA')}>
@@ -976,43 +1046,99 @@ export default function QuotationDetail(): JSX.Element {
                                         />
                                     )}
                                     {isEditing ? (
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={draftIsVat}
-                                                    onChange={(event) => setDraftIsVat(event.target.checked)}
-                                                />
-                                            }
-                                            label={draftIsVat ? 'มี VAT 7%' : 'ไม่มี VAT'}
-                                            sx={{
-                                                m: 0,
-                                                '& .MuiFormControlLabel-label': {
-                                                    fontSize: 15,
-                                                    fontWeight: 700,
-                                                    color: '#475569'
-                                                }
-                                            }}
-                                        />
+                                        <TextField
+                                            select
+                                            label="ภาษีมูลค่าเพิ่ม"
+                                            value={draftIsVat ? 'VAT' : 'NO_VAT'}
+                                            onChange={(event) => setDraftIsVat(event.target.value === 'VAT')}>
+                                            <MenuItem value="VAT">มี VAT 7%</MenuItem>
+                                            <MenuItem value="NO_VAT">ไม่มี VAT</MenuItem>
+                                        </TextField>
                                     ) : (
                                         <Info
                                             label="ภาษีมูลค่าเพิ่ม"
                                             value={Number(quotation?.vatRate || 0) > 0 ? 'มี VAT 7%' : 'ไม่มี VAT'}
                                         />
                                     )}
+                                    {isEditing ? (
+                                        <TextField
+                                            InputLabelProps={{ shrink: true }}
+                                            label="โครงการ"
+                                            value={draftProject}
+                                            onChange={(event) => setDraftProject(event.target.value)}
+                                        />
+                                    ) : (
+                                        <Info label="โครงการ" value={quotation?.project || '-'} />
+                                    )}
+                                    {isEditing ? (
+                                        <TextField
+                                            InputLabelProps={{ shrink: true }}
+                                            label="ระยะเวลาทำตัวอย่าง"
+                                            value={draftSampleLeadTime}
+                                            onChange={(event) => setDraftSampleLeadTime(event.target.value)}
+                                        />
+                                    ) : (
+                                        <Info label="ระยะเวลาทำตัวอย่าง" value={quotation?.sampleLeadTime || '-'} />
+                                    )}
+                                    {isEditing ? (
+                                        <TextField
+                                            InputLabelProps={{ shrink: true }}
+                                            label="ระยะเวลาผลิต"
+                                            value={draftProductionLeadTime}
+                                            onChange={(event) => setDraftProductionLeadTime(event.target.value)}
+                                        />
+                                    ) : (
+                                        <Info label="ระยะเวลาผลิต" value={quotation?.productionLeadTime || '-'} />
+                                    )}
+                                    {isEditing ? (
+                                        <TextField
+                                            InputLabelProps={{ shrink: true }}
+                                            label="ระยะเวลาทำแม่พิมพ์"
+                                            value={draftMoldLeadTime}
+                                            onChange={(event) => setDraftMoldLeadTime(event.target.value)}
+                                        />
+                                    ) : (
+                                        <Info label="ระยะเวลาทำแม่พิมพ์" value={quotation?.moldLeadTime || '-'} />
+                                    )}
+                                    {isEditing ? (
+                                        <TextField
+                                            InputLabelProps={{ shrink: true }}
+                                            label="ระยะเวลาขนส่ง"
+                                            value={draftShippingLeadTime}
+                                            onChange={(event) => setDraftShippingLeadTime(event.target.value)}
+                                        />
+                                    ) : (
+                                        <Info label="ระยะเวลาขนส่ง" value={quotation?.shippingLeadTime || '-'} />
+                                    )}
+                                    {isEditing ? (
+                                        <TextField
+                                            InputLabelProps={{ shrink: true }}
+                                            label="ค่าคลาดเคลื่อนปริมาณสินค้า"
+                                            value={draftProductQtyTolerance}
+                                            onChange={(event) => setDraftProductQtyTolerance(event.target.value)}
+                                        />
+                                    ) : (
+                                        <Info label="ค่าคลาดเคลื่อนปริมาณสินค้า" value={quotation?.productQtyTolerance || '-'} />
+                                    )}
                                 </Stack>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid
+                                item
+                                xs={12}
+                                md={6}
+                                sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                            >
                                 <Stack spacing={1.25} className={classes.section}>
                                     <Typography variant="h6">{t('customerManagement.customer')}</Typography>
                                     {isEditing ? (
                                         <Stack spacing={1} sx={{ mt: 1 }}>
-                                            <TextField size="small" label="ชื่อลูกค้า" value={draftCustomerSnapshot.customerName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, customerName: event.target.value })} />
-                                            <TextField size="small" label="เลขประจำตัวผู้เสียภาษี" value={draftCustomerSnapshot.taxId} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, taxId: event.target.value })} />
-                                            <TextField size="small" label="รหัสสาขา" value={draftCustomerSnapshot.branchCode} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, branchCode: event.target.value })} />
-                                            <TextField size="small" label="ชื่อสาขา" value={draftCustomerSnapshot.branchName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, branchName: event.target.value })} />
-                                            <TextField size="small" label="ผู้ติดต่อ" value={draftCustomerSnapshot.contactName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, contactName: event.target.value })} />
-                                            <TextField size="small" label="เบอร์โทร" value={draftCustomerSnapshot.contactNumber} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, contactNumber: event.target.value })} />
-                                            <TextField size="small" multiline minRows={2} label="ที่อยู่" value={draftCustomerSnapshot.address} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, address: event.target.value })} />
+                                            <TextField label="ชื่อลูกค้า" value={draftCustomerSnapshot.customerName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, customerName: event.target.value })} />
+                                            <TextField label="เลขประจำตัวผู้เสียภาษี" InputLabelProps={{ shrink: true }} value={draftCustomerSnapshot.taxId} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, taxId: event.target.value })} />
+                                            <TextField label="รหัสสาขา" InputLabelProps={{ shrink: true }} value={draftCustomerSnapshot.branchCode} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, branchCode: event.target.value })} />
+                                            <TextField label="ชื่อสาขา" InputLabelProps={{ shrink: true }} value={draftCustomerSnapshot.branchName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, branchName: event.target.value })} />
+                                            <TextField label="ผู้ติดต่อ" InputLabelProps={{ shrink: true }} value={draftCustomerSnapshot.contactName} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, contactName: event.target.value })} />
+                                            <TextField label="เบอร์โทร" InputLabelProps={{ shrink: true }} value={draftCustomerSnapshot.contactNumber} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, contactNumber: event.target.value })} />
+                                            <TextField multiline minRows={2} InputLabelProps={{ shrink: true }} label="ที่อยู่" value={draftCustomerSnapshot.address} onChange={(event) => setDraftCustomerSnapshot({ ...draftCustomerSnapshot, address: event.target.value })} />
                                         </Stack>
                                     ) : (
                                         <>
@@ -1027,14 +1153,11 @@ export default function QuotationDetail(): JSX.Element {
                                         </>
                                     )}
                                 </Stack>
-                            </Grid>
-                            <Grid item xs={12} md={4}>
                                 <Stack spacing={1.25} className={classes.section}>
                                     <Typography variant="h6">{t('documentManagement.quotation.salesAccount')}</Typography>
-                                    <Info label={t('documentManagement.quotation.salesAccount')} value={getEmployeeName(quotation)} />
+                                    <Info label={t('documentManagement.quotation.salesAccount')} value={getEmployeeName(quotation)} asTextField={isEditing} />
                                     {isEditing ? (
                                         <TextField
-                                            size="small"
                                             label="เซลล์นอก/เซลล์ฟรีแลนซ์"
                                             value={selectedFreelanceSaleDisplay}
                                             fullWidth
@@ -1061,9 +1184,11 @@ export default function QuotationDetail(): JSX.Element {
                                     <Typography variant="h6">{t('documentManagement.quotation.remark')}</Typography>
                                     {isEditing ? (
                                         <TextField
+                                            label={t('documentManagement.quotation.remark')}
                                             multiline
                                             minRows={3}
                                             fullWidth
+                                            InputLabelProps={{ shrink: true }}
                                             value={draftRemark}
                                             onChange={(event) => setDraftRemark(event.target.value)}
                                         />
@@ -1122,6 +1247,72 @@ export default function QuotationDetail(): JSX.Element {
                                                     </Stack>
                                                 </Stack>
 
+                                                {isEditing ? (
+                                                    <Stack spacing={0.75}>
+                                                        <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                                                            <Button
+                                                                component="label"
+                                                                size="small"
+                                                                variant="outlined"
+                                                                startIcon={<CloudUpload />}
+                                                                disabled={isUpdating}>
+                                                                อัปโหลดรูป
+                                                                <input
+                                                                    hidden
+                                                                    accept="image/*"
+                                                                    type="file"
+                                                                    onChange={(event) => {
+                                                                        void handleUploadQuotationItemImage(index, event.target.files?.[0]);
+                                                                        event.target.value = '';
+                                                                    }}
+                                                                />
+                                                            </Button>
+                                                            {item.imagePreview || item.imageUrl ? (
+                                                                <Button
+                                                                    size="small"
+                                                                    color="error"
+                                                                    variant="outlined"
+                                                                    disabled={isUpdating}
+                                                                    onClick={() => handleRemoveQuotationItemImage(index)}>
+                                                                    ลบรูป
+                                                                </Button>
+                                                            ) : null}
+                                                        </Stack>
+                                                        {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
+                                                            <Stack spacing={0.5}>
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    เลือกรูปจาก RFQ
+                                                                </Typography>
+                                                                <Stack direction="row" spacing={0.75} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                                                    {(rfq?.pictures || [])
+                                                                        .filter((picture) => Boolean(picture.pictureUrl))
+                                                                        .map((picture, pictureIndex) => {
+                                                                            const isSelected = (item.imagePreview || item.imageUrl) === picture.pictureUrl;
+                                                                            return (
+                                                                                <Box
+                                                                                    key={picture.id || picture.pictureUrl || pictureIndex}
+                                                                                    component="img"
+                                                                                    src={picture.pictureUrl}
+                                                                                    alt={`RFQ ${pictureIndex + 1}`}
+                                                                                    onClick={() => handleSelectQuotationItemRfqPicture(index, picture.pictureUrl)}
+                                                                                    sx={{
+                                                                                        width: 52,
+                                                                                        height: 52,
+                                                                                        flexShrink: 0,
+                                                                                        objectFit: 'cover',
+                                                                                        cursor: 'pointer',
+                                                                                        borderRadius: 1,
+                                                                                        border: isSelected ? '2px solid #1976d2' : '1px solid #cbd5e1'
+                                                                                    }}
+                                                                                />
+                                                                            );
+                                                                        })}
+                                                                </Stack>
+                                                            </Stack>
+                                                        ) : null}
+                                                    </Stack>
+                                                ) : null}
+
                                                 <Stack spacing={1}>
                                                     <Info
                                                         label={t('documentManagement.quotation.itemSection.spec')}
@@ -1178,24 +1369,33 @@ export default function QuotationDetail(): JSX.Element {
                                                             )}
                                                         </Grid>
                                                         <Grid item xs={12}>
-                                                            <Stack
-                                                                direction="row"
-                                                                justifyContent="space-between"
-                                                                alignItems="center"
-                                                                sx={{
-                                                                    px: 1.25,
-                                                                    py: 1,
-                                                                    borderRadius: 2,
-                                                                    backgroundColor: '#f8fafc',
-                                                                    border: '1px solid #e2e8f0'
-                                                                }}>
-                                                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                                                                    {t('documentManagement.quotation.itemSection.totalAmount')}
-                                                                </Typography>
-                                                                <Typography variant="body2" fontWeight={700}>
-                                                                    {formatNumber(item.amount || 0)}
-                                                                </Typography>
-                                                            </Stack>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    fullWidth
+                                                                    label={t('documentManagement.quotation.itemSection.totalAmount')}
+                                                                    value={formatNumber(item.amount || 0)}
+                                                                    InputProps={{ readOnly: true }}
+                                                                />
+                                                            ) : (
+                                                                <Stack
+                                                                    direction="row"
+                                                                    justifyContent="space-between"
+                                                                    alignItems="center"
+                                                                    sx={{
+                                                                        px: 1.25,
+                                                                        py: 1,
+                                                                        borderRadius: 2,
+                                                                        backgroundColor: '#f8fafc',
+                                                                        border: '1px solid #e2e8f0'
+                                                                    }}>
+                                                                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                                                        {t('documentManagement.quotation.itemSection.totalAmount')}
+                                                                    </Typography>
+                                                                    <Typography variant="body2" fontWeight={700}>
+                                                                        {formatNumber(item.amount || 0)}
+                                                                    </Typography>
+                                                                </Stack>
+                                                            )}
                                                         </Grid>
                                                     </Grid>
                                                 </Stack>
@@ -1239,6 +1439,64 @@ export default function QuotationDetail(): JSX.Element {
                                                                     {t('documentManagement.quotation.itemSection.noImage')}
                                                                 </Typography>
                                                             )}
+                                                            {isEditing ? (
+                                                                <Stack spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
+                                                                    <Button
+                                                                        component="label"
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                        startIcon={<CloudUpload />}
+                                                                        disabled={isUpdating}>
+                                                                        อัปโหลดรูป
+                                                                        <input
+                                                                            hidden
+                                                                            accept="image/*"
+                                                                            type="file"
+                                                                            onChange={(event) => {
+                                                                                void handleUploadQuotationItemImage(index, event.target.files?.[0]);
+                                                                                event.target.value = '';
+                                                                            }}
+                                                                        />
+                                                                    </Button>
+                                                                    {item.imagePreview || item.imageUrl ? (
+                                                                        <Button
+                                                                            size="small"
+                                                                            color="error"
+                                                                            variant="outlined"
+                                                                            disabled={isUpdating}
+                                                                            onClick={() => handleRemoveQuotationItemImage(index)}>
+                                                                            ลบรูป
+                                                                        </Button>
+                                                                    ) : null}
+                                                                    {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
+                                                                        <Stack direction="row" spacing={0.5} sx={{ maxWidth: 160, overflowX: 'auto', pb: 0.25 }}>
+                                                                            {(rfq?.pictures || [])
+                                                                                .filter((picture) => Boolean(picture.pictureUrl))
+                                                                                .map((picture, pictureIndex) => {
+                                                                                    const isSelected = (item.imagePreview || item.imageUrl) === picture.pictureUrl;
+                                                                                    return (
+                                                                                        <Box
+                                                                                            key={picture.id || picture.pictureUrl || pictureIndex}
+                                                                                            component="img"
+                                                                                            src={picture.pictureUrl}
+                                                                                            alt={`RFQ ${pictureIndex + 1}`}
+                                                                                            onClick={() => handleSelectQuotationItemRfqPicture(index, picture.pictureUrl)}
+                                                                                            sx={{
+                                                                                                width: 36,
+                                                                                                height: 36,
+                                                                                                flexShrink: 0,
+                                                                                                objectFit: 'cover',
+                                                                                                cursor: 'pointer',
+                                                                                                borderRadius: 0.75,
+                                                                                                border: isSelected ? '2px solid #1976d2' : '1px solid #cbd5e1'
+                                                                                            }}
+                                                                                        />
+                                                                                    );
+                                                                                })}
+                                                                        </Stack>
+                                                                    ) : null}
+                                                                </Stack>
+                                                            ) : null}
                                                         </TableCell>
                                                         <TableCell className={classes.fitContentCell}>
                                                             {isEditing ? (
@@ -1289,7 +1547,17 @@ export default function QuotationDetail(): JSX.Element {
                                                                 formatNumber(item.quantity || 0)
                                                             )}
                                                         </TableCell>
-                                                        <TableCell align="right" className={classes.fitContentCell}>{formatNumber(item.amount || 0)}</TableCell>
+                                                        <TableCell align="right" className={classes.fitContentCell}>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    value={formatNumber(item.amount || 0)}
+                                                                    InputProps={{ readOnly: true }}
+                                                                />
+                                                            ) : (
+                                                                formatNumber(item.amount || 0)
+                                                            )}
+                                                        </TableCell>
                                                     </TableRow>
                                                 ))
                                             ) : (
@@ -1309,23 +1577,10 @@ export default function QuotationDetail(): JSX.Element {
                             <GridSearchSection container spacing={2} justifyContent="flex-end">
                                 <Grid item xs={12} md={4}>
                                     <Stack spacing={1.25} className={classes.section}>
-                                        <Summary
-                                            label={t('documentManagement.quotation.summarySection.subtotal')}
-                                            value={isEditing ? draftSubTotal : quotation?.subTotal}
-                                        />
-                                        <Summary
-                                            label={t('documentManagement.quotation.summarySection.discount')}
-                                            value={quotation?.discount}
-                                        />
-                                        <Summary
-                                            label={t('documentManagement.quotation.summarySection.vat')}
-                                            value={isEditing ? draftVatAmount : quotation?.vat}
-                                        />
-                                        <Summary
-                                            label={t('documentManagement.quotation.summarySection.grandTotal')}
-                                            value={isEditing ? draftGrandTotal : quotation?.grandTotal}
-                                            strong
-                                        />
+                                        <Summary label={t('documentManagement.quotation.summarySection.subtotal')} value={isEditing ? draftSubTotal : quotation?.subTotal} asTextField={isEditing} />
+                                        <Summary label={t('documentManagement.quotation.summarySection.discount')} value={quotation?.discount} asTextField={isEditing} />
+                                        <Summary label={t('documentManagement.quotation.summarySection.vat')} value={isEditing ? draftVatAmount : quotation?.vat} asTextField={isEditing} />
+                                        <Summary label={t('documentManagement.quotation.summarySection.grandTotal')} value={isEditing ? draftGrandTotal : quotation?.grandTotal} strong asTextField={isEditing} />
                                     </Stack>
                                 </Grid>
                             </GridSearchSection>
@@ -1346,7 +1601,17 @@ export default function QuotationDetail(): JSX.Element {
                 onClose={() => setVisibleConfirmPriceDialog(false)}
                 fullWidth
                 maxWidth="lg">
-                <DialogTitle>คอนเฟิร์มราคา</DialogTitle>
+                <DialogTitle>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                        <Typography variant="h6">คอนเฟิร์มราคา</Typography>
+                        <Button
+                            size="small"
+                            onClick={toggleSelectAllConfirmQuotationRows}
+                            disabled={!selectableConfirmQuotationRowKeys.length}>
+                            {isAllConfirmQuotationRowsSelected ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมด'}
+                        </Button>
+                    </Stack>
+                </DialogTitle>
                 <DialogContent dividers>
                     <TableContainer>
                         <Table size="small">
@@ -1361,9 +1626,10 @@ export default function QuotationDetail(): JSX.Element {
                                     }}>
                                     <TableCell padding="checkbox" />
                                     <TableCell>รายการ</TableCell>
-                                    <TableCell>วิธีขนส่ง</TableCell>
                                     <TableCell align="right">จำนวน</TableCell>
+                                    <TableCell>วิธีขนส่ง</TableCell>
                                     <TableCell align="right">ราคา</TableCell>
+                                    <TableCell align="right">รวม</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -1374,6 +1640,7 @@ export default function QuotationDetail(): JSX.Element {
                                                 <Checkbox
                                                     checked={selectedConfirmQuotationRowKeys.includes(row.key)}
                                                     onChange={() => toggleConfirmQuotationRow(row.key)}
+                                                    disabled={!row.detailId}
                                                 />
                                             </TableCell>
                                             <TableCell>
@@ -1386,20 +1653,33 @@ export default function QuotationDetail(): JSX.Element {
                                                     </Typography>
                                                 </Stack>
                                             </TableCell>
-                                            <TableCell>
-                                                {getShippingMethodLabel(
-                                                    row.shippingMethod,
-                                                    row.isFcl,
-                                                    row.isShareFCL
-                                                )}
-                                            </TableCell>
                                             <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
+                                            <TableCell>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    {isSeaShippingMethod(row.shippingMethod) ? (
+                                                        <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
+                                                    ) : (
+                                                        <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                                    )}
+                                                    <Typography variant="body2">
+                                                        {getShippingMethodLabel(
+                                                            row.shippingMethod,
+                                                            '-',
+                                                            row.isFcl,
+                                                            row.isShareFCL
+                                                        )}
+                                                    </Typography>
+                                                </Stack>
+                                            </TableCell>
                                             <TableCell align="right">{formatNumber(row.unitPrice)}</TableCell>
+                                            <TableCell align="right">
+                                                {formatNumber(row.quantity * row.unitPrice)}
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                        <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                             {isRfqFetching ? 'กำลังโหลดข้อมูล...' : 'ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา'}
                                         </TableCell>
                                     </TableRow>
@@ -1450,10 +1730,21 @@ export default function QuotationDetail(): JSX.Element {
     );
 }
 
-function Info({ label, value }: { label: string; value?: string | null }) {
+function Info({ label, value, asTextField = false }: { label: string; value?: string | null; asTextField?: boolean }) {
+    if (asTextField) {
+        return (
+            <TextField
+                label={label}
+                value={value || '-'}
+                fullWidth
+                InputProps={{ readOnly: true }}
+            />
+        );
+    }
+
     return (
         <Stack spacing={0.25}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+            <Typography color="text.secondary" fontWeight={700}>
                 {label}
             </Typography>
             <Typography variant="body2">{value || '-'}</Typography>
@@ -1461,7 +1752,18 @@ function Info({ label, value }: { label: string; value?: string | null }) {
     );
 }
 
-function Summary({ label, value, strong = false }: { label: string; value?: number | null; strong?: boolean }) {
+function Summary({ label, value, strong = false, asTextField = false }: { label: string; value?: number | null; strong?: boolean; asTextField?: boolean }) {
+    if (asTextField) {
+        return (
+            <TextField
+                label={label}
+                value={formatNumber(value || 0)}
+                fullWidth
+                InputProps={{ readOnly: true }}
+            />
+        );
+    }
+
     return (
         <Stack direction="row" justifyContent="space-between" spacing={1}>
             <Typography variant="body2" fontWeight={strong ? 700 : 400}>

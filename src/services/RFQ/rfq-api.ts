@@ -3,6 +3,7 @@ import { Supplier } from 'services/Supplier/supplier-type';
 import {
   AddRFQNoteRequest,
   CreateRFQAdditionalCostRequest,
+  SyncRFQAdditionalCostRequest,
   CreateRFQDetailRequest,
   CreateRFQRequest,
   CreateRFQResponse,
@@ -273,9 +274,12 @@ export const rejectUrgentRFQ = async (id: string, payload: RejectUrgentRFQReques
   return response.data;
 };
 
-export const closeRFQ = async (rfqId: string, remark: string) => {
+export const closeRFQ = async (
+  rfqId: string,
+  payload: { closeReason: string; closeRemark?: string | null }
+) => {
   const response = await api
-    .patch('/v1/rfqs/close', { rfqId, remark })
+    .patch('/v1/rfqs/close', { rfqId, ...payload })
     .then((res) => res.data);
 
   return response.data;
@@ -465,6 +469,9 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
     formData.append('urgentRequestReason', payload.urgentRequestReason);
   }
   formData.append('description', payload.description);
+  if (payload.project) {
+    formData.append('project', payload.project);
+  }
 
   payload.pictures.forEach((picture) => {
     formData.append('pictures', picture);
@@ -639,6 +646,17 @@ export const createRFQAdditionalCosts = async (
 ): Promise<UpdateRFQResponse> => {
   const response: UpdateRFQResponse = await api
     .post(`/v1/rfqs/${id}/additional-costs`, payload)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const syncRFQAdditionalCosts = async (
+  id: string,
+  payload: SyncRFQAdditionalCostRequest[]
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .put(`/v1/rfqs/${id}/additional-costs`, payload)
     .then((response) => response.data);
 
   return response;

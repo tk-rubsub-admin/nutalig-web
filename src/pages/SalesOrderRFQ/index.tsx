@@ -70,6 +70,7 @@ import {
   CreateSalesOrderStatus
 } from 'services/SaleOrder/sale-order-type';
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
+import { getShippingMethodLabel } from 'utils/shipping';
 import { formatCurrency, formatNumber } from 'utils/utils';
 import * as Yup from 'yup';
 import { addCustomerAddress, addCustomerContact, updateCustomer } from 'services/Customer/customer-api';
@@ -251,7 +252,7 @@ function deriveShippingTypeFromItems(items: SaleOrderRFQItem[]): string {
     new Set(
       items
         .map((item) => item.shippingMethod)
-        .filter((shippingMethod): shippingMethod is 'LAND' | 'SEA' => Boolean(shippingMethod))
+        .filter((shippingMethod): shippingMethod is string => Boolean(shippingMethod))
     )
   );
 
@@ -260,6 +261,23 @@ function deriveShippingTypeFromItems(items: SaleOrderRFQItem[]): string {
   }
 
   return shippingMethods.length > 1 ? 'ALL' : shippingMethods[0];
+}
+
+function deriveShippingCategoryFromItems(items: SaleOrderRFQItem[]): string {
+  const shippingCategories = Array.from(
+    new Set(
+      items
+        .map((item) => item.shippingMethod)
+        .filter((shippingMethod): shippingMethod is string => Boolean(shippingMethod))
+        .map((shippingMethod) => (isSeaShippingMethod(shippingMethod) ? 'SEA' : shippingMethod))
+    )
+  );
+
+  if (!shippingCategories.length) {
+    return '';
+  }
+
+  return shippingCategories.length > 1 ? 'ALL' : shippingCategories[0];
 }
 
 function getDefaultDropOff(customer: any): CustomerDropOff | null {
@@ -279,10 +297,8 @@ function getRFQSalesDisplayValue(sales?: RFQRecord['sales']): string {
 }
 
 function getShippingTypeLabel(shippingType?: string | null): string {
-  if (shippingType === 'SEA') return 'ส่งทางเรือ';
-  if (shippingType === 'LAND') return 'ส่งทางรถ';
   if (shippingType === 'ALL') return 'ส่งทางรถ / ส่งทางเรือ';
-  return '';
+  return getShippingMethodLabel(shippingType, '');
 }
 
 function isSeaShippingMethod(shippingMethod?: string | null): boolean {
@@ -353,11 +369,7 @@ function detectCoSaleMode(
 }
 
 function getShippingPrice(tier: RFQDetailTier, shippingMethod: string): number {
-  return Number(
-    isSeaShippingMethod(shippingMethod)
-      ? tier.seaTotalPrice || tier.productPrice || 0
-      : tier.landTotalPrice || tier.productPrice || 0
-  );
+  return Number(tier.totalPrice || tier.productPrice || 0);
 }
 
 function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: string): number {
@@ -366,9 +378,7 @@ function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: string
   }
 
   const quantity = Number(tier.quantity || 0);
-  const freightCost = Number(
-    isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
-  );
+  const freightCost = Number(tier.shippingCost || 0);
 
   return quantity * freightCost;
 }
@@ -402,11 +412,11 @@ function getShippingDisplayLabel(
   const shippingLabel = isSeaShippingMethod(shippingMethod) ? 'ส่งทางเรือ' : 'ส่งทางรถ';
 
   if (isSeaShippingMethod(shippingMethod)) {
-    if (Boolean(isShareFCL)) {
+    if (Boolean(isShareFCL) || shippingMethod.startsWith('SEA_SHARE_FCL_')) {
       return `${shippingLabel} แบบแชร์ปิดตู้`;
     }
 
-    if (Boolean(isFcl)) {
+    if (Boolean(isFcl) || shippingMethod.startsWith('SEA_FCL_')) {
       return `${shippingLabel} แบบปิดตู้`;
     }
   }
@@ -421,7 +431,7 @@ function hasFclShippingTag(
     return false;
   }
 
-  if (Boolean(item.isFcl) || Boolean(item.isShareFCL)) {
+  if (Boolean(item.isFcl) || Boolean(item.isShareFCL) || item.shippingMethod?.includes('_FCL_')) {
     return true;
   }
 
@@ -555,36 +565,13 @@ function createSaleOrderItemsFromQuotation(
         ];
       }
 
-      const landTotalPrice = Number(tier.landTotalPrice || 0);
-      const seaTotalPrice = Number(tier.seaTotalPrice || 0);
-
-      if (landTotalPrice > 0 && seaTotalPrice > 0) {
-        return (['LAND', 'SEA'] as const).map((shippingMethod, shippingIndex) => ({
-          optionId: detail.id,
-          tierId: tier.id,
-          shippingMethod,
-          fallbackId: Number(`${detail.id}${tier.id}${shippingIndex}`)
-        }));
-      }
-
-      if (landTotalPrice > 0) {
+      if (tier.shippingMethod) {
         return [
           {
             optionId: detail.id,
             tierId: tier.id,
-            shippingMethod: 'LAND' as const,
+            shippingMethod: tier.shippingMethod,
             fallbackId: Number(`${detail.id}${tier.id}0`)
-          }
-        ];
-      }
-
-      if (seaTotalPrice > 0) {
-        return [
-          {
-            optionId: detail.id,
-            tierId: tier.id,
-            shippingMethod: 'SEA' as const,
-            fallbackId: Number(`${detail.id}${tier.id}1`)
           }
         ];
       }
@@ -615,11 +602,11 @@ function createSaleOrderItemsFromQuotation(
       ? candidateRfqRows.findIndex(
           (row) =>
             row.tierId === quotationTierId &&
-            (!inferredShippingMethod || row.shippingMethod === inferredShippingMethod)
+            (!inferredShippingMethod || (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) === inferredShippingMethod)
         )
       : -1;
     const exactMatchIndex = candidateRfqRows.findIndex((row) => {
-      if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+      if (inferredShippingMethod && (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) !== inferredShippingMethod) {
         return false;
       }
 
@@ -636,7 +623,7 @@ function createSaleOrderItemsFromQuotation(
       const detail = rfq.details?.find((candidate) => candidate.id === row.optionId);
       const tier = detail?.tiers?.find((candidate) => candidate.id === row.tierId);
       const expectedPrice = Number(
-        row.shippingMethod === 'SEA' ? tier?.seaTotalPrice || 0 : tier?.landTotalPrice || 0
+        tier?.totalPrice || 0
       );
 
       return Math.abs(expectedPrice - unitPrice) < 0.0001;
@@ -645,7 +632,7 @@ function createSaleOrderItemsFromQuotation(
       exactMatchIndex >= 0
         ? exactMatchIndex
         : candidateRfqRows.findIndex((row) => {
-          if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+          if (inferredShippingMethod && (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) !== inferredShippingMethod) {
             return false;
           }
 
@@ -661,7 +648,7 @@ function createSaleOrderItemsFromQuotation(
       quantityMatchIndex >= 0
         ? quantityMatchIndex
         : candidateRfqRows.findIndex((row) =>
-          inferredShippingMethod ? row.shippingMethod === inferredShippingMethod : true
+          !inferredShippingMethod || (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) === inferredShippingMethod
         );
     const resolvedRowIndex = tierMatchIndex >= 0 ? tierMatchIndex : fallbackIndex;
     const mappedRow =
@@ -698,18 +685,10 @@ function createSaleOrderItemsFromQuotation(
       supplierCurrency: mappedTier?.currency || null,
       supplierUnitPrice: Number(mappedTier?.productPrice || 0),
       exchangeRate: Number(mappedTier?.exchangeRate || 0),
-      supplierShippingCost: Number(
-        mappedShippingMethod === 'SEA'
-          ? mappedTier?.seaFreightCost || 0
-          : mappedTier?.landFreightCost || 0
-      ),
+      supplierShippingCost: Number(mappedTier?.shippingCost || 0),
       supplierTotalUnitCost:
         Number(mappedTier?.productPrice || 0) +
-        Number(
-          mappedShippingMethod === 'SEA'
-            ? mappedTier?.seaFreightCost || 0
-            : mappedTier?.landFreightCost || 0
-        ),
+        Number(mappedTier?.shippingCost || 0),
       name: itemNameWithShippingLabel,
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
@@ -812,7 +791,7 @@ export default function SalesOrderRFQ(): JSX.Element {
             .map((item) => ({
               detailId: Number(item?.detailId || 0),
               quotationDetailId: String(item?.quotationDetailId || ''),
-              shippingMethod: item?.shippingMethod === 'SEA' ? 'SEA' : 'LAND'
+              shippingMethod: String(item?.shippingMethod || 'LAND').trim().toUpperCase()
             }))
             .filter((item) => item.detailId && item.quotationDetailId);
         }
@@ -832,7 +811,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       {
         detailId,
         quotationDetailId,
-        shippingMethod: params.get('shippingMethod') === 'SEA' ? 'SEA' : 'LAND'
+        shippingMethod: String(params.get('shippingMethod') || 'LAND').trim().toUpperCase()
       }
     ];
   }, [location.search]);
@@ -1001,9 +980,15 @@ export default function SalesOrderRFQ(): JSX.Element {
     '';
 
   useEffect(() => {
-    const shippingTypeFromItems = deriveShippingTypeFromItems(formik.values.items);
-    if (formik.values.shipping !== shippingTypeFromItems) {
-      formik.setFieldValue('shipping', getShippingTypeLabel(shippingTypeFromItems), false);
+    const shippingMethodFromItems = deriveShippingTypeFromItems(formik.values.items);
+    const shippingCategoryFromItems = deriveShippingCategoryFromItems(formik.values.items);
+    const shippingLabel = getShippingTypeLabel(shippingMethodFromItems);
+
+    if (formik.values.shipping !== shippingLabel) {
+      formik.setFieldValue('shipping', shippingLabel, false);
+    }
+    if (formik.values.shippingType !== shippingCategoryFromItems) {
+      formik.setFieldValue('shippingType', shippingCategoryFromItems, false);
     }
   }, [formik.values.items]);
 
@@ -1675,7 +1660,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       string,
       {
         key: string;
-        shippingMethod: 'LAND' | 'SEA' | null;
+        shippingMethod: string | null;
         isFcl: boolean;
         label: string;
         icon: JSX.Element | null;

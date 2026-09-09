@@ -36,6 +36,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   Grid,
   InputAdornment,
   IconButton,
@@ -43,6 +44,8 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Radio,
+  RadioGroup,
   Stack,
   Tab,
   Table,
@@ -90,6 +93,7 @@ import { useQuery } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import * as Yup from 'yup';
 import { copyTextSilent } from 'utils/copyContent';
+import { getShippingMethodLabel, isSeaShippingMethod } from 'utils/shipping';
 import { downloadRfqPdf } from 'utils/rfq-pdf';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getSystemConfig } from 'services/Config/config-api';
@@ -278,18 +282,6 @@ function getProductFamilyLabel(productFamily: RFQRecord['productFamily']): strin
   return productFamily.nameTh || productFamily.nameEn || productFamily.code || '';
 }
 
-function getShippingMethodLabel(shippingMethod?: string | null): string {
-  if (shippingMethod === 'LAND') {
-    return 'ทางรถ';
-  }
-
-  if (shippingMethod === 'SEA') {
-    return 'ทางเรือ';
-  }
-
-  return 'ทางรถ, ทางเรือ';
-}
-
 function formatContainerSizeLabel(containerSize?: string | null): string {
   return containerSize?.trim().toUpperCase() || '-';
 }
@@ -447,6 +439,13 @@ function isImageFile(file?: RFQFileResource | null): boolean {
   }
 
   return /\.(jpg|jpeg|png|gif|webp|bmp|svg|heic|heif)$/i.test(fileUrl);
+}
+
+function isVideoFile(file?: RFQFileResource | null): boolean {
+  const mimeType = (file?.mimeType || '').toLowerCase();
+  const fileName = `${getRFQFileName(file)} ${getRFQFileUrl(file)}`.toLowerCase();
+
+  return mimeType.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogv|ogg|avi|mkv)(?:$|[?#])/.test(fileName);
 }
 
 function getRFQPictureResources(rfq?: RFQRecord): RFQFileResource[] {
@@ -769,7 +768,7 @@ function getSortedDetailOptions(details?: RFQDetailOption[]): RFQDetailOption[] 
   return [...(details || [])].sort((left, right) => left.sortOrder - right.sortOrder);
 }
 
-type ConfirmRfqShippingMethod = 'LAND' | 'SEA';
+type ConfirmRfqShippingMethod = string;
 
 function inferQuotationItemShippingMethod(name?: string | null): ConfirmRfqShippingMethod | null {
   if (!name) {
@@ -785,6 +784,29 @@ function inferQuotationItemShippingMethod(name?: string | null): ConfirmRfqShipp
   }
 
   return null;
+}
+
+function getShippingMethodPrefix(shippingMethod?: string | null): string {
+  const normalized = shippingMethod?.trim().toUpperCase();
+  return normalized ? normalized.split('_')[0] : 'OTHER';
+}
+
+function matchesShippingMethod(
+  shippingMethod: string,
+  inferredShippingMethod?: ConfirmRfqShippingMethod | null
+): boolean {
+  return !inferredShippingMethod ||
+    (isSeaShippingMethod(shippingMethod) ? 'SEA' : shippingMethod) === inferredShippingMethod;
+}
+
+function getTierShippingMethod(tier: RFQDetailTier): ConfirmRfqShippingMethod {
+  if (tier.shippingMethod) {
+    return tier.shippingMethod.trim().toUpperCase();
+  }
+
+  return Number(tier.seaTotalPrice || 0) > 0 && Number(tier.landTotalPrice || 0) <= 0
+    ? 'SEA'
+    : 'LAND';
 }
 
 function getConfirmRfqTierKey(
@@ -992,7 +1014,11 @@ export default function RFQDetail(): ReactElement {
   const [requestSpecialPriceTargetPriceErrors, setRequestSpecialPriceTargetPriceErrors] = useState<
     Record<number, string>
   >({});
+  const [requestSpecialPriceShippingMethods, setRequestSpecialPriceShippingMethods] = useState<
+    Record<number, 'LAND' | 'SEA'>
+  >({});
   const [closeRfqRemark, setCloseRfqRemark] = useState('');
+  const [closeRfqReason, setCloseRfqReason] = useState('');
   const [lastShownRequestedInformationKey, setLastShownRequestedInformationKey] = useState<
     string | null
   >(null);
@@ -1042,6 +1068,12 @@ export default function RFQDetail(): ReactElement {
       {}
     );
     setRequestSpecialPriceTargetPrices(targetPrices);
+    setRequestSpecialPriceShippingMethods(
+      requestSpecialPriceTiers.reduce<Record<number, 'LAND' | 'SEA'>>((methods, tier) => {
+        methods[tier.id] = tier.shippingMethods.includes('LAND') ? 'LAND' : 'SEA';
+        return methods;
+      }, {})
+    );
     setRequestSpecialPriceTargetPriceErrors({});
     setVisibleRequestSpecialPriceDialog(true);
   };
@@ -1049,6 +1081,7 @@ export default function RFQDetail(): ReactElement {
   const handleCloseRequestSpecialPriceDialog = () => {
     setVisibleRequestSpecialPriceDialog(false);
     setRequestSpecialPriceTargetPriceErrors({});
+    setRequestSpecialPriceShippingMethods({});
   };
 
   const handleCopyCustomerQuoted = async () => {
@@ -1165,12 +1198,14 @@ export default function RFQDetail(): ReactElement {
 
   const handleOpenCloseRfqDialog = () => {
     setVisibleCloseRfqConfirmDialog(false);
+    setCloseRfqReason('');
     setCloseRfqRemark('');
     setVisibleCloseRfqDialog(true);
   };
 
   const handleCloseCloseRfqDialog = () => {
     setVisibleCloseRfqDialog(false);
+    setCloseRfqReason('');
     setCloseRfqRemark('');
   };
 
@@ -1179,7 +1214,10 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    await toast.promise(closeRFQ(params.id, closeRfqRemark.trim()), {
+    await toast.promise(closeRFQ(params.id, {
+      closeReason: closeRfqReason,
+      closeRemark: closeRfqRemark.trim() || null
+    }), {
       loading: t('toast.loading'),
       success: t('toast.success'),
       error: t('toast.failed')
@@ -1204,17 +1242,34 @@ export default function RFQDetail(): ReactElement {
     }
   });
   const requestSpecialPriceTiers = useMemo(() => {
-    const uniqueMoqs = new Set<number>();
-    return (rfq?.details || [])
-      .flatMap((detail) => detail.tiers)
-      .filter((tier) => {
-        const moq = Number(tier.quantity);
-        if (uniqueMoqs.has(moq)) {
-          return false;
+    const tiersByMoq = new Map<number, {
+      id: number;
+      quantity: number;
+      tierIds: number[];
+      shippingMethods: Array<'LAND' | 'SEA'>;
+    }>();
+
+    (rfq?.details || []).flatMap((detail) => detail.tiers).forEach((tier) => {
+      const moq = Number(tier.quantity);
+      const shippingMethod = tier.shippingMethod?.startsWith('SEA') ? 'SEA' : 'LAND';
+      const existing = tiersByMoq.get(moq);
+      if (existing) {
+        existing.tierIds.push(tier.id);
+        if (!existing.shippingMethods.includes(shippingMethod)) {
+          existing.shippingMethods.push(shippingMethod);
         }
-        uniqueMoqs.add(moq);
-        return true;
+        return;
+      }
+
+      tiersByMoq.set(moq, {
+        id: tier.id,
+        quantity: tier.quantity,
+        tierIds: [tier.id],
+        shippingMethods: [shippingMethod]
       });
+    });
+
+    return Array.from(tiersByMoq.values());
   }, [rfq?.details]);
   const quotationOptions = useMemo(() => rfq?.quotations || [], [rfq?.quotations]);
   const latestQuotationNo = useMemo(() => {
@@ -1402,6 +1457,12 @@ export default function RFQDetail(): ReactElement {
     {
       refetchOnWindowFocus: false
     }
+  );
+
+  const { data: closeReasonOptions = [] } = useQuery(
+    'rfq-detail-close-reason-options',
+    () => getSystemConfig('RFQ_CLOSE_REASON'),
+    { refetchOnWindowFocus: false }
   );
 
   const { data: productFamilyList = [], isFetching: isProductFamilyFetching } = useQuery(
@@ -1929,57 +1990,16 @@ export default function RFQDetail(): ReactElement {
         (left, right) => left.sortOrder - right.sortOrder
       );
 
-      return sortedTiers.flatMap((tier) => {
-        const landTotalPrice = Number(tier.landTotalPrice || 0);
-        const seaTotalPrice = Number(tier.seaTotalPrice || 0);
-
-        if (landTotalPrice > 0 && seaTotalPrice > 0) {
-          return (['LAND', 'SEA'] as const).map((shippingMethod) => ({
-            key: getConfirmRfqTierKey(detail.id, tier.id, shippingMethod),
-            detail,
-            tier,
-            optionIndex,
-            shippingMethod,
-            quotationItem: null
-          }));
-        }
-
-        if (landTotalPrice > 0) {
-          return [
-            {
-              key: getConfirmRfqTierKey(detail.id, tier.id, 'LAND'),
-              detail,
-              tier,
-              optionIndex,
-              shippingMethod: 'LAND' as const,
-              quotationItem: null
-            }
-          ];
-        }
-
-        if (seaTotalPrice > 0) {
-          return [
-            {
-              key: getConfirmRfqTierKey(detail.id, tier.id, 'SEA'),
-              detail,
-              tier,
-              optionIndex,
-              shippingMethod: 'SEA' as const,
-              quotationItem: null
-            }
-          ];
-        }
-
-        return [
-          {
-            key: getConfirmRfqTierKey(detail.id, tier.id, 'LAND'),
-            detail,
-            tier,
-            optionIndex,
-            shippingMethod: 'LAND' as const,
-            quotationItem: null
-          }
-        ];
+      return sortedTiers.map((tier) => {
+        const shippingMethod = getTierShippingMethod(tier);
+        return {
+          key: getConfirmRfqTierKey(detail.id, tier.id, shippingMethod),
+          detail,
+          tier,
+          optionIndex,
+          shippingMethod,
+          quotationItem: null
+        };
       });
     });
 
@@ -1988,10 +2008,14 @@ export default function RFQDetail(): ReactElement {
 
     return quotationItems.map((quotationItem, index) => {
       const inferredShippingMethod = inferQuotationItemShippingMethod(quotationItem.name);
+      const rfqDetailId = quotationItem.rfqDetailId;
       const quantity = Number(quotationItem.quantity || 0);
       const unitPrice = Number(quotationItem.unitPrice || 0);
       const exactMatchIndex = availableRfqRows.findIndex((row) => {
-        if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+        if (rfqDetailId !== undefined && rfqDetailId !== null && row.detail.id !== rfqDetailId) {
+          return false;
+        }
+        if (!matchesShippingMethod(row.shippingMethod, inferredShippingMethod)) {
           return false;
         }
 
@@ -1999,9 +2023,7 @@ export default function RFQDetail(): ReactElement {
           return false;
         }
 
-        const expectedPrice = Number(
-          row.shippingMethod === 'SEA' ? row.tier?.seaTotalPrice || 0 : row.tier?.landTotalPrice || 0
-        );
+        const expectedPrice = Number(row.tier?.totalPrice || 0);
 
         return Math.abs(expectedPrice - unitPrice) < 0.0001;
       });
@@ -2009,7 +2031,10 @@ export default function RFQDetail(): ReactElement {
         exactMatchIndex >= 0
           ? exactMatchIndex
           : availableRfqRows.findIndex((row) => {
-            if (inferredShippingMethod && row.shippingMethod !== inferredShippingMethod) {
+            if (rfqDetailId !== undefined && rfqDetailId !== null && row.detail.id !== rfqDetailId) {
+              return false;
+            }
+            if (!matchesShippingMethod(row.shippingMethod, inferredShippingMethod)) {
               return false;
             }
 
@@ -2019,7 +2044,8 @@ export default function RFQDetail(): ReactElement {
         quantityMatchIndex >= 0
           ? quantityMatchIndex
           : availableRfqRows.findIndex((row) =>
-            inferredShippingMethod ? row.shippingMethod === inferredShippingMethod : true
+            (rfqDetailId === undefined || rfqDetailId === null || row.detail.id === rfqDetailId) &&
+            matchesShippingMethod(row.shippingMethod, inferredShippingMethod)
           );
       const resolvedIndex = fallbackIndex >= 0 ? fallbackIndex : -1;
       const mappedRow =
@@ -2260,19 +2286,28 @@ export default function RFQDetail(): ReactElement {
     }
 
     const targetPriceErrors: Record<number, string> = {};
-    const tiers = (rfq?.details || []).reduce<{ tierId: number; targetPrice: number }[]>(
-      (items, detail) => {
-        detail.tiers.forEach((tier) => {
-          const value = requestSpecialPriceTargetPrices[tier.id]?.trim() || '';
-          if (!value) {
-            targetPriceErrors[tier.id] = 'กรุณากรอกราคาที่ต้องการ';
-            return;
-          }
-          if (Number.isNaN(Number(value))) {
-            targetPriceErrors[tier.id] = t('rfqManagement.validation.targetPrice');
-            return;
-          }
-          items.push({ tierId: tier.id, targetPrice: Number(value) });
+    const tiers = requestSpecialPriceTiers.reduce<{
+      tierId: number;
+      targetPrice: number;
+      shippingMethod: 'LAND' | 'SEA';
+    }[]>(
+      (items, tier) => {
+        const value = requestSpecialPriceTargetPrices[tier.id]?.trim() || '';
+        if (!value) {
+          targetPriceErrors[tier.id] = 'กรุณากรอกราคาที่ต้องการ';
+          return items;
+        }
+        if (Number.isNaN(Number(value))) {
+          targetPriceErrors[tier.id] = t('rfqManagement.validation.targetPrice');
+          return items;
+        }
+        const shippingMethod = requestSpecialPriceShippingMethods[tier.id];
+        if (!shippingMethod) {
+          targetPriceErrors[tier.id] = 'กรุณาเลือกวิธีขนส่ง';
+          return items;
+        }
+        tier.tierIds.forEach((tierId) => {
+          items.push({ tierId, targetPrice: Number(value), shippingMethod });
         });
         return items;
       },
@@ -2870,19 +2905,6 @@ export default function RFQDetail(): ReactElement {
                         <Cancel fontSize="small" />
                       </ListItemIcon>
                       <ListItemText primary={t('rfqManagement.detail.actions.close')} />
-                    </MenuItem>
-                  ) : null}
-                  {canRejectAction ? (
-                    <MenuItem
-                      onClick={() => {
-                        handleCloseDownloadMenu();
-                        setVisibleRejectRfqDialog(true);
-                      }}
-                      sx={{ width: '100%' }}>
-                      <ListItemIcon>
-                        <DisabledByDefault fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={t('rfqManagement.detail.actions.reject')} />
                     </MenuItem>
                   ) : null}
                 </Menu>
@@ -3804,9 +3826,7 @@ export default function RFQDetail(): ReactElement {
                         {attachmentResources.map((attachment, index) => (
                           <Stack
                             key={`${attachment.id}-${index}`}
-                            direction={{ xs: 'column', sm: 'row' }}
-                            spacing={1}
-                            alignItems={{ xs: 'stretch', sm: 'center' }}
+                            spacing={1.25}
                             justifyContent="space-between"
                             sx={{
                               px: 1.5,
@@ -3815,26 +3835,49 @@ export default function RFQDetail(): ReactElement {
                               borderRadius: 2,
                               backgroundColor: '#fff'
                             }}>
-                            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                              <Typography fontWeight={600} noWrap>
-                                {getRFQFileName(attachment, index)}
-                              </Typography>
-                              {attachment.updatedDate ? (
-                                <Typography variant="caption" color="text.secondary">
-                                  {dayjs(attachment.updatedDate).format('DD/MM/YYYY HH:mm')}
+                            <Stack
+                              direction={{ xs: 'column', sm: 'row' }}
+                              spacing={1}
+                              alignItems={{ xs: 'stretch', sm: 'center' }}
+                              justifyContent="space-between">
+                              <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                                <Typography fontWeight={600} noWrap>
+                                  {getRFQFileName(attachment, index)}
                                 </Typography>
-                              ) : null}
+                                {attachment.updatedDate ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {dayjs(attachment.updatedDate).format('DD/MM/YYYY HH:mm')}
+                                  </Typography>
+                                ) : null}
+                              </Stack>
+                              <Button
+                                component="a"
+                                href={getRFQFileUrl(attachment)}
+                                target="_blank"
+                                rel="noreferrer"
+                                variant="outlined"
+                                fullWidth={isDownSm}
+                                sx={outlinedActionButtonSx}>
+                                {t('rfqManagement.detail.actions.openFile')}
+                              </Button>
                             </Stack>
-                            <Button
-                              component="a"
-                              href={getRFQFileUrl(attachment)}
-                              target="_blank"
-                              rel="noreferrer"
-                              variant="outlined"
-                              fullWidth={isDownSm}
-                              sx={outlinedActionButtonSx}>
-                              {t('rfqManagement.detail.actions.openFile')}
-                            </Button>
+                            {isVideoFile(attachment) ? (
+                              <Box
+                                component="video"
+                                controls
+                                preload="metadata"
+                                src={getRFQFileUrl(attachment)}
+                                sx={{
+                                  display: 'block',
+                                  width: '100%',
+                                  maxWidth: 720,
+                                  maxHeight: 420,
+                                  borderRadius: 1,
+                                  backgroundColor: '#000'
+                                }}>
+                                เบราว์เซอร์นี้ไม่รองรับการเล่นวิดีโอ
+                              </Box>
+                            ) : null}
                           </Stack>
                         ))}
                       </Stack>
@@ -3879,7 +3922,18 @@ export default function RFQDetail(): ReactElement {
                   {detailOptions.length ? (
                     detailOptions.map((detail, index) => {
                       const sortedTiers = [...(detail.tiers || [])].sort(
-                        (left, right) => left.sortOrder - right.sortOrder
+                        (left, right) =>
+                          getShippingMethodPrefix(left.shippingMethod).localeCompare(
+                            getShippingMethodPrefix(right.shippingMethod)
+                          ) || left.sortOrder - right.sortOrder
+                      );
+                      const tierGroups = sortedTiers.reduce<Record<string, RFQDetailTier[]>>(
+                        (groups, tier) => {
+                          const prefix = getShippingMethodPrefix(tier.shippingMethod);
+                          groups[prefix] = [...(groups[prefix] || []), tier];
+                          return groups;
+                        },
+                        {}
                       );
                       const sortedTierSplits = [...(detail.tierSplits || [])].sort(
                         (left, right) => left.quantity - right.quantity || left.id - right.id
@@ -4308,59 +4362,66 @@ export default function RFQDetail(): ReactElement {
                                       }}>
                                       <TableCell>MOQ</TableCell>
                                       <TableCell align="right">ราคาสินค้า</TableCell>
-                                      <TableCell align="right">ค่าขนส่งทางรถ</TableCell>
-                                      <TableCell align="right">รวมทางรถ</TableCell>
-                                      <TableCell align="right">ค่าขนส่งทางเรือ</TableCell>
-                                      <TableCell align="right">รวมทางเรือ</TableCell>
-                                      <TableCell align="center">ปิดตู้</TableCell>
+                                      <TableCell align="center">วิธีการขนส่ง</TableCell>
+                                      <TableCell align="right">ค่าขนส่ง</TableCell>
+                                      <TableCell align="right">ราคารวม</TableCell>
+                                      {/* <TableCell align="center">ปิดตู้</TableCell>
                                       <TableCell align="center">ปิดตู้ (Share)</TableCell>
-                                      <TableCell align="center">ขนาดตู้</TableCell>
+                                      <TableCell align="center">ขนาดตู้</TableCell> */}
                                       <TableCell align="right">ค่าคอม</TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
-                                    {sortedTiers.map((tier) => (
-                                      <TableRow
-                                        key={tier.id}
-                                        sx={{
-                                          '&:last-child td': { borderBottom: 0 }
-                                        }}>
-                                        <TableCell sx={{ fontWeight: 600 }}>
-                                          <Stack direction="row" spacing={0.5} alignItems="center">
-                                            <span>{formatQuantity(tier.quantity)}</span>
-                                            {tier.targetPrice !== null &&
-                                              tier.targetPrice !== undefined &&
-                                              Number(tier.targetPrice) > 0 ? (
-                                              <Tooltip
-                                                title={`Target Price: ${formatPrice(
-                                                  tier.targetPrice,
-                                                  tier.currency
-                                                )}`}>
-                                                <PriceChange color="error" />
-                                              </Tooltip>
-                                            ) : null}
-                                          </Stack>
-                                        </TableCell>
-                                        <TableCell align="right">
-                                          {formatPrice(tier.productPrice, tier.currency)}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                          {formatPrice(tier.landFreightCost, tier.currency)}
-                                        </TableCell>
+                                    {Object.entries(tierGroups).flatMap(([prefix, tiers]) => [
+                                      <TableRow key={`shipping-group-${prefix}`}>
                                         <TableCell
-                                          align="right"
-                                          sx={{ fontWeight: 700, color: '#1565c0' }}>
-                                          {formatPrice(tier.landTotalPrice, tier.currency)}
+                                          colSpan={6}
+                                          sx={{
+                                            py: 0.75,
+                                            fontWeight: 700,
+                                            color: 'primary.main',
+                                            backgroundColor: '#f1f5f9'
+                                          }}>
+                                          {getShippingMethodLabel(prefix, prefix)}
                                         </TableCell>
-                                        <TableCell align="right">
-                                          {formatPrice(tier.seaFreightCost, tier.currency)}
-                                        </TableCell>
-                                        <TableCell
-                                          align="right"
-                                          sx={{ fontWeight: 700, color: '#00897b' }}>
-                                          {formatPrice(tier.seaTotalPrice, tier.currency)}
-                                        </TableCell>
-                                        <TableCell align="center">
+                                      </TableRow>,
+                                      ...tiers.map((tier) => (
+                                        <TableRow
+                                          key={tier.id}
+                                          sx={{
+                                            '&:last-child td': { borderBottom: 0 }
+                                          }}>
+                                          <TableCell sx={{ fontWeight: 600 }}>
+                                            <Stack direction="row" spacing={0.5} alignItems="center">
+                                              <span>{formatQuantity(tier.quantity)}</span>
+                                              {tier.targetPrice !== null &&
+                                                tier.targetPrice !== undefined &&
+                                                Number(tier.targetPrice) > 0 ? (
+                                                <Tooltip
+                                                  title={`Target Price: ${formatPrice(
+                                                    tier.targetPrice,
+                                                    tier.currency
+                                                  )}`}>
+                                                  <PriceChange color="error" />
+                                                </Tooltip>
+                                              ) : null}
+                                            </Stack>
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatPrice(tier.productPrice, tier.currency)}
+                                          </TableCell>
+                                          <TableCell align="center">
+                                            {getShippingMethodLabel(tier.shippingMethod)}
+                                          </TableCell>
+                                          <TableCell
+                                            align="right"
+                                            sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                            {formatPrice(tier.shippingCost, tier.currency)}
+                                          </TableCell>
+                                          <TableCell align="right" sx={{ fontWeight: 700, color: '#00897b' }}>
+                                            {formatPrice(tier.totalPrice, tier.currency)}
+                                          </TableCell>
+                                          {/* <TableCell align="center">
                                           {tier.isFcl ? 'ใช่' : '-'}
                                         </TableCell>
                                         <TableCell align="center">
@@ -4368,12 +4429,13 @@ export default function RFQDetail(): ReactElement {
                                         </TableCell>
                                         <TableCell align="center">
                                           {formatContainerSizeLabel(tier.containerSize)}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                          {formatPercent(tier.commission)}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
+                                        </TableCell> */}
+                                          <TableCell align="right">
+                                            {formatPercent(tier.commission)}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    ])}
                                   </TableBody>
                                 </Table>
                               ) : (
@@ -5498,10 +5560,25 @@ export default function RFQDetail(): ReactElement {
         <DialogTitle>{t('rfqManagement.detail.actions.close')}</DialogTitle>
         <DialogContent dividers>
           <TextField
+            select
+            fullWidth
+            required
+            label="เหตุผลในการปิดงาน"
+            value={closeRfqReason}
+            onChange={(event) => setCloseRfqReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}>
+            {closeReasonOptions.map((reason) => (
+              <MenuItem key={reason.code} value={reason.code}>
+                {reason.nameTh || reason.nameEn || reason.code}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
             fullWidth
             multiline
             minRows={4}
-            label={t('rfqManagement.detail.dialogs.reasonLabel')}
+            label="ระบุเหตุผลในการปิดงานเพิ่มเติม (ไม่บังคับ)"
             value={closeRfqRemark}
             onChange={(event) => setCloseRfqRemark(event.target.value)}
             InputLabelProps={{ shrink: true }}
@@ -5519,7 +5596,7 @@ export default function RFQDetail(): ReactElement {
             onClick={handleSubmitCloseRfq}
             className="btn-emerald-green"
             variant="contained"
-            disabled={!closeRfqRemark.trim()}>
+            disabled={!closeRfqReason}>
             {t('button.confirm')}
           </Button>
         </DialogActions>
@@ -5532,20 +5609,27 @@ export default function RFQDetail(): ReactElement {
         onClose={handleCloseRequestSpecialPriceDialog}>
         <DialogTitle>{t('rfqManagement.detail.actions.requestSpecialPrice')}</DialogTitle>
         <DialogContent dividers>
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             <Typography variant="body2" color="text.secondary">
               กรุณาระบุราคาที่ต้องการก่อนส่งคำขอทบทวนราคาพิเศษ
             </Typography>
             {requestSpecialPriceTiers.map((tier) => (
-              <Stack key={tier.id} direction="row" spacing={1.5} alignItems="flex-start">
+              <Stack
+                key={tier.id}
+                direction="row"
+                spacing={1}
+                alignItems="flex-start"
+                useFlexGap
+              // sx={{ flexWrap: 'nowrap', overflowX: 'auto', pb: 0.5 }}
+              >
                 <TextField
                   label="MOQ"
                   value={tier.quantity}
                   InputProps={{ readOnly: true }}
-                  sx={{ width: 150 }}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ width: 140 }}
                 />
                 <TextField
-                  fullWidth
                   type="number"
                   label={t('rfqManagement.form.targetPrice')}
                   value={requestSpecialPriceTargetPrices[tier.id] || ''}
@@ -5575,7 +5659,37 @@ export default function RFQDetail(): ReactElement {
                   helperText={requestSpecialPriceTargetPriceErrors[tier.id]}
                   inputProps={{ min: 0, step: 'any' }}
                   InputLabelProps={{ shrink: true }}
+                  sx={{ width: 150, flexShrink: 0 }}
                 />
+                <RadioGroup
+                  row
+                  value={requestSpecialPriceShippingMethods[tier.id] || ''}
+                  sx={{ minHeight: 56, alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap' }}
+                  onChange={(event) => {
+                    setRequestSpecialPriceShippingMethods((previous) => ({
+                      ...previous,
+                      [tier.id]: event.target.value as 'LAND' | 'SEA'
+                    }));
+                    setRequestSpecialPriceTargetPriceErrors((previous) => ({
+                      ...previous,
+                      [tier.id]: ''
+                    }));
+                  }}>
+                  <FormControlLabel
+                    value="LAND"
+                    control={<Radio size="small" />}
+                    label="รวมส่งทางรถ"
+                    disabled={!tier.shippingMethods.includes('LAND')}
+                    sx={{ mr: 1 }}
+                  />
+                  <FormControlLabel
+                    value="SEA"
+                    control={<Radio size="small" />}
+                    label="รวมส่งทางเรือ"
+                    disabled={!tier.shippingMethods.includes('SEA')}
+                    sx={{ mr: 0 }}
+                  />
+                </RadioGroup>
               </Stack>
             ))}
           </Stack>
@@ -5700,12 +5814,17 @@ export default function RFQDetail(): ReactElement {
                       const row = confirmQuotationRows[index];
                       const fallbackShippingMethod =
                         inferQuotationItemShippingMethod(quotationItem.name) || 'LAND';
+                      const resolvedShippingMethod =
+                        row?.shippingMethod || fallbackShippingMethod;
                       const optionLabel = formatOptionNameWithPlan(
                         row?.detail?.optionName || `Option ${index + 1}`,
                         row?.detail?.plan
                       );
                       const shippingMethodLabel = getShippingMethodLabel(
-                        row?.shippingMethod || fallbackShippingMethod
+                        resolvedShippingMethod,
+                        '-',
+                        Boolean(row?.tier?.isFcl),
+                        Boolean(row?.tier?.isShareFCL)
                       );
                       const rowCurrency = 'THB';
                       const unitPrice = quotationItem.unitPrice;
@@ -5750,26 +5869,12 @@ export default function RFQDetail(): ReactElement {
                           </TableCell>
                           <TableCell>
                             <Stack direction="row" spacing={0.75} alignItems="center">
-                              <Typography variant="body2">{shippingMethodLabel}</Typography>
-                              {(row?.shippingMethod || fallbackShippingMethod) === 'SEA' ? (
+                              {isSeaShippingMethod(resolvedShippingMethod) ? (
                                 <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
                               ) : (
                                 <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
                               )}
-                              {((row?.shippingMethod || fallbackShippingMethod) === 'SEA' && row?.tier?.isFcl) ? (
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    px: 0.75,
-                                    py: 0.25,
-                                    borderRadius: 999,
-                                    backgroundColor: '#e0f2fe',
-                                    color: '#0369a1',
-                                    fontWeight: 700
-                                  }}>
-                                  แบบปิดตู้
-                                </Typography>
-                              ) : null}
+                              <Typography variant="body2">{shippingMethodLabel}</Typography>
                             </Stack>
                           </TableCell>
                           <TableCell align="center" sx={{ fontWeight: 700 }}>

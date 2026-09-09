@@ -854,6 +854,9 @@ function createDraftTier(sortOrder: number): RFQDetailTier {
     commission: 0,
     currency: 'THB',
     exchangeRate: 1,
+    shippingMethod: 'LAND',
+    shippingCost: 0,
+    totalPrice: 0,
     landFreightCost: 0,
     seaFreightCost: 0,
     isFcl: false,
@@ -897,11 +900,12 @@ function buildDraftDetailPayload(detail: RFQDetailOption): CreateRFQDetailReques
       commission: tier.commission ?? null,
       currency: tier.currency || 'THB',
       exchangeRate: tier.exchangeRate ?? 1,
-      landFreightCost: tier.landFreightCost,
-      seaFreightCost: tier.seaFreightCost,
+      shippingMethod: tier.shippingMethod || 'LAND',
+      landFreightCost: tier.shippingMethod?.startsWith('SEA') ? null : tier.shippingCost,
+      seaFreightCost: tier.shippingMethod?.startsWith('SEA') ? tier.shippingCost : null,
       isFcl: Boolean(tier.isFcl),
-      landTotalPrice: tier.productPrice + tier.landFreightCost,
-      seaTotalPrice: tier.productPrice + tier.seaFreightCost,
+      landTotalPrice: tier.shippingMethod?.startsWith('SEA') ? null : tier.totalPrice,
+      seaTotalPrice: tier.shippingMethod?.startsWith('SEA') ? tier.totalPrice : null,
       sortOrder: index + 1
     }))
   };
@@ -943,12 +947,8 @@ function validateDraftDetail(detail: RFQDetailOption): DraftDetailValidationErro
       tierError.exchangeRate = `Tier ${index + 1}: กรุณาระบุอัตราแลกเปลี่ยนมากกว่า 0`;
     }
 
-    if (!isNonNegativeNumber(tier.landFreightCost)) {
-      tierError.landFreightCost = `Tier ${index + 1}: ค่าขนส่งทางรถต้องเป็น 0 หรือมากกว่า`;
-    }
-
-    if (!isNonNegativeNumber(tier.seaFreightCost)) {
-      tierError.seaFreightCost = `Tier ${index + 1}: ค่าขนส่งทางเรือต้องเป็น 0 หรือมากกว่า`;
+    if (!isNonNegativeNumber(tier.shippingCost ?? 0)) {
+      tierError.shippingCost = `Tier ${index + 1}: ค่าขนส่งต้องเป็น 0 หรือมากกว่า`;
     }
 
     if (Object.keys(tierError).length) {
@@ -2397,11 +2397,11 @@ export default function RFQDetail(): ReactElement {
       | 'commission'
       | 'currency'
       | 'exchangeRate'
-      | 'landFreightCost'
-      | 'seaFreightCost',
+      | 'shippingMethod'
+      | 'shippingCost',
     value: string
   ) => {
-    const numericField = field !== 'currency';
+    const numericField = field !== 'currency' && field !== 'shippingMethod';
     const nextValue = Number(value);
 
     setDraftDetailOptions((prev) =>
@@ -2419,11 +2419,18 @@ export default function RFQDetail(): ReactElement {
             ...tier,
             [field]: numericField ? (Number.isNaN(nextValue) ? 0 : nextValue) : value
           };
+          const shippingCost = Number(updatedTier.shippingCost || 0);
+          const totalPrice = Number(updatedTier.productPrice || 0) + shippingCost;
+          const seaShipping = updatedTier.shippingMethod?.startsWith('SEA');
 
           return {
             ...updatedTier,
-            landTotalPrice: updatedTier.productPrice + updatedTier.landFreightCost,
-            seaTotalPrice: updatedTier.productPrice + updatedTier.seaFreightCost
+            shippingCost,
+            totalPrice,
+            landFreightCost: seaShipping ? 0 : shippingCost,
+            seaFreightCost: seaShipping ? shippingCost : 0,
+            landTotalPrice: seaShipping ? 0 : totalPrice,
+            seaTotalPrice: seaShipping ? totalPrice : 0
           };
         });
 
@@ -4178,12 +4185,11 @@ export default function RFQDetail(): ReactElement {
                                         }}>
                                         <TableCell>MOQ</TableCell>
                                         <TableCell>ราคาสินค้า</TableCell>
-                                        <TableCell>ค่าขนส่งทางรถ</TableCell>
-                                        <TableCell>ค่าขนส่งทางเรือ</TableCell>
+                                        <TableCell>วิธีการขนส่ง</TableCell>
+                                        <TableCell>ค่าขนส่ง</TableCell>
                                         <TableCell align="center">FCL</TableCell>
                                         <TableCell align="center">ขนาดตู้</TableCell>
-                                        <TableCell align="right">รวมทางรถ</TableCell>
-                                        <TableCell align="right">รวมทางเรือ</TableCell>
+                                        <TableCell align="right">ราคารวม</TableCell>
                                         <TableCell align="center">จัดการ</TableCell>
                                         <TableCell align="right">ค่าคอม</TableCell>
                                       </TableRow>
@@ -4240,41 +4246,37 @@ export default function RFQDetail(): ReactElement {
                                               <TextField
                                                 fullWidth
                                                 size="small"
-                                                type="number"
-                                                value={tier.landFreightCost}
-                                                error={Boolean(
-                                                  detailError.tierErrors?.[tier.id]?.landFreightCost
-                                                )}
-                                                helperText={
-                                                  detailError.tierErrors?.[tier.id]?.landFreightCost
-                                                }
+                                                select
+                                                value={tier.shippingMethod || 'LAND'}
                                                 onChange={(event) =>
                                                   handleDraftTierChange(
                                                     detail.id,
                                                     tier.id,
-                                                    'landFreightCost',
+                                                    'shippingMethod',
                                                     event.target.value
                                                   )
-                                                }
-                                              />
+                                                }>
+                                                <MenuItem value="LAND">{getShippingMethodLabel('LAND')}</MenuItem>
+                                                <MenuItem value="SEA">{getShippingMethodLabel('SEA')}</MenuItem>
+                                              </TextField>
                                             </TableCell>
                                             <TableCell sx={{ minWidth: 150 }}>
                                               <TextField
                                                 fullWidth
                                                 size="small"
                                                 type="number"
-                                                value={tier.seaFreightCost}
+                                                value={tier.shippingCost ?? 0}
                                                 error={Boolean(
-                                                  detailError.tierErrors?.[tier.id]?.seaFreightCost
+                                                  detailError.tierErrors?.[tier.id]?.shippingCost
                                                 )}
                                                 helperText={
-                                                  detailError.tierErrors?.[tier.id]?.seaFreightCost
+                                                  detailError.tierErrors?.[tier.id]?.shippingCost
                                                 }
                                                 onChange={(event) =>
                                                   handleDraftTierChange(
                                                     detail.id,
                                                     tier.id,
-                                                    'seaFreightCost',
+                                                    'shippingCost',
                                                     event.target.value
                                                   )
                                                 }
@@ -4303,12 +4305,7 @@ export default function RFQDetail(): ReactElement {
                                             <TableCell
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#1565c0' }}>
-                                              {formatPrice(tier.landTotalPrice, tier.currency)}
-                                            </TableCell>
-                                            <TableCell
-                                              align="right"
-                                              sx={{ fontWeight: 700, color: '#00897b' }}>
-                                              {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                              {formatPrice(tier.totalPrice, tier.currency)}
                                             </TableCell>
                                             <TableCell align="center">
                                               <IconButton
@@ -4481,12 +4478,9 @@ export default function RFQDetail(): ReactElement {
                                         }}>
                                         <TableCell>MOQ</TableCell>
                                         <TableCell align="right">ราคาสินค้า</TableCell>
-                                        <TableCell align="right">แบ่งส่งทางรถ</TableCell>
-                                        <TableCell align="right">ค่าส่งทางรถ</TableCell>
-                                        <TableCell align="right">แบ่งส่งทางเรือ</TableCell>
-                                        <TableCell align="right">ค่าส่งทางเรือ</TableCell>
-                                        <TableCell align="center">FCL</TableCell>
-                                        <TableCell align="center">FCL Share</TableCell>
+                                        <TableCell align="center">วิธีการขนส่ง</TableCell>
+                                        <TableCell align="right">ค่าขนส่ง</TableCell>
+                                        <TableCell align="right">ราคารวม</TableCell>
                                         <TableCell align="right">ค่าคอม</TableCell>
                                       </TableRow>
                                     </TableHead>
@@ -4503,32 +4497,14 @@ export default function RFQDetail(): ReactElement {
                                           <TableCell align="right">
                                             {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
                                           </TableCell>
-                                          <TableCell align="right">
-                                            {formatQuantity(tierSplit.landFreightQty)}
-                                          </TableCell>
-                                          <TableCell align="right">
-                                            {formatPrice(
-                                              tierSplit.landFreightCost,
-                                              tierSplit.currency
-                                            )}
-                                          </TableCell>
-                                          <TableCell align="right">
-                                            {formatQuantity(tierSplit.seaFreightQty)}
-                                          </TableCell>
-                                          <TableCell align="right">
-                                            {formatPrice(
-                                              tierSplit.seaFreightCost,
-                                              tierSplit.currency
-                                            )}
-                                          </TableCell>
                                           <TableCell align="center">
-                                            {tierSplit.isFcl ? 'ใช่' : '-'}
+                                            {getShippingMethodLabel(tierSplit.shippingMethod)}
                                           </TableCell>
-                                          <TableCell align="center">
-                                            {tierSplit.isShareFCL ? 'ใช่' : '-'}
+                                          <TableCell align="right">
+                                            {formatPrice(tierSplit.shippingCost, tierSplit.currency)}
                                           </TableCell>
-                                          <TableCell align="center">
-                                            {formatContainerSizeLabel(tierSplit.containerSize)}
+                                          <TableCell align="right" sx={{ fontWeight: 700 }}>
+                                            {formatPrice(tierSplit.totalPrice, tierSplit.currency)}
                                           </TableCell>
                                           <TableCell align="right">
                                             {formatPercent(tierSplit.commission)}
@@ -4626,43 +4602,39 @@ export default function RFQDetail(): ReactElement {
                                             <TextField
                                               fullWidth
                                               size="small"
-                                              type="number"
-                                              label={t('rfqManagement.detail.fields.landFreightCost')}
-                                              value={tier.landFreightCost}
-                                              error={Boolean(
-                                                detailError.tierErrors?.[tier.id]?.landFreightCost
-                                              )}
-                                              helperText={
-                                                detailError.tierErrors?.[tier.id]?.landFreightCost
-                                              }
+                                              select
+                                              label="วิธีการขนส่ง"
+                                              value={tier.shippingMethod || 'LAND'}
                                               onChange={(event) =>
                                                 handleDraftTierChange(
                                                   detail.id,
                                                   tier.id,
-                                                  'landFreightCost',
+                                                  'shippingMethod',
                                                   event.target.value
                                                 )
-                                              }
-                                            />
+                                              }>
+                                              <MenuItem value="LAND">{getShippingMethodLabel('LAND')}</MenuItem>
+                                              <MenuItem value="SEA">{getShippingMethodLabel('SEA')}</MenuItem>
+                                            </TextField>
                                           </Grid>
                                           <Grid item xs={12}>
                                             <TextField
                                               fullWidth
                                               size="small"
                                               type="number"
-                                              label={t('rfqManagement.detail.fields.seaFreightCost')}
-                                              value={tier.seaFreightCost}
+                                              label="ค่าขนส่ง"
+                                              value={tier.shippingCost ?? 0}
                                               error={Boolean(
-                                                detailError.tierErrors?.[tier.id]?.seaFreightCost
+                                                detailError.tierErrors?.[tier.id]?.shippingCost
                                               )}
                                               helperText={
-                                                detailError.tierErrors?.[tier.id]?.seaFreightCost
+                                                detailError.tierErrors?.[tier.id]?.shippingCost
                                               }
                                               onChange={(event) =>
                                                 handleDraftTierChange(
                                                   detail.id,
                                                   tier.id,
-                                                  'seaFreightCost',
+                                                  'shippingCost',
                                                   event.target.value
                                                 )
                                               }
@@ -4704,13 +4676,13 @@ export default function RFQDetail(): ReactElement {
                                           </Grid>
                                           <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">
-                                              รวมทางรถ
+                                              ราคารวม
                                             </Typography>
                                             <Typography
                                               variant="body2"
                                               fontWeight={700}
                                               color="#1565c0">
-                                              {formatPrice(tier.landTotalPrice, tier.currency)}
+                                              {formatPrice(tier.totalPrice, tier.currency)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={6}>
@@ -4719,17 +4691,6 @@ export default function RFQDetail(): ReactElement {
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600}>
                                               {formatPercent(tier.commission)}
-                                            </Typography>
-                                          </Grid>
-                                          <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">
-                                              รวมทางเรือ
-                                            </Typography>
-                                            <Typography
-                                              variant="body2"
-                                              fontWeight={700}
-                                              color="#00897b">
-                                              {formatPrice(tier.seaTotalPrice, tier.currency)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={12}>
@@ -4783,10 +4744,10 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
-                                          ค่าขนส่งทางรถ
+                                          วิธีการขนส่ง
                                         </Typography>
                                         <Typography variant="body2" fontWeight={600}>
-                                          {formatPrice(tier.landFreightCost, tier.currency)}
+                                          {getShippingMethodLabel(tier.shippingMethod)}
                                         </Typography>
                                       </Grid>
                                       <Grid item xs={6}>
@@ -4799,21 +4760,13 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
-                                          รวมทางรถ
+                                          ค่าขนส่ง
                                         </Typography>
                                         <Typography
                                           variant="body2"
                                           fontWeight={700}
                                           color="#1565c0">
-                                          {formatPrice(tier.landTotalPrice, tier.currency)}
-                                        </Typography>
-                                      </Grid>
-                                      <Grid item xs={6}>
-                                        <Typography variant="caption" color="text.secondary">
-                                          ค่าขนส่งทางเรือ
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={600}>
-                                          {formatPrice(tier.seaFreightCost, tier.currency)}
+                                          {formatPrice(tier.shippingCost, tier.currency)}
                                         </Typography>
                                       </Grid>
                                       <Grid item xs={6}>
@@ -4834,13 +4787,13 @@ export default function RFQDetail(): ReactElement {
                                       </Grid>
                                       <Grid item xs={6}>
                                         <Typography variant="caption" color="text.secondary">
-                                          รวมทางเรือ
+                                          ราคารวม
                                         </Typography>
                                         <Typography
                                           variant="body2"
                                           fontWeight={700}
                                           color="#00897b">
-                                          {formatPrice(tier.seaTotalPrice, tier.currency)}
+                                          {formatPrice(tier.totalPrice, tier.currency)}
                                         </Typography>
                                       </Grid>
                                     </Grid>
@@ -4905,48 +4858,26 @@ export default function RFQDetail(): ReactElement {
                                           </Grid>
                                           <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">
-                                              แบ่งส่งทางรถ
+                                              วิธีการขนส่ง
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600}>
-                                              {formatQuantity(tierSplit.landFreightQty)}
+                                              {getShippingMethodLabel(tierSplit.shippingMethod)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">
-                                              ค่าส่งทางรถ
+                                              ค่าขนส่ง
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600}>
-                                              {formatPrice(
-                                                tierSplit.landFreightCost,
-                                                tierSplit.currency
-                                              )}
+                                              {formatPrice(tierSplit.shippingCost, tierSplit.currency)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">
-                                              แบ่งส่งทางเรือ
+                                              ราคารวม
                                             </Typography>
-                                            <Typography variant="body2" fontWeight={600}>
-                                              {formatQuantity(tierSplit.seaFreightQty)}
-                                            </Typography>
-                                          </Grid>
-                                          <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">
-                                              ค่าส่งทางเรือ
-                                            </Typography>
-                                            <Typography variant="body2" fontWeight={600}>
-                                              {formatPrice(
-                                                tierSplit.seaFreightCost,
-                                                tierSplit.currency
-                                              )}
-                                            </Typography>
-                                          </Grid>
-                                          <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">
-                                              FCL
-                                            </Typography>
-                                            <Typography variant="body2" fontWeight={600}>
-                                              {tierSplit.isFcl ? 'ใช่' : '-'}
+                                            <Typography variant="body2" fontWeight={700} color="#00897b">
+                                              {formatPrice(tierSplit.totalPrice, tierSplit.currency)}
                                             </Typography>
                                           </Grid>
                                           <Grid item xs={6}>

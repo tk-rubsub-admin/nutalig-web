@@ -354,11 +354,10 @@ interface TierEditDraft {
   productPrice: string;
   commission: string;
   currency: string;
-  landFreightCost: string;
-  seaFreightCost: string;
+  shippingMethod: string;
+  shippingCost: string;
   isFcl: boolean;
-  landTotalPrice: string;
-  seaTotalPrice: string;
+  totalPrice: string;
   supplierQuoteTierId: string;
   sortOrder: string;
 }
@@ -911,6 +910,9 @@ function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
 }
 
 function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
+  const shippingMethod = tier.shippingMethod ||
+    (Number(tier.seaTotalPrice || 0) > 0 && Number(tier.landTotalPrice || 0) <= 0 ? 'SEA' : 'LAND');
+  const seaShipping = shippingMethod.startsWith('SEA');
   return {
     quantity:
       tier.quantity !== null && tier.quantity !== undefined
@@ -919,11 +921,10 @@ function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
     productPrice: tier.productPrice?.toString() || '',
     commission: tier.commission?.toString() || '',
     currency: tier.currency || 'THB',
-    landFreightCost: tier.landFreightCost?.toString() || '',
-    seaFreightCost: tier.seaFreightCost?.toString() || '',
+    shippingMethod,
+    shippingCost: (tier.shippingCost ?? (seaShipping ? tier.seaFreightCost : tier.landFreightCost))?.toString() || '',
     isFcl: Boolean(tier.isFcl),
-    landTotalPrice: tier.landTotalPrice?.toString() || '',
-    seaTotalPrice: tier.seaTotalPrice?.toString() || '',
+    totalPrice: (tier.totalPrice ?? (seaShipping ? tier.seaTotalPrice : tier.landTotalPrice))?.toString() || '',
     supplierQuoteTierId: tier.supplierQuoteTierId?.toString() || '',
     sortOrder: tier.sortOrder?.toString() || ''
   };
@@ -2716,26 +2717,14 @@ export default function RFQDetail(): ReactElement {
         nextDraft.quantity = quantity === null ? '' : quantityFormatter.format(quantity);
       }
 
-      if (field === 'productPrice' || field === 'landFreightCost') {
+      if (field === 'productPrice' || field === 'shippingCost') {
         const productPrice = parsePriceInput(
           field === 'productPrice' ? String(value) : nextDraft.productPrice
         );
-        const landFreightCost = parsePriceInput(
-          field === 'landFreightCost' ? String(value) : nextDraft.landFreightCost
+        const shippingCost = parsePriceInput(
+          field === 'shippingCost' ? String(value) : nextDraft.shippingCost
         );
-        const total = (productPrice ?? 0) + (landFreightCost ?? 0);
-        nextDraft.landTotalPrice = String(total);
-      }
-
-      if (field === 'productPrice' || field === 'seaFreightCost') {
-        const productPrice = parsePriceInput(
-          field === 'productPrice' ? String(value) : nextDraft.productPrice
-        );
-        const seaFreightCost = parsePriceInput(
-          field === 'seaFreightCost' ? String(value) : nextDraft.seaFreightCost
-        );
-        const total = (productPrice ?? 0) + (seaFreightCost ?? 0);
-        nextDraft.seaTotalPrice = String(total);
+        nextDraft.totalPrice = String((productPrice ?? 0) + (shippingCost ?? 0));
       }
 
       return nextDraft;
@@ -2767,10 +2756,10 @@ export default function RFQDetail(): ReactElement {
 
     const quantity = parsePriceInput(tierEditDraft.quantity);
     const productPrice = parsePriceInput(tierEditDraft.productPrice);
-    const landFreightCost = parsePriceInput(tierEditDraft.landFreightCost);
-    const seaFreightCost = parsePriceInput(tierEditDraft.seaFreightCost);
-    const landTotalPrice = parsePriceInput(tierEditDraft.landTotalPrice);
-    const seaTotalPrice = parsePriceInput(tierEditDraft.seaTotalPrice);
+    const shippingMethod = tierEditDraft.shippingMethod || 'LAND';
+    const shippingCost = parsePriceInput(tierEditDraft.shippingCost);
+    const totalPrice = parsePriceInput(tierEditDraft.totalPrice);
+    const seaShipping = shippingMethod.startsWith('SEA');
 
     if (quantity === null || productPrice === null) {
       toast.error('กรุณากรอกข้อมูล tier ให้ครบ');
@@ -2786,11 +2775,12 @@ export default function RFQDetail(): ReactElement {
         productPrice,
         commission: parsePriceInput(tierEditDraft.commission),
         currency: tierEditDraft.currency || null,
-        landFreightCost,
-        seaFreightCost,
+        shippingMethod,
+        landFreightCost: seaShipping ? null : shippingCost,
+        seaFreightCost: seaShipping ? shippingCost : null,
         isFcl: tierEditDraft.isFcl,
-        landTotalPrice,
-        seaTotalPrice,
+        landTotalPrice: seaShipping ? null : totalPrice,
+        seaTotalPrice: seaShipping ? totalPrice : null,
         supplierQuoteTierId: parsePriceInput(tierEditDraft.supplierQuoteTierId) ?? null,
         sortOrder: parsePriceInput(tierEditDraft.sortOrder),
         supplierId: null
@@ -6016,11 +6006,25 @@ export default function RFQDetail(): ReactElement {
               <GridTextField item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  type="number"
-                  label="ราคาสินค้า"
-                  value={tierEditDraft?.productPrice || ''}
+                  select
+                  label="วิธีการขนส่ง"
+                  value={tierEditDraft?.shippingMethod || 'LAND'}
                   onChange={(event) =>
-                    handleTierEditDraftChange('productPrice', event.target.value)
+                    handleTierEditDraftChange('shippingMethod', event.target.value)
+                  }
+                >
+                  <MenuItem value="LAND">{getShippingMethodLabel('LAND')}</MenuItem>
+                  <MenuItem value="SEA">{getShippingMethodLabel('SEA')}</MenuItem>
+                </TextField>
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="ค่าขนส่ง"
+                  value={tierEditDraft?.shippingCost || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('shippingCost', event.target.value)
                   }
                 />
               </GridTextField>
@@ -6028,65 +6032,10 @@ export default function RFQDetail(): ReactElement {
                 <TextField
                   fullWidth
                   type="number"
-                  label="ค่าขนส่งทางรถ"
-                  value={tierEditDraft?.landFreightCost || ''}
+                  label="ราคารวม"
+                  value={tierEditDraft?.totalPrice || ''}
                   onChange={(event) =>
-                    handleTierEditDraftChange('landFreightCost', event.target.value)
-                  }
-                />
-              </GridTextField>
-              <GridTextField item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="รวมทางรถ"
-                  value={tierEditDraft?.landTotalPrice || ''}
-                  onChange={(event) =>
-                    handleTierEditDraftChange('landTotalPrice', event.target.value)
-                  }
-                />
-              </GridTextField>
-              <GridTextField item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="ราคาสินค้า"
-                  value={tierEditDraft?.productPrice || ''}
-                  onChange={(event) =>
-                    handleTierEditDraftChange('productPrice', event.target.value)
-                  }
-                />
-              </GridTextField>
-              <GridTextField item xs={10} sm={3}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="ค่าขนส่งทางเรือ"
-                  value={tierEditDraft?.seaFreightCost || ''}
-                  onChange={(event) =>
-                    handleTierEditDraftChange('seaFreightCost', event.target.value)
-                  }
-                />
-              </GridTextField>
-              <GridTextField item xs={2} sm={1}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={Boolean(tierEditDraft?.isFcl)}
-                      onChange={(_, checked) => handleTierEditDraftChange('isFcl', checked)}
-                    />
-                  }
-                  label="FCL"
-                />
-              </GridTextField>
-              <GridTextField item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="รวมทางเรือ"
-                  value={tierEditDraft?.seaTotalPrice || ''}
-                  onChange={(event) =>
-                    handleTierEditDraftChange('seaTotalPrice', event.target.value)
+                    handleTierEditDraftChange('totalPrice', event.target.value)
                   }
                 />
               </GridTextField>

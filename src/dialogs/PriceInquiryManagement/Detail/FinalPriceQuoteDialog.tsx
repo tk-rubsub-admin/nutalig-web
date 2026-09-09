@@ -33,6 +33,7 @@ import {
 } from 'services/RFQ/rfq-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 import { GridTextField } from 'components/Styled';
+import { getShippingMethodLabel } from 'utils/shipping';
 
 const CONTAINER_SIZE_OPTIONS = ['20GP', '40HQ'] as const;
 
@@ -307,19 +308,16 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                   สกุลเงิน
                 </TableCell>
                 <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
-                  รวมส่งทางรถ
+                  วิธีการขนส่ง
+                </TableCell>
+                <TableCell align="center" sx={{ width: 96, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ขนาดตู้
                 </TableCell>
                 <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
-                  รวมส่งทางเรือ
+                  ค่าขนส่ง
                 </TableCell>
-                <TableCell align="center" sx={{ width: 78, whiteSpace: 'nowrap', fontSize: 12 }}>
-                  ปิดตู้
-                </TableCell>
-                <TableCell align="center" sx={{ width: 92, whiteSpace: 'nowrap', fontSize: 12 }}>
-                  ปิดตู้ (share)
-                </TableCell>
-                <TableCell align="center" sx={{ width: 104, whiteSpace: 'nowrap', fontSize: 12 }}>
-                  ขนาดตู้
+                <TableCell align="center" sx={{ width: 110, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ราคารวม
                 </TableCell>
                 <TableCell align="center" sx={{ width: 86, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ค่าคอม
@@ -330,7 +328,18 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               {(detail.tiers || [])
                 .slice()
                 .sort((left, right) => left.sortOrder - right.sortOrder)
-                .map((tier) => (
+                .map((tier) => {
+                  const shippingMethod = tier.shippingMethod ||
+                    (Number(tier.seaTotalPrice || 0) > 0 && Number(tier.landTotalPrice || 0) <= 0
+                      ? 'SEA'
+                      : 'LAND');
+                  const seaShipping = shippingMethod.startsWith('SEA');
+                  const totalPrice = tier.totalPrice ??
+                    (seaShipping ? tier.seaTotalPrice : tier.landTotalPrice);
+                  const shippingCost = tier.shippingCost ??
+                    Math.max(0, Number(totalPrice || 0) - Number(tier.productPrice || 0));
+
+                  return (
                   <TableRow key={tier.id}>
                     <TableCell align="center" sx={{ width: 90 }}>
                       {tier.quantity || '-'}
@@ -342,25 +351,28 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       {tier.currency || '-'}
                     </TableCell>
                     <TableCell align="center" sx={{ width: 110 }}>
-                      {formatPrice(tier.landTotalPrice, tier.currency)}
+                      {getShippingMethodLabel(
+                        shippingMethod,
+                        '-',
+                        Boolean(tier.isFcl),
+                        Boolean(tier.isShareFCL)
+                      )}
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 96 }}>
+                      {tier.containerSize || '-'}
                     </TableCell>
                     <TableCell align="center" sx={{ width: 110 }}>
-                      {formatPrice(tier.seaTotalPrice, tier.currency)}
+                      {formatPrice(shippingCost, tier.currency)}
                     </TableCell>
-                    <TableCell align="center" sx={{ width: 78 }}>
-                      {tier.isFcl ? 'ใช่' : '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 92 }}>
-                      {tier.isFcl && tier.isShareFCL ? 'ใช่' : '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 104 }}>
-                      {tier.containerSize || '-'}
+                    <TableCell align="center" sx={{ width: 110, fontWeight: 700 }}>
+                      {formatPrice(totalPrice, tier.currency)}
                     </TableCell>
                     <TableCell align="center" sx={{ width: 86 }}>
                       {tier.commission ?? '-'}{tier.commission !== null && tier.commission !== undefined ? '%' : ''}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
             </TableBody>
           </Table>
         </Box>

@@ -504,9 +504,6 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
             const quantity = Number(tier?.quantity || 1);
             const baseName = `${detail.optionName || productFamily}`;
             const spec = detail.spec;
-            const hasLandTotalPrice = hasTierPrice(tier?.landTotalPrice);
-            const hasSeaTotalPrice = hasTierPrice(tier?.seaTotalPrice);
-
             const buildQuotationItem = (
                 unitPrice: number,
                 shippingMethodLabel?: string
@@ -527,30 +524,19 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                 imageUrl: defaultImageUrl
             });
 
-            if (hasLandTotalPrice && hasSeaTotalPrice) {
-                return [
-                    buildQuotationItem(toTierPriceNumber(tier?.landTotalPrice), 'ทางรถ'),
-                    buildQuotationItem(
-                        toTierPriceNumber(tier?.seaTotalPrice),
-                        getShippingMethodLabel('SEA', '-', Boolean(tier?.isFcl), Boolean(tier?.isShareFCL))
-                    )
-                ];
-            }
+            const shippingMethodLabel = tier?.shippingMethod
+                ? getShippingMethodLabel(
+                    tier.shippingMethod,
+                    '-',
+                    Boolean(tier.isFcl),
+                    Boolean(tier.isShareFCL)
+                )
+                : undefined;
+            const unitPrice = hasTierPrice(tier?.totalPrice)
+                ? toTierPriceNumber(tier?.totalPrice)
+                : toTierPriceNumber(tier?.productPrice);
 
-            if (hasLandTotalPrice) {
-                return [buildQuotationItem(toTierPriceNumber(tier?.landTotalPrice), 'ทางรถ')];
-            }
-
-            if (hasSeaTotalPrice) {
-                return [
-                    buildQuotationItem(
-                        toTierPriceNumber(tier?.seaTotalPrice),
-                        getShippingMethodLabel('SEA', '-', Boolean(tier?.isFcl), Boolean(tier?.isShareFCL))
-                    )
-                ];
-            }
-
-            return [buildQuotationItem(toTierPriceNumber(tier?.productPrice))];
+            return [buildQuotationItem(unitPrice, shippingMethodLabel)];
         });
     });
 };

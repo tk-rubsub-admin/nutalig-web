@@ -806,7 +806,7 @@ export default function FinalPriceInquiryManagement(): ReactElement {
                   }}
                 />
               ) : null}
-              {rfq.urgentRequestStatus === 'APPROVED' ? (
+              {rfq.urgentApproval?.status === 'APPROVED' ? (
                 <Chip
                   label="เร่งด่วน"
                   size="small"
@@ -885,7 +885,7 @@ export default function FinalPriceInquiryManagement(): ReactElement {
                     }}
                   />
                 ) : null}
-                {rfq.urgentRequestStatus === 'APPROVED' ? (
+                {rfq.urgentApproval?.status === 'APPROVED' ? (
                   <Chip
                     label="เร่งด่วน"
                     size="small"

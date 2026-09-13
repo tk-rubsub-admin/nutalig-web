@@ -14,23 +14,37 @@ export function getShippingMethodLabel(
   shippingMethod?: string | null,
   fallback = '-',
   isFcl = false,
-  isShareFCL = false
+  isShareFCL = false,
+  isDocument = false
 ): string {
   const normalized = shippingMethod?.trim().toUpperCase();
   if (!normalized) {
     return fallback;
   }
 
-  if (normalized === 'SEA' && isShareFCL) return 'ขนส่งทางเรือ ปิดตู้แบบแชร์';
-  if (normalized === 'SEA' && isFcl) return 'ขนส่งทางเรือ ปิดตู้';
-  if (normalized.startsWith('SEA_SHARE_FCL_')) {
-    return `ขนส่งทางเรือ ปิดตู้ ${normalized.substring('SEA_SHARE_FCL_'.length)} แบบแชร์`;
-  }
-  if (normalized.startsWith('SEA_FCL_')) {
-    return `ขนส่งทางเรือ ปิดตู้ ${normalized.substring('SEA_FCL_'.length)}`;
+  if (isDocument) {
+    if (normalized === 'SEA') return 'ขนส่งทางเรือ';
+    if (normalized.startsWith('SEA_SHARE_FCL_')) {
+      return `ขนส่งทางเรือ`;
+    }
+    if (normalized.startsWith('SEA_FCL_')) {
+      return `ขนส่งทางเรือ`;
+    }
+
+    return SHIPPING_METHOD_LABELS[normalized] || shippingMethod;
+  } else {
+    if (normalized === 'SEA' && isShareFCL) return 'ขนส่งทางเรือ ปิดตู้แบบแชร์';
+    if (normalized === 'SEA' && isFcl) return 'ขนส่งทางเรือ ปิดตู้';
+    if (normalized.startsWith('SEA_SHARE_FCL_')) {
+      return `ขนส่งทางเรือ ปิดตู้ ${normalized.substring('SEA_SHARE_FCL_'.length)} แบบแชร์`;
+    }
+    if (normalized.startsWith('SEA_FCL_')) {
+      return `ขนส่งทางเรือ ปิดตู้ ${normalized.substring('SEA_FCL_'.length)}`;
+    }
+
+    return SHIPPING_METHOD_LABELS[normalized] || shippingMethod;
   }
 
-  return SHIPPING_METHOD_LABELS[normalized] || shippingMethod;
 }
 
 export function isSeaShippingMethod(shippingMethod?: string | null): boolean {

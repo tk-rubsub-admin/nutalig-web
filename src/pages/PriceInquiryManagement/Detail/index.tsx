@@ -104,6 +104,7 @@ import {
   requestRFQInformation,
   sendRFQSupplierQuoteNotification,
   updateRFQInquiry,
+  updateRFQProcurementRemark,
   updateRFQ,
   updateRFQDetail,
   updateRFQDetailTier,
@@ -1838,6 +1839,8 @@ export default function RFQDetail(): ReactElement {
     useState(false);
   const [quoteDialogSupplier, setQuoteDialogSupplier] = useState<Supplier | null>(null);
   const [quoteDialogQuote, setQuoteDialogQuote] = useState<RFQSupplierQuote | null>(null);
+  const [procurementRemark, setProcurementRemark] = useState('');
+  const [finalPriceProcurementRemark, setFinalPriceProcurementRemark] = useState('');
   const [visibleSupplierQuoteDialog, setVisibleSupplierQuoteDialog] = useState(false);
   const [selectedSupplierQuoteToDelete, setSelectedSupplierQuoteToDelete] =
     useState<RFQSupplierQuote | null>(null);
@@ -2133,7 +2136,7 @@ export default function RFQDetail(): ReactElement {
       productFamily: Yup.string().required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
       systemMechanic: Yup.string().max(255),
-      material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
+      material: Yup.string().max(255),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
     }),
@@ -2394,7 +2397,7 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleOpenUrgentDetailDialog = () => {
-    setUrgentRejectReason(rfq?.urgentRejectReason || '');
+    setUrgentRejectReason(rfq?.urgentApproval?.rejectReason || '');
     setVisibleUrgentDetailDialog(true);
   };
 
@@ -2844,6 +2847,7 @@ export default function RFQDetail(): ReactElement {
   ) => {
     setQuoteDialogSupplier(supplier);
     setQuoteDialogQuote(null);
+    setProcurementRemark('');
     setQuoteDraftDetails(
       templateQuote?.details?.length
         ? templateQuote.details.map((detail) =>
@@ -2873,6 +2877,7 @@ export default function RFQDetail(): ReactElement {
     setVisibleSupplierQuoteDialog(true);
     setQuoteDialogSupplier(null);
     setQuoteDialogQuote(null);
+    setProcurementRemark('');
     setQuoteDraftDetails([]);
     setQuoteDraftPackages([]);
     setQuoteDraftAdditionalCosts([]);
@@ -2913,6 +2918,7 @@ export default function RFQDetail(): ReactElement {
   const handleCloseSupplierQuoteDialog = () => {
     setQuoteDialogSupplier(null);
     setQuoteDialogQuote(null);
+    setProcurementRemark('');
     setQuoteDraftDetails([]);
     setQuoteDraftPackages([]);
     setQuoteDraftAdditionalCosts([]);
@@ -3045,6 +3051,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleOpenFinalPriceDialog = (quote: RFQSupplierQuote) => {
     setFinalPriceQuote(quote);
+    setFinalPriceProcurementRemark('');
     setFinalPriceDraft(createFinalPriceDraftFromQuote(quote, rfq?.additionalCosts || []));
     setFinalPriceErrors({});
   };
@@ -3118,6 +3125,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleCloseFinalPriceDialog = () => {
     setFinalPriceQuote(null);
+    setFinalPriceProcurementRemark('');
     setVisibleFinalPriceConfirmationDialog(false);
     setVisibleFinalExtractDialog(false);
     setFinalExtractMessage('');
@@ -3757,6 +3765,11 @@ export default function RFQDetail(): ReactElement {
           });
           await createRFQDetails(params.id, detailPayload);
           await syncRFQAdditionalCosts(params.id, additionalCostPayload);
+          if (finalPriceProcurementRemark.trim()) {
+            await updateRFQProcurementRemark(params.id, {
+              procurementRemark: finalPriceProcurementRemark.trim()
+            });
+          }
         })(),
         {
           loading: 'กำลังบันทึกราคาสุดท้าย...',
@@ -4178,10 +4191,19 @@ export default function RFQDetail(): ReactElement {
     try {
       setIsSupplierQuoteSubmitting(true);
       setVisibleSupplierQuoteSaveConfirmationDialog(false);
-      await toast.promise(
-        quoteDialogQuote?.id
+      const saveSupplierQuotePromise = (async () => {
+        await (quoteDialogQuote?.id
           ? updateRFQSupplierQuote(params.id, quoteDialogQuote.id, payload)
-          : createRFQSupplierQuote(params.id, payload),
+          : createRFQSupplierQuote(params.id, payload));
+
+        if (procurementRemark.trim()) {
+          await updateRFQProcurementRemark(params.id, {
+            procurementRemark: procurementRemark.trim()
+          });
+        }
+      })();
+      await toast.promise(
+        saveSupplierQuotePromise,
         {
           loading: t('toast.loading'),
           success: t('toast.success'),
@@ -4638,14 +4660,14 @@ export default function RFQDetail(): ReactElement {
               ) : null}
             </Stack>
           ) : null}
-          {rfq?.urgentRequest && ['NEW', 'REQUESTED_INFO'].includes(rfq.status) ? (
+          {rfq?.urgentApproval && ['NEW', 'REQUESTED_INFO'].includes(rfq.status) ? (
             <Chip
               clickable
               onClick={handleOpenUrgentDetailDialog}
               label={
-                rfq.urgentRequestStatus === 'APPROVED'
+                rfq.urgentApproval.status === 'APPROVED'
                   ? 'เร่งด่วนอนุมัติแล้ว'
-                  : rfq.urgentRequestStatus === 'REJECTED'
+                  : rfq.urgentApproval.status === 'REJECTED'
                     ? 'คำขอเร่งด่วนไม่อนุมัติ'
                     : 'เร่งด่วนรออนุมัติ 🔥🔥🔥'
               }
@@ -4653,21 +4675,21 @@ export default function RFQDetail(): ReactElement {
               sx={{
                 height: 28,
                 backgroundColor:
-                  rfq.urgentRequestStatus === 'APPROVED'
+                  rfq.urgentApproval.status === 'APPROVED'
                     ? '#fee2e2'
-                    : rfq.urgentRequestStatus === 'REJECTED'
+                    : rfq.urgentApproval.status === 'REJECTED'
                       ? '#e2e8f0'
                       : '#fff7ed',
                 color:
-                  rfq.urgentRequestStatus === 'APPROVED'
+                  rfq.urgentApproval.status === 'APPROVED'
                     ? '#b91c1c'
-                    : rfq.urgentRequestStatus === 'REJECTED'
+                    : rfq.urgentApproval.status === 'REJECTED'
                       ? '#475569'
                       : '#c2410c',
                 border:
-                  rfq.urgentRequestStatus === 'APPROVED'
+                  rfq.urgentApproval.status === 'APPROVED'
                     ? '1px solid #ef444433'
-                    : rfq.urgentRequestStatus === 'REJECTED'
+                    : rfq.urgentApproval.status === 'REJECTED'
                       ? '1px solid #94a3b833'
                       : '1px solid #fb923c33',
                 fontWeight: 700,
@@ -5652,6 +5674,52 @@ export default function RFQDetail(): ReactElement {
                   getSupplierDisplayName={getSupplierDisplayName}
                 />
               </CollapsibleWrapper>
+              <CollapsibleWrapper title="หมายเหตุสำหรับจัดซื้อ" defaultExpanded={false} action={null}>
+                {rfq?.procurementRemarks?.length ? (
+                  <Stack spacing={1.5}>
+                    {rfq.procurementRemarks.map((procurementRemark, index) => (
+                      <Box
+                        key={`${procurementRemark.createdDate || 'remark'}-${index}`}
+                        sx={{
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 2,
+                          p: 2,
+                          backgroundColor: '#fff'
+                        }}>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {procurementRemark.remark}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          display="block"
+                          sx={{ mt: 1 }}>
+                          {procurementRemark.createdBy || '-'}
+                          {procurementRemark.createdDate
+                            ? ` • ${dayjs(procurementRemark.createdDate).format(
+                              'DD/MM/YYYY HH:mm'
+                            )}`
+                            : ''}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Box
+                    sx={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 3,
+                      py: 4,
+                      px: 2,
+                      textAlign: 'center',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      ยังไม่มีหมายเหตุสำหรับจัดซื้อ
+                    </Typography>
+                  </Box>
+                )}
+              </CollapsibleWrapper>
               <CollapsibleWrapper title="Detail History" defaultExpanded={false} action={null}>
                 {isDetailHistoryFetching ? (
                   <Box
@@ -5917,7 +5985,7 @@ export default function RFQDetail(): ReactElement {
               fullWidth
               multiline
               minRows={3}
-              label="Internal Remark"
+              label="หมายเหตุสำหรับภายในองค์กร"
               value={detailEditDraft?.internalRemark || ''}
               onChange={(event) =>
                 handleDetailEditDraftChange('internalRemark', event.target.value)
@@ -6118,9 +6186,9 @@ export default function RFQDetail(): ReactElement {
               fullWidth
               label="สถานะคำขอเร่งด่วน"
               value={
-                rfq?.urgentRequestStatus === 'APPROVED'
+                rfq?.urgentApproval?.status === 'APPROVED'
                   ? 'เร่งด่วนอนุมัติแล้ว'
-                  : rfq?.urgentRequestStatus === 'REJECTED'
+                  : rfq?.urgentApproval?.status === 'REJECTED'
                     ? 'คำขอเร่งด่วนไม่อนุมัติ'
                     : 'เร่งด่วนรออนุมัติ'
               }
@@ -6132,7 +6200,7 @@ export default function RFQDetail(): ReactElement {
               multiline
               minRows={3}
               label="เหตุผลที่ขอ"
-              value={rfq?.urgentRequestReason || '-'}
+              value={rfq?.urgentApproval?.requestReason || '-'}
               InputLabelProps={{ shrink: true }}
               InputProps={{ readOnly: true }}
             />
@@ -6142,19 +6210,19 @@ export default function RFQDetail(): ReactElement {
               minRows={3}
               label="เหตุผลที่ถูกปฏิเสธ"
               value={
-                hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL'
+                hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentApproval?.status === 'PENDING'
                   ? urgentRejectReason
-                  : rfq?.urgentRejectReason || '-'
+                  : rfq?.urgentApproval?.rejectReason || '-'
               }
               onChange={(event) => setUrgentRejectReason(event.target.value)}
               InputLabelProps={{ shrink: true }}
               InputProps={{
                 readOnly: !(
-                  hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL'
+                  hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentApproval?.status === 'PENDING'
                 )
               }}
               helperText={
-                hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL'
+                hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentApproval?.status === 'PENDING'
                   ? 'จำเป็นต้องกรอกเมื่อกดไม่อนุมัติ'
                   : undefined
               }
@@ -6162,7 +6230,7 @@ export default function RFQDetail(): ReactElement {
           </Stack>
         </DialogContent>
         <DialogActions>
-          {hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentRequestStatus === 'PENDING_APPROVAL' ? (
+          {hasRole(ROLES.SUPER_ADMIN) && rfq?.urgentApproval?.status === 'PENDING' ? (
             <>
               <Button className="btn-crimson-red" onClick={() => void handleRejectUrgent()}>
                 ไม่อนุมัติเร่งด่วน
@@ -6224,10 +6292,13 @@ export default function RFQDetail(): ReactElement {
         open={Boolean(finalPriceQuote)}
         finalPriceQuote={finalPriceQuote}
         rfqDetails={rfq?.details || []}
+        procurementRemarks={rfq?.procurementRemarks || []}
+        procurementRemark={finalPriceProcurementRemark}
         finalPriceDraft={finalPriceDraft}
         finalPriceErrors={finalPriceErrors}
         isSubmitting={isFinalPriceSubmitting || isGenerateFinalInquirySubmitting}
         onClose={handleCloseFinalPriceDialog}
+        onProcurementRemarkChange={setFinalPriceProcurementRemark}
         onRemarkChange={handleFinalPriceRemarkChange}
         onRecommendChange={handleFinalPriceRecommendChange}
         onCommissionChange={handleFinalPriceCommissionChange}
@@ -6395,6 +6466,9 @@ export default function RFQDetail(): ReactElement {
         quoteDraftPackages={quoteDraftPackages}
         quoteDraftAdditionalCosts={quoteDraftAdditionalCosts}
         quoteDraftLeadTimes={quoteDraftLeadTimes}
+        procurementRemark={procurementRemark}
+        procurementRemarks={rfq?.procurementRemarks || []}
+        onProcurementRemarkChange={setProcurementRemark}
         quoteDraftPackageError={quoteDraftPackageError}
         quoteDraftErrors={quoteDraftErrors}
         quoteDraftLeadTimeErrors={quoteDraftLeadTimeErrors}

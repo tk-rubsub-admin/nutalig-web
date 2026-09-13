@@ -34,8 +34,16 @@ import { useQuery } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { isMobileOnly } from 'react-device-detect';
 import { ROUTE_PATHS } from 'routes';
-import { approveUrgentRFQ, getRFQList, rejectUrgentRFQ } from 'services/RFQ/rfq-api';
-import { RFQEmployee, RFQRecord } from 'services/RFQ/rfq-type';
+import {
+  approveUrgentRFQ,
+  approveRFQCustomerTransfer,
+  rejectUrgentRFQ,
+  rejectRFQCustomerTransfer
+} from 'services/RFQ/rfq-api';
+import {
+  getPendingRfqCustomerTransferApprovals,
+  getPendingUrgentRfqApprovals
+} from 'services/Approval/approval-api';
 import {
   approveUrgentSalesOrder,
   rejectUrgentSalesOrder,
@@ -43,7 +51,7 @@ import {
 } from 'services/SaleOrder/sale-order-api';
 import { SalesOrderV1, SearchSalesOrderRequestV1 } from 'services/SaleOrder/sale-order-type';
 
-type UrgentApprovalItemType = 'RFQ' | 'SALES_ORDER';
+type UrgentApprovalItemType = 'RFQ' | 'RFQ_CUSTOMER_TRANSFER' | 'SALES_ORDER';
 
 interface UrgentApprovalItem {
   type: UrgentApprovalItemType;
@@ -55,21 +63,6 @@ interface UrgentApprovalItem {
   ownerLabel: string;
   reason: string;
   rowSx: any;
-}
-
-function getEmployeeLabel(employee?: RFQEmployee | null): string {
-  if (!employee) {
-    return '-';
-  }
-
-  const nickname = employee.nickName || employee.nickname || '';
-  const name = [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ');
-
-  return nickname || name || '-';
-}
-
-function getSalesProcurementLabel(rfq: RFQRecord): string {
-  return `${getEmployeeLabel(rfq.sales)} / ${getEmployeeLabel(rfq.procurement)}`;
 }
 
 function getSalesOrderCustomerLabel(salesOrder?: SalesOrderV1 | null): string {
@@ -114,11 +107,15 @@ function getUrgentDateValue(value?: string | null): number {
 }
 
 function buildUrgentApprovalItemLabel(type: UrgentApprovalItemType): string {
-  return type === 'RFQ' ? 'คำขอราคา' : 'ใบสั่งซื้อ';
+  return type === 'SALES_ORDER' ? 'ใบสั่งซื้อ' : 'คำขอราคา';
 }
 
 function buildUrgentApprovalStatusLabel(type: UrgentApprovalItemType): string {
-  return type === 'RFQ' ? 'รออนุมัติเร่งด่วน' : 'รออนุมัติสร้างใบสั่งซื้อ';
+  return type === 'RFQ_CUSTOMER_TRANSFER'
+    ? 'รออนุมัติย้ายลูกค้า'
+    : type === 'RFQ'
+      ? 'รออนุมัติเร่งด่วน'
+      : 'รออนุมัติสร้างใบสั่งซื้อ';
 }
 
 function buildUrgentApprovalRowSx(type: UrgentApprovalItemType) {
@@ -147,62 +144,6 @@ function buildUrgentApprovalStatusChipSx(type: UrgentApprovalItemType) {
   };
 }
 
-function getSLADayLeft(requestedDate?: string | null, slaDate?: string | null): number | null {
-  if (!requestedDate || !slaDate) {
-    return null;
-  }
-
-  const requestDay = dayjs(requestedDate).startOf('day');
-  const targetDay = dayjs(slaDate).startOf('day');
-  const today = dayjs().startOf('day');
-  const referenceDay = today.isBefore(requestDay) ? requestDay : today;
-
-  return targetDay.diff(referenceDay, 'day');
-}
-
-function getRFQRowSx(rfq: RFQRecord) {
-  const dayLeft = getSLADayLeft(rfq.requestedDate, rfq.slaDate);
-  const isSLAActiveStatus = ['NEW', 'IN_PROGRESS'].includes(rfq.status || '');
-
-  if (!isSLAActiveStatus) {
-    return { cursor: 'pointer' };
-  }
-
-  if (dayLeft === null || dayLeft === undefined) {
-    return { cursor: 'pointer' };
-  }
-
-  if (dayLeft < 0) {
-    return {
-      cursor: 'pointer',
-      backgroundColor: '#fff1f2',
-      '&:hover': { backgroundColor: '#ffe4e6' }
-    };
-  }
-
-  if (dayLeft === 0) {
-    return {
-      cursor: 'pointer',
-      backgroundColor: '#fff7ed',
-      '&:hover': { backgroundColor: '#ffedd5' }
-    };
-  }
-
-  if (dayLeft === 1) {
-    return {
-      cursor: 'pointer',
-      backgroundColor: '#fff8e1',
-      '&:hover': { backgroundColor: '#ffefc2' }
-    };
-  }
-
-  return {
-    cursor: 'pointer',
-    backgroundColor: '#e8f5e9',
-    '&:hover': { backgroundColor: '#dff0e1' }
-  };
-}
-
 export default function UrgentApprovalManagement(): ReactElement {
   const useStyles = makeStyles({
     noResultMessage: {
@@ -225,7 +166,7 @@ export default function UrgentApprovalManagement(): ReactElement {
   const { t } = useTranslation();
   const history = useHistory();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
   const [urgentDialogMode, setUrgentDialogMode] = useState<'APPROVE' | 'REJECT' | null>(null);
   const [urgentDialogTarget, setUrgentDialogTarget] = useState<UrgentApprovalItem | null>(null);
   const [urgentDialogReason, setUrgentDialogReason] = useState('');
@@ -238,19 +179,17 @@ export default function UrgentApprovalManagement(): ReactElement {
   );
 
   const {
-    data: rfqResponse,
+    data: rfqApprovals = [],
     refetch: refetchRfq,
     isFetching: isRfqFetching
-  } = useQuery(
-    ['urgent-approval-rfq-list', fetchSize],
-    () =>
-      getRFQList(1, fetchSize, {
-        urgentRequestStatus: 'PENDING_APPROVAL',
-        status: 'NEW',
-        sortBy: 'requestedDate',
-        sortDirection: 'DESC'
-      }),
-    { refetchOnWindowFocus: false, keepPreviousData: true }
+  } = useQuery(['urgent-approval-rfq-list'], getPendingUrgentRfqApprovals, {
+    refetchOnWindowFocus: false,
+    keepPreviousData: true
+  });
+  const { data: customerTransferApprovals = [], refetch: refetchCustomerTransfers } = useQuery(
+    ['rfq-customer-transfer-approval-list'],
+    getPendingRfqCustomerTransferApprovals,
+    { refetchOnWindowFocus: false }
   );
 
   const {
@@ -267,8 +206,7 @@ export default function UrgentApprovalManagement(): ReactElement {
     { refetchOnWindowFocus: false, keepPreviousData: true }
   );
 
-  const totalRecords =
-    (rfqResponse?.pagination?.totalRecords || 0) + (salesOrderResponse?.pagination?.totalRecords || 0);
+  const totalRecords = rfqApprovals.length + (salesOrderResponse?.pagination?.totalRecords || 0);
   const totalPage = Math.max(1, Math.ceil(totalRecords / pageSize));
   const isFetching = isRfqFetching || isSalesOrderFetching;
 
@@ -281,9 +219,11 @@ export default function UrgentApprovalManagement(): ReactElement {
   const handleOpenDetail = (item: UrgentApprovalItem) => {
     history.push({
       pathname:
-        item.type === 'RFQ'
-          ? ROUTE_PATHS.PRICE_INQUIRY.replace(':id', item.id)
-          : ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', item.id),
+        item.type === 'RFQ_CUSTOMER_TRANSFER'
+          ? ROUTE_PATHS.RFQ_DETAIL.replace(':id', item.id)
+          : item.type === 'RFQ'
+            ? ROUTE_PATHS.PRICE_INQUIRY.replace(':id', item.id)
+            : ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', item.id),
       state: {
         returnToList: {
           page,
@@ -321,9 +261,14 @@ export default function UrgentApprovalManagement(): ReactElement {
     }
 
     const isRfq = urgentDialogTarget.type === 'RFQ';
+    const isCustomerTransfer = urgentDialogTarget.type === 'RFQ_CUSTOMER_TRANSFER';
     if (urgentDialogMode === 'APPROVE') {
       await toast.promise(
-        isRfq ? approveUrgentRFQ(urgentDialogTarget.id) : approveUrgentSalesOrder(urgentDialogTarget.id),
+        isCustomerTransfer
+          ? approveRFQCustomerTransfer(urgentDialogTarget.id)
+          : isRfq
+            ? approveUrgentRFQ(urgentDialogTarget.id)
+            : approveUrgentSalesOrder(urgentDialogTarget.id),
         {
           loading: isRfq ? 'กำลังอนุมัติเร่งด่วน' : 'กำลังอนุมัติคำขอสร้างใบสั่งซื้อ',
           success: isRfq ? 'อนุมัติเร่งด่วนแล้ว' : 'อนุมัติคำขอสร้างใบสั่งซื้อแล้ว',
@@ -336,23 +281,31 @@ export default function UrgentApprovalManagement(): ReactElement {
           ? rejectUrgentRFQ(urgentDialogTarget.id, {
             reason: urgentDialogReason.trim()
           })
-          : rejectUrgentSalesOrder(urgentDialogTarget.id, {
-            reason: urgentDialogReason.trim()
-          }),
+          : isCustomerTransfer
+            ? rejectRFQCustomerTransfer(urgentDialogTarget.id, { reason: urgentDialogReason.trim() })
+            : rejectUrgentSalesOrder(urgentDialogTarget.id, {
+              reason: urgentDialogReason.trim()
+            }),
         {
           loading: isRfq ? 'กำลังไม่อนุมัติเร่งด่วน' : 'กำลังไม่อนุมัติคำขอสร้างใบสั่งซื้อ',
           success: isRfq ? 'ไม่อนุมัติเร่งด่วนแล้ว' : 'ไม่อนุมัติคำขอสร้างใบสั่งซื้อแล้ว',
-          error: isRfq ? 'ไม่สามารถไม่อนุมัติเร่งด่วนได้' : 'ไม่สามารถไม่อนุมัติคำขอสร้างใบสั่งซื้อได้'
+          error: isRfq
+            ? 'ไม่สามารถไม่อนุมัติเร่งด่วนได้'
+            : 'ไม่สามารถไม่อนุมัติคำขอสร้างใบสั่งซื้อได้'
         }
       );
     }
 
     handleCloseUrgentDialog();
-    await Promise.all([refetchRfq(), refetchSalesOrders()]);
+    await Promise.all([refetchRfq(), refetchCustomerTransfers(), refetchSalesOrders()]);
   };
 
   const renderActionButtons = (item: UrgentApprovalItem) => (
-    <Stack direction="row" spacing={0.5} justifyContent="center" onClick={(event) => event.stopPropagation()}>
+    <Stack
+      direction="row"
+      spacing={0.5}
+      justifyContent="center"
+      onClick={(event) => event.stopPropagation()}>
       <Tooltip title="อนุมัติเร่งด่วน">
         <IconButton
           size="small"
@@ -378,18 +331,35 @@ export default function UrgentApprovalManagement(): ReactElement {
 
   const rfqItems = useMemo<UrgentApprovalItem[]>(
     () =>
-      (rfqResponse?.records || []).map((rfq) => ({
+      rfqApprovals.map((approval) => ({
         type: 'RFQ',
-        id: rfq.id,
+        id: approval.referenceId,
         typeLabel: buildUrgentApprovalItemLabel('RFQ'),
-        statusLabel: t(`rfqManagement.rfqsStatus.${rfq.status}`, rfq.status),
-        requestedAt: rfq.requestedDate || null,
-        customerLabel: rfq.contactName || rfq.customer?.customerName || '-',
-        ownerLabel: getSalesProcurementLabel(rfq),
-        reason: rfq.urgentRequestReason || '-',
-        rowSx: getRFQRowSx(rfq)
+        statusLabel: 'รออนุมัติเร่งด่วน',
+        requestedAt: approval.requestedDate || null,
+        customerLabel: approval.payload?.customerName || '-',
+        ownerLabel: approval.requestedBy || approval.payload?.salesName || '-',
+        reason: approval.requestReason || approval.payload?.urgentReason || '-',
+        rowSx: buildUrgentApprovalRowSx('RFQ')
       })),
-    [rfqResponse?.records, t]
+    [rfqApprovals]
+  );
+
+  const customerTransferItems = useMemo<UrgentApprovalItem[]>(
+    () =>
+      customerTransferApprovals.map((approval) => ({
+        type: 'RFQ_CUSTOMER_TRANSFER',
+        id: approval.referenceId,
+        typeLabel: 'ย้ายลูกค้า RFQ',
+        statusLabel: buildUrgentApprovalStatusLabel('RFQ_CUSTOMER_TRANSFER'),
+        requestedAt: approval.requestedDate || null,
+        customerLabel: `${approval.payload?.currentCustomerName || '-'} → ${approval.payload?.targetCustomerName || '-'
+          }`,
+        ownerLabel: approval.requestedBy || approval.payload?.requesterName || '-',
+        reason: approval.requestReason || approval.payload?.reason || '-',
+        rowSx: buildUrgentApprovalRowSx('RFQ_CUSTOMER_TRANSFER')
+      })),
+    [customerTransferApprovals]
   );
 
   const salesOrderItems = useMemo<UrgentApprovalItem[]>(
@@ -409,7 +379,7 @@ export default function UrgentApprovalManagement(): ReactElement {
   );
 
   const combinedItems = useMemo(() => {
-    const items = [...rfqItems, ...salesOrderItems];
+    const items = [...rfqItems, ...customerTransferItems, ...salesOrderItems];
     return items.sort((left, right) => {
       const dateDiff = getUrgentDateValue(right.requestedAt) - getUrgentDateValue(left.requestedAt);
       if (dateDiff !== 0) {
@@ -422,7 +392,7 @@ export default function UrgentApprovalManagement(): ReactElement {
 
       return left.id.localeCompare(right.id);
     });
-  }, [rfqItems, salesOrderItems]);
+  }, [rfqItems, customerTransferItems, salesOrderItems]);
 
   const displayItems = useMemo(() => {
     const startIndex = (page - 1) * pageSize;
@@ -451,7 +421,7 @@ export default function UrgentApprovalManagement(): ReactElement {
   );
 
   const refetchCombined = () => {
-    void Promise.all([refetchRfq(), refetchSalesOrders()]);
+    void Promise.all([refetchRfq(), refetchCustomerTransfers(), refetchSalesOrders()]);
   };
 
   const desktopRows =
@@ -465,15 +435,6 @@ export default function UrgentApprovalManagement(): ReactElement {
           <TableCell align="left">
             <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1.5 }}>
               <Typography variant="body2">{item.id}</Typography>
-              <Chip
-                label={item.typeLabel}
-                size="small"
-                sx={{
-                  backgroundColor: '#f1f5f9',
-                  color: '#334155',
-                  fontWeight: 700
-                }}
-              />
               <Chip
                 label={buildUrgentApprovalStatusLabel(item.type)}
                 size="small"
@@ -490,8 +451,16 @@ export default function UrgentApprovalManagement(): ReactElement {
               {item.requestedAt ? dayjs(item.requestedAt).format('DD/MM/YYYY HH:mm') : '-'}
             </TextLineClamp>
           </TableCell>
-          <TableCell>
-            <TextLineClamp>{item.customerLabel}</TextLineClamp>
+          <TableCell align="center">
+            <Chip
+              label={item.typeLabel}
+              size="small"
+              sx={{
+                backgroundColor: '#f1f5f9',
+                color: '#334155',
+                fontWeight: 700
+              }}
+            />
           </TableCell>
           <TableCell>
             <TextLineClamp>{item.ownerLabel}</TextLineClamp>
@@ -619,10 +588,10 @@ export default function UrgentApprovalManagement(): ReactElement {
                       {t('rfqManagement.column.requestedDate')}
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
-                      {t('rfqManagement.column.contact')}
+                      ประเภทรายการ
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
-                      {t('rfqManagement.column.sales')}
+                      ผู้ขอ
                     </TableCell>
                     <TableCell align="center" className={classes.tableHeader}>
                       เหตุผล
@@ -675,8 +644,9 @@ export default function UrgentApprovalManagement(): ReactElement {
                 ? urgentDialogMode === 'APPROVE'
                   ? `คุณต้องการอนุมัติ ${buildUrgentApprovalItemLabel(urgentDialogTarget.type)} ${urgentDialogTarget.id
                   } ใช่หรือไม่`
-                  : `คุณต้องการไม่อนุมัติ ${buildUrgentApprovalItemLabel(urgentDialogTarget.type)} ${urgentDialogTarget.id
-                  } ใช่หรือไม่`
+                  : `คุณต้องการไม่อนุมัติ ${buildUrgentApprovalItemLabel(
+                    urgentDialogTarget.type
+                  )} ${urgentDialogTarget.id} ใช่หรือไม่`
                 : '-'}
             </Typography>
             {urgentDialogMode === 'REJECT' ? (
@@ -697,7 +667,9 @@ export default function UrgentApprovalManagement(): ReactElement {
           <Button
             variant="contained"
             color={urgentDialogMode === 'APPROVE' ? 'success' : 'error'}
-            disabled={!urgentDialogTarget || (urgentDialogMode === 'REJECT' && !urgentDialogReason.trim())}
+            disabled={
+              !urgentDialogTarget || (urgentDialogMode === 'REJECT' && !urgentDialogReason.trim())
+            }
             onClick={() => void handleConfirmUrgentAction()}>
             {urgentDialogMode === 'APPROVE' ? 'ยืนยันอนุมัติ' : 'ยืนยันไม่อนุมัติ'}
           </Button>

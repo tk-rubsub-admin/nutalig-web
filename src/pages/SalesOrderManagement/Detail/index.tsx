@@ -3,6 +3,7 @@ import {
   ArrowDropDown,
   AssignmentTurnedIn,
   Cancel,
+  CloudUpload,
   DeleteOutline,
   Description,
   FilePresent,
@@ -80,11 +81,11 @@ import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
 import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
-import { ReceiptRecord } from 'services/Receipt/receipt-type';
 import { getRFQ, getRFQQuotationNos } from 'services/RFQ/rfq-api';
 import { RFQRecord } from 'services/RFQ/rfq-type';
 import {
   getSalesOrderV1,
+  cancelSalesOrderV1,
   deleteSalesOrderAttachment,
   updateSalesOrderV1,
   downloadSaleOrder,
@@ -101,12 +102,16 @@ import {
   UpdateSalesOrderRequestV1
 } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
+import { uploadFile } from 'services/general-api';
 import { base64ToBlob } from 'utils';
 import { formatDate } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { formatNumber, formatNumberWithDigit } from 'utils/utils';
 import { buildSalesOrderDocumentFlowItems } from 'utils/documentFlow';
 import { TemplateLanguage } from 'services/Document/document-type';
+import { getShippingMethodLabel, SHIPPING_METHOD_LABELS } from 'utils/shipping';
+
+const SALES_ORDER_SHIPPING_TYPE_OPTIONS = ['ALL', 'LAND', 'SEA', 'AIR', 'SEA_FCL_20GP', 'SEA_FCL_40HQ', 'SEA_SHARE_FCL_20GP', 'SEA_SHARE_FCL_40HQ'] as const;
 
 interface SalesOrderDetailParams {
   id: string;
@@ -185,30 +190,6 @@ function getCustomerAddress(salesOrder?: SalesOrderV1): string {
       .trim() ||
     '-'
   );
-}
-
-function getShippingTypeLabel(shippingType?: string | null): string {
-  if (!shippingType) {
-    return '-';
-  }
-
-  if (shippingType === 'LAND') {
-    return 'ทางรถ';
-  }
-
-    if (shippingType === 'SEA') {
-      return 'ทางเรือ';
-    }
-
-    if (shippingType === 'ALL') {
-      return 'ทางรถ / ทางเรือ';
-    }
-
-  if (shippingType === 'FULL_CONTAINER_LOAD') {
-    return 'ทางเรือแบบปิดตู้';
-  }
-
-  return shippingType;
 }
 
 function getProcurementStatusLabel(status?: string | null): string {
@@ -337,6 +318,8 @@ export default function SalesOrderDetail(): ReactElement {
   const [visibleSalesOrderLanguageDialog, setVisibleSalesOrderLanguageDialog] = useState(false);
   const [isSalesOrderDocumentLoading, setIsSalesOrderDocumentLoading] = useState(false);
   const [urgentRejectReason, setUrgentRejectReason] = useState('');
+  const [cancelSalesOrderDialogOpen, setCancelSalesOrderDialogOpen] = useState(false);
+  const [cancelSalesOrderReason, setCancelSalesOrderReason] = useState('');
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const useStyles = makeStyles({
     tableHeader: {
@@ -471,6 +454,12 @@ export default function SalesOrderDetail(): ReactElement {
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const canManageSalesOrderAttachments =
     salesOrder?.status !== 'CANCELLED' && salesOrder?.status !== 'REJECTED';
+  const canCancelSalesOrder = Boolean(
+    salesOrder && ['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED'].includes(salesOrder.status)
+  );
+  const canDownloadDocument = Boolean(
+    salesOrder && !['CREATED', 'ISSUED', 'SENT', 'ACCEPTED'].includes(salesOrder.status)
+  );
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestInvoice = relatedInvoices[0] || null;
   const latestReceipt =
@@ -599,6 +588,37 @@ export default function SalesOrderDetail(): ReactElement {
     });
   };
 
+  const handleUploadSalesOrderItemImage = async (index: number, file?: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const uploadResult = await uploadFile(file);
+      setDraft((previous) => ({
+        ...previous,
+        items: previous.items.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, imageUrl: uploadResult.url } : item
+        )
+      }));
+      toast.success(t('toast.success'));
+    } catch {
+      toast.error(t('toast.failed'));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveSalesOrderItemImage = (index: number) => {
+    setDraft((previous) => ({
+      ...previous,
+      items: previous.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, imageUrl: null } : item
+      )
+    }));
+  };
+
   const handleEdit = () => {
     setDraft(createDraft(salesOrder));
     setSelectedFreelanceSaleItem(null);
@@ -618,6 +638,40 @@ export default function SalesOrderDetail(): ReactElement {
   const handleSelectEdit = () => {
     handleCloseActionMenu();
     handleEdit();
+  };
+
+  const handleOpenCancelSalesOrderDialog = () => {
+    handleCloseActionMenu();
+    setCancelSalesOrderReason('');
+    setCancelSalesOrderDialogOpen(true);
+  };
+
+  const handleCloseCancelSalesOrderDialog = () => {
+    if (isSaving) {
+      return;
+    }
+    setCancelSalesOrderDialogOpen(false);
+    setCancelSalesOrderReason('');
+  };
+
+  const handleConfirmCancelSalesOrder = async () => {
+    if (!salesOrder?.salesOrderNo || !cancelSalesOrderReason.trim()) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(cancelSalesOrderV1(salesOrder.salesOrderNo, cancelSalesOrderReason.trim()), {
+        loading: 'กำลังยกเลิกใบยืนยันสั่งซื้อ',
+        success: 'ยกเลิกใบยืนยันสั่งซื้อเรียบร้อย',
+        error: (error) => error?.response?.data?.message || 'ไม่สามารถยกเลิกใบยืนยันสั่งซื้อได้'
+      });
+      setCancelSalesOrderDialogOpen(false);
+      setCancelSalesOrderReason('');
+      await Promise.all([refetch(), refetchHistory()]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCreateInvoice = () => {
@@ -1009,6 +1063,7 @@ export default function SalesOrderDetail(): ReactElement {
             onClick={handleOpenRequestPoConfirm}
             disabled={
               !salesOrder ||
+              !canManageSalesOrderAttachments ||
               salesOrder?.urgentRequest ||
               ['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
                 salesOrder?.procurementStatus
@@ -1046,7 +1101,7 @@ export default function SalesOrderDetail(): ReactElement {
                 <Can permission={PERMISSIONS.SALES_ORDER_EDIT}>
                   <MenuItem
                     onClick={handleSelectEdit}
-                    disabled={!salesOrder}
+                    disabled={!salesOrder || !canManageSalesOrderAttachments}
                     sx={{ width: '100%' }}>
                     <ListItemIcon>
                       <IoPencil />
@@ -1054,9 +1109,20 @@ export default function SalesOrderDetail(): ReactElement {
                     <ListItemText primary="แก้ไขใบยืนยันสั่งซื้อ" />
                   </MenuItem>
                 </Can>
+                <Can permission={PERMISSIONS.SALES_ORDER_CANCEL}>
+                  <MenuItem
+                    onClick={handleOpenCancelSalesOrderDialog}
+                    disabled={!canCancelSalesOrder}
+                    sx={{ width: '100%', color: 'error.main' }}>
+                    <ListItemIcon sx={{ color: 'error.main' }}>
+                      <Cancel fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="ยกเลิกใบยืนยันสั่งซื้อ" />
+                  </MenuItem>
+                </Can>
                 <MenuItem
                   onClick={handleOpenSalesOrderLanguageDialog}
-                  disabled={!salesOrder || isSalesOrderDocumentLoading}
+                  disabled={!salesOrder || canDownloadDocument || isSalesOrderDocumentLoading}
                   sx={{ width: '100%' }}>
                   <ListItemIcon>
                     <Description fontSize="small" />
@@ -1068,7 +1134,7 @@ export default function SalesOrderDetail(): ReactElement {
                 <Can permission={PERMISSIONS.INVOICE_CREATE}>
                   <MenuItem
                     onClick={handleCreateInvoice}
-                    disabled={!salesOrder || Boolean(salesOrder.invoiceNo)}
+                    disabled={!salesOrder || canDownloadDocument || Boolean(salesOrder.invoiceNo)}
                     sx={{ width: '100%' }}>
                     <ListItemIcon>
                       <ReceiptLong fontSize="small" />
@@ -1081,6 +1147,7 @@ export default function SalesOrderDetail(): ReactElement {
                     onClick={handleCreatePurchaseOrder}
                     disabled={
                       !salesOrder ||
+                      !canManageSalesOrderAttachments ||
                       !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
                         salesOrder.procurementStatus
                       )
@@ -1223,6 +1290,9 @@ export default function SalesOrderDetail(): ReactElement {
                     label="สถานะ"
                     value={getDocumentStatusLabel(salesOrder?.status, salesOrder?.statusProfile)}
                   />
+                  {salesOrder?.status === 'CANCELLED' ? (
+                    <Info label="เหตุผลการยกเลิก" value={salesOrder.cancelReason || '-'} />
+                  ) : null}
                   <Info
                     label="สถานะจัดซื้อ"
                     value={getProcurementStatusLabel(salesOrder?.procurementStatus)}
@@ -1234,14 +1304,17 @@ export default function SalesOrderDetail(): ReactElement {
                       label="วิธีขนส่ง"
                       value={draft.shippingType}
                       onChange={(event) => updateDraftField('shippingType', event.target.value)}>
-                      <MenuItem value="ALL">ทางรถ / ทางเรือ</MenuItem>
-                      <MenuItem value="LAND">ทางรถ</MenuItem>
-                      <MenuItem value="SEA">ทางเรือ</MenuItem>
+                      <MenuItem value="">-</MenuItem>
+                      {SALES_ORDER_SHIPPING_TYPE_OPTIONS.map((shippingMethod) => (
+                        <MenuItem key={shippingMethod} value={shippingMethod}>
+                          {SHIPPING_METHOD_LABELS[shippingMethod]}
+                        </MenuItem>
+                      ))}
                     </TextField>
                   ) : (
                     <Info
                       label="วิธีขนส่ง"
-                      value={getShippingTypeLabel(salesOrder?.shippingType)}
+                      value={getShippingMethodLabel(salesOrder?.shippingType)}
                     />
                   )}
                 </Stack>
@@ -1453,6 +1526,37 @@ export default function SalesOrderDetail(): ReactElement {
                             )}
                           </Stack>
                         </Stack>
+                        {isEditing ? (
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                            <Button
+                              component="label"
+                              size="small"
+                              variant="outlined"
+                              startIcon={<CloudUpload />}
+                              disabled={isSaving}>
+                              {item.imageUrl ? 'อัปโหลดรูปใหม่' : 'อัปโหลดรูป'}
+                              <input
+                                hidden
+                                accept="image/*"
+                                type="file"
+                                onChange={(event) => {
+                                  void handleUploadSalesOrderItemImage(index, event.target.files?.[0]);
+                                  event.target.value = '';
+                                }}
+                              />
+                            </Button>
+                            {item.imageUrl ? (
+                              <Button
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                disabled={isSaving}
+                                onClick={() => handleRemoveSalesOrderItemImage(index)}>
+                                ลบรูป
+                              </Button>
+                            ) : null}
+                          </Stack>
+                        ) : null}
                         <Stack spacing={1}>
                           <Info
                             label="รายละเอียด"
@@ -1595,18 +1699,54 @@ export default function SalesOrderDetail(): ReactElement {
                               {item.lineNo || index + 1}
                             </TableCell>
                             <TableCell align="center" className={classes.fitContentCell}>
-                              {item.imageUrl ? (
-                                <Box
-                                  component="img"
-                                  src={item.imageUrl}
-                                  alt={item.name || 'รูปภาพสินค้า'}
-                                  className={classes.productImage}
-                                />
-                              ) : (
-                                <Typography variant="caption" color="text.secondary">
-                                  ไม่มีรูป
-                                </Typography>
-                              )}
+                              <Stack spacing={0.75} alignItems="center">
+                                {item.imageUrl ? (
+                                  <Box
+                                    component="img"
+                                    src={item.imageUrl}
+                                    alt={item.name || 'รูปภาพสินค้า'}
+                                    className={classes.productImage}
+                                  />
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">
+                                    ไม่มีรูป
+                                  </Typography>
+                                )}
+                                {isEditing ? (
+                                  <Stack spacing={0.5} alignItems="center">
+                                    <Button
+                                      component="label"
+                                      size="small"
+                                      variant="outlined"
+                                      startIcon={<CloudUpload />}
+                                      disabled={isSaving}>
+                                      {item.imageUrl ? 'อัปโหลดรูปใหม่' : 'อัปโหลดรูป'}
+                                      <input
+                                        hidden
+                                        accept="image/*"
+                                        type="file"
+                                        onChange={(event) => {
+                                          void handleUploadSalesOrderItemImage(
+                                            index,
+                                            event.target.files?.[0]
+                                          );
+                                          event.target.value = '';
+                                        }}
+                                      />
+                                    </Button>
+                                    {item.imageUrl ? (
+                                      <Button
+                                        size="small"
+                                        color="error"
+                                        variant="outlined"
+                                        disabled={isSaving}
+                                        onClick={() => handleRemoveSalesOrderItemImage(index)}>
+                                        ลบรูป
+                                      </Button>
+                                    ) : null}
+                                  </Stack>
+                                ) : null}
+                              </Stack>
                             </TableCell>
                             <TableCell className={classes.fitContentCell}>
                               {isEditing ? (
@@ -2274,6 +2414,35 @@ export default function SalesOrderDetail(): ReactElement {
         </DialogActions>
       </Dialog>
 
+      <ConfirmDialog
+        open={cancelSalesOrderDialogOpen}
+        title="ยืนยันการยกเลิกใบยืนยันสั่งซื้อ"
+        confirmText="ยืนยันยกเลิก"
+        cancelText={t('button.cancel')}
+        confirmDisabled={!cancelSalesOrderReason.trim() || isSaving}
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={() => void handleConfirmCancelSalesOrder()}
+        onCancel={handleCloseCancelSalesOrderDialog}
+      >
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            การยกเลิกไม่สามารถย้อนกลับได้ และจะทำให้ใบยืนยันสั่งซื้อนี้ใช้งานต่อไม่ได้
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            required
+            multiline
+            minRows={4}
+            label="เหตุผลการยกเลิก"
+            placeholder="ระบุเหตุผลการยกเลิก"
+            value={cancelSalesOrderReason}
+            onChange={(event) => setCancelSalesOrderReason(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Stack>
+      </ConfirmDialog>
       <ConfirmDialog
         open={requestPoConfirmOpen}
         title="ขออนุมัติสร้างใบสั่งซื้อ"

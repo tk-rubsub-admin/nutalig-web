@@ -419,7 +419,7 @@ export default function NewRFQ(): JSX.Element {
       productFamily: Yup.string().max(255).required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
       systemMechanic: Yup.string().max(255),
-      material: Yup.string().max(255).required(t('rfqManagement.validation.material')),
+      material: Yup.string().max(255),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
       requestedMoqs: Yup.array()
         .of(
@@ -464,9 +464,9 @@ export default function NewRFQ(): JSX.Element {
     const parsedCapacity = parseCapacityValue(copiedRfq.capacity, unitOptions);
     const requestedMoqs = copiedRfq.requestedMoqs?.length
       ? copiedRfq.requestedMoqs.map((value) => ({
-          moq: `${value.moq}`,
-          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
-        }))
+        moq: `${value.moq}`,
+        targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+      }))
       : [{ moq: '', targetPrice: '' }];
     const customerId = copiedRfq.customer?.id || '';
     const customerName = copiedRfq.customer?.customerName || '';
@@ -653,9 +653,9 @@ export default function NewRFQ(): JSX.Element {
     const parsedCapacity = parseCapacityValue(parentRfqDetail.capacity, unitOptions);
     const requestedMoqs = parentRfqDetail.requestedMoqs?.length
       ? parentRfqDetail.requestedMoqs.map((value) => ({
-          moq: `${value.moq}`,
-          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
-        }))
+        moq: `${value.moq}`,
+        targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+      }))
       : [{ moq: '', targetPrice: '' }];
 
     formik.setValues((prevValues) => ({
@@ -729,7 +729,6 @@ export default function NewRFQ(): JSX.Element {
       productFamily: true,
       productUsage: true,
       systemMechanic: true,
-      material: true,
       capacity: true,
       capacityUnit: true,
       requestedMoqs: formik.values.requestedMoqs.map(() => true),
@@ -1108,19 +1107,6 @@ export default function NewRFQ(): JSX.Element {
               />
             </Box>
           </GridTextField>
-          <GridTextField item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="โครงการ"
-              InputLabelProps={{ shrink: true }}
-              name="project"
-              value={formik.values.project}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.project && Boolean(formik.errors.project)}
-              helperText={formik.touched.project && formik.errors.project}
-            />
-          </GridTextField>
           {PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ? (
             <GridTextField item xs={12} sm={4}>
               <Autocomplete
@@ -1302,6 +1288,7 @@ export default function NewRFQ(): JSX.Element {
                   กรุณาเลือกหมวดหลักก่อน
                 </MenuItem>
               ) : null}
+              {formik.values.productFamily ? <MenuItem value="">ไม่ระบุ</MenuItem> : null}
               {formik.values.productFamily && materialOptions.length === 0 ? (
                 <MenuItem disabled value="">
                   ไม่พบข้อมูลวัสดุ
@@ -1436,27 +1423,21 @@ export default function NewRFQ(): JSX.Element {
             ) : null}
           </GridTextField>
 
-          <GridTextField item xs={12} sm={4} style={{ paddingLeft: '25px' }}>
-            <Box>
-              <Typography
-                variant="body2"
-                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
-                การขนส่ง
-              </Typography>
-              <RadioGroup
-                row
-                name="shippingMethod"
-                value={formik.values.shippingMethod}
-                onChange={formik.handleChange}>
-                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทางรถ/ทางเรือ" />
-                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
-                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
-                <FormControlLabel value="AIR" control={<Radio size="small" />} label="ทางเครื่องบิน" />
-              </RadioGroup>
-            </Box>
+          <GridTextField item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="โครงการ/แบรนด์"
+              InputLabelProps={{ shrink: true }}
+              name="project"
+              value={formik.values.project}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.project && Boolean(formik.errors.project)}
+              helperText={formik.touched.project && formik.errors.project}
+            />
           </GridTextField>
 
-          <GridTextField item xs={12} sm={3}>
+          <GridTextField item xs={12} sm={6}>
             <Stack spacing={1.25}>
               <Typography
                 variant="body2"
@@ -1487,7 +1468,7 @@ export default function NewRFQ(): JSX.Element {
                         const requestedMoqErrors = formik.errors.requestedMoqs;
                         const itemErrors =
                           Array.isArray(requestedMoqErrors) &&
-                          typeof requestedMoqErrors[index] === 'object'
+                            typeof requestedMoqErrors[index] === 'object'
                             ? requestedMoqErrors[index]
                             : undefined;
                         const helperText = itemErrors?.moq;
@@ -1604,6 +1585,26 @@ export default function NewRFQ(): JSX.Element {
                 );
               })()}
             </Stack>
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={4} style={{ paddingLeft: '25px' }}>
+            <Box>
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', fontWeight: 500, px: 0.25 }}>
+                การขนส่ง
+              </Typography>
+              <RadioGroup
+                row
+                name="shippingMethod"
+                value={formik.values.shippingMethod}
+                onChange={formik.handleChange}>
+                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทางรถ/ทางเรือ" />
+                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
+                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
+                <FormControlLabel value="AIR" control={<Radio size="small" />} label="ทางเครื่องบิน" />
+              </RadioGroup>
+            </Box>
           </GridTextField>
 
           <GridTextField item xs={12}>

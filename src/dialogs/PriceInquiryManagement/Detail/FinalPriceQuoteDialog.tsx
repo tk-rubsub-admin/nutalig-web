@@ -28,12 +28,14 @@ import { SystemConfig } from 'services/Config/config-type';
 import {
   RFQDetailOption,
   RFQDetailTierSplit,
+  RFQProcurementRemark,
   RFQSupplierQuote,
   RFQSupplierQuoteAdditionalCost
 } from 'services/RFQ/rfq-type';
 import { outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 import { GridTextField } from 'components/Styled';
 import { getShippingMethodLabel } from 'utils/shipping';
+import dayjs from 'dayjs';
 
 const CONTAINER_SIZE_OPTIONS = ['20GP', '40HQ'] as const;
 
@@ -89,6 +91,8 @@ interface FinalPriceQuoteDialogProps {
   open: boolean;
   finalPriceQuote: RFQSupplierQuote | null;
   rfqDetails: RFQDetailOption[];
+  procurementRemarks: RFQProcurementRemark[];
+  procurementRemark: string;
   finalPriceDraft: {
     details: FinalPriceDraftDetail[];
     packages: FinalPriceDraftPackage[];
@@ -104,6 +108,7 @@ interface FinalPriceQuoteDialogProps {
   finalPriceErrors: FinalPriceDraftErrors;
   isSubmitting: boolean;
   onClose: () => void;
+  onProcurementRemarkChange: (value: string) => void;
   onRemarkChange: (value: string) => void;
   onRecommendChange: (value: string) => void;
   onCommissionChange: (detailId: number, tierId: number, value: string) => void;
@@ -152,10 +157,13 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     open,
     finalPriceQuote,
     rfqDetails,
+    procurementRemarks,
+    procurementRemark,
     finalPriceDraft,
     finalPriceErrors,
     isSubmitting,
     onClose,
+    onProcurementRemarkChange,
     onRemarkChange,
     onRecommendChange,
     onCommissionChange,
@@ -340,37 +348,37 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     Math.max(0, Number(totalPrice || 0) - Number(tier.productPrice || 0));
 
                   return (
-                  <TableRow key={tier.id}>
-                    <TableCell align="center" sx={{ width: 90 }}>
-                      {tier.quantity || '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 110 }}>
-                      {formatPrice(tier.productPrice, tier.currency)}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 90 }}>
-                      {tier.currency || '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 110 }}>
-                      {getShippingMethodLabel(
-                        shippingMethod,
-                        '-',
-                        Boolean(tier.isFcl),
-                        Boolean(tier.isShareFCL)
-                      )}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 96 }}>
-                      {tier.containerSize || '-'}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 110 }}>
-                      {formatPrice(shippingCost, tier.currency)}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 110, fontWeight: 700 }}>
-                      {formatPrice(totalPrice, tier.currency)}
-                    </TableCell>
-                    <TableCell align="center" sx={{ width: 86 }}>
-                      {tier.commission ?? '-'}{tier.commission !== null && tier.commission !== undefined ? '%' : ''}
-                    </TableCell>
-                  </TableRow>
+                    <TableRow key={tier.id}>
+                      <TableCell align="center" sx={{ width: 90 }}>
+                        {tier.quantity || '-'}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 110 }}>
+                        {formatPrice(tier.productPrice, tier.currency)}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 90 }}>
+                        {tier.currency || '-'}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 110 }}>
+                        {getShippingMethodLabel(
+                          shippingMethod,
+                          '-',
+                          Boolean(tier.isFcl),
+                          Boolean(tier.isShareFCL)
+                        )}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 96 }}>
+                        {tier.containerSize || '-'}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 110 }}>
+                        {formatPrice(shippingCost, tier.currency)}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 110, fontWeight: 700 }}>
+                        {formatPrice(totalPrice, tier.currency)}
+                      </TableCell>
+                      <TableCell align="center" sx={{ width: 86 }}>
+                        {tier.commission ?? '-'}{tier.commission !== null && tier.commission !== undefined ? '%' : ''}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
             </TableBody>
@@ -1436,8 +1444,60 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               )}
             </Stack>
 
+            <Box
+              sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 2,
+                p: 2,
+                backgroundColor: '#f8fafc'
+              }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                หมายเหตุสำหรับจัดซื้อ
+              </Typography>
+              {procurementRemarks.length ? (
+                <Stack spacing={1.25}>
+                  {procurementRemarks.map((procurementRemark, index) => (
+                    <Box
+                      key={`${procurementRemark.createdDate || 'remark'}-${index}`}
+                      sx={{ borderRadius: 1.5, p: 1.5, backgroundColor: '#fff' }}>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {procurementRemark.remark}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                        sx={{ mt: 0.75 }}>
+                        {procurementRemark.createdBy || '-'}
+                        {procurementRemark.createdDate
+                          ? ` • ${dayjs(procurementRemark.createdDate).format(
+                            'DD/MM/YYYY HH:mm'
+                          )}`
+                          : ''}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  ยังไม่มีหมายเหตุสำหรับจัดซื้อ
+                </Typography>
+              )}
+            </Box>
+
             <TextField
-              label="Internal Remark"
+              label="หมายเหตุสำหรับจัดซื้อ"
+              value={procurementRemark}
+              onChange={(event) => onProcurementRemarkChange(event.target.value)}
+              multiline
+              minRows={3}
+              placeholder="ระบุหมายเหตุสำหรับจัดซื้อ"
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+
+            <TextField
+              label="หมายเหตุสำหรับภายในองค์กร"
               value={finalPriceDraft.internalRemark}
               onChange={(event) => onRemarkChange(event.target.value)}
               multiline

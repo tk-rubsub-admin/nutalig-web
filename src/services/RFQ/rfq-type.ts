@@ -357,6 +357,8 @@ export interface RFQRecord {
   requestInformation?: string | null;
   requestTo?: RequestInfoTo | null;
   note?: string | null;
+  procurementRemark?: string | null;
+  procurementRemarks?: RFQProcurementRemark[];
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
   confirmedSupplierQuoteId?: string | null;
@@ -390,16 +392,8 @@ export interface RFQRecord {
   capacity: string;
   requestedMoqs?: RFQRequestedMoq[] | null;
   requestSample?: boolean | null;
-  urgentRequest?: boolean | null;
-  urgentRequestReason?: string | null;
-  urgentRequestStatus?: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | null;
-  urgentRequestedBy?: string | null;
-  urgentRequestedDate?: string | null;
-  urgentApprovedBy?: string | null;
-  urgentApprovedDate?: string | null;
-  urgentRejectedBy?: string | null;
-  urgentRejectedDate?: string | null;
-  urgentRejectReason?: string | null;
+  urgentApproval?: RFQUrgentApproval | null;
+  customerTransferApproval?: RFQUrgentApproval | null;
   description: string;
   project?: string | null;
   createdBy: string;
@@ -412,6 +406,25 @@ export interface RFQRecord {
   finalSeaFreightCost?: number | null;
   finalRemark?: string | null;
   finalPriceDate?: string | null;
+}
+
+export interface RFQUrgentApproval {
+  id: number;
+  requestNo: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  requestedBy?: string | null;
+  requestedDate?: string | null;
+  requestReason?: string | null;
+  approvedDate?: string | null;
+  rejectedDate?: string | null;
+  rejectReason?: string | null;
+  payload?: Record<string, any> | null;
+}
+
+export interface RFQProcurementRemark {
+  remark: string;
+  createdBy?: string | null;
+  createdDate?: string | null;
 }
 
 export interface RFQRequestedMoq {
@@ -484,6 +497,11 @@ export interface UpdateRFQRequest {
   project?: string;
   requestInformation?: string;
   note?: string;
+  procurementRemark?: string | null;
+}
+
+export interface UpdateRFQProcurementRemarkRequest {
+  procurementRemark?: string | null;
 }
 
 export interface RequestRFQInformationRequest {
@@ -512,6 +530,8 @@ export interface RequestSpecialPriceRFQRequest {
 export interface RequestUrgentRFQApproveRequest {
   urgentRequestMessage: string;
 }
+
+export interface RequestRFQCustomerTransferRequest { targetCustomerId: string; reason: string; }
 
 export interface GetCustomerQuotedResponse {
   status: string;

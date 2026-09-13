@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { ArrowBackIos, ArrowDropDown, Cancel, CloudUpload, Description, DirectionsBoat, LocalShipping, Menu as MenuIcon, Save, Search } from '@mui/icons-material';
+import { ArrowBackIos, ArrowDropDown, Cancel, CloudUpload, DeleteOutline, Description, DirectionsBoat, LocalShipping, Menu as MenuIcon, Save, Search } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -580,6 +580,15 @@ export default function QuotationDetail(): JSX.Element {
                 };
             })
         );
+    };
+
+    const handleRemoveDraftItem = (index: number) => {
+        if (draftItems.length <= 1) {
+            toast.error('ใบเสนอราคาต้องมีรายการสินค้าอย่างน้อย 1 รายการ');
+            return;
+        }
+
+        setDraftItems((items) => items.filter((_item, itemIndex) => itemIndex !== index));
     };
 
     const handleUploadQuotationItemImage = async (index: number, file?: File | null) => {
@@ -1277,6 +1286,15 @@ export default function QuotationDetail(): JSX.Element {
                                                                     ลบรูป
                                                                 </Button>
                                                             ) : null}
+                                                            <Button
+                                                                size="small"
+                                                                color="error"
+                                                                variant="outlined"
+                                                                startIcon={<DeleteOutline />}
+                                                                disabled={isUpdating || draftItems.length <= 1}
+                                                                onClick={() => handleRemoveDraftItem(index)}>
+                                                                ลบรายการ
+                                                            </Button>
                                                         </Stack>
                                                         {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
                                                             <Stack spacing={0.5}>
@@ -1419,6 +1437,11 @@ export default function QuotationDetail(): JSX.Element {
                                                 <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.unitPrice')}</TableCell>
                                                 <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.quantity')}</TableCell>
                                                 <TableCell align="right" className={`${classes.tableHeader} ${classes.fitContentCell}`}>{t('documentManagement.quotation.itemSection.totalAmount')}</TableCell>
+                                                {isEditing ? (
+                                                    <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
+                                                        จัดการ
+                                                    </TableCell>
+                                                ) : null}
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -1558,11 +1581,23 @@ export default function QuotationDetail(): JSX.Element {
                                                                 formatNumber(item.amount || 0)
                                                             )}
                                                         </TableCell>
+                                                        {isEditing ? (
+                                                            <TableCell align="center" className={classes.fitContentCell}>
+                                                                <IconButton
+                                                                    color="error"
+                                                                    aria-label="ลบรายการสินค้า"
+                                                                    title="ลบรายการสินค้า"
+                                                                    disabled={isUpdating || draftItems.length <= 1}
+                                                                    onClick={() => handleRemoveDraftItem(index)}>
+                                                                    <DeleteOutline />
+                                                                </IconButton>
+                                                            </TableCell>
+                                                        ) : null}
                                                     </TableRow>
                                                 ))
                                             ) : (
                                                 <TableRow>
-                                                    <TableCell colSpan={7} align="center">
+                                                    <TableCell colSpan={isEditing ? 8 : 7} align="center">
                                                         {t('warning.noResultList')}
                                                     </TableCell>
                                                 </TableRow>

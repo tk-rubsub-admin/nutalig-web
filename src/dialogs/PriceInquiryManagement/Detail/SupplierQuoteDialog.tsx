@@ -27,7 +27,7 @@ import { useQuery } from 'react-query';
 import { SystemConfig } from 'services/Config/config-type';
 import { LeadTimeConfig, Supplier } from 'services/Supplier/supplier-type';
 import { searchSupplier } from 'services/Supplier/supplier-api';
-import { RFQSupplierQuote } from 'services/RFQ/rfq-type';
+import { RFQProcurementRemark, RFQSupplierQuote } from 'services/RFQ/rfq-type';
 import { blueActionButtonSx, outlinedActionButtonSx } from './supplierQuoteDialogStyles';
 
 function getSupplierDisplayName(supplier?: Supplier | null): string {
@@ -47,6 +47,15 @@ function getSupplierOptionLabel(supplier?: Supplier | null): string {
   const supplierName = getSupplierDisplayName(supplier);
 
   return supplierId ? `${supplierName} (${supplierId})` : supplierName;
+}
+
+function formatProcurementRemarkDate(value?: string | null): string {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('th-TH');
 }
 
 function SupplierAutocompleteField({
@@ -256,6 +265,9 @@ export interface SupplierQuoteDialogProps {
     leadTimeDayMax: string;
     remark: string;
   }>;
+  procurementRemark: string;
+  procurementRemarks: RFQProcurementRemark[];
+  onProcurementRemarkChange: (value: string) => void;
   quoteDraftPackageError: string | null;
   quoteDraftErrors: Record<number, any>;
   quoteDraftLeadTimeErrors: Record<number, any>;
@@ -343,6 +355,9 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     quoteDraftAdditionalCosts,
     quoteDraftPackages,
     quoteDraftLeadTimes,
+    procurementRemark,
+    procurementRemarks,
+    onProcurementRemarkChange,
     quoteDraftPackageError,
     quoteDraftErrors,
     quoteDraftLeadTimeErrors,
@@ -543,6 +558,39 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                     </Button>
                   </Stack>
                 </Box>
+                <Stack spacing={1}>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    ประวัติหมายเหตุจัดซื้อ
+                  </Typography>
+                  {procurementRemarks.length ? (
+                    procurementRemarks.map((entry, index) => (
+                      <Box
+                        key={`${entry.createdDate || 'legacy'}-${index}`}
+                        sx={{ border: '1px solid #dce4ee', borderRadius: 2, p: 1.25 }}>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {entry.remark}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {entry.createdBy || '-'} · {formatProcurementRemarkDate(entry.createdDate)}
+                        </Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      ยังไม่มีหมายเหตุจัดซื้อ
+                    </Typography>
+                  )}
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    size="small"
+                    label="เพิ่มหมายเหตุจัดซื้อ"
+                    value={procurementRemark}
+                    InputLabelProps={{ shrink: true }}
+                    onChange={(event) => onProcurementRemarkChange(event.target.value)}
+                  />
+                </Stack>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="subtitle1" fontWeight={700}>
                     รายการราคาที่ตอบกลับ

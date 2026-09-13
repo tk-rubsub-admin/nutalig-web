@@ -747,6 +747,47 @@ export default function NewPurchaseOrder(): ReactElement {
                 <Grid item xs={12} sm={12}>
                   <ReadonlyTextField label="อ้างอิงคำขอราคาเลขที่" value={salesOrder?.rfqId} />
                 </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                    หมายเหตุสำหรับจัดซื้อจาก RFQ
+                  </Typography>
+                  {rfq?.procurementRemarks?.length ? (
+                    <Stack spacing={1}>
+                      {rfq.procurementRemarks.map((procurementRemark, index) => (
+                        <Box
+                          key={`${procurementRemark.createdDate || 'remark'}-${index}`}
+                          sx={{
+                            border: '1px solid #dce4ee',
+                            borderRadius: 2,
+                            p: 1.5,
+                            backgroundColor: '#f8fafc'
+                          }}>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                            {procurementRemark.remark}
+                          </Typography>
+                          {procurementRemark.createdBy || procurementRemark.createdDate ? (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                              sx={{ mt: 0.75 }}>
+                              {[procurementRemark.createdBy, procurementRemark.createdDate]
+                                .filter(Boolean)
+                                .join(' • ')}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ whiteSpace: 'pre-wrap' }}>
+                      {rfq?.procurementRemark || 'ยังไม่มีหมายเหตุสำหรับจัดซื้อ'}
+                    </Typography>
+                  )}
+                </Grid>
                 <Grid item xs={12} sm={12}>
                   <TextField
                     select

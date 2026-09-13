@@ -118,6 +118,13 @@ export const updateSalesOrderV1 = async (id: string, data: UpdateSalesOrderReque
     return response.data;
 };
 
+export const cancelSalesOrderV1 = async (id: string, reason: string) => {
+    const response = await api
+        .patch(`/v1/sales-orders/${id}/cancel`, { reason })
+        .then((response) => response.data);
+    return response.data;
+};
+
 export const requestUrgentApproval = async (id: string, data: UrgentApprovalRequest) => {
     const response = await api
         .post(`/v1/sales-orders/${id}/request-urgent-approve`, data)

@@ -622,7 +622,6 @@ export default function PriceInquiryManagement(): ReactElement {
         sortBy: 'slaDate',
         sortDirection: 'ASC',
         statuses: filter.statuses,
-        prioritizeApprovedUrgent: true
       }),
     {
       refetchOnWindowFocus: false,
@@ -848,7 +847,7 @@ export default function PriceInquiryManagement(): ReactElement {
                   }}
                 />
               ) : null}
-              {rfq.urgentRequestStatus === 'APPROVED' ? (
+              {rfq.urgentApproval?.status === 'APPROVED' ? (
                 <Chip
                   label="เร่งด่วน"
                   size="small"
@@ -941,7 +940,7 @@ export default function PriceInquiryManagement(): ReactElement {
                     }}
                   />
                 ) : null}
-                {rfq.urgentRequestStatus === 'APPROVED' ? (
+                {rfq.urgentApproval?.status === 'APPROVED' ? (
                   <Chip
                     label="เร่งด่วน"
                     size="small"

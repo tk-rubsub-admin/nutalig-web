@@ -298,7 +298,7 @@ function getRFQSalesDisplayValue(sales?: RFQRecord['sales']): string {
 
 function getShippingTypeLabel(shippingType?: string | null): string {
   if (shippingType === 'ALL') return 'ส่งทางรถ / ส่งทางเรือ';
-  return getShippingMethodLabel(shippingType, '');
+  return getShippingMethodLabel(shippingType, '', false, false, true);
 }
 
 function isSeaShippingMethod(shippingMethod?: string | null): boolean {
@@ -600,10 +600,10 @@ function createSaleOrderItemsFromQuotation(
     const quotationTierId = Number(item.tierId || 0);
     const tierMatchIndex = quotationTierId
       ? candidateRfqRows.findIndex(
-          (row) =>
-            row.tierId === quotationTierId &&
-            (!inferredShippingMethod || (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) === inferredShippingMethod)
-        )
+        (row) =>
+          row.tierId === quotationTierId &&
+          (!inferredShippingMethod || (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) === inferredShippingMethod)
+      )
       : -1;
     const exactMatchIndex = candidateRfqRows.findIndex((row) => {
       if (inferredShippingMethod && (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) !== inferredShippingMethod) {
@@ -983,12 +983,14 @@ export default function SalesOrderRFQ(): JSX.Element {
     const shippingMethodFromItems = deriveShippingTypeFromItems(formik.values.items);
     const shippingCategoryFromItems = deriveShippingCategoryFromItems(formik.values.items);
     const shippingLabel = getShippingTypeLabel(shippingMethodFromItems);
-
+    console.log(shippingMethodFromItems)
+    console.log(shippingCategoryFromItems)
+    console.log(shippingLabel)
     if (formik.values.shipping !== shippingLabel) {
       formik.setFieldValue('shipping', shippingLabel, false);
     }
-    if (formik.values.shippingType !== shippingCategoryFromItems) {
-      formik.setFieldValue('shippingType', shippingCategoryFromItems, false);
+    if (formik.values.shippingType !== shippingMethodFromItems) {
+      formik.setFieldValue('shippingType', shippingMethodFromItems, false);
     }
   }, [formik.values.items]);
 
@@ -1493,6 +1495,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       discount: 0,
       freight: selectedItems.reduce((sum, item) => sum + Number(item.totalFreight || 0), 0),
       isVat: formik.values.isVat,
+      quotationNo: quotationNo,
       shippingType: formik.values.shippingType || null,
       shipping: formik.values.shipping,
       requestCoa: formik.values.requestCoa,
@@ -1525,6 +1528,8 @@ export default function SalesOrderRFQ(): JSX.Element {
     };
 
     setIsLoading(true);
+
+    console.log('xxx:', payload);
 
     try {
       const response = await toast.promise(createSalesOrderV1(payload), {

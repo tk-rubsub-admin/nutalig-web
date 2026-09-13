@@ -20,7 +20,9 @@ import {
   RequestRFQInformationRequest,
   RequestSpecialPriceRFQRequest,
   RequestUrgentRFQApproveRequest,
+  RequestRFQCustomerTransferRequest,
   UpdateRFQInquiryRequest,
+  UpdateRFQProcurementRemarkRequest,
   UpdateRFQRequest,
   UpdateRFQPicturesResponse,
   GetCustomerQuotedResponse,
@@ -50,8 +52,6 @@ const buildRFQSearchPayload = (
     requestedDateStart?: string;
     requestedDateEnd?: string;
     statuses?: string[];
-    prioritizeApprovedUrgent?: boolean;
-    urgentRequestStatus?: string;
   }
 ) => {
   const payload: Record<string, unknown> = {};
@@ -116,13 +116,6 @@ const buildRFQSearchPayload = (
     payload.statuses = options.statuses;
   }
 
-  if (options?.prioritizeApprovedUrgent) {
-    payload.prioritizeApprovedUrgent = true;
-  }
-
-  if (options?.urgentRequestStatus) {
-    payload.urgentRequestStatus = options.urgentRequestStatus;
-  }
 
   if (options?.isCreatedPurchaseOrder === true) {
     payload.isCreatedPurchaseOrder = true;
@@ -153,8 +146,6 @@ export const getRFQList = async (
     sortBy?: string;
     sortDirection?: string;
     statuses?: string[];
-    prioritizeApprovedUrgent?: boolean;
-    urgentRequestStatus?: string;
   }
 ) => {
   const params = new URLSearchParams();
@@ -195,8 +186,6 @@ export const exportRFQList = async (
     requestedDateStart?: string;
     requestedDateEnd?: string;
     statuses?: string[];
-    prioritizeApprovedUrgent?: boolean;
-    urgentRequestStatus?: string;
   }
 ) => {
   const payload = buildRFQSearchPayload(options);
@@ -303,6 +292,10 @@ export const requestUrgentApprove = async (
 
   return response.data;
 };
+
+export const requestRFQCustomerTransfer = async (id: string, payload: RequestRFQCustomerTransferRequest) => (await api.post(`/v1/rfqs/${id}/customer-transfer-approvals`, payload)).data.data;
+export const approveRFQCustomerTransfer = async (id: string) => (await api.patch(`/v1/rfqs/${id}/customer-transfer/approve`)).data.data;
+export const rejectRFQCustomerTransfer = async (id: string, payload: RejectUrgentRFQRequest) => (await api.patch(`/v1/rfqs/${id}/customer-transfer/reject`, payload)).data.data;
 
 export const requestQuotationForAdmin = async (id: string) => {
   const response = await api
@@ -494,6 +487,17 @@ export const updateRFQ = async (
 ): Promise<UpdateRFQResponse> => {
   const response: UpdateRFQResponse = await api
     .patch(`/v1/rfqs/${id}`, payload)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const updateRFQProcurementRemark = async (
+  id: string,
+  payload: UpdateRFQProcurementRemarkRequest
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .patch(`/v1/rfqs/${id}/procurement-remark`, payload)
     .then((response) => response.data);
 
   return response;

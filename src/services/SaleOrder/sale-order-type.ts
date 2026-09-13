@@ -85,6 +85,7 @@ export interface CreateSalesOrderRequestV1 {
     discount?: number;
     freight?: number;
     isVat: boolean;
+    quotationNo: string;
     shippingType?: string;
     shipping: string;
     requestCoa?: boolean;
@@ -150,6 +151,7 @@ export interface SalesOrderV1 {
     shippingType: string | null;
     vatRate: number;
     remark: string | null;
+    cancelReason?: string | null;
     revNo: number;
     shipping: string;
     attachments: SalesOrderAttachment[];

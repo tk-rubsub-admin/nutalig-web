@@ -529,7 +529,8 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                     tier.shippingMethod,
                     '-',
                     Boolean(tier.isFcl),
-                    Boolean(tier.isShareFCL)
+                    Boolean(tier.isShareFCL),
+                    true
                 )
                 : undefined;
             const unitPrice = hasTierPrice(tier?.totalPrice)

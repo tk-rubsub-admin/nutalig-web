@@ -86,6 +86,31 @@ export interface ProductMaterial {
   nameEn: string;
 }
 
+export interface CreateProductFamilyRequest {
+  nameTh: string;
+  nameEn: string;
+  isActive: boolean;
+}
+
+export interface CreateProductMaterialRequest {
+  productFamilyCode: string;
+  nameTh: string;
+  nameEn: string;
+}
+
+export interface CreateProductSubtype1Request {
+  productFamilyCode: string;
+  nameTh: string;
+  nameEn: string;
+  subtype2Required: boolean;
+}
+
+export interface CreateProductSubtype2Request {
+  productSubtype1Code: string;
+  nameTh: string;
+  nameEn: string;
+}
+
 export interface ProductSubtype1 {
   code: string;
   productFamilyCode: string;

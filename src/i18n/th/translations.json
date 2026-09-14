@@ -753,6 +753,26 @@
       "productUsages": "Product Subtype1",
       "systemMechanics": "Product Subtype2",
       "optionalMechanic": "ไม่บังคับเลือก"
+    },
+    "create": {
+      "button": "เพิ่มข้อมูล",
+      "title": "เพิ่ม Product Subtype หรือ Material",
+      "familyButton": "เพิ่ม Family",
+      "familyTitle": "เพิ่ม Product Family",
+      "type": "ประเภทข้อมูล",
+      "subtype1": "Product Subtype1",
+      "subtype2": "Product Subtype2",
+      "material": "Material",
+      "parentFamily": "Product Family",
+      "parentSubtype1": "Product Subtype1 หลัก",
+      "code": "รหัส",
+      "nameTh": "ชื่อภาษาไทย",
+      "nameEn": "ชื่อภาษาอังกฤษ",
+      "subtype2Required": "บังคับเลือก Product Subtype2",
+      "saving": "กำลังบันทึก...",
+      "success": "เพิ่มข้อมูลเรียบร้อย",
+      "error": "ไม่สามารถเพิ่มข้อมูลได้",
+      "nextIdError": "ไม่สามารถสร้างรหัสเริ่มต้นได้"
     }
   },
   "staffManagement": {

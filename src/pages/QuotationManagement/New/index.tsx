@@ -473,8 +473,26 @@ const matchesFreelanceSaleCoverage = (saleCoverage?: string | null, salesId?: st
     return normalizedSaleCoverage === normalizedSalesId;
 };
 
-const buildPaymentTermRemark = (paymentTerm?: Customer['customerPaymentTerm'] | null): string => {
+const buildPaymentTermRemark = (
+    paymentTerm?: Customer['customerPaymentTerm'] | null,
+    grandTotal = 0
+): string => {
+    if (paymentTerm?.code === 'DEP50') {
+        return `มัดจำ50% = ${formatCurrency(grandTotal * 0.5)} บาท\nชำระส่วนที่เหลือก่อนจัดส่ง`;
+    }
+
     return paymentTerm?.nameTh || paymentTerm?.nameEn || paymentTerm?.code || '';
+};
+
+const calculateQuotationGrandTotal = (
+    items: CreateQuotationItem[],
+    discount = 0,
+    freight = 0,
+    isVat = false
+): number => {
+    const subTotal = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const taxableAmount = Math.max(subTotal - Number(discount || 0), 0);
+    return taxableAmount + (isVat ? taxableAmount * 0.07 : 0) + Number(freight || 0);
 };
 
 const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
@@ -1123,6 +1141,9 @@ export default function NewQuotation() {
         //     0
         // );
 
+        const quotationItems = createQuotationItemsFromRFQ(rfq);
+        const quotationGrandTotal = calculateQuotationGrandTotal(quotationItems);
+
         setCustomer(rfq.customer ? {
             ...rfq.customer,
             addresses: customerAddresses,
@@ -1147,10 +1168,10 @@ export default function NewQuotation() {
             salesId,
             coSaleId: rfq.customer?.coSalesAccount || '',
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
-            remark: buildPaymentTermRemark(rfq.customer?.customerPaymentTerm),
+            remark: buildPaymentTermRemark(rfq.customer?.customerPaymentTerm, quotationGrandTotal),
             shipping: rfq.shippingMethod || 'ALL',
             project: rfq.project || '',
-            items: createQuotationItemsFromRFQ(rfq)
+            items: quotationItems
         });
     }, [rfq]);
 
@@ -1770,7 +1791,7 @@ export default function NewQuotation() {
                     <GridTextField item xs={12} sm={6}>
                         <TextField
                             name="project"
-                            label="โครงการ"
+                            label="โครงการ/แบรนด์สินค้า"
                             fullWidth
                             value={formik.values.project}
                             onChange={formik.handleChange}
@@ -2711,7 +2732,15 @@ export default function NewQuotation() {
                             address: defaultAddress?.fullAddress || '',
                             contactName: defaultContact?.contactName || '', contactNumber: defaultContact?.contactNumber || ''
                         },
-                        remark: buildPaymentTermRemark(payload.customer.customerPaymentTerm),
+                        remark: buildPaymentTermRemark(
+                            payload.customer.customerPaymentTerm,
+                            calculateQuotationGrandTotal(
+                                formik.values.items,
+                                formik.values.discount,
+                                formik.values.freight,
+                                formik.values.isVat
+                            )
+                        ),
                         docDate: today,
                         effectiveDate: quotationDefaultEffectiveDate
                     });

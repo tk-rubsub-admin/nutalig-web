@@ -240,9 +240,7 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   },
   {
     path: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
-    component: lazy(
-      () => import('./pages/UrgentApprovalManagement' /* webpackChunkName: "app" */)
-    ),
+    component: lazy(() => import('./pages/UrgentApprovalManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.AWAITING_APPROVE_VIEW]
   },
   {
@@ -329,12 +327,16 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   },
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER,
-    component: lazy(() => import('./pages/PurchaseOrderManagement/New' /* webpackChunkName: "app" */)),
+    component: lazy(
+      () => import('./pages/PurchaseOrderManagement/New' /* webpackChunkName: "app" */)
+    ),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_CREATE]
   },
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_DETAIL,
-    component: lazy(() => import('./pages/PurchaseOrderManagement/Detail' /* webpackChunkName: "app" */)),
+    component: lazy(
+      () => import('./pages/PurchaseOrderManagement/Detail' /* webpackChunkName: "app" */)
+    ),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
   },
   {
@@ -369,18 +371,10 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     component: lazy(() => import('./pages/Manual' /* webpackChunkName: "app" */)),
     allowedRoles: [
       ROLES.ADMIN,
-      ROLES.ADMIN_BKK,
-      ROLES.ADMIN_PROVINCE,
-      ROLES.ORDER_BKK,
-      ROLES.ORDER_PROVINCE,
-      ROLES.ACCOUNT,
-      ROLES.ACCOUNT_ADMIN,
       ROLES.PROCUREMENT,
-      ROLES.PROCUREMENT_ADMIN,
-      ROLES.RECEIVER,
-      ROLES.RECEIVER_PAK_KLONG,
+      ROLES.PROCUREMENT_MANAGER,
       ROLES.SALES,
-      ROLES.SALES_ADMIN,
+      ROLES.SALES_MANAGER,
       ROLES.SUPER_ADMIN
     ]
   },

@@ -356,6 +356,26 @@
       "productUsages": "Product Subtype1",
       "systemMechanics": "Product Subtype2",
       "optionalMechanic": "Optional"
+    },
+    "create": {
+      "button": "Add item",
+      "title": "Add product subtype or material",
+      "familyButton": "Add family",
+      "familyTitle": "Add product family",
+      "type": "Item type",
+      "subtype1": "Product Subtype1",
+      "subtype2": "Product Subtype2",
+      "material": "Material",
+      "parentFamily": "Product family",
+      "parentSubtype1": "Parent Product Subtype1",
+      "code": "Code",
+      "nameTh": "Thai name",
+      "nameEn": "English name",
+      "subtype2Required": "Require Product Subtype2 selection",
+      "saving": "Saving...",
+      "success": "Item added successfully",
+      "error": "Unable to add item",
+      "nextIdError": "Unable to generate a default code"
     }
   },
   "staffManagement": {

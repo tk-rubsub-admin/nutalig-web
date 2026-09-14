@@ -9,6 +9,10 @@ import {
   GetProductPriceResponse,
   ProductFamily,
   ProductFamilyResponse,
+  CreateProductMaterialRequest,
+  CreateProductFamilyRequest,
+  CreateProductSubtype1Request,
+  CreateProductSubtype2Request,
   PriceListHeader,
   SearchProductRequest,
   SearchProductResponse,
@@ -200,6 +204,26 @@ export const getProductFamilies = async (): Promise<ProductFamily[]> => {
     .then((response) => response.data);
 
   return response.data || [];
+};
+
+export const createProductFamily = async (data: CreateProductFamilyRequest) => {
+  const response = await api.post('/v1/products/product-families', data).then((response) => response.data);
+  return response.data;
+};
+
+export const createProductMaterial = async (data: CreateProductMaterialRequest) => {
+  const response = await api.post('/v1/products/product-materials', data).then((response) => response.data);
+  return response.data;
+};
+
+export const createProductSubtype1 = async (data: CreateProductSubtype1Request) => {
+  const response = await api.post('/v1/products/product-subtype1', data).then((response) => response.data);
+  return response.data;
+};
+
+export const createProductSubtype2 = async (data: CreateProductSubtype2Request) => {
+  const response = await api.post('/v1/products/product-subtype2', data).then((response) => response.data);
+  return response.data;
 };
 
 export const createPriceList = async (data: CreatePriceListRequest) => {

@@ -179,8 +179,8 @@ function calculateItemTotal(item: {
   supplierShippingCost?: number | null;
 }): number {
   return (
-    (Number(item.supplierUnitPrice || 0) + Number(item.supplierShippingCost || 0)) *
-    Number(item.quantity || 0)
+    Number(item.supplierUnitPrice || 0) * Number(item.quantity || 0) +
+    Number(item.supplierShippingCost || 0)
   );
 }
 

@@ -4550,37 +4550,8 @@ export default function RFQDetail(): ReactElement {
                                     ])}
                                   </TableBody>
                                 </Table>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    px: 3,
-                                    py: 2.5,
-                                    color: 'text.secondary',
-                                    fontSize: 14
-                                  }}>
-                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
-                                </Box>
-                              )}
-                              {sortedTierSplits.length ? (
+                              ) : sortedTierSplits.length ? (
                                 <Box sx={{ mt: 3 }}>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                    alignItems="center"
-                                    sx={{ mb: 1.5 }}>
-                                    <Typography variant="subtitle1" fontWeight={700}>
-                                      Tier Split
-                                    </Typography>
-                                    <Chip
-                                      label={`${sortedTierSplits.length} รายการ`}
-                                      size="small"
-                                      sx={{
-                                        backgroundColor: '#eef6ff',
-                                        color: '#185ea8',
-                                        fontWeight: 700
-                                      }}
-                                    />
-                                  </Stack>
                                   <Table size="small">
                                     <TableHead>
                                       <TableRow
@@ -4632,7 +4603,17 @@ export default function RFQDetail(): ReactElement {
                                     </TableBody>
                                   </Table>
                                 </Box>
-                              ) : null}
+                              ) : (
+                                <Box
+                                  sx={{
+                                    px: 3,
+                                    py: 2.5,
+                                    color: 'text.secondary',
+                                    fontSize: 14
+                                  }}>
+                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                </Box>
+                              )}
                             </Box>
 
                             <Stack spacing={1.5} sx={{ display: { xs: 'flex', md: 'none' }, p: 2 }}>
@@ -4921,19 +4902,7 @@ export default function RFQDetail(): ReactElement {
                                     </Grid>
                                   </Box>
                                 ))
-                              ) : (
-                                <Box
-                                  sx={{
-                                    p: 1.5,
-                                    border: '1px dashed #d1d5db',
-                                    borderRadius: 2,
-                                    backgroundColor: '#ffffff',
-                                    color: 'text.secondary'
-                                  }}>
-                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
-                                </Box>
-                              )}
-                              {sortedTierSplits.length ? (
+                              ) : sortedTierSplits.length ? (
                                 <Box
                                   sx={{
                                     mt: 1,
@@ -4942,23 +4911,6 @@ export default function RFQDetail(): ReactElement {
                                     borderRadius: 2,
                                     backgroundColor: '#f8fbff'
                                   }}>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                    sx={{ mb: 1 }}>
-                                    <Typography variant="subtitle2" fontWeight={700}>
-                                      Tier Split
-                                    </Typography>
-                                    <Chip
-                                      label={`${sortedTierSplits.length} รายการ`}
-                                      size="small"
-                                      sx={{
-                                        backgroundColor: '#eef6ff',
-                                        color: '#185ea8',
-                                        fontWeight: 700
-                                      }}
-                                    />
-                                  </Stack>
                                   <Stack spacing={1}>
                                     {sortedTierSplits.map((tierSplit) => (
                                       <Box
@@ -5046,7 +4998,18 @@ export default function RFQDetail(): ReactElement {
                                     ))}
                                   </Stack>
                                 </Box>
-                              ) : null}
+                              ) : (
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    border: '1px dashed #d1d5db',
+                                    borderRadius: 2,
+                                    backgroundColor: '#ffffff',
+                                    color: 'text.secondary'
+                                  }}>
+                                  ยังไม่มีช่วงราคาในตัวเลือกนี้
+                                </Box>
+                              )}
                             </Stack>
                           </Collapse>
                         </Box>

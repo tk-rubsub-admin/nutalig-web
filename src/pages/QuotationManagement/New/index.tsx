@@ -475,9 +475,10 @@ const matchesFreelanceSaleCoverage = (saleCoverage?: string | null, salesId?: st
 
 const buildPaymentTermRemark = (
     paymentTerm?: Customer['customerPaymentTerm'] | null,
-    grandTotal = 0
+    grandTotal = 0,
+    isShowSummary = false
 ): string => {
-    if (paymentTerm?.code === 'DEP50') {
+    if (paymentTerm?.code === 'DEP50' && isShowSummary) {
         return `มัดจำ50% = ${formatCurrency(grandTotal * 0.5)} บาท\nชำระส่วนที่เหลือก่อนจัดส่ง`;
     }
 
@@ -1169,6 +1170,7 @@ export default function NewQuotation() {
             coSaleId: rfq.customer?.coSalesAccount || '',
             coSaleMode: rfq.customer?.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE,
             remark: buildPaymentTermRemark(rfq.customer?.customerPaymentTerm, quotationGrandTotal),
+            isShowSummary: false,
             shipping: rfq.shippingMethod || 'ALL',
             project: rfq.project || '',
             items: quotationItems
@@ -1576,11 +1578,15 @@ export default function NewQuotation() {
             return;
         }
 
-        const paymentTermRemark = buildPaymentTermRemark(customer.customerPaymentTerm, grandTotal);
+        const paymentTermRemark = buildPaymentTermRemark(
+            customer.customerPaymentTerm,
+            grandTotal,
+            formik.values.isShowSummary
+        );
         if (formik.values.remark !== paymentTermRemark) {
             formik.setFieldValue('remark', paymentTermRemark);
         }
-    }, [customer?.customerPaymentTerm?.code, grandTotal]);
+    }, [customer?.customerPaymentTerm?.code, formik.values.isShowSummary, grandTotal]);
 
     const activeRfq = rfq || selectedRfqsFromDialog[0];
     const rfqsById = new Map<string, RFQRecord>(
@@ -2751,7 +2757,8 @@ export default function NewQuotation() {
                                 formik.values.discount,
                                 formik.values.freight,
                                 formik.values.isVat
-                            )
+                            ),
+                            formik.values.isShowSummary
                         ),
                         docDate: today,
                         effectiveDate: quotationDefaultEffectiveDate

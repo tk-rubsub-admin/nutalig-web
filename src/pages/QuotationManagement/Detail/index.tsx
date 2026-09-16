@@ -101,6 +101,15 @@ const getCustomerAddress = (quotation?: Quotation): string => {
     );
 };
 
+const formatRfqIds = (rfqIds?: string[], fallbackRfqId?: string | null): string => {
+    const ids = rfqIds?.filter(Boolean) || (fallbackRfqId ? [fallbackRfqId] : []);
+    return ids.reduce<string[]>((rows, rfqId, index) => {
+        const rowIndex = Math.floor(index / 4);
+        rows[rowIndex] = rows[rowIndex] ? `${rows[rowIndex]}, ${rfqId}` : rfqId;
+        return rows;
+    }, []).join('\n');
+};
+
 type ConfirmQuotationRow = {
     key: string;
     quotationItem: QuotationItem;
@@ -405,6 +414,13 @@ export default function QuotationDetail(): JSX.Element {
         || draftCoSaleId;
     const salesId = quotation?.saleAccount?.employeeId || quotation?.salesAccount?.employeeId || '';
     const displayItems = isEditing ? draftItems : quotation?.items || [];
+    const getItemRfqId = (item: QuotationItem): string =>
+        item.sourceRfqId || quotation?.rfqId || quotation?.referenceRfqId || '';
+    const displayItemsByRfq = useMemo(
+        () => displayItems
+            .map((item, itemIndex) => ({ item, itemIndex })),
+        [displayItems, quotation?.referenceRfqId, quotation?.rfqId]
+    );
     const isActionMenuOpen = Boolean(actionMenuAnchorEl);
     const invoiceRecords = invoiceSearchResponse?.data?.records || [];
     const receiptRecords = receiptSearchResponse?.data?.records || [];
@@ -1036,7 +1052,11 @@ export default function QuotationDetail(): JSX.Element {
                                         asTextField={isEditing}
                                     />
                                     <Info label={"Revision "} value={quotation?.revNo ?? '-'} asTextField={isEditing} />
-                                    <Info label="อ้างอิง RFQ " value={quotation?.rfqId} asTextField={isEditing} />
+                                    <Info
+                                        label="อ้างอิง RFQ "
+                                        value={formatRfqIds(quotation?.rfqIds, quotation?.rfqId)}
+                                        asTextField={isEditing}
+                                    />
                                     {isEditing ? (
                                         <TextField
                                             select
@@ -1213,212 +1233,235 @@ export default function QuotationDetail(): JSX.Element {
                         <GridSearchSection container>
                             {isDownSm ? (
                                 <Stack spacing={1.25} sx={{ width: '100%' }}>
-                                    {displayItems.length ? (
-                                        displayItems.map((item, index) => (
-                                            <Stack key={item.id || index} spacing={1.25} className={classes.mobileItemCard}>
-                                                <Stack
-                                                    direction="row"
-                                                    spacing={1.25}
-                                                    alignItems="flex-start"
-                                                    className={classes.mobileItemHeader}>
-                                                    {item.imagePreview || item.imageUrl ? (
-                                                        <Box
-                                                            component="img"
-                                                            src={item.imagePreview || item.imageUrl}
-                                                            alt={item.name || t('documentManagement.quotation.itemSection.name')}
-                                                            className={classes.productImage}
-                                                        />
-                                                    ) : (
-                                                        <Stack
-                                                            justifyContent="center"
-                                                            alignItems="center"
-                                                            className={classes.productImage}
-                                                            sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
-                                                            {t('documentManagement.quotation.itemSection.noImage')}
-                                                        </Stack>
-                                                    )}
-                                                    <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
-                                                        <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                                                            รายการที่ {index + 1}
-                                                        </Typography>
-                                                        {isEditing ? (
-                                                            <TextField
-                                                                className={classes.itemTextField}
-                                                                fullWidth
-                                                                value={item.name || ''}
-                                                                onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
+                                    {displayItemsByRfq.length ? (
+                                        displayItemsByRfq.map(({ item, itemIndex }, index) => {
+                                            const itemRfqId = getItemRfqId(item);
+                                            const previousRfqId = index > 0
+                                                ? getItemRfqId(displayItemsByRfq[index - 1].item)
+                                                : '';
+                                            const isFirstItemInRfqGroup = index === 0 || itemRfqId !== previousRfqId;
+
+                                            return [
+                                                isFirstItemInRfqGroup ? (
+                                                    <Box
+                                                        key={`rfq-group-${itemRfqId || 'additional'}`}
+                                                        sx={{
+                                                            bgcolor: '#F1F5FF',
+                                                            border: '1px solid #C9D7F2',
+                                                            borderRadius: 1,
+                                                            color: 'primary.main',
+                                                            fontWeight: 700,
+                                                            px: 1.25,
+                                                            py: 1
+                                                        }}>
+                                                        {itemRfqId ? `RFQ: ${itemRfqId}` : 'รายการเพิ่มเติม'}
+                                                    </Box>
+                                                ) : null,
+                                                <Stack key={item.id || itemIndex} spacing={1.25} className={classes.mobileItemCard}>
+                                                    <Stack
+                                                        direction="row"
+                                                        spacing={1.25}
+                                                        alignItems="flex-start"
+                                                        className={classes.mobileItemHeader}>
+                                                        {item.imagePreview || item.imageUrl ? (
+                                                            <Box
+                                                                component="img"
+                                                                src={item.imagePreview || item.imageUrl}
+                                                                alt={item.name || t('documentManagement.quotation.itemSection.name')}
+                                                                className={classes.productImage}
                                                             />
                                                         ) : (
-                                                            <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
-                                                                {item.name || '-'}
-                                                            </Typography>
+                                                            <Stack
+                                                                justifyContent="center"
+                                                                alignItems="center"
+                                                                className={classes.productImage}
+                                                                sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
+                                                                {t('documentManagement.quotation.itemSection.noImage')}
+                                                            </Stack>
                                                         )}
-                                                    </Stack>
-                                                </Stack>
-
-                                                {isEditing ? (
-                                                    <Stack spacing={0.75}>
-                                                        <Stack direction="row" spacing={0.75} flexWrap="wrap">
-                                                            <Button
-                                                                component="label"
-                                                                size="small"
-                                                                variant="outlined"
-                                                                startIcon={<CloudUpload />}
-                                                                disabled={isUpdating}>
-                                                                อัปโหลดรูป
-                                                                <input
-                                                                    hidden
-                                                                    accept="image/*"
-                                                                    type="file"
-                                                                    onChange={(event) => {
-                                                                        void handleUploadQuotationItemImage(index, event.target.files?.[0]);
-                                                                        event.target.value = '';
-                                                                    }}
+                                                        <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
+                                                            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                                                รายการที่ {itemIndex + 1}
+                                                            </Typography>
+                                                            {isEditing ? (
+                                                                <TextField
+                                                                    className={classes.itemTextField}
+                                                                    fullWidth
+                                                                    value={item.name || ''}
+                                                                    onChange={(event) => updateDraftItem(itemIndex, 'name', event.target.value)}
                                                                 />
-                                                            </Button>
-                                                            {item.imagePreview || item.imageUrl ? (
+                                                            ) : (
+                                                                <Typography variant="body2" fontWeight={700} sx={{ wordBreak: 'break-word' }}>
+                                                                    {item.name || '-'}
+                                                                </Typography>
+                                                            )}
+                                                        </Stack>
+                                                    </Stack>
+
+                                                    {isEditing ? (
+                                                        <Stack spacing={0.75}>
+                                                            <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                                                                <Button
+                                                                    component="label"
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    startIcon={<CloudUpload />}
+                                                                    disabled={isUpdating}>
+                                                                    อัปโหลดรูป
+                                                                    <input
+                                                                        hidden
+                                                                        accept="image/*"
+                                                                        type="file"
+                                                                        onChange={(event) => {
+                                                                            void handleUploadQuotationItemImage(itemIndex, event.target.files?.[0]);
+                                                                            event.target.value = '';
+                                                                        }}
+                                                                    />
+                                                                </Button>
+                                                                {item.imagePreview || item.imageUrl ? (
+                                                                    <Button
+                                                                        size="small"
+                                                                        color="error"
+                                                                        variant="outlined"
+                                                                        disabled={isUpdating}
+                                                                        onClick={() => handleRemoveQuotationItemImage(itemIndex)}>
+                                                                        ลบรูป
+                                                                    </Button>
+                                                                ) : null}
                                                                 <Button
                                                                     size="small"
                                                                     color="error"
                                                                     variant="outlined"
-                                                                    disabled={isUpdating}
-                                                                    onClick={() => handleRemoveQuotationItemImage(index)}>
-                                                                    ลบรูป
+                                                                    startIcon={<DeleteOutline />}
+                                                                    disabled={isUpdating || draftItems.length <= 1}
+                                                                    onClick={() => handleRemoveDraftItem(itemIndex)}>
+                                                                    ลบรายการ
                                                                 </Button>
-                                                            ) : null}
-                                                            <Button
-                                                                size="small"
-                                                                color="error"
-                                                                variant="outlined"
-                                                                startIcon={<DeleteOutline />}
-                                                                disabled={isUpdating || draftItems.length <= 1}
-                                                                onClick={() => handleRemoveDraftItem(index)}>
-                                                                ลบรายการ
-                                                            </Button>
-                                                        </Stack>
-                                                        {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
-                                                            <Stack spacing={0.5}>
-                                                                <Typography variant="caption" color="text.secondary">
-                                                                    เลือกรูปจาก RFQ
-                                                                </Typography>
-                                                                <Stack direction="row" spacing={0.75} sx={{ overflowX: 'auto', pb: 0.5 }}>
-                                                                    {(rfq?.pictures || [])
-                                                                        .filter((picture) => Boolean(picture.pictureUrl))
-                                                                        .map((picture, pictureIndex) => {
-                                                                            const isSelected = (item.imagePreview || item.imageUrl) === picture.pictureUrl;
-                                                                            return (
-                                                                                <Box
-                                                                                    key={picture.id || picture.pictureUrl || pictureIndex}
-                                                                                    component="img"
-                                                                                    src={picture.pictureUrl}
-                                                                                    alt={`RFQ ${pictureIndex + 1}`}
-                                                                                    onClick={() => handleSelectQuotationItemRfqPicture(index, picture.pictureUrl)}
-                                                                                    sx={{
-                                                                                        width: 52,
-                                                                                        height: 52,
-                                                                                        flexShrink: 0,
-                                                                                        objectFit: 'cover',
-                                                                                        cursor: 'pointer',
-                                                                                        borderRadius: 1,
-                                                                                        border: isSelected ? '2px solid #1976d2' : '1px solid #cbd5e1'
-                                                                                    }}
-                                                                                />
-                                                                            );
-                                                                        })}
-                                                                </Stack>
                                                             </Stack>
-                                                        ) : null}
-                                                    </Stack>
-                                                ) : null}
-
-                                                <Stack spacing={1}>
-                                                    <Info
-                                                        label={t('documentManagement.quotation.itemSection.spec')}
-                                                        value={isEditing ? undefined : item.spec || '-'}
-                                                    />
-                                                    {isEditing ? (
-                                                        <TextField
-                                                            className={classes.itemTextField}
-                                                            value={item.spec || ''}
-                                                            fullWidth
-                                                            multiline
-                                                            minRows={2}
-                                                            label={t('documentManagement.quotation.itemSection.spec')}
-                                                            InputLabelProps={{ shrink: true }}
-                                                            onChange={(event) => updateDraftItem(index, 'spec', event.target.value)}
-                                                        />
+                                                            {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
+                                                                <Stack spacing={0.5}>
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        เลือกรูปจาก RFQ
+                                                                    </Typography>
+                                                                    <Stack direction="row" spacing={0.75} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                                                        {(rfq?.pictures || [])
+                                                                            .filter((picture) => Boolean(picture.pictureUrl))
+                                                                            .map((picture, pictureIndex) => {
+                                                                                const isSelected = (item.imagePreview || item.imageUrl) === picture.pictureUrl;
+                                                                                return (
+                                                                                    <Box
+                                                                                        key={picture.id || picture.pictureUrl || pictureIndex}
+                                                                                        component="img"
+                                                                                        src={picture.pictureUrl}
+                                                                                        alt={`RFQ ${pictureIndex + 1}`}
+                                                                                        onClick={() => handleSelectQuotationItemRfqPicture(itemIndex, picture.pictureUrl)}
+                                                                                        sx={{
+                                                                                            width: 52,
+                                                                                            height: 52,
+                                                                                            flexShrink: 0,
+                                                                                            objectFit: 'cover',
+                                                                                            cursor: 'pointer',
+                                                                                            borderRadius: 1,
+                                                                                            border: isSelected ? '2px solid #1976d2' : '1px solid #cbd5e1'
+                                                                                        }}
+                                                                                    />
+                                                                                );
+                                                                            })}
+                                                                    </Stack>
+                                                                </Stack>
+                                                            ) : null}
+                                                        </Stack>
                                                     ) : null}
 
-                                                    <Grid container spacing={1.25}>
-                                                        <Grid item xs={6}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    label={t('documentManagement.quotation.itemSection.unitPrice')}
-                                                                    InputLabelProps={{ shrink: true }}
-                                                                    value={item.unitPrice || 0}
-                                                                    onChange={(event) => updateDraftItem(index, 'unitPrice', event.target.value)}
-                                                                />
-                                                            ) : (
-                                                                <Info
-                                                                    label={t('documentManagement.quotation.itemSection.unitPrice')}
-                                                                    value={formatNumber(item.unitPrice || 0)}
-                                                                />
-                                                            )}
+                                                    <Stack spacing={1}>
+                                                        <Info
+                                                            label={t('documentManagement.quotation.itemSection.spec')}
+                                                            value={isEditing ? undefined : item.spec || '-'}
+                                                        />
+                                                        {isEditing ? (
+                                                            <TextField
+                                                                className={classes.itemTextField}
+                                                                value={item.spec || ''}
+                                                                fullWidth
+                                                                multiline
+                                                                minRows={2}
+                                                                label={t('documentManagement.quotation.itemSection.spec')}
+                                                                InputLabelProps={{ shrink: true }}
+                                                                onChange={(event) => updateDraftItem(itemIndex, 'spec', event.target.value)}
+                                                            />
+                                                        ) : null}
+
+                                                        <Grid container spacing={1.25}>
+                                                            <Grid item xs={6}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        type="number"
+                                                                        fullWidth
+                                                                        label={t('documentManagement.quotation.itemSection.unitPrice')}
+                                                                        InputLabelProps={{ shrink: true }}
+                                                                        value={item.unitPrice || 0}
+                                                                        onChange={(event) => updateDraftItem(itemIndex, 'unitPrice', event.target.value)}
+                                                                    />
+                                                                ) : (
+                                                                    <Info
+                                                                        label={t('documentManagement.quotation.itemSection.unitPrice')}
+                                                                        value={formatNumber(item.unitPrice || 0)}
+                                                                    />
+                                                                )}
+                                                            </Grid>
+                                                            <Grid item xs={6}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        type="number"
+                                                                        fullWidth
+                                                                        label={t('documentManagement.quotation.itemSection.quantity')}
+                                                                        InputLabelProps={{ shrink: true }}
+                                                                        value={item.quantity || 0}
+                                                                        onChange={(event) => updateDraftItem(itemIndex, 'quantity', event.target.value)}
+                                                                    />
+                                                                ) : (
+                                                                    <Info
+                                                                        label={t('documentManagement.quotation.itemSection.quantity')}
+                                                                        value={formatNumber(item.quantity || 0)}
+                                                                    />
+                                                                )}
+                                                            </Grid>
+                                                            <Grid item xs={12}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        fullWidth
+                                                                        label={t('documentManagement.quotation.itemSection.totalAmount')}
+                                                                        value={formatNumber(item.amount || 0)}
+                                                                        InputProps={{ readOnly: true }}
+                                                                    />
+                                                                ) : (
+                                                                    <Stack
+                                                                        direction="row"
+                                                                        justifyContent="space-between"
+                                                                        alignItems="center"
+                                                                        sx={{
+                                                                            px: 1.25,
+                                                                            py: 1,
+                                                                            borderRadius: 2,
+                                                                            backgroundColor: '#f8fafc',
+                                                                            border: '1px solid #e2e8f0'
+                                                                        }}>
+                                                                        <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                                                            {t('documentManagement.quotation.itemSection.totalAmount')}
+                                                                        </Typography>
+                                                                        <Typography variant="body2" fontWeight={700}>
+                                                                            {formatNumber(item.amount || 0)}
+                                                                        </Typography>
+                                                                    </Stack>
+                                                                )}
+                                                            </Grid>
                                                         </Grid>
-                                                        <Grid item xs={6}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    type="number"
-                                                                    fullWidth
-                                                                    label={t('documentManagement.quotation.itemSection.quantity')}
-                                                                    InputLabelProps={{ shrink: true }}
-                                                                    value={item.quantity || 0}
-                                                                    onChange={(event) => updateDraftItem(index, 'quantity', event.target.value)}
-                                                                />
-                                                            ) : (
-                                                                <Info
-                                                                    label={t('documentManagement.quotation.itemSection.quantity')}
-                                                                    value={formatNumber(item.quantity || 0)}
-                                                                />
-                                                            )}
-                                                        </Grid>
-                                                        <Grid item xs={12}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    fullWidth
-                                                                    label={t('documentManagement.quotation.itemSection.totalAmount')}
-                                                                    value={formatNumber(item.amount || 0)}
-                                                                    InputProps={{ readOnly: true }}
-                                                                />
-                                                            ) : (
-                                                                <Stack
-                                                                    direction="row"
-                                                                    justifyContent="space-between"
-                                                                    alignItems="center"
-                                                                    sx={{
-                                                                        px: 1.25,
-                                                                        py: 1,
-                                                                        borderRadius: 2,
-                                                                        backgroundColor: '#f8fafc',
-                                                                        border: '1px solid #e2e8f0'
-                                                                    }}>
-                                                                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                                                                        {t('documentManagement.quotation.itemSection.totalAmount')}
-                                                                    </Typography>
-                                                                    <Typography variant="body2" fontWeight={700}>
-                                                                        {formatNumber(item.amount || 0)}
-                                                                    </Typography>
-                                                                </Stack>
-                                                            )}
-                                                        </Grid>
-                                                    </Grid>
+                                                    </Stack>
                                                 </Stack>
-                                            </Stack>
-                                        ))
+                                            ];
+                                        })
                                     ) : (
                                         <Typography align="center">{t('warning.noResultList')}</Typography>
                                     )}
@@ -1428,7 +1471,6 @@ export default function QuotationDetail(): JSX.Element {
                                     <Table id="quotation_detail___table">
                                         <TableHead>
                                             <TableRow>
-                                                <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>#</TableCell>
                                                 <TableCell align="center" className={`${classes.tableHeader} ${classes.fitContentCell}`}>
                                                     {t('documentManagement.quotation.itemSection.image')}
                                                 </TableCell>
@@ -1445,159 +1487,182 @@ export default function QuotationDetail(): JSX.Element {
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
-                                            {displayItems.length ? (
-                                                displayItems.map((item, index) => (
-                                                    <TableRow key={item.id || index}>
-                                                        <TableCell align="center" className={classes.fitContentCell}>{index + 1}</TableCell>
-                                                        <TableCell align="center" className={classes.fitContentCell}>
-                                                            {item.imagePreview || item.imageUrl ? (
-                                                                <Box
-                                                                    component="img"
-                                                                    src={item.imagePreview || item.imageUrl}
-                                                                    alt={item.name || t('documentManagement.quotation.itemSection.name')}
-                                                                    className={classes.productImage}
-                                                                />
-                                                            ) : (
-                                                                <Typography variant="caption" color="text.secondary">
-                                                                    {t('documentManagement.quotation.itemSection.noImage')}
-                                                                </Typography>
-                                                            )}
-                                                            {isEditing ? (
-                                                                <Stack spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
-                                                                    <Button
-                                                                        component="label"
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        startIcon={<CloudUpload />}
-                                                                        disabled={isUpdating}>
-                                                                        อัปโหลดรูป
-                                                                        <input
-                                                                            hidden
-                                                                            accept="image/*"
-                                                                            type="file"
-                                                                            onChange={(event) => {
-                                                                                void handleUploadQuotationItemImage(index, event.target.files?.[0]);
-                                                                                event.target.value = '';
-                                                                            }}
-                                                                        />
-                                                                    </Button>
-                                                                    {item.imagePreview || item.imageUrl ? (
-                                                                        <Button
-                                                                            size="small"
-                                                                            color="error"
-                                                                            variant="outlined"
-                                                                            disabled={isUpdating}
-                                                                            onClick={() => handleRemoveQuotationItemImage(index)}>
-                                                                            ลบรูป
-                                                                        </Button>
-                                                                    ) : null}
-                                                                    {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
-                                                                        <Stack direction="row" spacing={0.5} sx={{ maxWidth: 160, overflowX: 'auto', pb: 0.25 }}>
-                                                                            {(rfq?.pictures || [])
-                                                                                .filter((picture) => Boolean(picture.pictureUrl))
-                                                                                .map((picture, pictureIndex) => {
-                                                                                    const isSelected = (item.imagePreview || item.imageUrl) === picture.pictureUrl;
-                                                                                    return (
-                                                                                        <Box
-                                                                                            key={picture.id || picture.pictureUrl || pictureIndex}
-                                                                                            component="img"
-                                                                                            src={picture.pictureUrl}
-                                                                                            alt={`RFQ ${pictureIndex + 1}`}
-                                                                                            onClick={() => handleSelectQuotationItemRfqPicture(index, picture.pictureUrl)}
-                                                                                            sx={{
-                                                                                                width: 36,
-                                                                                                height: 36,
-                                                                                                flexShrink: 0,
-                                                                                                objectFit: 'cover',
-                                                                                                cursor: 'pointer',
-                                                                                                borderRadius: 0.75,
-                                                                                                border: isSelected ? '2px solid #1976d2' : '1px solid #cbd5e1'
-                                                                                            }}
-                                                                                        />
-                                                                                    );
-                                                                                })}
-                                                                        </Stack>
-                                                                    ) : null}
-                                                                </Stack>
-                                                            ) : null}
-                                                        </TableCell>
-                                                        <TableCell className={classes.fitContentCell}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    value={item.name || ''}
-                                                                    onChange={(event) => updateDraftItem(index, 'name', event.target.value)}
-                                                                />
-                                                            ) : (
-                                                                item.name || '-'
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className={classes.specCell}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    value={item.spec || ''}
-                                                                    fullWidth
-                                                                    multiline
-                                                                    minRows={2}
-                                                                    onChange={(event) => updateDraftItem(index, 'spec', event.target.value)}
-                                                                />
-                                                            ) : (
-                                                                item.spec || '-'
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell align="right" className={classes.fitContentCell}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    type="number"
-                                                                    value={item.unitPrice || 0}
-                                                                    onChange={(event) => updateDraftItem(index, 'unitPrice', event.target.value)}
-                                                                />
-                                                            ) : (
-                                                                formatNumberWithDigit(item.unitPrice || 0, 4)
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell align="right" className={classes.fitContentCell}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    type="number"
-                                                                    value={item.quantity || 0}
-                                                                    onChange={(event) => updateDraftItem(index, 'quantity', event.target.value)}
-                                                                />
-                                                            ) : (
-                                                                formatNumber(item.quantity || 0)
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell align="right" className={classes.fitContentCell}>
-                                                            {isEditing ? (
-                                                                <TextField
-                                                                    className={classes.itemTextField}
-                                                                    value={formatNumber(item.amount || 0)}
-                                                                    InputProps={{ readOnly: true }}
-                                                                />
-                                                            ) : (
-                                                                formatNumber(item.amount || 0)
-                                                            )}
-                                                        </TableCell>
-                                                        {isEditing ? (
+                                            {displayItemsByRfq.length ? (
+                                                displayItemsByRfq.map(({ item, itemIndex }, index) => {
+                                                    const itemRfqId = getItemRfqId(item);
+                                                    const previousRfqId = index > 0
+                                                        ? getItemRfqId(displayItemsByRfq[index - 1].item)
+                                                        : '';
+                                                    const isFirstItemInRfqGroup = index === 0 || itemRfqId !== previousRfqId;
+
+                                                    return [
+                                                        isFirstItemInRfqGroup ? (
+                                                            <TableRow key={`rfq-group-${itemRfqId || 'additional'}`}>
+                                                                <TableCell
+                                                                    colSpan={isEditing ? 8 : 7}
+                                                                    sx={{
+                                                                        bgcolor: '#F1F5FF',
+                                                                        borderTop: '1px solid #C9D7F2',
+                                                                        borderBottom: '1px solid #C9D7F2',
+                                                                        color: 'primary.main',
+                                                                        fontWeight: 700,
+                                                                        py: 1.25
+                                                                    }}>
+                                                                    {itemRfqId ? `RFQ: ${itemRfqId}` : 'รายการเพิ่มเติม'}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ) : null,
+                                                        <TableRow key={item.id || itemIndex}>
                                                             <TableCell align="center" className={classes.fitContentCell}>
-                                                                <IconButton
-                                                                    color="error"
-                                                                    aria-label="ลบรายการสินค้า"
-                                                                    title="ลบรายการสินค้า"
-                                                                    disabled={isUpdating || draftItems.length <= 1}
-                                                                    onClick={() => handleRemoveDraftItem(index)}>
-                                                                    <DeleteOutline />
-                                                                </IconButton>
+                                                                {item.imagePreview || item.imageUrl ? (
+                                                                    <Box
+                                                                        component="img"
+                                                                        src={item.imagePreview || item.imageUrl}
+                                                                        alt={item.name || t('documentManagement.quotation.itemSection.name')}
+                                                                        className={classes.productImage}
+                                                                    />
+                                                                ) : (
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        {t('documentManagement.quotation.itemSection.noImage')}
+                                                                    </Typography>
+                                                                )}
+                                                                {isEditing ? (
+                                                                    <Stack spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
+                                                                        <Button
+                                                                            component="label"
+                                                                            size="small"
+                                                                            variant="outlined"
+                                                                            startIcon={<CloudUpload />}
+                                                                            disabled={isUpdating}>
+                                                                            อัปโหลดรูป
+                                                                            <input
+                                                                                hidden
+                                                                                accept="image/*"
+                                                                                type="file"
+                                                                                onChange={(event) => {
+                                                                                    void handleUploadQuotationItemImage(itemIndex, event.target.files?.[0]);
+                                                                                    event.target.value = '';
+                                                                                }}
+                                                                            />
+                                                                        </Button>
+                                                                        {item.imagePreview || item.imageUrl ? (
+                                                                            <Button
+                                                                                size="small"
+                                                                                color="error"
+                                                                                variant="outlined"
+                                                                                disabled={isUpdating}
+                                                                                onClick={() => handleRemoveQuotationItemImage(itemIndex)}>
+                                                                                ลบรูป
+                                                                            </Button>
+                                                                        ) : null}
+                                                                        {(rfq?.pictures || []).some((picture) => Boolean(picture.pictureUrl)) ? (
+                                                                            <Stack direction="row" spacing={0.5} sx={{ maxWidth: 160, overflowX: 'auto', pb: 0.25 }}>
+                                                                                {(rfq?.pictures || [])
+                                                                                    .filter((picture) => Boolean(picture.pictureUrl))
+                                                                                    .map((picture, pictureIndex) => {
+                                                                                        const isSelected = (item.imagePreview || item.imageUrl) === picture.pictureUrl;
+                                                                                        return (
+                                                                                            <Box
+                                                                                                key={picture.id || picture.pictureUrl || pictureIndex}
+                                                                                                component="img"
+                                                                                                src={picture.pictureUrl}
+                                                                                                alt={`RFQ ${pictureIndex + 1}`}
+                                                                                                onClick={() => handleSelectQuotationItemRfqPicture(itemIndex, picture.pictureUrl)}
+                                                                                                sx={{
+                                                                                                    width: 36,
+                                                                                                    height: 36,
+                                                                                                    flexShrink: 0,
+                                                                                                    objectFit: 'cover',
+                                                                                                    cursor: 'pointer',
+                                                                                                    borderRadius: 0.75,
+                                                                                                    border: isSelected ? '2px solid #1976d2' : '1px solid #cbd5e1'
+                                                                                                }}
+                                                                                            />
+                                                                                        );
+                                                                                    })}
+                                                                            </Stack>
+                                                                        ) : null}
+                                                                    </Stack>
+                                                                ) : null}
                                                             </TableCell>
-                                                        ) : null}
-                                                    </TableRow>
-                                                ))
+                                                            <TableCell className={classes.fitContentCell}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        value={item.name || ''}
+                                                                        onChange={(event) => updateDraftItem(itemIndex, 'name', event.target.value)}
+                                                                    />
+                                                                ) : (
+                                                                    item.name || '-'
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className={classes.specCell}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        value={item.spec || ''}
+                                                                        fullWidth
+                                                                        multiline
+                                                                        minRows={2}
+                                                                        onChange={(event) => updateDraftItem(itemIndex, 'spec', event.target.value)}
+                                                                    />
+                                                                ) : (
+                                                                    item.spec || '-'
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell align="right" className={classes.fitContentCell}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        type="number"
+                                                                        value={item.unitPrice || 0}
+                                                                        onChange={(event) => updateDraftItem(itemIndex, 'unitPrice', event.target.value)}
+                                                                    />
+                                                                ) : (
+                                                                    formatNumberWithDigit(item.unitPrice || 0, 4)
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell align="right" className={classes.fitContentCell}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        type="number"
+                                                                        value={item.quantity || 0}
+                                                                        onChange={(event) => updateDraftItem(itemIndex, 'quantity', event.target.value)}
+                                                                    />
+                                                                ) : (
+                                                                    formatNumber(item.quantity || 0)
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell align="right" className={classes.fitContentCell}>
+                                                                {isEditing ? (
+                                                                    <TextField
+                                                                        className={classes.itemTextField}
+                                                                        value={formatNumber(item.amount || 0)}
+                                                                        InputProps={{ readOnly: true }}
+                                                                    />
+                                                                ) : (
+                                                                    formatNumber(item.amount || 0)
+                                                                )}
+                                                            </TableCell>
+                                                            {isEditing ? (
+                                                                <TableCell align="center" className={classes.fitContentCell}>
+                                                                    <IconButton
+                                                                        color="error"
+                                                                        aria-label="ลบรายการสินค้า"
+                                                                        title="ลบรายการสินค้า"
+                                                                        disabled={isUpdating || draftItems.length <= 1}
+                                                                        onClick={() => handleRemoveDraftItem(itemIndex)}>
+                                                                        <DeleteOutline />
+                                                                    </IconButton>
+                                                                </TableCell>
+                                                            ) : null}
+                                                        </TableRow>
+                                                    ];
+                                                })
                                             ) : (
                                                 <TableRow>
-                                                    <TableCell colSpan={isEditing ? 8 : 7} align="center">
+                                                    <TableCell colSpan={isEditing ? 7 : 6} align="center">
                                                         {t('warning.noResultList')}
                                                     </TableCell>
                                                 </TableRow>
@@ -1766,12 +1831,16 @@ export default function QuotationDetail(): JSX.Element {
 }
 
 function Info({ label, value, asTextField = false }: { label: string; value?: string | null; asTextField?: boolean }) {
+    const isMultiline = typeof value === 'string' && value.includes('\n');
+
     if (asTextField) {
         return (
             <TextField
                 label={label}
                 value={value || '-'}
                 fullWidth
+                multiline={isMultiline}
+                minRows={isMultiline ? 2 : undefined}
                 InputProps={{ readOnly: true }}
             />
         );
@@ -1782,7 +1851,7 @@ function Info({ label, value, asTextField = false }: { label: string; value?: st
             <Typography color="text.secondary" fontWeight={700}>
                 {label}
             </Typography>
-            <Typography variant="body2">{value || '-'}</Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{value || '-'}</Typography>
         </Stack>
     );
 }

@@ -336,6 +336,7 @@ const ADD_NEW_CONTACT_VALUE = '__ADD_NEW_CONTACT__';
 const CO_SALE_MODE_NONE = 'NONE';
 const CO_SALE_MODE_FREELANCE = 'FREELANCE';
 const CO_SALE_MODE_EXTERNAL = 'EXTERNAL';
+const EMPTY_RFQS: RFQRecord[] = [];
 
 const matchesFreelanceSaleCoverage = (
   saleCoverage?: string | null,
@@ -438,7 +439,11 @@ function hasFclShippingTag(
   return [item.name, item.remark].some((value) => String(value || '').includes('แบบปิดตู้'));
 }
 
-function buildPaymentTermRemark(customer?: Customer | null): string {
+function buildPaymentTermRemark(customer?: Customer | null, grandTotal = 0): string {
+  if (customer?.customerPaymentTerm?.code === 'DEP50') {
+    return `มัดจำ50% = ${formatCurrency(grandTotal * 0.5)} บาท\nชำระส่วนที่เหลือก่อนจัดส่ง`;
+  }
+
   const paymentTermLabel =
     customer?.customerPaymentTerm?.nameTh ||
     customer?.customerPaymentTerm?.nameEn ||
@@ -546,121 +551,22 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
 
 function createSaleOrderItemsFromQuotation(
   rfq: RFQRecord,
-  quotation: Quotation
+  quotation: Quotation,
+  rfqsById: Map<string, RFQRecord>
 ): SaleOrderRFQItem[] {
-  const material = getRFQProductLabel(rfq.material);
-  const productFamily = getRFQProductLabel(rfq.productFamily);
-  const rfqRows = (rfq.details || []).flatMap((detail: RFQDetailOption, optionIndex) => {
-    const tiers = detail.tiers?.length ? detail.tiers : [undefined];
-
-    return tiers.flatMap((tier, tierIndex) => {
-      if (!tier) {
-        return [
-          {
-            optionId: detail.id,
-            tierId: undefined,
-            shippingMethod: 'LAND' as const,
-            fallbackId: Number(`${detail.id}${optionIndex}${tierIndex}`)
-          }
-        ];
-      }
-
-      if (tier.shippingMethod) {
-        return [
-          {
-            optionId: detail.id,
-            tierId: tier.id,
-            shippingMethod: tier.shippingMethod,
-            fallbackId: Number(`${detail.id}${tier.id}0`)
-          }
-        ];
-      }
-
-      return [
-        {
-          optionId: detail.id,
-          tierId: tier.id,
-          shippingMethod: 'LAND' as const,
-          fallbackId: Number(`${detail.id}${tier.id}0`)
-        }
-      ];
-    });
-  });
-
-  // A quotation may split one RFQ detail into several quotation details.
-  // In that case every quotation detail must be able to reference the same RFQ row.
-  const canReuseRfqRows = (rfq.details || []).length === 1;
-  const availableRfqRows = [...rfqRows];
-
   return (quotation.items || []).map((item, index) => {
-    const inferredShippingMethod = inferQuotationItemShippingMethod(item.name);
+    const sourceRfq = rfqsById.get(item.sourceRfqId || '') || rfq;
+    const material = getRFQProductLabel(sourceRfq.material);
+    const productFamily = getRFQProductLabel(sourceRfq.productFamily);
     const quantity = Number(item.quantity || 1);
-    const unitPrice = Number(item.unitPrice || 0);
-    const candidateRfqRows = canReuseRfqRows ? rfqRows : availableRfqRows;
-    const quotationTierId = Number(item.tierId || 0);
-    const tierMatchIndex = quotationTierId
-      ? candidateRfqRows.findIndex(
-        (row) =>
-          row.tierId === quotationTierId &&
-          (!inferredShippingMethod || (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) === inferredShippingMethod)
-      )
-      : -1;
-    const exactMatchIndex = candidateRfqRows.findIndex((row) => {
-      if (inferredShippingMethod && (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) !== inferredShippingMethod) {
-        return false;
-      }
-
-      const tierQuantity = Number(
-        rfq.details
-          ?.find((detail) => detail.id === row.optionId)
-          ?.tiers?.find((tier) => tier.id === row.tierId)?.quantity || 0
-      );
-
-      if (tierQuantity !== quantity) {
-        return false;
-      }
-
-      const detail = rfq.details?.find((candidate) => candidate.id === row.optionId);
-      const tier = detail?.tiers?.find((candidate) => candidate.id === row.tierId);
-      const expectedPrice = Number(
-        tier?.totalPrice || 0
-      );
-
-      return Math.abs(expectedPrice - unitPrice) < 0.0001;
-    });
-    const quantityMatchIndex =
-      exactMatchIndex >= 0
-        ? exactMatchIndex
-        : candidateRfqRows.findIndex((row) => {
-          if (inferredShippingMethod && (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) !== inferredShippingMethod) {
-            return false;
-          }
-
-          const tierQuantity = Number(
-            rfq.details
-              ?.find((detail) => detail.id === row.optionId)
-              ?.tiers?.find((tier) => tier.id === row.tierId)?.quantity || 0
-          );
-
-          return tierQuantity === quantity;
-        });
-    const fallbackIndex =
-      quantityMatchIndex >= 0
-        ? quantityMatchIndex
-        : candidateRfqRows.findIndex((row) =>
-          !inferredShippingMethod || (isSeaShippingMethod(row.shippingMethod) ? 'SEA' : row.shippingMethod) === inferredShippingMethod
-        );
-    const resolvedRowIndex = tierMatchIndex >= 0 ? tierMatchIndex : fallbackIndex;
-    const mappedRow =
-      resolvedRowIndex >= 0
-        ? canReuseRfqRows
-          ? candidateRfqRows[resolvedRowIndex]
-          : availableRfqRows.splice(resolvedRowIndex, 1)[0]
-        : undefined;
+    const rfqDetailId = item.rfqDetailId;
+    const parsedTierId = Number(item.tierId);
+    const rfqTierId = Number.isFinite(parsedTierId) && parsedTierId > 0 ? parsedTierId : undefined;
     const numericItemId = Number(item.id);
-    const mappedDetail = rfq.details?.find((detail) => detail.id === mappedRow?.optionId);
-    const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === mappedRow?.tierId);
-    const mappedShippingMethod = mappedRow?.shippingMethod || 'LAND';
+    const mappedDetail = sourceRfq.details?.find((detail) => detail.id === rfqDetailId);
+    const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === rfqTierId);
+    const mappedShippingMethod =
+      inferQuotationItemShippingMethod(item.name) || mappedTier?.shippingMethod || 'LAND';
     const shippingDisplayLabel = getShippingDisplayLabel(
       mappedShippingMethod,
       mappedTier?.isFcl,
@@ -674,9 +580,9 @@ function createSaleOrderItemsFromQuotation(
     return {
       id: Number.isFinite(numericItemId)
         ? numericItemId
-        : mappedRow?.fallbackId || Date.now() + index,
-      optionId: mappedRow?.optionId,
-      tierId: mappedRow?.tierId,
+        : Date.now() + index,
+      optionId: rfqDetailId,
+      tierId: rfqTierId,
       quotationDetailId: item.id,
       supplierQuoteTierId: mappedTier?.supplierQuoteTierId || undefined,
       shippingMethod: mappedShippingMethod,
@@ -695,7 +601,7 @@ function createSaleOrderItemsFromQuotation(
       unitPrice: Number(item.unitPrice || 0),
       amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
       totalFreight: getTotalFreight(mappedTier, mappedShippingMethod),
-      remark: [`RFQ: ${rfq.id}`, `Shipping: ${shippingDisplayLabel}`].join('\n')
+      remark: [`RFQ: ${item.sourceRfqId || sourceRfq.id}`, `Shipping: ${shippingDisplayLabel}`].join('\n')
     };
   });
 }
@@ -720,6 +626,7 @@ export default function SalesOrderRFQ(): JSX.Element {
   const [hasInitializedCoSale, setHasInitializedCoSale] = useState(false);
   const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
   const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
   const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [newFreelanceSale, setNewFreelanceSale] = useState<{
@@ -847,6 +754,37 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const quotationSourceRfqIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (quotation?.data?.items || [])
+            .map((item) => item.sourceRfqId)
+            .filter((sourceRfqId): sourceRfqId is string => Boolean(sourceRfqId && sourceRfqId !== rfqId))
+        )
+      ),
+    [quotation?.data?.items, rfqId]
+  );
+  const { data: quotationSourceRfqs, isFetching: isQuotationSourceRfqsFetching } = useQuery(
+    ['sale-order-rfq-sources', quotationSourceRfqIds],
+    () => Promise.all(quotationSourceRfqIds.map((sourceRfqId) => getRFQ(sourceRfqId))),
+    {
+      enabled: quotationSourceRfqIds.length > 0,
+      refetchOnWindowFocus: false
+    }
+  );
+  const quotationRfqsById = useMemo(() => {
+    const rfqsById = new Map<string, RFQRecord>();
+    if (rfq?.id) {
+      rfqsById.set(rfq.id, rfq);
+    }
+    (quotationSourceRfqs || EMPTY_RFQS).forEach((sourceRfq) => {
+      if (sourceRfq.id) {
+        rfqsById.set(sourceRfq.id, sourceRfq);
+      }
+    });
+    return rfqsById;
+  }, [rfq, quotationSourceRfqs]);
   const shouldLoadFreelanceSales = coSaleMode === CO_SALE_MODE_FREELANCE;
   const { data: freelanceSales = [], isFetching: isFreelanceSalesFetching } = useQuery(
     'sale-order-rfq-freelance-sales',
@@ -1479,7 +1417,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       toast.error('ไม่พบข้อมูล Supplier สำหรับสร้าง Sales Order');
       return;
     }
-
+    console.log('selectedItems', selectedItems);
     const payload: CreateSalesOrderRequestV1 = {
       rfqId,
       status,
@@ -1572,10 +1510,11 @@ export default function SalesOrderRFQ(): JSX.Element {
   useEffect(() => {
     if (!rfq) return;
     if (hasSelectedRFQParams && !quotation?.data) return;
+    if (quotationSourceRfqIds.length > 0 && isQuotationSourceRfqsFetching) return;
 
     const applyRFQ = async () => {
       const allItems = quotation
-        ? createSaleOrderItemsFromQuotation(rfq, quotation?.data)
+        ? createSaleOrderItemsFromQuotation(rfq, quotation?.data, quotationRfqsById)
         : createSaleOrderItemsFromRFQ(rfq);
       const selectedItemFromDialog = selectedRFQParams.flatMap((selectedItem) =>
         allItems
@@ -1651,7 +1590,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         provinceId: defaultDropOff?.province?.id || '',
         amphureId: defaultDropOff?.amphure?.id || '',
         orderMakerId: getRFQSalesEmployeeId(rfq.sales),
-        notes: buildPaymentTermRemark(fullCustomer || (rfq.customer as Customer) || null),
+        notes: buildPaymentTermRemark(fullCustomer || (rfq.customer as Customer) || null, grandTotal),
         requestCoa: false,
         requestPo: false,
         items: itemsWithImage
@@ -1659,7 +1598,15 @@ export default function SalesOrderRFQ(): JSX.Element {
     };
 
     applyRFQ();
-  }, [rfq, quotation, hasSelectedRFQParams, selectedRFQParams]);
+  }, [
+    rfq,
+    quotation,
+    hasSelectedRFQParams,
+    selectedRFQParams,
+    quotationSourceRfqIds.length,
+    isQuotationSourceRfqsFetching,
+    quotationRfqsById
+  ]);
   const summaryShippingOptions = useMemo(() => {
     const shippingSummary = new Map<
       string,
@@ -1714,6 +1661,17 @@ export default function SalesOrderRFQ(): JSX.Element {
   const vatRate = 0.07;
   const vatAmount = formik.values.isVat ? taxableAmount * vatRate : 0;
   const grandTotal = taxableAmount + vatAmount;
+
+  useEffect(() => {
+    if (customer?.customerPaymentTerm?.code !== 'DEP50') {
+      return;
+    }
+
+    const paymentTermRemark = buildPaymentTermRemark(customer, grandTotal);
+    if (formik.values.notes !== paymentTermRemark) {
+      formik.setFieldValue('notes', paymentTermRemark);
+    }
+  }, [customer?.customerPaymentTerm?.code, grandTotal]);
 
   const isGeneralSectionCompleted = Boolean(
     formik.values.deliveryDate && formik.values.orderMakerId
@@ -2369,7 +2327,13 @@ export default function SalesOrderRFQ(): JSX.Element {
                           component="img"
                           src={row.imageUrl}
                           alt="product"
-                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onClick={() => setPreviewImageUrl(row.imageUrl)}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            cursor: 'zoom-in'
+                          }}
                         />
                       ) : (
                         <Typography variant="caption" color="text.secondary" textAlign="center">
@@ -3070,10 +3034,33 @@ export default function SalesOrderRFQ(): JSX.Element {
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog
+        open={Boolean(previewImageUrl)}
+        onClose={() => setPreviewImageUrl(null)}
+        fullWidth
+        maxWidth="md">
+        <DialogTitle>รูปสินค้า</DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          {previewImageUrl && (
+            <Box
+              component="img"
+              src={previewImageUrl}
+              alt="product preview"
+              sx={{
+                display: 'block',
+                width: '100%',
+                maxHeight: '75vh',
+                objectFit: 'contain'
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <LoadingDialog
         open={
           isLoading ||
           isRFQFetching ||
+          isQuotationSourceRfqsFetching ||
           addressDialogFormik.isSubmitting ||
           contactDialogFormik.isSubmitting
         }

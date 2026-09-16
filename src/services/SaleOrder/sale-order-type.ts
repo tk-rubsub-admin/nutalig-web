@@ -183,6 +183,7 @@ export interface SalesOrderDetailV1 {
     quantity: number;
     amount: number;
     imageUrl: string | null;
+    rfqId?: string | null;
     rfqDetailId?: number | null;
     rfqTierId?: number | null;
     quotationDetailId?: number | null;

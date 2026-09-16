@@ -1570,6 +1570,18 @@ export default function NewQuotation() {
     const vatAmount = formik.values.isVat ? taxableAmount * vatRate : 0;
 
     const grandTotal = taxableAmount + vatAmount + freight;
+
+    useEffect(() => {
+        if (customer?.customerPaymentTerm?.code !== 'DEP50') {
+            return;
+        }
+
+        const paymentTermRemark = buildPaymentTermRemark(customer.customerPaymentTerm, grandTotal);
+        if (formik.values.remark !== paymentTermRemark) {
+            formik.setFieldValue('remark', paymentTermRemark);
+        }
+    }, [customer?.customerPaymentTerm?.code, grandTotal]);
+
     const activeRfq = rfq || selectedRfqsFromDialog[0];
     const rfqsById = new Map<string, RFQRecord>(
         [rfq, ...selectedRfqsFromDialog]

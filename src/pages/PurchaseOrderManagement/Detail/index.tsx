@@ -109,14 +109,24 @@ function Info({ label, value }: { label: string; value?: string | number | null 
   return (
     <Stack spacing={0.25}>
       <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
         {value || '-'}
       </Typography>
     </Stack>
   );
 }
 
-function Summary({ label, value, suffix }: { label: string; value: number; suffix?: string }): ReactElement {
+function Summary({
+  label,
+  value,
+  suffix
+}: {
+  label: string;
+  value: number;
+  suffix?: string;
+}): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
       <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
@@ -131,11 +141,13 @@ function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
   return {
     docDate: purchaseOrder?.docDate || '',
     productionLeadTimeDay:
-      purchaseOrder?.productionLeadTimeDay !== null && purchaseOrder?.productionLeadTimeDay !== undefined
+      purchaseOrder?.productionLeadTimeDay !== null &&
+        purchaseOrder?.productionLeadTimeDay !== undefined
         ? String(purchaseOrder.productionLeadTimeDay)
         : '',
     shippingLeadTimeDay:
-      purchaseOrder?.shippingLeadTimeDay !== null && purchaseOrder?.shippingLeadTimeDay !== undefined
+      purchaseOrder?.shippingLeadTimeDay !== null &&
+        purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
     remark: purchaseOrder?.remark || '',
@@ -207,10 +219,14 @@ export default function PurchaseOrderDetail(): ReactElement {
     data: activityHistory = [],
     isFetching: isActivityHistoryFetching,
     refetch: refetchHistory
-  } = useQuery(['purchase-order-activity-history', id], () => getActivityHistory('PURCHASE_ORDER', id), {
-    enabled: Boolean(id),
-    refetchOnWindowFocus: false
-  });
+  } = useQuery(
+    ['purchase-order-activity-history', id],
+    () => getActivityHistory('PURCHASE_ORDER', id),
+    {
+      enabled: Boolean(id),
+      refetchOnWindowFocus: false
+    }
+  );
 
   useEffect(() => {
     setDraft(createDraft(purchaseOrder));
@@ -219,11 +235,14 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const displayItems = isEditing ? draft.items : purchaseOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
-  const canManagePurchaseOrder = purchaseOrder?.status === 'CREATED';
+  const canManagePurchaseOrder = purchaseOrder?.status === 'CREATED' || purchaseOrder?.status === 'AWAITING_PAYMENT';
 
   const summary = useMemo(() => {
     const exchangeRate = Number(purchaseOrder?.exchangeRate || 0);
-    const subTotal = displayItems.reduce((sum, item) => sum + Number(item.amountSupplierCurrency || 0), 0);
+    const subTotal = displayItems.reduce(
+      (sum, item) => sum + Number(item.amountSupplierCurrency || 0),
+      0
+    );
     const subTotalThb = displayItems.reduce((sum, item) => sum + Number(item.amountThb || 0), 0);
 
     return {
@@ -258,9 +277,15 @@ export default function PurchaseOrderDetail(): ReactElement {
         }
 
         const quantity = Number(field === 'quantity' ? value : item.quantity || 0);
-        const supplierUnitPrice = Number(field === 'supplierUnitPrice' ? value : item.supplierUnitPrice || 0);
-        const supplierShippingCost = Number(field === 'supplierShippingCost' ? value : item.supplierShippingCost || 0);
-        const exchangeRate = Number(item.exchangeRate || previous.items[itemIndex].exchangeRate || 0);
+        const supplierUnitPrice = Number(
+          field === 'supplierUnitPrice' ? value : item.supplierUnitPrice || 0
+        );
+        const supplierShippingCost = Number(
+          field === 'supplierShippingCost' ? value : item.supplierShippingCost || 0
+        );
+        const exchangeRate = Number(
+          item.exchangeRate || previous.items[itemIndex].exchangeRate || 0
+        );
         const supplierTotalUnitCost = supplierUnitPrice + supplierShippingCost;
         const amountSupplierCurrency = supplierTotalUnitCost * quantity;
         const amountThb = amountSupplierCurrency * exchangeRate;
@@ -275,6 +300,15 @@ export default function PurchaseOrderDetail(): ReactElement {
           amountThb
         };
       })
+    }));
+  };
+
+  const updateDraftItemText = (index: number, field: 'name' | 'spec', value: string) => {
+    setDraft((previous) => ({
+      ...previous,
+      items: previous.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
     }));
   };
 
@@ -297,23 +331,22 @@ export default function PurchaseOrderDetail(): ReactElement {
       return;
     }
     handleCloseActionMenu();
-    const response = await toast.promise(viewPurchaseOrder(purchaseOrder.purchaseOrderNo, true, false), {
-      loading: t('toast.loading'),
-      success: t('toast.success'),
-      error: t('toast.failed')
-    });
+    const response = await toast.promise(
+      viewPurchaseOrder(purchaseOrder.purchaseOrderNo, true, false),
+      {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      }
+    );
 
     const files = response?.data?.files || [];
     files.forEach((file: { fileName: string; base64: string; contentType?: string }) => {
       const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = file.fileName || `${purchaseOrder.purchaseOrderNo}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     });
   };
 
@@ -330,7 +363,9 @@ export default function PurchaseOrderDetail(): ReactElement {
 
     const payload: UpdatePurchaseOrderRequest = {
       docDate: draft.docDate || null,
-      productionLeadTimeDay: draft.productionLeadTimeDay ? Number(draft.productionLeadTimeDay) : null,
+      productionLeadTimeDay: draft.productionLeadTimeDay
+        ? Number(draft.productionLeadTimeDay)
+        : null,
       shippingLeadTimeDay: draft.shippingLeadTimeDay ? Number(draft.shippingLeadTimeDay) : null,
       remark: draft.remark || null,
       items: draft.items.map((item) => ({
@@ -435,11 +470,14 @@ export default function PurchaseOrderDetail(): ReactElement {
 
     setIsSubmitting(true);
     try {
-      await toast.promise(deletePurchaseOrderAttachment(purchaseOrder.purchaseOrderNo, attachmentId), {
-        loading: t('toast.loading'),
-        success: t('toast.success'),
-        error: t('toast.failed')
-      });
+      await toast.promise(
+        deletePurchaseOrderAttachment(purchaseOrder.purchaseOrderNo, attachmentId),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
       await Promise.all([refetch(), refetchHistory()]);
     } finally {
       setIsSubmitting(false);
@@ -449,7 +487,12 @@ export default function PurchaseOrderDetail(): ReactElement {
   return (
     <Page>
       <LoadingDialog open={isFetching || isActivityHistoryFetching || isSubmitting} />
-      <PageTitle title={purchaseOrder?.purchaseOrderNo ? `ใบสั่งซื้อเลขที่ ${purchaseOrder.purchaseOrderNo}` : 'ใบสั่งซื้อ'}>
+      <PageTitle
+        title={
+          purchaseOrder?.purchaseOrderNo
+            ? `ใบสั่งซื้อเลขที่ ${purchaseOrder.purchaseOrderNo}`
+            : 'ใบสั่งซื้อ'
+        }>
         {purchaseOrder?.status ? (
           <Chip
             label={getDocumentStatusLabel(purchaseOrder.status, purchaseOrder.statusProfile)}
@@ -463,7 +506,11 @@ export default function PurchaseOrderDetail(): ReactElement {
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1}
           useFlexGap
-          sx={{ justifyContent: { sm: 'flex-end' }, alignItems: { xs: 'stretch', sm: 'center' }, mb: 2 }}>
+          sx={{
+            justifyContent: { sm: 'flex-end' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            mb: 2
+          }}>
           <Button
             fullWidth={isDownSm}
             variant="contained"
@@ -590,7 +637,9 @@ export default function PurchaseOrderDetail(): ReactElement {
           onConfirm={handleConfirmClosePurchaseOrder}
         />
 
-        <Tabs value={tab} onChange={(_event: SyntheticEvent, value: 'detail' | 'history') => setTab(value)}>
+        <Tabs
+          value={tab}
+          onChange={(_event: SyntheticEvent, value: 'detail' | 'history') => setTab(value)}>
           <Tab value="detail" label="รายละเอียด" />
           <Tab value="history" label="ประวัติ" />
         </Tabs>
@@ -601,8 +650,12 @@ export default function PurchaseOrderDetail(): ReactElement {
               <Stack className={classes.section} spacing={2}>
                 <Typography variant="h6">ข้อมูลใบสั่งซื้อ</Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}><Info label="เลขที่ใบสั่งซื้อ" value={purchaseOrder?.purchaseOrderNo} /></Grid>
-                  <Grid item xs={12} sm={6}><Info label="อ้างอิงใบยืนยันสั่งซื้อ" value={purchaseOrder?.salesOrderNo} /></Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info label="เลขที่ใบสั่งซื้อ" value={purchaseOrder?.purchaseOrderNo} />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info label="อ้างอิงใบยืนยันสั่งซื้อ" value={purchaseOrder?.salesOrderNo} />
+                  </Grid>
                   <Grid item xs={12} sm={6}>
                     {isEditing ? (
                       <TextField
@@ -623,13 +676,18 @@ export default function PurchaseOrderDetail(): ReactElement {
                         type="number"
                         label="ระยะเวลาผลิต"
                         value={draft.productionLeadTimeDay}
-                        onChange={(event) => updateDraftField('productionLeadTimeDay', event.target.value)}
+                        onChange={(event) =>
+                          updateDraftField('productionLeadTimeDay', event.target.value)
+                        }
                         fullWidth
                         inputProps={{ min: 0, step: 1 }}
                         InputLabelProps={{ shrink: true }}
                       />
                     ) : (
-                      <Info label="ระยะเวลาผลิต" value={purchaseOrder?.productionLeadTimeDay ?? '-'} />
+                      <Info
+                        label="ระยะเวลาผลิต"
+                        value={purchaseOrder?.productionLeadTimeDay ?? '-'}
+                      />
                     )}
                   </Grid>
                   <Grid item xs={12} sm={3}>
@@ -638,32 +696,50 @@ export default function PurchaseOrderDetail(): ReactElement {
                         type="number"
                         label="ระยะเวลาส่งของ"
                         value={draft.shippingLeadTimeDay}
-                        onChange={(event) => updateDraftField('shippingLeadTimeDay', event.target.value)}
+                        onChange={(event) =>
+                          updateDraftField('shippingLeadTimeDay', event.target.value)
+                        }
                         fullWidth
                         inputProps={{ min: 0, step: 1 }}
                         InputLabelProps={{ shrink: true }}
                       />
                     ) : (
-                      <Info label="ระยะเวลาส่งของ" value={purchaseOrder?.shippingLeadTimeDay ?? '-'} />
+                      <Info
+                        label="ระยะเวลาส่งของ"
+                        value={purchaseOrder?.shippingLeadTimeDay ?? '-'}
+                      />
                     )}
                   </Grid>
-                  <Grid
-                    item
-                    xs={12}
-                    sm={6}><Info label="สถานะ" value={getDocumentStatusLabel(purchaseOrder?.status, purchaseOrder?.statusProfile)} /></Grid>
-                  <Grid item xs={12} sm={6}><Info label="สกุลเงิน" value={purchaseOrder?.currency} /></Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info
+                      label="สถานะ"
+                      value={getDocumentStatusLabel(
+                        purchaseOrder?.status,
+                        purchaseOrder?.statusProfile
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info label="สกุลเงิน" value={purchaseOrder?.currency} />
+                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <Info
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA' ? 'ทางเรือ' : 'ทางรถ'} | ${purchaseOrder.supplierShipping.shippingName || `Shipping #${purchaseOrder.supplierShipping.id}`
+                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA'
+                            ? 'ทางเรือ'
+                            : 'ทางรถ'
+                          } | ${purchaseOrder.supplierShipping.shippingName ||
+                          `Shipping #${purchaseOrder.supplierShipping.id}`
                           }`
                           : '-'
                       }
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}><Info label="อัตราแลกเปลี่ยน" value={purchaseOrder?.exchangeRate || 0} /></Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info label="อัตราแลกเปลี่ยน" value={purchaseOrder?.exchangeRate || 0} />
+                  </Grid>
                   <Grid item xs={12}>
                     {isEditing ? (
                       <TextField
@@ -685,7 +761,14 @@ export default function PurchaseOrderDetail(): ReactElement {
               <Stack className={classes.section} spacing={2}>
                 <Typography variant="h6">ข้อมูล Supplier</Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12}><Info label="Supplier" value={purchaseOrder?.supplier?.supplierName || purchaseOrder?.supplierNameSnapshot} /></Grid>
+                  <Grid item xs={12}>
+                    <Info
+                      label="Supplier"
+                      value={
+                        purchaseOrder?.supplier?.supplierName || purchaseOrder?.supplierNameSnapshot
+                      }
+                    />
+                  </Grid>
                   <Grid item xs={12}>
                     <Info
                       label="จุดส่งของ"
@@ -698,9 +781,15 @@ export default function PurchaseOrderDetail(): ReactElement {
                       }
                     />
                   </Grid>
-                  <Grid item xs={12}><Info label="ที่อยู่" value={purchaseOrder?.supplierAddressSnapshot} /></Grid>
-                  <Grid item xs={12} sm={6}><Info label="ผู้ติดต่อ" value={purchaseOrder?.supplierContactSnapshot} /></Grid>
-                  <Grid item xs={12} sm={6}><Info label="เบอร์ติดต่อ" value={purchaseOrder?.supplierPhoneSnapshot} /></Grid>
+                  <Grid item xs={12}>
+                    <Info label="ที่อยู่" value={purchaseOrder?.supplierAddressSnapshot} />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info label="ผู้ติดต่อ" value={purchaseOrder?.supplierContactSnapshot} />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info label="เบอร์ติดต่อ" value={purchaseOrder?.supplierPhoneSnapshot} />
+                  </Grid>
                 </Grid>
               </Stack>
             </Grid>
@@ -737,15 +826,51 @@ export default function PurchaseOrderDetail(): ReactElement {
                                 </Typography>
                               )}
                             </TableCell>
-                            <TableCell>{item.name || '-'}</TableCell>
-                            <TableCell className={classes.specCell}>{item.spec || '-'}</TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <TextField
+                                  className={classes.itemTextField}
+                                  value={item.name || ''}
+                                  onChange={(event) =>
+                                    updateDraftItemText(index, 'name', event.target.value)
+                                  }
+                                  fullWidth
+                                  size="small"
+                                />
+                              ) : (
+                                item.name || '-'
+                              )}
+                            </TableCell>
+                            <TableCell className={classes.specCell}>
+                              {isEditing ? (
+                                <TextField
+                                  className={classes.itemTextField}
+                                  value={item.spec || ''}
+                                  onChange={(event) =>
+                                    updateDraftItemText(index, 'spec', event.target.value)
+                                  }
+                                  fullWidth
+                                  multiline
+                                  minRows={2}
+                                  size="small"
+                                />
+                              ) : (
+                                item.spec || '-'
+                              )}
+                            </TableCell>
                             <TableCell align="right">
                               {isEditing ? (
                                 <TextField
                                   type="number"
                                   className={classes.itemTextField}
                                   value={item.quantity ?? 0}
-                                  onChange={(event) => updateDraftItem(index, 'quantity', Number(event.target.value || 0))}
+                                  onChange={(event) =>
+                                    updateDraftItem(
+                                      index,
+                                      'quantity',
+                                      Number(event.target.value || 0)
+                                    )
+                                  }
                                 />
                               ) : (
                                 formatNumber(item.quantity || 0)
@@ -758,15 +883,21 @@ export default function PurchaseOrderDetail(): ReactElement {
                                   className={classes.itemTextField}
                                   value={item.supplierUnitPrice ?? 0}
                                   onChange={(event) =>
-                                    updateDraftItem(index, 'supplierUnitPrice', Number(event.target.value || 0))
+                                    updateDraftItem(
+                                      index,
+                                      'supplierUnitPrice',
+                                      Number(event.target.value || 0)
+                                    )
                                   }
                                 />
                               ) : (
-                                `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''}`
+                                `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
+                                }`
                               )}
                             </TableCell>
                             <TableCell align="right">
-                              {formatNumber(item.amountSupplierCurrency || 0)} {item.supplierCurrency || ''}
+                              {formatNumber(item.amountSupplierCurrency || 0)}{' '}
+                              {item.supplierCurrency || ''}
                             </TableCell>
                           </TableRow>
                         ))
@@ -784,7 +915,11 @@ export default function PurchaseOrderDetail(): ReactElement {
             </Grid>
             <Grid item xs={12}>
               <Stack className={classes.section} spacing={2}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  spacing={2}>
                   <Typography variant="h6">ไฟล์แนบ</Typography>
                   {canManagePurchaseOrder ? (
                     <Button
@@ -816,7 +951,9 @@ export default function PurchaseOrderDetail(): ReactElement {
                         }}>
                         <Stack spacing={0.25}>
                           <Typography sx={{ fontWeight: 600 }}>
-                            {attachment.originalFileName || attachment.fileName || `attachment-${attachment.id}`}
+                            {attachment.originalFileName ||
+                              attachment.fileName ||
+                              `attachment-${attachment.id}`}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {attachment.contentType || '-'}

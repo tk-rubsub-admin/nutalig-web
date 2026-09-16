@@ -383,7 +383,7 @@ export default function InvoiceDetail(): ReactElement {
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
   );
   const canEditInvoice = Boolean(invoice && ['DRAFT', 'ISSUED', 'PARTIALLY_PAID'].includes(invoice.status));
-  const canDownloadInvoice = Boolean(invoice && ['DRAFT'].includes(invoice.status) && isInvoiceDocumentLoading);
+  const canDownloadInvoice = Boolean(invoice && !['DRAFT'].includes(invoice.status));
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestReceipt =
     relatedReceipts.find((record) => record.invoiceNo === invoice?.invoiceNo) ||

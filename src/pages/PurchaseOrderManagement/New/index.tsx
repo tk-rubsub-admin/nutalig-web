@@ -3,7 +3,8 @@ import {
   ArrowBackIos,
   AssignmentTurnedIn,
   DeleteOutline,
-  FilePresent
+  FilePresent,
+  OpenInNew
 } from '@mui/icons-material';
 import {
   Box,
@@ -244,6 +245,7 @@ export default function NewPurchaseOrder(): ReactElement {
   const [manualItems, setManualItems] = useState<ManualPurchaseOrderItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const classes = useStyles();
 
   const { data: salesOrder, isFetching } = useQuery(
@@ -456,7 +458,7 @@ export default function NewPurchaseOrder(): ReactElement {
       ];
     });
   }, [filteredItems, supplierQuoteTierById]);
-
+  console.log('filteredItems', filteredItems);
   const editableItems = useMemo(
     () => [
       ...filteredItems.map((item) => {
@@ -479,6 +481,14 @@ export default function NewPurchaseOrder(): ReactElement {
     ],
     [automaticShippingItems, filteredItems, itemEdits, manualItems, supplierQuoteTierById]
   );
+  const displayItemsByRfq = useMemo(
+    () =>
+      [...editableItems].sort((left, right) =>
+        (left.rfqId || '').localeCompare(right.rfqId || '')
+      ),
+    [editableItems]
+  );
+  console.log('editableItems', editableItems);
   const confirmedTier = useMemo(() => {
     if (!rfq?.confirmedTierId) {
       return null;
@@ -614,6 +624,7 @@ export default function NewPurchaseOrder(): ReactElement {
   };
 
   const handleSubmit = async () => {
+    setShowValidationErrors(true);
     if (!salesOrder?.salesOrderNo || !draft.supplierId || !draft.supplierShippingId) {
       toast.error('กรุณาเลือก Supplier และ Supplier Shipping');
       return;
@@ -631,9 +642,9 @@ export default function NewPurchaseOrder(): ReactElement {
       productionLeadTimeDay: draft.productionLeadTimeDay
         ? Number(draft.productionLeadTimeDay)
         : null,
-            shippingLeadTimeDay: draft.shippingLeadTimeDay ? Number(draft.shippingLeadTimeDay) : null,
-            paymentTerm: draft.paymentTerm || null,
-            shippingMethodSnapshot:
+      shippingLeadTimeDay: draft.shippingLeadTimeDay ? Number(draft.shippingLeadTimeDay) : null,
+      paymentTerm: draft.paymentTerm || null,
+      shippingMethodSnapshot:
         draft.shippingMethodSnapshot || suggestedShippingMethodSnapshot || null,
       containerSizeSnapshot: draft.containerSizeSnapshot || null,
       supplierContactSnapshot: draft.supplierContactSnapshot,
@@ -663,6 +674,27 @@ export default function NewPurchaseOrder(): ReactElement {
       setIsSaving(false);
       setIsConfirmOpen(false);
     }
+  };
+
+  const handleOpenConfirm = () => {
+    setShowValidationErrors(true);
+    if (!salesOrder?.salesOrderNo || !draft.supplierId || !draft.supplierShippingId) {
+      toast.error('กรุณาเลือก Supplier และ Supplier Shipping');
+      return;
+    }
+    if (!draft.paymentTerm) {
+      toast.error('กรุณาเลือกเงื่อนไขการชำระเงิน');
+      return;
+    }
+    if (!filteredItems.length && !manualItems.length) {
+      toast.error('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ');
+      return;
+    }
+    if (!['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(salesOrder.procurementStatus || '')) {
+      toast.error('สถานะใบยืนยันสั่งซื้อยังไม่พร้อมสร้างใบสั่งซื้อ');
+      return;
+    }
+    setIsConfirmOpen(true);
   };
 
   const handleSelectAttachments = (event: ChangeEvent<HTMLInputElement>) => {
@@ -699,17 +731,8 @@ export default function NewPurchaseOrder(): ReactElement {
             variant="contained"
             className="btn-emerald-green"
             startIcon={<AssignmentTurnedIn />}
-            disabled={
-              !salesOrder ||
-              !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
-                salesOrder.procurementStatus || ''
-              ) ||
-              !draft.supplierId ||
-              !draft.supplierShippingId ||
-              !draft.paymentTerm ||
-              (!filteredItems.length && !manualItems.length)
-            }
-            onClick={() => setIsConfirmOpen(true)}>
+            disabled={isSaving}
+            onClick={handleOpenConfirm}>
             สร้างใบสั่งซื้อ
           </Button>
           <Button
@@ -794,6 +817,13 @@ export default function NewPurchaseOrder(): ReactElement {
                     fullWidth
                     label="เงื่อนไขการชำระเงิน"
                     value={draft.paymentTerm}
+                    required
+                    error={showValidationErrors && !draft.paymentTerm}
+                    helperText={
+                      showValidationErrors && !draft.paymentTerm
+                        ? 'กรุณาเลือกเงื่อนไขการชำระเงิน'
+                        : undefined
+                    }
                     onChange={(event) =>
                       setDraft((previous) => ({ ...previous, paymentTerm: event.target.value }))
                     }
@@ -1001,6 +1031,8 @@ export default function NewPurchaseOrder(): ReactElement {
                     fullWidth
                     label="Supplier Shipping"
                     value={draft.supplierShippingId}
+                    required
+                    error={showValidationErrors && !draft.supplierShippingId}
                     InputLabelProps={{ shrink: true }}
                     onChange={(event) => {
                       const supplierShipping =
@@ -1015,9 +1047,11 @@ export default function NewPurchaseOrder(): ReactElement {
                       }));
                     }}
                     helperText={
-                      !availableSupplierShippings.length
-                        ? 'ไม่มี Shipping ที่ตรงกับประเภทการขนส่งของเอกสาร'
-                        : undefined
+                      showValidationErrors && !draft.supplierShippingId
+                        ? 'กรุณาเลือก Supplier Shipping'
+                        : !availableSupplierShippings.length
+                          ? 'ไม่มี Shipping ที่ตรงกับประเภทการขนส่งของเอกสาร'
+                          : undefined
                     }>
                     {groupedSupplierShippings.land.length ? (
                       <ListSubheader disableSticky>ทางรถ</ListSubheader>
@@ -1271,9 +1305,42 @@ export default function NewPurchaseOrder(): ReactElement {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {editableItems.map((item) => {
+                    {displayItemsByRfq.map((item, index) => {
                       const total = calculateItemTotal(item);
-                      return (
+                      const rfqId = item.rfqId || null;
+                      const previousRfqId = displayItemsByRfq[index - 1]?.rfqId || null;
+                      const isFirstItemInRfqGroup = index === 0 || rfqId !== previousRfqId;
+                      return [
+                        isFirstItemInRfqGroup ? (
+                          <TableRow key={`rfq-group-${rfqId || 'additional'}`}>
+                            <TableCell
+                              colSpan={5}
+                              sx={{
+                                bgcolor: '#F1F5FF',
+                                borderTop: '1px solid #C9D7F2',
+                                borderBottom: '1px solid #C9D7F2',
+                                color: 'primary.main',
+                                fontWeight: 700,
+                                py: 1.25
+                              }}>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Typography variant="body2" fontWeight={700} color="primary.main">
+                                  {rfqId ? `RFQ: ${rfqId}` : 'รายการเพิ่มเติม'}
+                                </Typography>
+                                {rfqId ? (
+                                  <Button
+                                    component="a"
+                                    href={`/rfq/${rfqId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    size="small"
+                                    endIcon={<OpenInNew fontSize="small" />}
+                                  />
+                                ) : null}
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ) : null,
                         <TableRow key={item.id}>
                           <TableCell align="center" sx={{ px: 1 }}>
                             {item.imageUrl ? (
@@ -1354,7 +1421,7 @@ export default function NewPurchaseOrder(): ReactElement {
                             />
                           </TableCell>
                         </TableRow>
-                      );
+                      ];
                     })}
                   </TableBody>
                 </Table>
@@ -1417,17 +1484,8 @@ export default function NewPurchaseOrder(): ReactElement {
             variant="contained"
             className="btn-emerald-green"
             startIcon={<AssignmentTurnedIn />}
-            disabled={
-              !salesOrder ||
-              !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
-                salesOrder.procurementStatus || ''
-              ) ||
-              !draft.supplierId ||
-              !draft.supplierShippingId ||
-              !draft.paymentTerm ||
-              (!filteredItems.length && !manualItems.length)
-            }
-            onClick={() => setIsConfirmOpen(true)}>
+            disabled={isSaving}
+            onClick={handleOpenConfirm}>
             สร้างใบสั่งซื้อ
           </Button>
           <Button

@@ -869,6 +869,19 @@ function formatPrice(value?: number | null, currency?: string | null): string {
   return `${priceFormatter.format(value)} บาท`;
 }
 
+function formatPercent(value?: number | null): string {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  return `${priceFormatter.format(value)}%`;
+}
+
+function getShippingMethodPrefix(shippingMethod?: string | null): string {
+  const normalized = shippingMethod?.trim().toUpperCase();
+  return normalized ? normalized.split('_')[0] : 'OTHER';
+}
+
 function formatTargetPrice(value?: number | null): string {
   if (value === null || value === undefined) {
     return '';
@@ -5387,7 +5400,13 @@ export default function RFQDetail(): ReactElement {
                       {detailOptions.length ? (
                         detailOptions.map((detail, index) => {
                           const sortedTiers = [...(detail.tiers || [])].sort(
-                            (left, right) => left.sortOrder - right.sortOrder
+                            (left, right) =>
+                              getShippingMethodPrefix(left.shippingMethod).localeCompare(
+                                getShippingMethodPrefix(right.shippingMethod)
+                              ) || left.sortOrder - right.sortOrder
+                          );
+                          const sortedTierSplits = [...(detail.tierSplits || [])].sort(
+                            (left, right) => left.quantity - right.quantity || left.id - right.id
                           );
 
                           return (
@@ -5528,6 +5547,59 @@ export default function RFQDetail(): ReactElement {
                                                 }}>
                                                 <EditOutlined fontSize="small" />
                                               </IconButton>
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </Box>
+                                ) : sortedTierSplits.length ? (
+                                  <Box sx={{ overflowX: 'auto' }}>
+                                    <Table size="small" sx={{ minWidth: 900 }}>
+                                      <TableHead>
+                                        <TableRow
+                                          sx={{
+                                            '& th': {
+                                              fontWeight: 700,
+                                              backgroundColor: '#f8fafc',
+                                              whiteSpace: 'nowrap'
+                                            }
+                                          }}>
+                                          <TableCell>MOQ</TableCell>
+                                          <TableCell align="right">ราคาสินค้า</TableCell>
+                                          <TableCell align="center">วิธีการขนส่ง</TableCell>
+                                          <TableCell align="right">ค่าขนส่ง</TableCell>
+                                          <TableCell align="right">ราคารวม</TableCell>
+                                          <TableCell align="right">ค่าคอม</TableCell>
+                                        </TableRow>
+                                      </TableHead>
+                                      <TableBody>
+                                        {sortedTierSplits.map((tierSplit) => (
+                                          <TableRow
+                                            key={tierSplit.id}
+                                            sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                                            <TableCell sx={{ fontWeight: 600 }}>
+                                              {formatQuantity(tierSplit.quantity)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              {getShippingMethodLabel(tierSplit.shippingMethod)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(
+                                                tierSplit.shippingCost,
+                                                tierSplit.currency
+                                              )}
+                                            </TableCell>
+                                            <TableCell
+                                              align="right"
+                                              sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                              {formatPrice(tierSplit.totalPrice, tierSplit.currency)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPercent(tierSplit.commission)}
                                             </TableCell>
                                           </TableRow>
                                         ))}
@@ -6036,6 +6108,18 @@ export default function RFQDetail(): ReactElement {
                       fontSize: '12px'
                     }
                   }}
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  required
+                  label="ราคาสินค้า"
+                  value={tierEditDraft?.productPrice || ''}
+                  onChange={(event) =>
+                    handleTierEditDraftChange('productPrice', event.target.value)
+                  }
                 />
               </GridTextField>
               <GridTextField item xs={12} sm={4}>

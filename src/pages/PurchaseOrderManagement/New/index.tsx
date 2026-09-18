@@ -1310,6 +1310,7 @@ export default function NewPurchaseOrder(): ReactElement {
                       const rfqId = item.rfqId || null;
                       const previousRfqId = displayItemsByRfq[index - 1]?.rfqId || null;
                       const isFirstItemInRfqGroup = index === 0 || rfqId !== previousRfqId;
+                      console.log('item', item);
                       return [
                         isFirstItemInRfqGroup ? (
                           <TableRow key={`rfq-group-${rfqId || 'additional'}`}>

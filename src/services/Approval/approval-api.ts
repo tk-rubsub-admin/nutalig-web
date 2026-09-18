@@ -14,6 +14,11 @@ export const getPendingRfqCustomerTransferApprovals = async (): Promise<Approval
   return response.data || [];
 };
 
+export const getPendingUrgentReadyPoApprovals = async (): Promise<ApprovalRequest[]> => {
+  const response = await api.get('/v1/approvals/urgent-ready-po/pending').then((res) => res.data);
+  return response.data || [];
+};
+
 export const resolveApprovalRejectToken = async (token: string) => {
   const response: GetApprovalRejectTokenResolveResponse = await api
     .get('/v1/approvals/reject-form', {

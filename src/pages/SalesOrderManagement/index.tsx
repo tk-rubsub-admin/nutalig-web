@@ -77,6 +77,15 @@ function getProcurementStatusLabel(status?: string | null): string {
 }
 
 const PROCUREMENT_STATUS_OPTIONS = ['NOT_READY', 'READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'] as const;
+const PO_SHIPPING_METHOD_OPTIONS = [
+  'LAND',
+  'SEA',
+  'AIR',
+  'SEA_FCL_20GP',
+  'SEA_FCL_40HQ',
+  'SEA_SHARE_FCL_20GP',
+  'SEA_SHARE_FCL_40HQ'
+];
 
 function getDefaultDocDateRange() {
   const now = dayjs();
@@ -95,6 +104,7 @@ const defaultFilter: SearchSalesOrderRequestV1 = {
   status: null,
   urgentRequestStatus: null,
   procurementStatus: [],
+  shippingType: '',
   keyword: ''
 };
 
@@ -211,6 +221,7 @@ export default function SalesOrderManagement(): ReactElement {
         status: canShowField('status') ? values.status || null : null,
         urgentRequestStatus: values.urgentRequestStatus || null,
         procurementStatus: canShowField('procurementStatus') ? values.procurementStatus || [] : [],
+        shippingType: values.shippingType?.trim() || '',
         keyword: canShowField('keyword') ? values.keyword?.trim() || '' : ''
       };
 
@@ -434,7 +445,7 @@ export default function SalesOrderManagement(): ReactElement {
             <GridTextField item xs={12} sm={4} md={3}>
               <TextField
                 fullWidth
-                label="เลขที่เอกสาร"
+                label="เลขที่ใบยืนยันสั่งซื้อ"
                 name="salesOrderNo"
                 value={searchFormik.values.salesOrderNo}
                 onChange={searchFormik.handleChange}
@@ -503,6 +514,23 @@ export default function SalesOrderManagement(): ReactElement {
               </TextField>
             </GridTextField>
           )}
+          <GridTextField item xs={12} sm={4} md={3}>
+            <TextField
+              fullWidth
+              select
+              label="วิธีขนส่ง"
+              name="shippingType"
+              value={searchFormik.values.shippingType || ''}
+              onChange={searchFormik.handleChange}
+              InputLabelProps={{ shrink: true }}>
+              <MenuItem value="">ทั้งหมด</MenuItem>
+              {PO_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
+                <MenuItem key={shippingMethod} value={shippingMethod}>
+                  {shippingMethod}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
           {canShowField('procurementStatus') && (
             <GridTextField item xs={12} sm={4} md={3}>
               <TextField

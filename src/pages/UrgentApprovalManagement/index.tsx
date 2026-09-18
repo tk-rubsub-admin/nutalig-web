@@ -42,16 +42,15 @@ import {
 } from 'services/RFQ/rfq-api';
 import {
   getPendingRfqCustomerTransferApprovals,
+  getPendingUrgentReadyPoApprovals,
   getPendingUrgentRfqApprovals
 } from 'services/Approval/approval-api';
 import {
   approveUrgentSalesOrder,
-  rejectUrgentSalesOrder,
-  searchSalesOrdersV1
+  rejectUrgentSalesOrder
 } from 'services/SaleOrder/sale-order-api';
-import { SalesOrderV1, SearchSalesOrderRequestV1 } from 'services/SaleOrder/sale-order-type';
 
-type UrgentApprovalItemType = 'RFQ' | 'RFQ_CUSTOMER_TRANSFER' | 'SALES_ORDER';
+type UrgentApprovalItemType = 'RFQ' | 'RFQ_CUSTOMER_TRANSFER' | 'URGENT_READY_PO';
 
 interface UrgentApprovalItem {
   type: UrgentApprovalItemType;
@@ -65,38 +64,6 @@ interface UrgentApprovalItem {
   rowSx: any;
 }
 
-function getSalesOrderCustomerLabel(salesOrder?: SalesOrderV1 | null): string {
-  return salesOrder?.customer?.customerName || '-';
-}
-
-function getSalesOrderOwnerLabel(salesOrder?: SalesOrderV1 | null): string {
-  const sales = salesOrder?.saleAccount as any;
-  if (!sales) {
-    return '-';
-  }
-
-  const name = [sales.firstNameTh || sales.firstName, sales.lastNameTh || sales.lastName]
-    .filter(Boolean)
-    .join(' ');
-
-  return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
-}
-
-function getSalesOrderProcurementLabel(salesOrder?: SalesOrderV1 | null): string {
-  switch (salesOrder?.procurementStatus) {
-    case 'NOT_READY':
-      return 'ยังไม่พร้อมสร้าง PO';
-    case 'READY_FOR_PO':
-      return 'พร้อมสร้าง PO';
-    case 'READY_FOR_PO_OVERRIDE':
-      return 'พร้อมสร้าง PO (Override)';
-    case 'PO_CREATED':
-      return 'สร้าง PO แล้ว';
-    default:
-      return salesOrder?.procurementStatus || '-';
-  }
-}
-
 function getUrgentDateValue(value?: string | null): number {
   if (!value) {
     return 0;
@@ -107,7 +74,7 @@ function getUrgentDateValue(value?: string | null): number {
 }
 
 function buildUrgentApprovalItemLabel(type: UrgentApprovalItemType): string {
-  return type === 'SALES_ORDER' ? 'ใบสั่งซื้อ' : 'คำขอราคา';
+  return type === 'URGENT_READY_PO' ? 'คำขอสร้างใบสั่งซื้อ' : 'คำขอราคา';
 }
 
 function buildUrgentApprovalStatusLabel(type: UrgentApprovalItemType): string {
@@ -170,13 +137,6 @@ export default function UrgentApprovalManagement(): ReactElement {
   const [urgentDialogMode, setUrgentDialogMode] = useState<'APPROVE' | 'REJECT' | null>(null);
   const [urgentDialogTarget, setUrgentDialogTarget] = useState<UrgentApprovalItem | null>(null);
   const [urgentDialogReason, setUrgentDialogReason] = useState('');
-  const fetchSize = page * pageSize;
-  const salesOrderSearchRequest = useMemo<SearchSalesOrderRequestV1>(
-    () => ({
-      urgentRequestStatus: 'PENDING_APPROVAL'
-    }),
-    []
-  );
 
   const {
     data: rfqApprovals = [],
@@ -191,24 +151,18 @@ export default function UrgentApprovalManagement(): ReactElement {
     getPendingRfqCustomerTransferApprovals,
     { refetchOnWindowFocus: false }
   );
-
   const {
-    data: salesOrderResponse,
-    refetch: refetchSalesOrders,
-    isFetching: isSalesOrderFetching
-  } = useQuery(
-    ['urgent-approval-sales-order-list', fetchSize],
-    () =>
-      searchSalesOrdersV1(salesOrderSearchRequest, 1, fetchSize, {
-        sortBy: 'urgentRequestedDate',
-        sortDirection: 'DESC'
-      }),
-    { refetchOnWindowFocus: false, keepPreviousData: true }
-  );
+    data: urgentReadyPoApprovals = [],
+    refetch: refetchUrgentReadyPo,
+    isFetching: isUrgentReadyPoFetching
+  } = useQuery(['urgent-ready-po-approval-list'], getPendingUrgentReadyPoApprovals, {
+    refetchOnWindowFocus: false
+  });
 
-  const totalRecords = rfqApprovals.length + (salesOrderResponse?.pagination?.totalRecords || 0);
+  const totalRecords =
+    rfqApprovals.length + customerTransferApprovals.length + urgentReadyPoApprovals.length;
   const totalPage = Math.max(1, Math.ceil(totalRecords / pageSize));
-  const isFetching = isRfqFetching || isSalesOrderFetching;
+  const isFetching = isRfqFetching || isUrgentReadyPoFetching;
 
   useEffect(() => {
     if (page > totalPage) {
@@ -297,7 +251,7 @@ export default function UrgentApprovalManagement(): ReactElement {
     }
 
     handleCloseUrgentDialog();
-    await Promise.all([refetchRfq(), refetchCustomerTransfers(), refetchSalesOrders()]);
+    await Promise.all([refetchRfq(), refetchCustomerTransfers(), refetchUrgentReadyPo()]);
   };
 
   const renderActionButtons = (item: UrgentApprovalItem) => (
@@ -306,7 +260,7 @@ export default function UrgentApprovalManagement(): ReactElement {
       spacing={0.5}
       justifyContent="center"
       onClick={(event) => event.stopPropagation()}>
-      <Tooltip title="อนุมัติเร่งด่วน">
+      <Tooltip title={item.type === 'URGENT_READY_PO' ? 'อนุมัติสร้างใบสั่งซื้อ' : 'อนุมัติเร่งด่วน'}>
         <IconButton
           size="small"
           color="success"
@@ -316,7 +270,8 @@ export default function UrgentApprovalManagement(): ReactElement {
           <CheckCircleOutline fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Tooltip title="ไม่อนุมัติเร่งด่วน">
+      <Tooltip
+        title={item.type === 'URGENT_READY_PO' ? 'ไม่อนุมัติสร้างใบสั่งซื้อ' : 'ไม่อนุมัติเร่งด่วน'}>
         <IconButton
           size="small"
           color="error"
@@ -362,24 +317,24 @@ export default function UrgentApprovalManagement(): ReactElement {
     [customerTransferApprovals]
   );
 
-  const salesOrderItems = useMemo<UrgentApprovalItem[]>(
+  const urgentReadyPoItems = useMemo<UrgentApprovalItem[]>(
     () =>
-      (salesOrderResponse?.records || []).map((salesOrder) => ({
-        type: 'SALES_ORDER',
-        id: salesOrder.salesOrderNo,
-        typeLabel: buildUrgentApprovalItemLabel('SALES_ORDER'),
-        statusLabel: getSalesOrderProcurementLabel(salesOrder),
-        requestedAt: salesOrder.urgentRequestedDate || null,
-        customerLabel: getSalesOrderCustomerLabel(salesOrder),
-        ownerLabel: getSalesOrderOwnerLabel(salesOrder),
-        reason: salesOrder.urgentRequestReason || '-',
-        rowSx: buildUrgentApprovalRowSx('SALES_ORDER')
+      urgentReadyPoApprovals.map((approval) => ({
+        type: 'URGENT_READY_PO',
+        id: approval.referenceId,
+        typeLabel: buildUrgentApprovalItemLabel('URGENT_READY_PO'),
+        statusLabel: buildUrgentApprovalStatusLabel('URGENT_READY_PO'),
+        requestedAt: approval.requestedDate || null,
+        customerLabel: approval.payload?.customerName || '-',
+        ownerLabel: approval.requestedBy || approval.payload?.requesterName || '-',
+        reason: approval.requestReason || approval.payload?.urgentReason || '-',
+        rowSx: buildUrgentApprovalRowSx('URGENT_READY_PO')
       })),
-    [salesOrderResponse?.records]
+    [urgentReadyPoApprovals]
   );
 
   const combinedItems = useMemo(() => {
-    const items = [...rfqItems, ...customerTransferItems, ...salesOrderItems];
+    const items = [...rfqItems, ...customerTransferItems, ...urgentReadyPoItems];
     return items.sort((left, right) => {
       const dateDiff = getUrgentDateValue(right.requestedAt) - getUrgentDateValue(left.requestedAt);
       if (dateDiff !== 0) {
@@ -392,7 +347,7 @@ export default function UrgentApprovalManagement(): ReactElement {
 
       return left.id.localeCompare(right.id);
     });
-  }, [rfqItems, customerTransferItems, salesOrderItems]);
+  }, [rfqItems, customerTransferItems, urgentReadyPoItems]);
 
   const displayItems = useMemo(() => {
     const startIndex = (page - 1) * pageSize;
@@ -421,7 +376,7 @@ export default function UrgentApprovalManagement(): ReactElement {
   );
 
   const refetchCombined = () => {
-    void Promise.all([refetchRfq(), refetchCustomerTransfers(), refetchSalesOrders()]);
+    void Promise.all([refetchRfq(), refetchCustomerTransfers(), refetchUrgentReadyPo()]);
   };
 
   const desktopRows =
@@ -549,7 +504,7 @@ export default function UrgentApprovalManagement(): ReactElement {
         <Stack spacing={2}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              รายการที่อยู่ระหว่างรออนุมัติคำขอเร่งด่วนของ RFQ และใบสั่งซื้อ
+              รายการที่อยู่ระหว่างรออนุมัติคำขอเร่งด่วน RFQ, ย้ายลูกค้า RFQ และสร้างใบสั่งซื้อ
             </Typography>
           </Box>
 

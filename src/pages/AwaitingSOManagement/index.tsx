@@ -1,10 +1,13 @@
 /* eslint-disable prettier/prettier */
-import { OpenInNew } from '@mui/icons-material';
+import { DisabledByDefault, OpenInNew, Search } from '@mui/icons-material';
 import {
+    Button,
     Chip,
     CircularProgress,
     Grid,
     IconButton,
+    InputAdornment,
+    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -12,6 +15,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Tooltip,
     Typography,
     useMediaQuery,
@@ -22,7 +26,7 @@ import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
-import { GridSearchSection, Wrapper } from 'components/Styled';
+import { GridSearchSection, GridTextField, Wrapper } from 'components/Styled';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
 import { ReactElement, useEffect, useMemo, useState } from 'react';
@@ -59,6 +63,39 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
     return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
 }
 
+function getProcurementStatusLabel(status?: string | null): string {
+    switch (status) {
+        case 'NOT_READY': return 'ยังไม่พร้อมสร้าง PO';
+        case 'READY_FOR_PO': return 'พร้อมสร้าง PO';
+        case 'READY_FOR_PO_OVERRIDE': return 'พร้อมสร้าง PO (Override)';
+        case 'PO_CREATED': return 'สร้าง PO แล้ว';
+        default: return status || '-';
+    }
+}
+
+const PROCUREMENT_STATUS_OPTIONS = ['NOT_READY', 'READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'] as const;
+const PO_SHIPPING_METHOD_OPTIONS = [
+    'LAND',
+    'SEA',
+    'AIR',
+    'SEA_FCL_20GP',
+    'SEA_FCL_40HQ',
+    'SEA_SHARE_FCL_20GP',
+    'SEA_SHARE_FCL_40HQ'
+];
+const AWAITING_SALES_ORDER_NO_PREFIX = 'NTL-SO2026';
+
+function toAwaitingSalesOrderNo(value?: string | null): string {
+    const normalizedValue = value?.trim() || '';
+    if (!normalizedValue) {
+        return '';
+    }
+
+    return normalizedValue.toUpperCase().startsWith(AWAITING_SALES_ORDER_NO_PREFIX)
+        ? normalizedValue.toUpperCase()
+        : `${AWAITING_SALES_ORDER_NO_PREFIX}${normalizedValue}`;
+}
+
 function getDefaultDocDateRange() {
     const now = dayjs();
 
@@ -80,6 +117,7 @@ const defaultFilter: SearchSalesOrderRequestV1 = {
     status: null,
     urgentRequestStatus: null,
     procurementStatus: ['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE'],
+    shippingType: '',
     keyword: ''
 };
 
@@ -197,7 +235,9 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
         enableReinitialize: true,
         onSubmit: (values) => {
             const nextFilter: SearchSalesOrderRequestV1 = {
-                salesOrderNo: canShowField('salesOrderNo') ? values.salesOrderNo?.trim() || '' : '',
+                salesOrderNo: canShowField('salesOrderNo')
+                    ? toAwaitingSalesOrderNo(values.salesOrderNo)
+                    : '',
                 docDateStart: canShowField('docDateStart') ? values.docDateStart || '' : '',
                 docDateEnd: canShowField('docDateEnd') ? values.docDateEnd || '' : '',
                 customerId: canShowField('customerId') ? values.customerId?.trim() || '' : '',
@@ -208,6 +248,10 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
                         : '',
                 status: canShowField('status') ? values.status || null : null,
                 urgentRequestStatus: values.urgentRequestStatus || null,
+                procurementStatus: canShowField('procurementStatus')
+                    ? values.procurementStatus || []
+                    : defaultFilter.procurementStatus,
+                shippingType: values.shippingType?.trim() || '',
                 keyword: canShowField('keyword') ? values.keyword?.trim() || '' : ''
             };
 
@@ -398,6 +442,157 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
         <Page>
             <PageTitle title="รายการรอออกใบสั่งซื้อ" />
             <Wrapper>
+                <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                        mt: 1,
+                        justifyContent: { sm: 'flex-end' },
+                        alignItems: { xs: 'stretch', sm: 'center' }
+                    }}>
+                    <Button
+                        fullWidth={isDownSm}
+                        variant="contained"
+                        className="btn-indigo-blue"
+                        startIcon={<Search />}
+                        onClick={() => searchFormik.handleSubmit()}>
+                        {t('button.search')}
+                    </Button>
+                    <Button
+                        fullWidth={isDownSm}
+                        variant="contained"
+                        className="btn-amber-orange"
+                        startIcon={<DisabledByDefault />}
+                        onClick={handleClear}>
+                        {t('button.clear')}
+                    </Button>
+                </Stack>
+
+                <GridSearchSection container spacing={1}>
+                    <Grid item xs={12}>
+                        <Typography variant="h6" component="h2">
+                            ค้นหาใบยืนยันสั่งซื้อ
+                        </Typography>
+                    </Grid>
+                    {canShowField('salesOrderNo') && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth label="เลขที่เอกสาร" name="salesOrderNo"
+                                value={searchFormik.values.salesOrderNo}
+                                onChange={(event) =>
+                                    searchFormik.setFieldValue(
+                                        'salesOrderNo',
+                                        event.target.value.replace(
+                                            new RegExp(`^${AWAITING_SALES_ORDER_NO_PREFIX}`, 'i'),
+                                            ''
+                                        )
+                                    )
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            {AWAITING_SALES_ORDER_NO_PREFIX}
+                                        </InputAdornment>
+                                    )
+                                }} />
+                        </GridTextField>
+                    )}
+                    {canShowField('customerId') && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth label="รหัสลูกค้า" name="customerId"
+                                value={searchFormik.values.customerId} onChange={searchFormik.handleChange}
+                                InputLabelProps={{ shrink: true }} />
+                        </GridTextField>
+                    )}
+                    {(canShowField('salesId') || isSalesRole) && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth select label="รหัสเซลล์" name="salesId"
+                                value={searchFormik.values.salesId} onChange={searchFormik.handleChange}
+                                disabled={isSalesRole || isSalesFetching} InputLabelProps={{ shrink: true }}>
+                                {!isSalesRole && <MenuItem value="">ทั้งหมด</MenuItem>}
+                                {isSalesFetching ? <MenuItem disabled value="">Loading...</MenuItem> : null}
+                                {!isSalesFetching && salesDropdownOptions.length === 0 ? (
+                                    <MenuItem disabled value="">No sales data</MenuItem>
+                                ) : null}
+                                {salesDropdownOptions.map((option) => (
+                                    <MenuItem key={option.salesId} value={option.salesId}>
+                                        {`${option.salesId} - ${option.nickname || option.name}`}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </GridTextField>
+                    )}
+                    {canShowField('status') && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth select label="สถานะ" name="status" value={searchFormik.values.status}
+                                onChange={searchFormik.handleChange} InputLabelProps={{ shrink: true }}>
+                                <MenuItem value="">ทั้งหมด</MenuItem>
+                                {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
+                                    <MenuItem key={status} value={status}>{getDocumentStatusLabel(status)}</MenuItem>
+                                ))}
+                            </TextField>
+                        </GridTextField>
+                    )}
+                    <GridTextField item xs={12} sm={4} md={3}>
+                        <TextField fullWidth select label="วิธีขนส่ง" name="shippingType"
+                            value={searchFormik.values.shippingType || ''} onChange={searchFormik.handleChange}
+                            InputLabelProps={{ shrink: true }}>
+                            <MenuItem value="">ทั้งหมด</MenuItem>
+                            {PO_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
+                                <MenuItem key={shippingMethod} value={shippingMethod}>
+                                    {shippingMethod}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </GridTextField>
+                    {canShowField('procurementStatus') && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth select label="สถานะจัดซื้อ" name="procurementStatus"
+                                value={searchFormik.values.procurementStatus || []}
+                                SelectProps={{
+                                    multiple: true,
+                                    renderValue: (selected) => Array.isArray(selected) && selected.length > 0
+                                        ? selected.map((status) => getProcurementStatusLabel(status)).join(', ')
+                                        : 'ทั้งหมด'
+                                }}
+                                onChange={(event) => {
+                                    const value = event.target.value;
+                                    searchFormik.setFieldValue(
+                                        'procurementStatus',
+                                        typeof value === 'string' ? value.split(',') : value
+                                    );
+                                }}
+                                InputLabelProps={{ shrink: true }}>
+                                {PROCUREMENT_STATUS_OPTIONS.map((status) => (
+                                    <MenuItem key={status} value={status}>{getProcurementStatusLabel(status)}</MenuItem>
+                                ))}
+                            </TextField>
+                        </GridTextField>
+                    )}
+                    {canShowField('docDateStart') && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth type="date" label="วันที่เอกสารเริ่มต้น" name="docDateStart"
+                                value={searchFormik.values.docDateStart} onChange={searchFormik.handleChange}
+                                InputLabelProps={{ shrink: true }} />
+                        </GridTextField>
+                    )}
+                    {canShowField('docDateEnd') && (
+                        <GridTextField item xs={12} sm={4} md={3}>
+                            <TextField fullWidth type="date" label="วันที่เอกสารสิ้นสุด" name="docDateEnd"
+                                value={searchFormik.values.docDateEnd} onChange={searchFormik.handleChange}
+                                InputLabelProps={{ shrink: true }} />
+                        </GridTextField>
+                    )}
+                    {canShowField('keyword') && (
+                        <GridTextField item xs={12} sm={8} md={6}>
+                            <TextField fullWidth label="คำค้นหา" name="keyword" placeholder="เลข SO, ชื่อลูกค้า, ชื่อสินค้า"
+                                value={searchFormik.values.keyword} onChange={searchFormik.handleChange}
+                                InputLabelProps={{ shrink: true }} />
+                        </GridTextField>
+                    )}
+                </GridSearchSection>
+
                 {isMobileOnly ? (
                     <GridSearchSection container>
                         <TableContainer>

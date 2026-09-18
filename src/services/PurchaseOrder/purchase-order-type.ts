@@ -72,6 +72,7 @@ export interface SearchPurchaseOrderRequest {
   docDateEnd?: string;
   status?: string | null;
   statuses?: string[];
+  shippingMethod?: string;
   keyword?: string;
 }
 

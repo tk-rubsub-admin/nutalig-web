@@ -4,6 +4,7 @@ import {
   Chip,
   CircularProgress,
   Grid,
+  InputAdornment,
   MenuItem,
   Stack,
   Table,
@@ -38,6 +39,28 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentS
 import { formatNumber } from 'utils/utils';
 
 const PURCHASE_ORDER_STATUS_OPTIONS = ['CREATED', 'CANCELLED', 'CLOSED'];
+const PO_SHIPPING_METHOD_OPTIONS = [
+  'LAND',
+  'SEA',
+  'AIR',
+  'SEA_FCL_20GP',
+  'SEA_FCL_40HQ',
+  'SEA_SHARE_FCL_20GP',
+  'SEA_SHARE_FCL_40HQ'
+];
+const PURCHASE_ORDER_NO_PREFIX = 'NTL-PO2026';
+const SALES_ORDER_NO_PREFIX = 'NTL-SO2026';
+
+function withDocumentNoPrefix(value: string | undefined, prefix: string): string {
+  const normalizedValue = value?.trim() || '';
+  if (!normalizedValue) {
+    return '';
+  }
+
+  return normalizedValue.toUpperCase().startsWith(prefix)
+    ? normalizedValue.toUpperCase()
+    : `${prefix}${normalizedValue}`;
+}
 
 export default function PurchaseOrderManagement(): JSX.Element {
   const useStyles = makeStyles({
@@ -67,6 +90,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
     docDateStart: '',
     docDateEnd: '',
     status: null,
+    shippingMethod: '',
     keyword: ''
   };
 
@@ -91,11 +115,12 @@ export default function PurchaseOrderManagement(): JSX.Element {
     initialValues: defaultFilter,
     onSubmit: (values) => {
       const nextFilter: SearchPurchaseOrderRequest = {
-        purchaseOrderNo: values.purchaseOrderNo?.trim() || '',
-        salesOrderNo: values.salesOrderNo?.trim() || '',
+        purchaseOrderNo: withDocumentNoPrefix(values.purchaseOrderNo, PURCHASE_ORDER_NO_PREFIX),
+        salesOrderNo: withDocumentNoPrefix(values.salesOrderNo, SALES_ORDER_NO_PREFIX),
         docDateStart: values.docDateStart || '',
         docDateEnd: values.docDateEnd || '',
         status: values.status || null,
+        shippingMethod: values.shippingMethod || '',
         keyword: values.keyword?.trim() || ''
       };
 
@@ -260,8 +285,19 @@ export default function PurchaseOrderManagement(): JSX.Element {
               fullWidth
               label="เลขที่ใบสั่งซื้อ"
               name="purchaseOrderNo"
+              InputLabelProps={{ shrink: true }}
               value={searchFormik.values.purchaseOrderNo}
-              onChange={searchFormik.handleChange}
+              onChange={(event) =>
+                searchFormik.setFieldValue(
+                  'purchaseOrderNo',
+                  event.target.value.replace(new RegExp(`^${PURCHASE_ORDER_NO_PREFIX}`, 'i'), '')
+                )
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">{PURCHASE_ORDER_NO_PREFIX}</InputAdornment>
+                )
+              }}
             />
           </GridTextField>
           <GridTextField item xs={12} sm={4} md={3}>
@@ -269,8 +305,19 @@ export default function PurchaseOrderManagement(): JSX.Element {
               fullWidth
               label="เลขที่ใบยืนยันสั่งซื้อ"
               name="salesOrderNo"
+              InputLabelProps={{ shrink: true }}
               value={searchFormik.values.salesOrderNo}
-              onChange={searchFormik.handleChange}
+              onChange={(event) =>
+                searchFormik.setFieldValue(
+                  'salesOrderNo',
+                  event.target.value.replace(new RegExp(`^${SALES_ORDER_NO_PREFIX}`, 'i'), '')
+                )
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">{SALES_ORDER_NO_PREFIX}</InputAdornment>
+                )
+              }}
             />
           </GridTextField>
           <GridTextField item xs={12} sm={4} md={3}>
@@ -279,12 +326,30 @@ export default function PurchaseOrderManagement(): JSX.Element {
               fullWidth
               label="สถานะ"
               name="status"
+              InputLabelProps={{ shrink: true }}
               value={searchFormik.values.status || ''}
               onChange={searchFormik.handleChange}>
               <MenuItem value="">ทั้งหมด</MenuItem>
               {PURCHASE_ORDER_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status} value={status}>
                   {getDocumentStatusLabel(status)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+          <GridTextField item xs={12} sm={4} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="วิธีขนส่ง"
+              name="shippingMethod"
+              InputLabelProps={{ shrink: true }}
+              value={searchFormik.values.shippingMethod || ''}
+              onChange={searchFormik.handleChange}>
+              <MenuItem value="">ทั้งหมด</MenuItem>
+              {PO_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
+                <MenuItem key={shippingMethod} value={shippingMethod}>
+                  {shippingMethod}
                 </MenuItem>
               ))}
             </TextField>
@@ -316,6 +381,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
               fullWidth
               label="คำค้นหา"
               name="keyword"
+              InputLabelProps={{ shrink: true }}
               value={searchFormik.values.keyword}
               onChange={searchFormik.handleChange}
             />

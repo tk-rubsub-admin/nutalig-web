@@ -607,6 +607,25 @@ export default function QuotationDetail(): JSX.Element {
         setDraftItems((items) => items.filter((_item, itemIndex) => itemIndex !== index));
     };
 
+    const handleAddDraftItem = () => {
+        setDraftItems((items) => [
+            ...items,
+            {
+                id: '',
+                name: '',
+                type: '',
+                capacity: '',
+                size: '',
+                spec: '',
+                unitPrice: 0,
+                quantity: 1,
+                amount: 0,
+                imagePreview: '',
+                imageUrl: ''
+            }
+        ]);
+    };
+
     const handleUploadQuotationItemImage = async (index: number, file?: File | null) => {
         if (!file) {
             return;
@@ -1231,6 +1250,20 @@ export default function QuotationDetail(): JSX.Element {
                         </Grid>
 
                         <GridSearchSection container>
+                            {isEditing ? (
+                                <Grid item xs={12}>
+                                    <Stack direction="row" justifyContent="flex-end">
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleAddDraftItem}
+                                            disabled={isUpdating}>
+                                            เพิ่มรายการสินค้า
+                                        </Button>
+                                    </Stack>
+                                    <br />
+                                </Grid>
+                            ) : null}
+
                             {isDownSm ? (
                                 <Stack spacing={1.25} sx={{ width: '100%' }}>
                                     {displayItemsByRfq.length ? (

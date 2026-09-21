@@ -9,6 +9,9 @@ import {
 import {
   Box,
   Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
   ListSubheader,
   MenuItem,
@@ -36,7 +39,10 @@ import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { getSystemConfig } from 'services/Config/config-api';
 import { GROUP_CODE } from 'services/Config/config-type';
-import { createPurchaseOrder } from 'services/PurchaseOrder/purchase-order-api';
+import {
+  createPurchaseOrder,
+  getPurchaseOrderCbmPreview
+} from 'services/PurchaseOrder/purchase-order-api';
 import { getRFQ, getRFQSupplierQuotes } from 'services/RFQ/rfq-api';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
@@ -184,6 +190,17 @@ function calculateItemTotal(item: {
   );
 }
 
+function getPaymentTermRate(paymentTerm?: string | null): number | null {
+  const normalizedPaymentTerm = paymentTerm?.trim().toUpperCase();
+  if (normalizedPaymentTerm === 'DEP50') {
+    return 0.5;
+  }
+  if (normalizedPaymentTerm?.startsWith('DEP_30_')) {
+    return 0.3;
+  }
+  return null;
+}
+
 function formatShippingAddress(
   destination?: SupplierShipping['destinations'][number] | null
 ): string {
@@ -246,6 +263,7 @@ export default function NewPurchaseOrder(): ReactElement {
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const classes = useStyles();
 
   const { data: salesOrder, isFetching } = useQuery(
@@ -483,9 +501,7 @@ export default function NewPurchaseOrder(): ReactElement {
   );
   const displayItemsByRfq = useMemo(
     () =>
-      [...editableItems].sort((left, right) =>
-        (left.rfqId || '').localeCompare(right.rfqId || '')
-      ),
+      [...editableItems].sort((left, right) => (left.rfqId || '').localeCompare(right.rfqId || '')),
     [editableItems]
   );
   console.log('editableItems', editableItems);
@@ -583,12 +599,40 @@ export default function NewPurchaseOrder(): ReactElement {
     );
   }, [filteredItems, supplierQuotes]);
 
+  const cbmPreviewRequest = useMemo(
+    () => ({
+      salesOrderNo: salesOrder?.salesOrderNo || '',
+      items: editableItems
+        .filter((item) => item.id > 0 && !item.isAutomaticShipping)
+        .map((item) => ({ salesOrderDetailId: item.id, quantity: Number(item.quantity || 0) }))
+    }),
+    [editableItems, salesOrder?.salesOrderNo]
+  );
+  const { data: cbmPreview, isFetching: isCbmPreviewFetching } = useQuery(
+    ['purchase-order-cbm-preview', cbmPreviewRequest],
+    () => getPurchaseOrderCbmPreview(cbmPreviewRequest),
+    {
+      enabled: Boolean(cbmPreviewRequest.salesOrderNo && cbmPreviewRequest.items.length),
+      keepPreviousData: true,
+      refetchOnWindowFocus: false
+    }
+  );
+
   const summary = useMemo(() => {
     const subTotal = editableItems.reduce((sum, item) => sum + calculateItemTotal(item), 0);
     const currency = editableItems[0]?.supplierCurrency || selectedShipping?.currency || '';
     const exchangeRate = editableItems[0]?.exchangeRate || 0;
-    return { subTotal, currency, exchangeRate };
-  }, [editableItems, selectedShipping?.currency]);
+    const paymentTermRate = getPaymentTermRate(draft.paymentTerm);
+    return {
+      subTotal,
+      currency,
+      exchangeRate,
+      paymentTermRate,
+      paymentAmount: paymentTermRate === null ? null : subTotal * paymentTermRate,
+      totalCbm: Number(cbmPreview?.totalCbm || 0),
+      missingCbmCount: Number(cbmPreview?.unavailableItemCount || 0)
+    };
+  }, [cbmPreview, draft.paymentTerm, editableItems, selectedShipping?.currency]);
 
   const handleItemEdit = (itemId: number, field: EditablePurchaseOrderItemField, value: string) => {
     const nextValue = NUMERIC_ITEM_FIELDS.has(field) ? Number(value || 0) : value;
@@ -690,7 +734,11 @@ export default function NewPurchaseOrder(): ReactElement {
       toast.error('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ');
       return;
     }
-    if (!['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(salesOrder.procurementStatus || '')) {
+    if (
+      !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
+        salesOrder.procurementStatus || ''
+      )
+    ) {
       toast.error('สถานะใบยืนยันสั่งซื้อยังไม่พร้อมสร้างใบสั่งซื้อ');
       return;
     }
@@ -1307,6 +1355,12 @@ export default function NewPurchaseOrder(): ReactElement {
                   <TableBody>
                     {displayItemsByRfq.map((item, index) => {
                       const total = calculateItemTotal(item);
+                      const itemCbmPreview =
+                        item.id > 0
+                          ? cbmPreview?.items.find(
+                            (preview) => preview.salesOrderDetailId === item.id
+                          )
+                          : undefined;
                       const rfqId = item.rfqId || null;
                       const previousRfqId = displayItemsByRfq[index - 1]?.rfqId || null;
                       const isFirstItemInRfqGroup = index === 0 || rfqId !== previousRfqId;
@@ -1350,6 +1404,16 @@ export default function NewPurchaseOrder(): ReactElement {
                                 src={item.imageUrl}
                                 alt={item.name || 'product-image'}
                                 className={classes.imageThumb}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setPreviewImageUrl(item.imageUrl)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setPreviewImageUrl(item.imageUrl);
+                                  }
+                                }}
+                                sx={{ cursor: 'zoom-in' }}
                               />
                             ) : (
                               <Typography variant="caption" color="text.secondary">
@@ -1455,15 +1519,46 @@ export default function NewPurchaseOrder(): ReactElement {
                   />
                 </Grid>
                 <Grid item xs={12} md="auto">
-                  <TextField
-                    fullWidth
-                    label="จำนวนเงินทั้งสิ้น"
-                    value={formatNumber(summary.subTotal) + ' ' + summary.currency}
-                    InputLabelProps={{ shrink: true }}
-                    InputProps={{ readOnly: true }}
-                    inputProps={{ style: { textAlign: 'right' } }}
-                    sx={{ width: { xs: '100%', md: 280 } }}
-                  />
+                  <Stack spacing={2}>
+                    <TextField
+                      fullWidth
+                      label="จำนวนเงินทั้งสิ้น"
+                      value={formatNumber(summary.subTotal) + ' ' + summary.currency}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                      inputProps={{ style: { textAlign: 'right' } }}
+                      sx={{ width: { xs: '100%', md: 280 } }}
+                    />
+                    {summary.paymentAmount !== null && summary.paymentTermRate !== null ? (
+                      <TextField
+                        fullWidth
+                        label={`ยอดมัดจำ ${summary.paymentTermRate * 100}%`}
+                        value={formatNumber(summary.paymentAmount) + ' ' + summary.currency}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{ readOnly: true }}
+                        inputProps={{ style: { textAlign: 'right' } }}
+                        sx={{ width: { xs: '100%', md: 280 } }}
+                      />
+                    ) : null}
+                    <TextField
+                      fullWidth
+                      label="CBM รวม"
+                      value={
+                        isCbmPreviewFetching
+                          ? 'กำลังคำนวณ...'
+                          : `${formatNumber(summary.totalCbm)} CBM`
+                      }
+                      helperText={
+                        summary.missingCbmCount
+                          ? `มี ${summary.missingCbmCount} รายการที่คำนวณ CBM ไม่ได้ (ข้อมูล package ไม่ครบ)`
+                          : ``
+                      }
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{ readOnly: true }}
+                      inputProps={{ style: { textAlign: 'right' } }}
+                      sx={{ width: { xs: '100%', md: 280 } }}
+                    />
+                  </Stack>
                 </Grid>
               </Grid>
             </CollapsibleWrapper>
@@ -1514,6 +1609,23 @@ export default function NewPurchaseOrder(): ReactElement {
         onCancel={() => setIsConfirmOpen(false)}
         onConfirm={handleSubmit}
       />
+      <Dialog
+        open={Boolean(previewImageUrl)}
+        onClose={() => setPreviewImageUrl(null)}
+        fullWidth
+        maxWidth="md">
+        <DialogTitle>รูปสินค้า</DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          {previewImageUrl ? (
+            <Box
+              component="img"
+              src={previewImageUrl}
+              alt="product preview"
+              sx={{ display: 'block', width: '100%', maxHeight: '75vh', objectFit: 'contain' }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

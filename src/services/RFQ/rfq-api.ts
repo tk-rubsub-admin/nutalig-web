@@ -31,7 +31,8 @@ import {
   UpsertRFQSupplierQuoteRequest,
   UpdateRFQResponse,
   UpdateRFQDetailRequest,
-  UpdateRFQDetailTierRequest
+  UpdateRFQDetailTierRequest,
+  UpdateRFQDetailTierSplitRequest
 } from './rfq-type';
 
 const buildRFQSearchPayload = (
@@ -628,6 +629,19 @@ export const updateRFQDetailTier = async (
 ): Promise<UpdateRFQResponse> => {
   const response: UpdateRFQResponse = await api
     .patch(`/v1/rfqs/${id}/detials/${detailId}/tiers/${tierId}`, payload)
+    .then((response) => response.data);
+
+  return response;
+};
+
+export const updateRFQDetailTierSplit = async (
+  id: string,
+  detailId: number,
+  tierSplitId: number,
+  payload: UpdateRFQDetailTierSplitRequest
+): Promise<UpdateRFQResponse> => {
+  const response: UpdateRFQResponse = await api
+    .patch(`/v1/rfqs/${id}/details/${detailId}/tier-splits/${tierSplitId}`, payload)
     .then((response) => response.data);
 
   return response;

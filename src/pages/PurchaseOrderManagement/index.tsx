@@ -36,6 +36,7 @@ import {
   SearchPurchaseOrderRequest
 } from 'services/PurchaseOrder/purchase-order-type';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
+import { getShippingMethodLabel } from 'utils/shipping';
 import { formatNumber } from 'utils/utils';
 
 const PURCHASE_ORDER_STATUS_OPTIONS = ['CREATED', 'CANCELLED', 'CLOSED'];
@@ -179,16 +180,26 @@ export default function PurchaseOrderManagement(): JSX.Element {
           </Stack>
         </TableCell>
         <TableCell align="center">{purchaseOrder.docDate || '-'}</TableCell>
-        <TableCell align="center">{purchaseOrder.productionLeadTimeDay ?? '-'}</TableCell>
-        <TableCell align="center">{purchaseOrder.shippingLeadTimeDay ?? '-'}</TableCell>
+        <TableCell
+          align="center"
+          sx={{ width: 110, minWidth: 110, maxWidth: 110, whiteSpace: 'nowrap' }}>
+          {purchaseOrder.productionLeadTimeDay ?? '-'}/
+          {purchaseOrder.shippingLeadTimeDay ?? '-'}
+        </TableCell>
         <TableCell align="center">{purchaseOrder.salesOrderNo || '-'}</TableCell>
         <TableCell align="center">
           {purchaseOrder.supplier?.supplierName || purchaseOrder.supplierNameSnapshot || '-'}
         </TableCell>
+        <TableCell align="center">
+          {getShippingMethodLabel(
+            purchaseOrder.shippingMethodSnapshot ||
+            purchaseOrder.supplierShipping?.shippingMethod
+          )}
+        </TableCell>
+        <TableCell align="right">{formatNumber(purchaseOrder.totalCbm || 0)} CBM</TableCell>
         <TableCell align="right">
           {formatNumber(purchaseOrder.grandTotal || 0)} {purchaseOrder.currency || ''}
         </TableCell>
-        <TableCell align="right">{formatNumber(purchaseOrder.grandTotalThb || 0)}</TableCell>
       </TableRow>
     ));
   }, [classes.noResultMessage, purchaseOrderList?.data?.records, t]);
@@ -223,17 +234,26 @@ export default function PurchaseOrderManagement(): JSX.Element {
               />
             </Stack>
             <Typography variant="body2">{purchaseOrder.docDate || '-'}</Typography>
-            <Typography variant="body2">ระยะเวลาผลิต: {purchaseOrder.productionLeadTimeDay ?? '-'}</Typography>
-            <Typography variant="body2">ระยะเวลาส่งของ: {purchaseOrder.shippingLeadTimeDay ?? '-'}</Typography>
+            <Typography variant="body2">
+              ระยะเวลาผลิต/ระยะเวลาส่งของ: {purchaseOrder.productionLeadTimeDay ?? '-'}/
+              {purchaseOrder.shippingLeadTimeDay ?? '-'}
+            </Typography>
             <Typography variant="body2">{purchaseOrder.salesOrderNo || '-'}</Typography>
             <Typography variant="body2">
               {purchaseOrder.supplier?.supplierName || purchaseOrder.supplierNameSnapshot || '-'}
             </Typography>
+            <Typography variant="body2">
+              Shipping Method:{' '}
+              {getShippingMethodLabel(
+                purchaseOrder.shippingMethodSnapshot ||
+                purchaseOrder.supplierShipping?.shippingMethod
+              )}
+            </Typography>
+            <Typography variant="body2">
+              CBM: {formatNumber(purchaseOrder.totalCbm || 0)}
+            </Typography>
             <Typography variant="body1" fontWeight={600}>
               {formatNumber(purchaseOrder.grandTotal || 0)} {purchaseOrder.currency || ''}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {formatNumber(purchaseOrder.grandTotalThb || 0)} THB
             </Typography>
           </Stack>
         </TableCell>
@@ -349,7 +369,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
               <MenuItem value="">ทั้งหมด</MenuItem>
               {PO_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
                 <MenuItem key={shippingMethod} value={shippingMethod}>
-                  {shippingMethod}
+                  {getShippingMethodLabel(shippingMethod)}
                 </MenuItem>
               ))}
             </TextField>
@@ -400,12 +420,16 @@ export default function PurchaseOrderManagement(): JSX.Element {
                   <TableRow>
                     <TableCell className={classes.tableHeader}>เลขที่ใบสั่งซื้อ</TableCell>
                     <TableCell className={classes.tableHeader}>วันที่เอกสาร</TableCell>
-                    <TableCell className={classes.tableHeader}>ระยะเวลาผลิต</TableCell>
-                    <TableCell className={classes.tableHeader}>ระยะเวลาส่งของ</TableCell>
+                    <TableCell
+                      className={classes.tableHeader}
+                      sx={{ width: 110, minWidth: 110, maxWidth: 110, whiteSpace: 'normal' }}>
+                      <Typography fontSize={10}>ระยะเวลาผลิต/ส่งของ</Typography>
+                    </TableCell>
                     <TableCell className={classes.tableHeader}>เลขที่ใบยืนยันสั่งซื้อ</TableCell>
                     <TableCell className={classes.tableHeader}>Supplier</TableCell>
+                    <TableCell className={classes.tableHeader}>Shipping Method</TableCell>
+                    <TableCell className={classes.tableHeader}>CBM</TableCell>
                     <TableCell className={classes.tableHeader}>ยอดรวม</TableCell>
-                    <TableCell className={classes.tableHeader}>ยอดรวม (บาท)</TableCell>
                   </TableRow>
                 </TableHead>
               )}
@@ -415,11 +439,14 @@ export default function PurchaseOrderManagement(): JSX.Element {
         </TableContainer>
 
         <Paginate
+          pagination={purchaseOrderList?.data?.pagination}
           page={page}
-          setPage={setPage}
           pageSize={pageSize}
+          setPage={setPage}
           setPageSize={setPageSize}
-          total={purchaseOrderList?.data?.pagination?.total || 0}
+          refetch={refetch}
+          totalRecords={purchaseOrderList?.data?.pagination?.totalRecords}
+          isShow={!isDownSm}
         />
       </Wrapper>
     </Page>

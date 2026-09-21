@@ -634,6 +634,19 @@ export interface UpdateRFQDetailTierRequest {
   supplierId?: string | null;
 }
 
+export interface UpdateRFQDetailTierSplitRequest {
+  quantity: number;
+  sellPrice: number;
+  commission?: number | null;
+  currency?: string | null;
+  shippingMethod: string;
+  containerSize?: string | null;
+  shippingCost?: number | null;
+  isFcl?: boolean | null;
+  isShareFCL?: boolean | null;
+  supplierId?: string | null;
+}
+
 export interface CreateRFQAdditionalCostRequest {
   costTypeCode: string;
   description: string;

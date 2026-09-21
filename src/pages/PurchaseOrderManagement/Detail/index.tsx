@@ -43,6 +43,7 @@ import { Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
   ChangeEvent,
+  Fragment,
   MouseEvent as ReactMouseEvent,
   ReactElement,
   SyntheticEvent,
@@ -72,7 +73,9 @@ import {
 } from 'services/PurchaseOrder/purchase-order-type';
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
+import { getShippingMethodLabel } from 'utils/shipping';
 import { formatNumber } from 'utils/utils';
+import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
 
 interface PurchaseOrderDetailParams {
   id: string;
@@ -236,6 +239,10 @@ export default function PurchaseOrderDetail(): ReactElement {
   const displayItems = isEditing ? draft.items : purchaseOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const canManagePurchaseOrder = purchaseOrder?.status === 'CREATED' || purchaseOrder?.status === 'AWAITING_PAYMENT';
+  const canClosePurchaseOrder =
+    Boolean(purchaseOrder) &&
+    purchaseOrder?.status !== 'CANCELLED' &&
+    purchaseOrder?.status !== 'CLOSED';
 
   const summary = useMemo(() => {
     const exchangeRate = Number(purchaseOrder?.exchangeRate || 0);
@@ -602,7 +609,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                   handleCloseActionMenu();
                   setIsCloseDialogOpen(true);
                 }}
-                disabled={!canManagePurchaseOrder}
+                disabled={!canClosePurchaseOrder}
                 sx={{ width: '100%' }}>
                 <ListItemIcon>
                   <TaskAlt fontSize="small" />
@@ -740,6 +747,25 @@ export default function PurchaseOrderDetail(): ReactElement {
                   <Grid item xs={12} sm={6}>
                     <Info label="อัตราแลกเปลี่ยน" value={purchaseOrder?.exchangeRate || 0} />
                   </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info
+                      label="Shipping Method"
+                      value={getShippingMethodLabel(
+                        purchaseOrder?.shippingMethodSnapshot ||
+                          purchaseOrder?.supplierShipping?.shippingMethod
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Info
+                      label="Payment Term"
+                      value={
+                        purchaseOrder?.paymentTerm?.nameTh ||
+                        purchaseOrder?.paymentTerm?.nameEn ||
+                        purchaseOrder?.paymentTerm?.code
+                      }
+                    />
+                  </Grid>
                   <Grid item xs={12}>
                     {isEditing ? (
                       <TextField
@@ -811,95 +837,197 @@ export default function PurchaseOrderDetail(): ReactElement {
                     <TableBody>
                       {displayItems.length ? (
                         displayItems.map((item, index) => (
-                          <TableRow key={item.id || item.lineNo || index}>
-                            <TableCell align="center">
-                              {item.imageUrl ? (
-                                <Box
-                                  component="img"
-                                  src={item.imageUrl}
-                                  alt={item.name || 'product-image'}
-                                  className={classes.imageThumb}
-                                />
-                              ) : (
-                                <Typography variant="caption" color="text.secondary">
-                                  -
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {isEditing ? (
-                                <TextField
-                                  className={classes.itemTextField}
-                                  value={item.name || ''}
-                                  onChange={(event) =>
-                                    updateDraftItemText(index, 'name', event.target.value)
-                                  }
-                                  fullWidth
-                                  size="small"
-                                />
-                              ) : (
-                                item.name || '-'
-                              )}
-                            </TableCell>
-                            <TableCell className={classes.specCell}>
-                              {isEditing ? (
-                                <TextField
-                                  className={classes.itemTextField}
-                                  value={item.spec || ''}
-                                  onChange={(event) =>
-                                    updateDraftItemText(index, 'spec', event.target.value)
-                                  }
-                                  fullWidth
-                                  multiline
-                                  minRows={2}
-                                  size="small"
-                                />
-                              ) : (
-                                item.spec || '-'
-                              )}
-                            </TableCell>
-                            <TableCell align="right">
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  value={item.quantity ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(
-                                      index,
-                                      'quantity',
-                                      Number(event.target.value || 0)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                formatNumber(item.quantity || 0)
-                              )}
-                            </TableCell>
-                            <TableCell align="right">
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  value={item.supplierUnitPrice ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(
-                                      index,
-                                      'supplierUnitPrice',
-                                      Number(event.target.value || 0)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
-                                }`
-                              )}
-                            </TableCell>
-                            <TableCell align="right">
-                              {formatNumber(item.amountSupplierCurrency || 0)}{' '}
-                              {item.supplierCurrency || ''}
-                            </TableCell>
-                          </TableRow>
+                          <Fragment key={item.id || item.lineNo || index}>
+                            <TableRow>
+                              <TableCell align="center">
+                                {item.imageUrl ? (
+                                  <Box
+                                    component="img"
+                                    src={item.imageUrl}
+                                    alt={item.name || 'product-image'}
+                                    className={classes.imageThumb}
+                                  />
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">
+                                    -
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {isEditing ? (
+                                  <TextField
+                                    className={classes.itemTextField}
+                                    value={item.name || ''}
+                                    onChange={(event) =>
+                                      updateDraftItemText(index, 'name', event.target.value)
+                                    }
+                                    fullWidth
+                                    size="small"
+                                  />
+                                ) : (
+                                  item.name || '-'
+                                )}
+                              </TableCell>
+                              <TableCell className={classes.specCell}>
+                                {isEditing ? (
+                                  <TextField
+                                    className={classes.itemTextField}
+                                    value={item.spec || ''}
+                                    onChange={(event) =>
+                                      updateDraftItemText(index, 'spec', event.target.value)
+                                    }
+                                    fullWidth
+                                    multiline
+                                    minRows={2}
+                                    size="small"
+                                  />
+                                ) : (
+                                  item.spec || '-'
+                                )}
+                              </TableCell>
+                              <TableCell align="right">
+                                {isEditing ? (
+                                  <TextField
+                                    type="number"
+                                    className={classes.itemTextField}
+                                    value={item.quantity ?? 0}
+                                    onChange={(event) =>
+                                      updateDraftItem(
+                                        index,
+                                        'quantity',
+                                        Number(event.target.value || 0)
+                                      )
+                                    }
+                                  />
+                                ) : (
+                                  formatNumber(item.quantity || 0)
+                                )}
+                              </TableCell>
+                              <TableCell align="right">
+                                {isEditing ? (
+                                  <TextField
+                                    type="number"
+                                    className={classes.itemTextField}
+                                    value={item.supplierUnitPrice ?? 0}
+                                    onChange={(event) =>
+                                      updateDraftItem(
+                                        index,
+                                        'supplierUnitPrice',
+                                        Number(event.target.value || 0)
+                                      )
+                                    }
+                                  />
+                                ) : (
+                                  `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
+                                  }`
+                                )}
+                              </TableCell>
+                              <TableCell align="right">
+                                {formatNumber(item.amountSupplierCurrency || 0)}{' '}
+                                {item.supplierCurrency || ''}
+                              </TableCell>
+                            </TableRow>
+                            {item.packages?.length ? (
+                              <TableRow>
+                                <TableCell colSpan={6} sx={{ backgroundColor: '#f8fafc', p: 1.5 }}>
+                                  <Stack spacing={1}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                      ข้อมูล Package และ CBM
+                                    </Typography>
+                                    <TableContainer
+                                      sx={{ border: '1px solid #dce4ee', borderRadius: 2 }}>
+                                      <Table size="small" sx={{ minWidth: 920 }}>
+                                        <TableHead>
+                                          <TableRow sx={{ backgroundColor: '#eef4fa' }}>
+                                            <TableCell>Package</TableCell>
+                                            <TableCell>ขนาดกล่อง</TableCell>
+                                            <TableCell>น้ำหนัก</TableCell>
+                                            <TableCell align="right">บรรจุ/ลัง</TableCell>
+                                            <TableCell align="right">จำนวนลัง</TableCell>
+                                            <TableCell align="right">CBM/ลัง</TableCell>
+                                            <TableCell align="right">CBM รวม</TableCell>
+                                            <TableCell align="center">สถานะ</TableCell>
+                                          </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                          {item.packages.map((packageItem, packageIndex) => (
+                                            <TableRow
+                                              key={
+                                                packageItem.id ||
+                                                packageItem.sourcePackageId ||
+                                                packageIndex
+                                              }>
+                                              <TableCell>{packageItem.packageName || '-'}</TableCell>
+                                              <TableCell>
+                                                {packageItem.packageDimension || '-'}
+                                              </TableCell>
+                                              <TableCell>{packageItem.packageWeight || '-'}</TableCell>
+                                              <TableCell align="right">
+                                                {packageItem.packageCapacity ||
+                                                  (packageItem.capacityQty != null
+                                                    ? `${formatNumber(packageItem.capacityQty)} pcs.`
+                                                    : '-')}
+                                              </TableCell>
+                                              <TableCell align="right">
+                                                {packageItem.cartonCount != null
+                                                  ? formatNumber(packageItem.cartonCount)
+                                                  : '-'}
+                                              </TableCell>
+                                              <TableCell align="right">
+                                                {packageItem.cbmPerCarton != null
+                                                  ? formatNumber(packageItem.cbmPerCarton)
+                                                  : '-'}
+                                              </TableCell>
+                                              <TableCell align="right">
+                                                {packageItem.totalCbm != null
+                                                  ? formatNumber(packageItem.totalCbm)
+                                                  : '-'}
+                                              </TableCell>
+                                              <TableCell align="center">
+                                                <Chip
+                                                  size="small"
+                                                  color={
+                                                    packageItem.selectedForCalculation
+                                                      ? 'success'
+                                                      : 'default'
+                                                  }
+                                                  label={
+                                                    packageItem.selectedForCalculation
+                                                      ? 'รวมใน CBM'
+                                                      : 'ไม่นำมาคำนวณ'
+                                                  }
+                                                />
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                          <TableRow sx={{ backgroundColor: '#eef4fa' }}>
+                                            <TableCell colSpan={6} align="right">
+                                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                                รวม CBM
+                                              </Typography>
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                                {formatNumber(
+                                                  item.packages.reduce(
+                                                    (total, packageItem) =>
+                                                      total + Number(packageItem.totalCbm || 0),
+                                                    0
+                                                  )
+                                                )}{' '}
+                                                CBM
+                                              </Typography>
+                                            </TableCell>
+                                            <TableCell />
+                                          </TableRow>
+                                        </TableBody>
+                                      </Table>
+                                    </TableContainer>
+                                  </Stack>
+                                </TableCell>
+                              </TableRow>
+                            ) : null}
+                          </Fragment>
                         ))
                       ) : (
                         <TableRow>
@@ -913,6 +1041,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                 </TableContainer>
               </Stack>
             </Grid>
+            {purchaseOrder ? (
+              <Grid item xs={12}>
+                <PurchaseOrderPaymentSection
+                  purchaseOrder={purchaseOrder}
+                  onChanged={() => Promise.all([refetch(), refetchHistory()])}
+                />
+              </Grid>
+            ) : null}
             <Grid item xs={12}>
               <Stack className={classes.section} spacing={2}>
                 <Stack
@@ -1003,13 +1139,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                   value={summary.grandTotal}
                   suffix={purchaseOrder?.currency || ''}
                 />
+                <Summary label="CBM รวม" value={Number(purchaseOrder?.totalCbm || 0)} suffix="CBM" />
               </Stack>
             </Grid>
           </Grid>
         </TabPanel>
 
         <TabPanel value="history" currentTab={tab}>
-          <ActivityHistoryTimeline history={activityHistory} />
+          <ActivityHistoryTimeline records={activityHistory} />
         </TabPanel>
       </Wrapper>
     </Page>

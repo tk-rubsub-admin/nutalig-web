@@ -34,6 +34,43 @@ export interface CreatePurchaseOrderResponse {
   purchaseOrderNo: string;
 }
 
+export interface PurchaseOrderCbmPreviewRequest {
+  salesOrderNo: string;
+  items: Array<{ salesOrderDetailId: number; quantity: number }>;
+}
+
+export interface PurchaseOrderPackageSnapshot {
+  id?: number | null;
+  sourcePackageId?: number | null;
+  packageName?: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+  widthCm?: number | null;
+  lengthCm?: number | null;
+  heightCm?: number | null;
+  capacityQty?: number | null;
+  cartonCount?: number | null;
+  cbmPerCarton?: number | null;
+  totalCbm?: number | null;
+  selectedForCalculation?: boolean | null;
+  sortOrder?: number | null;
+}
+
+export interface PurchaseOrderCbmPreview {
+  totalCbm: number;
+  unavailableItemCount: number;
+  items: Array<{
+    salesOrderDetailId: number;
+    supplierQuoteTierId?: number | null;
+    quantity: number;
+    totalCbm?: number | null;
+    available: boolean;
+    reason?: string | null;
+    packages: PurchaseOrderPackageSnapshot[];
+  }>;
+}
+
 export interface UpdatePurchaseOrderItemRequest {
   id?: number | null;
   salesOrderDetailId?: number | null;
@@ -99,6 +136,7 @@ export interface PurchaseOrderItem {
   quotationDetailId?: number | null;
   shippingMethod?: string | null;
   supplierQuoteTierId?: number | null;
+  packages?: PurchaseOrderPackageSnapshot[];
 }
 
 export interface PurchaseOrderAttachment {
@@ -111,6 +149,84 @@ export interface PurchaseOrderAttachment {
   fileSize: number | null;
   remark: string | null;
   sortOrder: number | null;
+}
+
+export type PurchaseOrderPaymentType = 'DEPOSIT' | 'BALANCE' | 'INSTALLMENT' | 'OTHER';
+export type PurchaseOrderPaymentMethod = 'TRANSFER' | 'CHEQUE' | 'CASH';
+export type PurchaseOrderPaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'VOIDED';
+export type PurchaseOrderPaymentLifecycleStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+export type PurchaseOrderPaymentScheduleStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+
+export interface PurchaseOrderPaymentSchedule {
+  id: number;
+  installmentNo: number;
+  paymentType: PurchaseOrderPaymentType;
+  percentage: number;
+  expectedAmount: number;
+  expectedAmountThb: number;
+  paidAmount: number;
+  paidAmountThb: number;
+  pendingAmount: number;
+  pendingAmountThb: number;
+  outstandingAmount: number;
+  outstandingAmountThb: number;
+  status: PurchaseOrderPaymentScheduleStatus;
+  dueDate: string | null;
+}
+
+export interface PurchaseOrderPaymentRequest {
+  scheduleId?: number | null;
+  paymentType: PurchaseOrderPaymentType;
+  installmentNo?: number | null;
+  paymentDate: string;
+  amount: number;
+  exchangeRate?: number | null;
+  paymentMethod: PurchaseOrderPaymentMethod;
+  transferReference?: string | null;
+  chequeBank?: string | null;
+  chequeNo?: string | null;
+  chequeDate?: string | null;
+  chequeBranch?: string | null;
+  remark?: string | null;
+  requestKey?: string | null;
+}
+
+export interface PurchaseOrderPaymentAttachment {
+  id: number;
+  fileName: string | null;
+  originalFileName: string | null;
+  fileUrl: string | null;
+  contentType: string | null;
+  fileSize: number | null;
+  sortOrder: number | null;
+}
+
+export interface PurchaseOrderPayment {
+  id: number;
+  scheduleId: number | null;
+  paymentType: PurchaseOrderPaymentType;
+  installmentNo: number | null;
+  paymentDate: string;
+  amount: number;
+  currency: string;
+  exchangeRate: number;
+  amountThb: number;
+  paymentMethod: PurchaseOrderPaymentMethod;
+  transferReference: string | null;
+  chequeBank: string | null;
+  chequeNo: string | null;
+  chequeDate: string | null;
+  chequeBranch: string | null;
+  remark: string | null;
+  status: PurchaseOrderPaymentStatus;
+  rejectionReason: string | null;
+  approvedDate: string | null;
+  rejectedDate: string | null;
+  voidedDate: string | null;
+  voidReason: string | null;
+  createdDate: string | null;
+  updatedDate: string | null;
+  attachments: PurchaseOrderPaymentAttachment[];
 }
 
 export interface PurchaseOrderRecord {
@@ -130,6 +246,12 @@ export interface PurchaseOrderRecord {
   subTotalThb: number;
   grandTotal: number;
   grandTotalThb: number;
+  paymentStatus: PurchaseOrderPaymentLifecycleStatus;
+  paidTotal: number;
+  paidTotalThb: number;
+  outstandingTotal: number;
+  outstandingTotalThb: number;
+  totalCbm?: number | null;
   remark: string | null;
   revNo: number | null;
   supplierNameSnapshot: string | null;

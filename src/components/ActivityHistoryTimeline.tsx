@@ -221,7 +221,7 @@ function renderCompareSections(
 }
 
 export default function ActivityHistoryTimeline({
-  records,
+  records = [],
   emptyMessage = 'ไม่พบประวัติการใช้งาน'
 }: ActivityHistoryTimelineProps): ReactElement {
   const { getRole } = useAuth();

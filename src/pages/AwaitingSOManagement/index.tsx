@@ -319,7 +319,7 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
                 hover
                 key={salesOrder.salesOrderNo}
                 sx={{ cursor: 'pointer' }}
-                onClick={() => openSalesOrderDetail(salesOrder.salesOrderNo)}>
+                onClick={() => openPurchaseOrderCreate(salesOrder.salesOrderNo)}>
                 <TableCell align="center">
                     <Stack spacing={1} alignItems="center">
                         <Typography variant="body2">{salesOrder.salesOrderNo}</Typography>
@@ -387,7 +387,7 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
                 hover
                 key={salesOrder.salesOrderNo}
                 sx={{ cursor: 'pointer' }}
-                onClick={() => openSalesOrderDetail(salesOrder.salesOrderNo)}>
+                onClick={() => openPurchaseOrderCreate(salesOrder.salesOrderNo)}>
                 <TableCell sx={{ py: 2 }}>
                     <Stack spacing={1}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>

@@ -108,6 +108,7 @@ import {
   updateRFQ,
   updateRFQDetail,
   updateRFQDetailTier,
+  updateRFQDetailTierSplit,
   updateRFQSupplierQuote
 } from 'services/RFQ/rfq-api';
 import { getLeadTimeConfigs, searchSupplier } from 'services/Supplier/supplier-api';
@@ -120,6 +121,7 @@ import {
   RFQDetailHistory,
   RFQDetailOption,
   RFQDetailTier,
+  RFQDetailTierSplit,
   RFQEmployee,
   RFQFileResource,
   RFQInquiryMessage,
@@ -133,6 +135,7 @@ import {
   RequestInfoTo,
   UpdateRFQDetailRequest,
   UpdateRFQDetailTierRequest,
+  UpdateRFQDetailTierSplitRequest,
   UpsertRFQSupplierQuotePackageRequest,
   UpsertRFQSupplierQuoteRequest
 } from 'services/RFQ/rfq-type';
@@ -366,6 +369,11 @@ interface TierEditDraft {
 interface SelectedDetailTierEditTarget {
   detail: RFQDetailOption;
   tier: RFQDetailTier;
+}
+
+interface SelectedDetailTierSplitEditTarget {
+  detail: RFQDetailOption;
+  tierSplit: RFQDetailTierSplit;
 }
 
 function TabPanel({
@@ -941,6 +949,24 @@ function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
     totalPrice: (tier.totalPrice ?? (seaShipping ? tier.seaTotalPrice : tier.landTotalPrice))?.toString() || '',
     supplierQuoteTierId: tier.supplierQuoteTierId?.toString() || '',
     sortOrder: tier.sortOrder?.toString() || ''
+  };
+}
+
+function createTierSplitEditDraft(tierSplit: RFQDetailTierSplit): TierEditDraft {
+  return {
+    quantity:
+      tierSplit.quantity !== null && tierSplit.quantity !== undefined
+        ? quantityFormatter.format(tierSplit.quantity)
+        : '',
+    productPrice: tierSplit.sellPrice?.toString() || '',
+    commission: tierSplit.commission?.toString() || '',
+    currency: tierSplit.currency || 'THB',
+    shippingMethod: tierSplit.shippingMethod || 'LAND',
+    shippingCost: tierSplit.shippingCost?.toString() || '',
+    isFcl: Boolean(tierSplit.isFcl),
+    totalPrice: tierSplit.totalPrice?.toString() || '',
+    supplierQuoteTierId: '',
+    sortOrder: ''
   };
 }
 
@@ -1912,6 +1938,8 @@ export default function RFQDetail(): ReactElement {
   const [visibleRequestedInformationDialog, setVisibleRequestedInformationDialog] = useState(false);
   const [selectedTierForEdit, setSelectedTierForEdit] =
     useState<SelectedDetailTierEditTarget | null>(null);
+  const [selectedTierSplitForEdit, setSelectedTierSplitForEdit] =
+    useState<SelectedDetailTierSplitEditTarget | null>(null);
   const [tierEditDraft, setTierEditDraft] = useState<TierEditDraft | null>(null);
 
   const handleOpenRequestedInformationDialog = () => {
@@ -2701,8 +2729,19 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleOpenTierEditDialog = (detail: RFQDetailOption, tier: RFQDetailTier) => {
+    setSelectedTierSplitForEdit(null);
     setSelectedTierForEdit({ detail, tier });
     setTierEditDraft(createTierEditDraft(tier));
+    setVisibleTierEditDialog(true);
+  };
+
+  const handleOpenTierSplitEditDialog = (
+    detail: RFQDetailOption,
+    tierSplit: RFQDetailTierSplit
+  ) => {
+    setSelectedTierForEdit(null);
+    setSelectedTierSplitForEdit({ detail, tierSplit });
+    setTierEditDraft(createTierSplitEditDraft(tierSplit));
     setVisibleTierEditDialog(true);
   };
 
@@ -2714,6 +2753,7 @@ export default function RFQDetail(): ReactElement {
     setVisibleTierEditDialog(false);
     setVisibleTierEditConfirmDialog(false);
     setSelectedTierForEdit(null);
+    setSelectedTierSplitForEdit(null);
     setTierEditDraft(null);
   };
 
@@ -2766,7 +2806,7 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleConfirmSaveTierEdit = async () => {
-    if (!params.id || !selectedTierForEdit || !tierEditDraft) {
+    if (!params.id || (!selectedTierForEdit && !selectedTierSplitForEdit) || !tierEditDraft) {
       return;
     }
 
@@ -2786,38 +2826,56 @@ export default function RFQDetail(): ReactElement {
       setIsTierEditSubmitting(true);
       setVisibleTierEditConfirmDialog(false);
 
-      const payload: UpdateRFQDetailTierRequest = {
-        quantity,
-        productPrice,
-        commission: parsePriceInput(tierEditDraft.commission),
-        currency: tierEditDraft.currency || null,
-        shippingMethod,
-        landFreightCost: seaShipping ? null : shippingCost,
-        seaFreightCost: seaShipping ? shippingCost : null,
-        isFcl: tierEditDraft.isFcl,
-        landTotalPrice: seaShipping ? null : totalPrice,
-        seaTotalPrice: seaShipping ? totalPrice : null,
-        supplierQuoteTierId: parsePriceInput(tierEditDraft.supplierQuoteTierId) ?? null,
-        sortOrder: parsePriceInput(tierEditDraft.sortOrder),
-        supplierId: null
-      };
-
-      await toast.promise(
-        updateRFQDetailTier(
+      const updatePromise = selectedTierSplitForEdit
+        ? updateRFQDetailTierSplit(
           params.id,
-          selectedTierForEdit.detail.id,
-          selectedTierForEdit.tier.id,
-          payload
-        ),
-        {
-          loading: t('toast.loading'),
-          success: t('toast.success'),
-          error: t('toast.failed')
-        }
-      );
+          selectedTierSplitForEdit.detail.id,
+          selectedTierSplitForEdit.tierSplit.id,
+          {
+            quantity,
+            sellPrice: productPrice,
+            commission: parsePriceInput(tierEditDraft.commission),
+            currency: tierEditDraft.currency || null,
+            shippingMethod,
+            shippingCost,
+            isFcl: selectedTierSplitForEdit.tierSplit.isFcl ?? null,
+            isShareFCL: selectedTierSplitForEdit.tierSplit.isShareFCL ?? null,
+            containerSize: selectedTierSplitForEdit.tierSplit.containerSize ?? null,
+            supplierId: null
+          } as UpdateRFQDetailTierSplitRequest
+        )
+        : updateRFQDetailTier(
+          params.id,
+          selectedTierForEdit!.detail.id,
+          selectedTierForEdit!.tier.id,
+          {
+            quantity,
+            productPrice,
+            commission: parsePriceInput(tierEditDraft.commission),
+            currency: tierEditDraft.currency || null,
+            shippingMethod,
+            landFreightCost: seaShipping ? null : shippingCost,
+            seaFreightCost: seaShipping ? shippingCost : null,
+            isFcl: tierEditDraft.isFcl,
+            landTotalPrice: seaShipping ? null : totalPrice,
+            seaTotalPrice: seaShipping ? totalPrice : null,
+            supplierQuoteTierId: parsePriceInput(tierEditDraft.supplierQuoteTierId) ?? null,
+            sortOrder: parsePriceInput(tierEditDraft.sortOrder),
+            supplierId: null
+          } as UpdateRFQDetailTierRequest
+        );
+
+      await toast.promise(updatePromise, {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
 
       await refetchPriceInquiryData();
-      handleCloseTierEditDialog();
+      setVisibleTierEditDialog(false);
+      setSelectedTierForEdit(null);
+      setSelectedTierSplitForEdit(null);
+      setTierEditDraft(null);
     } finally {
       setIsTierEditSubmitting(false);
     }
@@ -5491,9 +5549,6 @@ export default function RFQDetail(): ReactElement {
                                           <TableCell align="right">ราคาสินค้า</TableCell>
                                           <TableCell align="center">วิธีการขนส่ง</TableCell>
                                           <TableCell align="right">ค่าขนส่ง</TableCell>
-                                          {/* <TableCell align="center">FCL</TableCell>
-                                          <TableCell align="center">Share FCL</TableCell>
-                                          <TableCell align="center">ขนาดตู้</TableCell> */}
                                           <TableCell align="right">ราคารวม</TableCell>
                                           <TableCell align="right">ค่าคอม</TableCell>
                                           <TableCell align="center">Action</TableCell>
@@ -5518,21 +5573,12 @@ export default function RFQDetail(): ReactElement {
                                             <TableCell align="right">
                                               {formatPrice(tier.shippingCost, tier.currency)}
                                             </TableCell>
-                                            {/* <TableCell align="center">
-                                              {tier.isFcl ? 'ใช่' : '-'}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                              {tier.isShareFCL ? 'ใช่' : '-'}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                              {formatContainerSizeLabel(tier.containerSize)}
-                                            </TableCell> */}
                                             <TableCell
                                               align="right"
                                               sx={{ fontWeight: 700, color: '#1565c0' }}>
                                               {formatPrice(tier.totalPrice, tier.currency)}
                                             </TableCell>
-                                            <TableCell align="center">
+                                            <TableCell align="right">
                                               {tier.commission + '%'}
                                             </TableCell>
                                             <TableCell align="center">
@@ -5555,7 +5601,7 @@ export default function RFQDetail(): ReactElement {
                                   </Box>
                                 ) : sortedTierSplits.length ? (
                                   <Box sx={{ overflowX: 'auto' }}>
-                                    <Table size="small" sx={{ minWidth: 900 }}>
+                                    <Table size="small" sx={{ minWidth: 1080 }}>
                                       <TableHead>
                                         <TableRow
                                           sx={{
@@ -5571,6 +5617,7 @@ export default function RFQDetail(): ReactElement {
                                           <TableCell align="right">ค่าขนส่ง</TableCell>
                                           <TableCell align="right">ราคารวม</TableCell>
                                           <TableCell align="right">ค่าคอม</TableCell>
+                                          <TableCell align="center">Action</TableCell>
                                         </TableRow>
                                       </TableHead>
                                       <TableBody>
@@ -5600,6 +5647,19 @@ export default function RFQDetail(): ReactElement {
                                             </TableCell>
                                             <TableCell align="right">
                                               {formatPercent(tierSplit.commission)}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                  handleOpenTierSplitEditDialog(detail, tierSplit)
+                                                }
+                                                sx={{
+                                                  border: '1px solid #cbd5e1',
+                                                  borderRadius: 2
+                                                }}>
+                                                <EditOutlined fontSize="small" />
+                                              </IconButton>
                                             </TableCell>
                                           </TableRow>
                                         ))}
@@ -5746,7 +5806,7 @@ export default function RFQDetail(): ReactElement {
                   getSupplierDisplayName={getSupplierDisplayName}
                 />
               </CollapsibleWrapper>
-              <CollapsibleWrapper title="หมายเหตุสำหรับจัดซื้อ" defaultExpanded={false} action={null}>
+              <CollapsibleWrapper title="หมายเหตุสำหรับจัดซื้อ" defaultExpanded action={null}>
                 {rfq?.procurementRemarks?.length ? (
                   <Stack spacing={1.5}>
                     {rfq.procurementRemarks.map((procurementRemark, index) => (
@@ -5947,7 +6007,7 @@ export default function RFQDetail(): ReactElement {
                                               }
                                             }}>
                                             <TableCell>MOQ Split</TableCell>
-                                            <TableCell>Sell Price</TableCell>
+                                            <TableCell>ราคาสินค้า</TableCell>
                                             <TableCell>ค่าคอม</TableCell>
                                             <TableCell>ค่าส่งทางรถ</TableCell>
                                             <TableCell>ค่าส่งทางเรือ</TableCell>
@@ -6016,25 +6076,23 @@ export default function RFQDetail(): ReactElement {
         <DialogTitle>แก้ไข Option</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Option Name"
-                  value={detailEditDraft?.optionName || ''}
-                  onChange={(event) =>
-                    handleDetailEditDraftChange('optionName', event.target.value)
-                  }
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Plan"
-                  value={detailEditDraft?.plan || ''}
-                  onChange={(event) => handleDetailEditDraftChange('plan', event.target.value)}
-                />
-              </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Option Name"
+                value={detailEditDraft?.optionName || ''}
+                onChange={(event) =>
+                  handleDetailEditDraftChange('optionName', event.target.value)
+                }
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Plan"
+                value={detailEditDraft?.plan || ''}
+                onChange={(event) => handleDetailEditDraftChange('plan', event.target.value)}
+              />
             </Grid>
             <TextField
               fullWidth
@@ -6090,8 +6148,10 @@ export default function RFQDetail(): ReactElement {
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               {formatOptionNameWithPlan(
-                selectedTierForEdit?.detail.optionName || '-',
-                selectedTierForEdit?.detail.plan
+                selectedTierForEdit?.detail.optionName ||
+                selectedTierSplitForEdit?.detail.optionName ||
+                '-',
+                selectedTierForEdit?.detail.plan || selectedTierSplitForEdit?.detail.plan
               )}
             </Typography>
             <Grid container spacing={2}>
@@ -6103,17 +6163,12 @@ export default function RFQDetail(): ReactElement {
                   value={tierEditDraft?.quantity || ''}
                   inputProps={{ inputMode: 'numeric' }}
                   onChange={(event) => handleTierEditDraftChange('quantity', event.target.value)}
-                  sx={{
-                    '& .MuiInputBase-input': {
-                      fontSize: '12px'
-                    }
-                  }}
                 />
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  type="number"
+                  type="text"
                   required
                   label="ราคาสินค้า"
                   value={tierEditDraft?.productPrice || ''}
@@ -6125,15 +6180,10 @@ export default function RFQDetail(): ReactElement {
               <GridTextField item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  type="number"
+                  type="text"
                   label="Commission"
                   value={tierEditDraft?.commission || ''}
                   onChange={(event) => handleTierEditDraftChange('commission', event.target.value)}
-                  sx={{
-                    '& .MuiInputBase-input': {
-                      fontSize: '12px'
-                    }
-                  }}
                 />
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
@@ -6156,23 +6206,31 @@ export default function RFQDetail(): ReactElement {
                 </TextField>
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  select
-                  label="วิธีการขนส่ง"
-                  value={tierEditDraft?.shippingMethod || 'LAND'}
-                  onChange={(event) =>
-                    handleTierEditDraftChange('shippingMethod', event.target.value)
-                  }
-                >
-                  <MenuItem value="LAND">{getShippingMethodLabel('LAND')}</MenuItem>
-                  <MenuItem value="SEA">{getShippingMethodLabel('SEA')}</MenuItem>
-                </TextField>
+                {selectedTierSplitForEdit ? (
+                  <TextField
+                    fullWidth
+                    label="วิธีการขนส่ง"
+                    value={getShippingMethodLabel(tierEditDraft?.shippingMethod)}
+                    InputProps={{ readOnly: true }}
+                  />
+                ) : (
+                  <TextField
+                    fullWidth
+                    select
+                    label="วิธีการขนส่ง"
+                    value={tierEditDraft?.shippingMethod || 'LAND'}
+                    onChange={(event) =>
+                      handleTierEditDraftChange('shippingMethod', event.target.value)
+                    }>
+                    <MenuItem value="LAND">{getShippingMethodLabel('LAND')}</MenuItem>
+                    <MenuItem value="SEA">{getShippingMethodLabel('SEA')}</MenuItem>
+                  </TextField>
+                )}
               </GridTextField>
               <GridTextField item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  type="number"
+                  type="text"
                   label="ค่าขนส่ง"
                   value={tierEditDraft?.shippingCost || ''}
                   onChange={(event) =>
@@ -6183,9 +6241,10 @@ export default function RFQDetail(): ReactElement {
               <GridTextField item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  type="number"
+                  type="text"
                   label="ราคารวม"
                   value={tierEditDraft?.totalPrice || ''}
+                  InputProps={{ readOnly: Boolean(selectedTierSplitForEdit) }}
                   onChange={(event) =>
                     handleTierEditDraftChange('totalPrice', event.target.value)
                   }
@@ -6215,7 +6274,9 @@ export default function RFQDetail(): ReactElement {
       <ConfirmDialog
         open={visibleTierEditConfirmDialog}
         title="ยืนยันแก้ไขตัวเลือกราคา"
-        message={`คุณยืนยันแก้ไข MOQ ${formatQuantity(selectedTierForEdit?.tier.quantity)} ของ ${selectedTierForEdit?.detail.optionName || 'option นี้'
+        message={`คุณยืนยันแก้ไข MOQ ${formatQuantity(
+          selectedTierForEdit?.tier.quantity || selectedTierSplitForEdit?.tierSplit.quantity
+        )} ของ ${selectedTierForEdit?.detail.optionName || selectedTierSplitForEdit?.detail.optionName || 'option นี้'
           } ใช่หรือไม่`}
         confirmText={t('button.confirm')}
         cancelText={t('button.cancel')}

@@ -2,11 +2,54 @@ import { api } from 'api/api';
 import {
   CreatePurchaseOrderRequest,
   CreatePurchaseOrderResponse,
+  PurchaseOrderCbmPreview,
+  PurchaseOrderCbmPreviewRequest,
+  PurchaseOrderPayment,
+  PurchaseOrderPaymentRequest,
+  PurchaseOrderPaymentSchedule,
   PurchaseOrderRecord,
   SearchPurchaseOrderRequest,
   SearchPurchaseOrderResponse,
   UpdatePurchaseOrderRequest
 } from './purchase-order-type';
+
+function buildPurchaseOrderPaymentFormData(
+  data: PurchaseOrderPaymentRequest,
+  attachments: File[]
+): FormData {
+  const formData = new FormData();
+  if (data.scheduleId !== undefined && data.scheduleId !== null) {
+    formData.append('scheduleId', String(data.scheduleId));
+  }
+  formData.append('paymentType', data.paymentType);
+  if (data.installmentNo !== undefined && data.installmentNo !== null) {
+    formData.append('installmentNo', String(data.installmentNo));
+  }
+  formData.append('paymentDate', data.paymentDate);
+  formData.append('amount', String(data.amount));
+  if (data.exchangeRate !== undefined && data.exchangeRate !== null) {
+    formData.append('exchangeRate', String(data.exchangeRate));
+  }
+  formData.append('paymentMethod', data.paymentMethod);
+  if (data.transferReference) formData.append('transferReference', data.transferReference);
+  if (data.chequeBank) formData.append('chequeBank', data.chequeBank);
+  if (data.chequeNo) formData.append('chequeNo', data.chequeNo);
+  if (data.chequeDate) formData.append('chequeDate', data.chequeDate);
+  if (data.chequeBranch) formData.append('chequeBranch', data.chequeBranch);
+  if (data.remark) formData.append('remark', data.remark);
+  if (data.requestKey) formData.append('requestKey', data.requestKey);
+  attachments.forEach((file) => formData.append('attachments', file));
+  return formData;
+}
+
+export const getPurchaseOrderCbmPreview = async (
+  data: PurchaseOrderCbmPreviewRequest
+): Promise<PurchaseOrderCbmPreview> => {
+  const response = await api
+    .post('/v1/purchase-orders/cbm-preview', data)
+    .then((result) => result.data);
+  return response.data;
+};
 
 export const createPurchaseOrder = async (
   data: CreatePurchaseOrderRequest,
@@ -117,7 +160,9 @@ export const updatePurchaseOrder = async (
 };
 
 export const cancelPurchaseOrder = async (id: string): Promise<PurchaseOrderRecord> => {
-  const response = await api.patch(`/v1/purchase-orders/${id}/cancel`).then((result) => result.data);
+  const response = await api
+    .patch(`/v1/purchase-orders/${id}/cancel`)
+    .then((result) => result.data);
   return response.data;
 };
 
@@ -154,6 +199,87 @@ export const deletePurchaseOrderAttachment = async (
     .delete(`/v1/purchase-orders/${id}/attachments/${attachmentId}`)
     .then((result) => result.data);
 
+  return response.data;
+};
+
+export const createPurchaseOrderPayment = async (
+  id: string,
+  data: PurchaseOrderPaymentRequest,
+  attachments: File[]
+): Promise<PurchaseOrderPayment> => {
+  const response = await api
+    .post(
+      `/v1/purchase-orders/${id}/payments`,
+      buildPurchaseOrderPaymentFormData(data, attachments),
+      {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      }
+    )
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderPayments = async (id: string): Promise<PurchaseOrderPayment[]> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${id}/payments`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderPaymentSchedules = async (
+  id: string
+): Promise<PurchaseOrderPaymentSchedule[]> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${id}/payment-schedules`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const updatePurchaseOrderPayment = async (
+  id: string,
+  paymentId: number,
+  data: PurchaseOrderPaymentRequest,
+  attachments: File[]
+): Promise<PurchaseOrderPayment> => {
+  const response = await api
+    .patch(
+      `/v1/purchase-orders/${id}/payments/${paymentId}`,
+      buildPurchaseOrderPaymentFormData(data, attachments),
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const approvePurchaseOrderPayment = async (
+  id: string,
+  paymentId: number
+): Promise<PurchaseOrderPayment> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/payments/${paymentId}/approve`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const rejectPurchaseOrderPayment = async (
+  id: string,
+  paymentId: number,
+  reason: string
+): Promise<PurchaseOrderPayment> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/payments/${paymentId}/reject`, { reason })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const voidPurchaseOrderPayment = async (
+  id: string,
+  paymentId: number,
+  reason: string
+): Promise<PurchaseOrderPayment> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/payments/${paymentId}/void`, { reason })
+    .then((result) => result.data);
   return response.data;
 };
 

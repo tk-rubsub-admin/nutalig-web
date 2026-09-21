@@ -39,6 +39,15 @@ import dayjs from 'dayjs';
 
 const CONTAINER_SIZE_OPTIONS = ['20GP', '40HQ'] as const;
 
+function normalizeDecimalInput(value: string): string {
+  const sanitizedValue = value.replace(/,/g, '').replace(/[^0-9.]/g, '');
+  const [integerPart, ...decimalParts] = sanitizedValue.split('.');
+
+  return decimalParts.length > 0
+    ? `${integerPart}.${decimalParts.join('')}`
+    : integerPart;
+}
+
 interface FinalPriceDraftTier {
   id: number;
   quantity: number;
@@ -488,7 +497,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                   MOQ
                 </TableCell>
                 <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
-                  ราคาขาย
+                  ราคาสินค้า
                 </TableCell>
                 <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
                   สกุลเงิน
@@ -559,14 +568,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 100 }}>
                       <TextField
                         size="small"
-                        type="number"
-                        value={tierSplit.sellPrice}
+                        type="text"
+                        value={tier.productPrice}
                         onChange={(event) =>
-                          onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'productPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.productPrice)}
                         helperText={tierError.productPrice}
-                        inputProps={{ min: 0, step: '0.01' }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
@@ -629,14 +643,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 100 }}>
                       <TextField
                         size="small"
-                        type="number"
-                        value={tierSplit.landFreightCost}
+                        type="text"
+                        value={tier.landTotalPrice}
                         onChange={(event) =>
-                          onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'landTotalPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.landTotalPrice)}
                         helperText={tierError.landTotalPrice}
-                        inputProps={{ min: 0, step: '0.01' }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
@@ -677,14 +696,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 100 }}>
                       <TextField
                         size="small"
-                        type="number"
-                        value={tierSplit.seaFreightCost}
+                        type="text"
+                        value={tier.seaTotalPrice}
                         onChange={(event) =>
-                          onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'seaTotalPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.seaTotalPrice)}
                         helperText={tierError.seaTotalPrice}
-                        inputProps={{ min: 0, step: '0.01' }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
@@ -763,17 +787,21 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 86 }}>
                       <TextField
                         size="small"
-                        type="number"
-                        value={tierSplit.commission ?? 100}
+                        type="text"
+                        value={tier.commission}
                         onChange={(event) =>
-                          onCommissionChange(detail.id, tier.id, event.target.value)
+                          onCommissionChange(
+                            detail.id,
+                            tier.id,
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.commission)}
                         helperText={tierError.commission}
                         InputProps={{
                           endAdornment: <InputAdornment position="end">%</InputAdornment>
                         }}
-                        inputProps={{ min: 0, step: '1', max: 100 }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& .MuiInputBase-input': {
@@ -981,14 +1009,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 100 }}>
                       <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         value={tier.productPrice}
                         onChange={(event) =>
-                          onTierChange(detail.id, tier.id, 'productPrice', event.target.value)
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'productPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.productPrice)}
                         helperText={tierError.productPrice}
-                        inputProps={{ min: 0, step: '0.01' }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
@@ -1026,14 +1059,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 100 }}>
                       <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         value={tier.landTotalPrice}
                         onChange={(event) =>
-                          onTierChange(detail.id, tier.id, 'landTotalPrice', event.target.value)
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'landTotalPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.landTotalPrice)}
                         helperText={tierError.landTotalPrice}
-                        inputProps={{ min: 0, step: '0.01' }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
@@ -1050,14 +1088,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                     <TableCell align="center" sx={{ width: 100 }}>
                       <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         value={tier.seaTotalPrice}
                         onChange={(event) =>
-                          onTierChange(detail.id, tier.id, 'seaTotalPrice', event.target.value)
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'seaTotalPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.seaTotalPrice)}
                         helperText={tierError.seaTotalPrice}
-                        inputProps={{ min: 0, step: '0.01' }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button':
@@ -1144,17 +1187,21 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                       */}
                       <TextField
                         size="small"
-                        type="number"
+                        type="text"
                         value={tier.commission}
                         onChange={(event) =>
-                          onCommissionChange(detail.id, tier.id, event.target.value)
+                          onCommissionChange(
+                            detail.id,
+                            tier.id,
+                            normalizeDecimalInput(event.target.value)
+                          )
                         }
                         error={Boolean(tierError.commission)}
                         helperText={tierError.commission}
                         InputProps={{
                           endAdornment: <InputAdornment position="end">%</InputAdornment>
                         }}
-                        inputProps={{ min: 0, step: '1', max: 100 }}
+                        inputProps={{ inputMode: 'decimal' }}
                         sx={{
                           width: '10ch',
                           '& .MuiInputBase-input': {

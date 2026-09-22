@@ -5598,6 +5598,7 @@ export default function RFQDetail(): ReactElement {
                                             <TableCell align="right">
                                               {formatPrice(tier.productPrice, tier.currency)}
                                             </TableCell>
+                                            <TableCell align="right" />
                                             <TableCell align="center">
                                               {getShippingMethodLabel(tier.shippingMethod)}
                                             </TableCell>
@@ -5644,6 +5645,7 @@ export default function RFQDetail(): ReactElement {
                                           }}>
                                           <TableCell>MOQ</TableCell>
                                           <TableCell align="right">ราคาสินค้า</TableCell>
+                                          <TableCell align="right">ราคาขาย</TableCell>
                                           <TableCell align="center">วิธีการขนส่ง</TableCell>
                                           <TableCell align="right">ค่าขนส่ง</TableCell>
                                           <TableCell align="right">ราคารวม</TableCell>

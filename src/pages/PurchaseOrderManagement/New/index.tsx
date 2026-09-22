@@ -284,11 +284,28 @@ export default function NewPurchaseOrder(): ReactElement {
     }
   );
 
+  const supplierQuoteRfqIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (salesOrder?.items || [])
+            .map((item) => item.rfqId?.trim())
+            .filter((rfqId): rfqId is string => Boolean(rfqId))
+        )
+      ).sort(),
+    [salesOrder?.items]
+  );
+
   const { data: supplierQuotes = [], isFetching: isSupplierQuotesFetching } = useQuery(
-    ['purchase-order-create-supplier-quotes', rfq?.id],
-    () => getRFQSupplierQuotes(rfq?.id || ''),
+    ['purchase-order-create-supplier-quotes', supplierQuoteRfqIds],
+    async () => {
+      const quotesByRfq = await Promise.all(
+        supplierQuoteRfqIds.map((rfqId) => getRFQSupplierQuotes(rfqId))
+      );
+      return quotesByRfq.flat();
+    },
     {
-      enabled: Boolean(rfq?.id),
+      enabled: supplierQuoteRfqIds.length > 0,
       refetchOnWindowFocus: false
     }
   );

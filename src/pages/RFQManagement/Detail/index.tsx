@@ -4564,10 +4564,10 @@ export default function RFQDetail(): ReactElement {
                                         }}>
                                         <TableCell>MOQ</TableCell>
                                         <TableCell align="right">ราคาสินค้า</TableCell>
-                                        <TableCell align="right">ราคาขาย</TableCell>
+                                        <TableCell align="right">ราคาขายเฉลี่ยรวมส่ง</TableCell>
                                         <TableCell align="center">วิธีการขนส่ง</TableCell>
                                         <TableCell align="right">ค่าขนส่ง</TableCell>
-                                        <TableCell align="right">ราคารวม</TableCell>
+                                        <TableCell align="right">ราคารวมขนส่ง</TableCell>
                                         <TableCell align="right">ค่าคอม</TableCell>
                                       </TableRow>
                                     </TableHead>

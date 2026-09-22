@@ -461,9 +461,10 @@ export default function NewPurchaseOrder(): ReactElement {
         return [];
       }
       addedTierIds.add(tierId);
+      const automaticItemId = -Number(item.supplierQuoteTierId);
       return [
         {
-          id: -Number(item.supplierQuoteTierId),
+          id: automaticItemId,
           imageUrl: null,
           name: 'Delivery',
           spec: ``,
@@ -471,11 +472,12 @@ export default function NewPurchaseOrder(): ReactElement {
           supplierCurrency: supplierQuoteTier.shippingCurrency || item.supplierCurrency,
           supplierUnitPrice: supplierQuoteTier.shippingCost,
           supplierShippingCost: 0,
-          isAutomaticShipping: true
+          isAutomaticShipping: true,
+          ...(itemEdits[automaticItemId] || {})
         }
       ];
     });
-  }, [filteredItems, supplierQuoteTierById]);
+  }, [filteredItems, itemEdits, supplierQuoteTierById]);
   console.log('filteredItems', filteredItems);
   const editableItems = useMemo(
     () => [
@@ -636,7 +638,8 @@ export default function NewPurchaseOrder(): ReactElement {
 
   const handleItemEdit = (itemId: number, field: EditablePurchaseOrderItemField, value: string) => {
     const nextValue = NUMERIC_ITEM_FIELDS.has(field) ? Number(value || 0) : value;
-    if (itemId < 0) {
+    const isManualItem = manualItems.some((item) => item.id === itemId);
+    if (isManualItem) {
       setManualItems((previous) =>
         previous.map((item) => (item.id === itemId ? { ...item, [field]: nextValue } : item))
       );
@@ -1456,7 +1459,6 @@ export default function NewPurchaseOrder(): ReactElement {
                               onChange={(event) =>
                                 handleItemEdit(item.id, 'quantity', event.target.value)
                               }
-                              InputProps={{ readOnly: item.isAutomaticShipping }}
                               inputProps={{ min: 0, step: 1, style: { textAlign: 'right' } }}
                             />
                           </TableCell>
@@ -1469,7 +1471,6 @@ export default function NewPurchaseOrder(): ReactElement {
                               onChange={(event) =>
                                 handleItemEdit(item.id, 'supplierUnitPrice', event.target.value)
                               }
-                              InputProps={{ readOnly: item.isAutomaticShipping }}
                               inputProps={{ min: 0, step: 0.0001, style: { textAlign: 'right' } }}
                               helperText={item.supplierCurrency || undefined}
                             />

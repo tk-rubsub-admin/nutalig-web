@@ -199,6 +199,7 @@ interface RFQEditableFormValues {
 interface DraftDetailTierError {
   quantity?: string;
   productPrice?: string;
+  sellPrice?: string;
   commission?: string;
   shippingCost?: string;
   currency?: string;
@@ -236,6 +237,7 @@ interface FinalPriceDraftTier {
   id: number;
   quantity: number;
   productPrice: string;
+  sellPrice: string;
   commission: string;
   currency: string;
   containerSize: string;
@@ -251,6 +253,7 @@ interface FinalPriceDraftTier {
 interface FinalPriceDraftDetail {
   id: number;
   optionName: string;
+  isSpecial?: boolean;
   plan?: string | null;
   spec: string;
   sortOrder: number;
@@ -356,6 +359,7 @@ interface DetailEditDraft {
 interface TierEditDraft {
   quantity: string;
   productPrice: string;
+  sellPrice: string;
   commission: string;
   currency: string;
   shippingMethod: string;
@@ -941,6 +945,7 @@ function createTierEditDraft(tier: RFQDetailTier): TierEditDraft {
         ? quantityFormatter.format(tier.quantity)
         : '',
     productPrice: tier.productPrice?.toString() || '',
+    sellPrice: '',
     commission: tier.commission?.toString() || '',
     currency: tier.currency || 'THB',
     shippingMethod,
@@ -958,7 +963,8 @@ function createTierSplitEditDraft(tierSplit: RFQDetailTierSplit): TierEditDraft 
       tierSplit.quantity !== null && tierSplit.quantity !== undefined
         ? quantityFormatter.format(tierSplit.quantity)
         : '',
-    productPrice: tierSplit.sellPrice?.toString() || '',
+    productPrice: tierSplit.productPrice?.toString() || '',
+    sellPrice: tierSplit.sellPrice?.toString() || '',
     commission: tierSplit.commission?.toString() || '',
     currency: tierSplit.currency || 'THB',
     shippingMethod: tierSplit.shippingMethod || 'LAND',
@@ -978,6 +984,7 @@ function createFinalPriceDraftFromQuote(
     details: quote.details.map((detail, detailIndex) => ({
       id: detail.id || -(Date.now() + detailIndex + 1),
       optionName: detail.optionName || `Option ${detailIndex + 1}`,
+      isSpecial: false,
       plan: detail.plan || '',
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
@@ -986,6 +993,7 @@ function createFinalPriceDraftFromQuote(
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
         productPrice: '',
+        sellPrice: '',
         commission: normalizeCommissionInput(tier.commission?.toString()),
         currency: 'THB',
         landFreightQty: '',
@@ -1282,6 +1290,7 @@ function createFinalPriceDraftTier(sortOrder: number): FinalPriceDraftTier {
     id: -(Date.now() + sortOrder),
     quantity: 0,
     productPrice: '',
+    sellPrice: '',
     commission: '100',
     currency: 'THB',
     containerSize: '',
@@ -2802,6 +2811,11 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
+    if (selectedTierSplitForEdit && !tierEditDraft.sellPrice.trim()) {
+      toast.error('กรุณาระบุราคาขาย');
+      return;
+    }
+
     setVisibleTierEditConfirmDialog(true);
   };
 
@@ -2812,12 +2826,17 @@ export default function RFQDetail(): ReactElement {
 
     const quantity = parsePriceInput(tierEditDraft.quantity);
     const productPrice = parsePriceInput(tierEditDraft.productPrice);
+    const sellPrice = parsePriceInput(tierEditDraft.sellPrice);
     const shippingMethod = tierEditDraft.shippingMethod || 'LAND';
     const shippingCost = parsePriceInput(tierEditDraft.shippingCost);
     const totalPrice = parsePriceInput(tierEditDraft.totalPrice);
     const seaShipping = shippingMethod.startsWith('SEA');
 
-    if (quantity === null || productPrice === null) {
+    if (
+      quantity === null ||
+      productPrice === null ||
+      (selectedTierSplitForEdit && sellPrice === null)
+    ) {
       toast.error('กรุณากรอกข้อมูล tier ให้ครบ');
       return;
     }
@@ -2833,7 +2852,8 @@ export default function RFQDetail(): ReactElement {
           selectedTierSplitForEdit.tierSplit.id,
           {
             quantity,
-            sellPrice: productPrice,
+            productPrice,
+            sellPrice: sellPrice!,
             commission: parsePriceInput(tierEditDraft.commission),
             currency: tierEditDraft.currency || null,
             shippingMethod,
@@ -3320,6 +3340,7 @@ export default function RFQDetail(): ReactElement {
     field:
       | 'quantity'
       | 'productPrice'
+      | 'sellPrice'
       | 'containerSize'
       | 'landFreightQty'
       | 'seaFreightQty'
@@ -3481,6 +3502,7 @@ export default function RFQDetail(): ReactElement {
         ...sourceDetail,
         id: -(Date.now() + nextDetailIndex),
         optionName: sourceDetail.optionName || `Option ${nextDetailIndex}`,
+        isSpecial: false,
         sortOrder: nextDetailIndex,
         tiers: sourceDetail.tiers.map((tier, tierIndex) => ({
           ...tier,
@@ -3518,6 +3540,7 @@ export default function RFQDetail(): ReactElement {
         optionName: baseOptionName.endsWith(specialSuffix)
           ? baseOptionName
           : `${baseOptionName}${specialSuffix}`,
+        isSpecial: true,
         spec: '',
         sortOrder: nextDetailIndex,
         tiers: [createFinalPriceDraftTier(1)]
@@ -3649,9 +3672,10 @@ export default function RFQDetail(): ReactElement {
     const tierErrors: Record<number, DraftDetailTierError> = {};
 
     finalPriceDraft.details.forEach((detail) => {
-      const isSpecialDetail = detail.optionName.trim().endsWith(' พิเศษ');
+      const isSpecialDetail = Boolean(detail.isSpecial);
       detail.tiers.forEach((tier) => {
         const productPrice = parsePriceInput(tier.productPrice);
+        const sellPrice = parsePriceInput(tier.sellPrice);
         const commission = parsePriceInput(tier.commission);
         const landTotalPrice = parsePriceInput(tier.landTotalPrice);
         const seaTotalPrice = parsePriceInput(tier.seaTotalPrice);
@@ -3666,6 +3690,10 @@ export default function RFQDetail(): ReactElement {
 
         if (productPrice === null || productPrice <= 0) {
           nextTierError.productPrice = 'กรุณาระบุราคาสินค้า(บาท)มากกว่า 0';
+        }
+
+        if (isSpecialDetail && (sellPrice === null || sellPrice <= 0)) {
+          nextTierError.sellPrice = 'กรุณาระบุราคาขายมากกว่า 0';
         }
 
         if (isSpecialDetail && (!Number.isFinite(tier.quantity) || tier.quantity <= 0)) {
@@ -3744,7 +3772,7 @@ export default function RFQDetail(): ReactElement {
           commission: null,
           recommend: finalPriceDraft.recommend.trim() || null,
           supplierId,
-          tiers: detail.optionName.trim().endsWith(' พิเศษ')
+          tiers: detail.isSpecial
             ? []
             : detail.tiers.map((tier, tierIndex) => {
               const productPrice = parsePriceInput(tier.productPrice) || 0;
@@ -3778,9 +3806,10 @@ export default function RFQDetail(): ReactElement {
                 sortOrder: tierIndex + 1
               };
             }),
-          tierSplits: detail.optionName.trim().endsWith(' พิเศษ')
+          tierSplits: detail.isSpecial
             ? detail.tiers.map((tier, tierIndex) => {
-              const sellPrice = parsePriceInput(tier.productPrice) || 0;
+              const productPrice = parsePriceInput(tier.productPrice) || 0;
+              const sellPrice = parsePriceInput(tier.sellPrice) || 0;
               const commission = parsePriceInput(tier.commission);
               const landFreightQty = parsePriceInput(tier.landFreightQty) || 0;
               const seaFreightQty = parsePriceInput(tier.seaFreightQty) || 0;
@@ -3789,6 +3818,7 @@ export default function RFQDetail(): ReactElement {
 
               return {
                 quantity: tier.quantity,
+                productPrice,
                 sellPrice,
                 commission: commission ?? 100,
                 currency: tier.currency || 'THB',
@@ -5547,6 +5577,7 @@ export default function RFQDetail(): ReactElement {
                                           }}>
                                           <TableCell>MOQ</TableCell>
                                           <TableCell align="right">ราคาสินค้า</TableCell>
+                                          <TableCell align="right">ราคาขาย</TableCell>
                                           <TableCell align="center">วิธีการขนส่ง</TableCell>
                                           <TableCell align="right">ค่าขนส่ง</TableCell>
                                           <TableCell align="right">ราคารวม</TableCell>
@@ -5627,6 +5658,9 @@ export default function RFQDetail(): ReactElement {
                                             sx={{ '&:last-child td': { borderBottom: 0 } }}>
                                             <TableCell sx={{ fontWeight: 600 }}>
                                               {formatQuantity(tierSplit.quantity)}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                              {formatPrice(tierSplit.productPrice, tierSplit.currency)}
                                             </TableCell>
                                             <TableCell align="right">
                                               {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
@@ -6008,6 +6042,7 @@ export default function RFQDetail(): ReactElement {
                                             }}>
                                             <TableCell>MOQ Split</TableCell>
                                             <TableCell>ราคาสินค้า</TableCell>
+                                            <TableCell>ราคาขาย</TableCell>
                                             <TableCell>ค่าคอม</TableCell>
                                             <TableCell>ค่าส่งทางรถ</TableCell>
                                             <TableCell>ค่าส่งทางเรือ</TableCell>
@@ -6020,6 +6055,7 @@ export default function RFQDetail(): ReactElement {
                                                 tierSplit.sourceTierSplitId ?? tierSplit.quantity
                                               }>
                                               <TableCell>{tierSplit.quantity ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.productPrice ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.sellPrice ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.commission ?? '-'}</TableCell>
                                               <TableCell>
@@ -6177,6 +6213,20 @@ export default function RFQDetail(): ReactElement {
                   }
                 />
               </GridTextField>
+              {selectedTierSplitForEdit ? (
+                <GridTextField item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    type="text"
+                    required
+                    label="ราคาขาย"
+                    value={tierEditDraft?.sellPrice || ''}
+                    onChange={(event) =>
+                      handleTierEditDraftChange('sellPrice', event.target.value)
+                    }
+                  />
+                </GridTextField>
+              ) : null}
               <GridTextField item xs={12} sm={4}>
                 <TextField
                   fullWidth

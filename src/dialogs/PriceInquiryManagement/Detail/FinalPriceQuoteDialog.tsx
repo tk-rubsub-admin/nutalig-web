@@ -52,6 +52,7 @@ interface FinalPriceDraftTier {
   id: number;
   quantity: number;
   productPrice: string;
+  sellPrice: string;
   commission: string;
   currency: string;
   containerSize: string;
@@ -66,6 +67,7 @@ interface FinalPriceDraftTier {
 interface FinalPriceDraftDetail {
   id: number;
   optionName: string;
+  isSpecial?: boolean;
   plan?: string | null;
   spec: string;
   tiers: FinalPriceDraftTier[];
@@ -86,6 +88,7 @@ interface FinalPriceDraftErrors {
     {
       quantity?: string;
       productPrice?: string;
+      sellPrice?: string;
       commission?: string;
       containerSize?: string;
       landFreightQty?: string;
@@ -129,6 +132,7 @@ interface FinalPriceQuoteDialogProps {
     field:
       | 'quantity'
       | 'productPrice'
+      | 'sellPrice'
       | 'containerSize'
       | 'landFreightQty'
       | 'seaFreightQty'
@@ -249,8 +253,8 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     return quoteTier?.quantity || 0;
   };
 
-  const isSpecialOption = (optionName?: string | null): boolean =>
-    optionName?.trim().endsWith(' พิเศษ') ?? false;
+  const isSpecialOption = (detail: FinalPriceDraftDetail): boolean =>
+    Boolean(detail.isSpecial);
 
   const toNumberValue = (value?: string | null): number => {
     const normalizedValue = Number(String(value ?? '').replace(/,/g, '').trim());
@@ -260,7 +264,8 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
   const toSpecialTierSplit = (tier: FinalPriceDraftTier): RFQDetailTierSplit => ({
     id: tier.id,
     quantity: toNumberValue(tier.quantity?.toString()),
-    sellPrice: toNumberValue(tier.productPrice),
+    productPrice: toNumberValue(tier.productPrice),
+    sellPrice: toNumberValue(tier.sellPrice),
     commission: toNumberValue(tier.commission),
     currency: tier.currency || 'THB',
     containerSize: tier.containerSize || null,
@@ -408,56 +413,45 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
       }}>
       <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-          <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  size="small"
-                  label="Option Name"
-                  value={detail.optionName}
-                  onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
-                  disabled={isSubmitting}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  size="small"
-                  label="Plan"
-                  value={detail.plan || ''}
-                  onChange={(event) => onDetailChange(detail.id, 'plan', event.target.value)}
-                  disabled={isSubmitting}
-                  fullWidth
-                />
-              </Grid>
+          {/* <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}> */}
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                size="small"
+                label="Option Name"
+                value={detail.optionName}
+                onChange={(event) => onDetailChange(detail.id, 'optionName', event.target.value)}
+                disabled={isSubmitting}
+                fullWidth
+              />
             </Grid>
-            <TextField
-              size="small"
-              label="Spec"
-              value={detail.spec}
-              onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
-              disabled={isSubmitting}
-              fullWidth
-              multiline
-              minRows={2}
-            />
-          </Stack>
+            <Grid item xs={12} md={6}>
+              <TextField
+                size="small"
+                label="Plan"
+                value={detail.plan || ''}
+                InputLabelProps={{ shrink: true }}
+                onChange={(event) => onDetailChange(detail.id, 'plan', event.target.value)}
+                disabled={isSubmitting}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                size="small"
+                label="Spec"
+                value={detail.spec}
+                InputLabelProps={{ shrink: true }}
+                onChange={(event) => onDetailChange(detail.id, 'spec', event.target.value)}
+                disabled={isSubmitting}
+                fullWidth
+                multiline
+                minRows={2}
+              />
+            </Grid>
+          </Grid>
+          {/* </Stack> */}
           <Stack direction="row" spacing={1} alignItems="flex-start">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ContentCopy fontSize="small" />}
-              onClick={() =>
-                console.log('[FinalPriceDialog][OptionSpecial]', {
-                  detailId: detail.id,
-                  optionName: detail.optionName,
-                  tierSplit: detail.tiers.map((tier) => toSpecialTierSplit(tier))
-                })
-              }
-              sx={outlinedActionButtonSx}
-              disabled={isSubmitting}>
-              build
-            </Button>
             <Button
               size="small"
               variant="outlined"
@@ -498,6 +492,9 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 </TableCell>
                 <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
                   ราคาสินค้า
+                </TableCell>
+                <TableCell align="center" sx={{ width: 100, whiteSpace: 'nowrap', fontSize: 12 }}>
+                  ราคาขาย
                 </TableCell>
                 <TableCell align="center" sx={{ width: 90, whiteSpace: 'nowrap', fontSize: 12 }}>
                   สกุลเงิน
@@ -592,6 +589,25 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                             MozAppearance: 'textfield'
                           }
                         }}
+                      />
+                    </TableCell>
+                    <TableCell align="center" sx={{ width: 100 }}>
+                      <TextField
+                        size="small"
+                        type="text"
+                        value={tier.sellPrice}
+                        onChange={(event) =>
+                          onTierChange(
+                            detail.id,
+                            tier.id,
+                            'sellPrice',
+                            normalizeDecimalInput(event.target.value)
+                          )
+                        }
+                        error={Boolean(tierError.sellPrice)}
+                        helperText={tierError.sellPrice}
+                        inputProps={{ inputMode: 'decimal' }}
+                        sx={{ width: '10ch' }}
                       />
                     </TableCell>
                     <TableCell align="center" sx={{ width: 90 }}>
@@ -1333,27 +1349,27 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                 </Button>
               </Stack>
             </Stack>
-            {finalPriceDraft.details.some((detail) => !isSpecialOption(detail.optionName)) ? (
+            {finalPriceDraft.details.some((detail) => !isSpecialOption(detail)) ? (
               <Stack spacing={1.5}>
                 <Typography variant="subtitle1" fontWeight={700}>
                   Option ปกติ
                 </Typography>
                 <Stack spacing={2}>
                   {finalPriceDraft.details
-                    .filter((detail) => !isSpecialOption(detail.optionName))
+                    .filter((detail) => !isSpecialOption(detail))
                     .map((detail) => renderDetailCard(detail))}
                 </Stack>
               </Stack>
             ) : null}
 
-            {finalPriceDraft.details.some((detail) => isSpecialOption(detail.optionName)) ? (
+            {finalPriceDraft.details.some((detail) => isSpecialOption(detail)) ? (
               <Stack spacing={1.5}>
                 <Typography variant="subtitle1" fontWeight={700}>
                   Option พิเศษ
                 </Typography>
                 <Stack spacing={2}>
                   {finalPriceDraft.details
-                    .filter((detail) => isSpecialOption(detail.optionName))
+                    .filter((detail) => isSpecialOption(detail))
                     .map((detail) => renderSpecialDetailCard(detail))}
                 </Stack>
               </Stack>

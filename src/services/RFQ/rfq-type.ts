@@ -185,6 +185,7 @@ export interface RFQQuotationSummary {
 export interface RFQDetailTierSplit {
   id: number;
   quantity: number;
+  productPrice: number;
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;
@@ -297,6 +298,7 @@ export interface RFQDetailHistorySnapshotTierSplit {
   sourceTierSplitId?: number | null;
   supplierId?: string | null;
   quantity?: number | null;
+  productPrice?: number | null;
   sellPrice?: number | null;
   commission?: number | null;
   currency?: string | null;
@@ -574,6 +576,7 @@ export interface CreateRFQDetailTierRequest {
 
 export interface CreateRFQDetailTierSplitRequest {
   quantity: number;
+  productPrice: number;
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;
@@ -636,6 +639,7 @@ export interface UpdateRFQDetailTierRequest {
 
 export interface UpdateRFQDetailTierSplitRequest {
   quantity: number;
+  productPrice: number;
   sellPrice: number;
   commission?: number | null;
   currency?: string | null;

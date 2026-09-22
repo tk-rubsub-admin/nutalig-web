@@ -33,7 +33,7 @@ import { createQuotation } from "services/Document/document-api";
 import LoadingDialog from "components/LoadingDialog";
 import { formatCurrency, formatNumber } from "utils/utils";
 import { getRFQ, getRFQSupplierQuotes } from "services/RFQ/rfq-api";
-import { RFQDetailOption, RFQDetailTier, RFQRecord } from "services/RFQ/rfq-type";
+import { RFQDetailOption, RFQRecord } from "services/RFQ/rfq-type";
 import { addCustomerAddress, addCustomerContact, getCustomer, updateCustomer } from "services/Customer/customer-api";
 import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from "services/Customer/customer-type";
 import { getCountry, getDistrict, getProvince, getSubDistrict } from "services/Address/address-api";
@@ -517,6 +517,40 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
     }
 
     return rfq.details.flatMap((detail: RFQDetailOption) => {
+        if (detail.tierSplits?.length) {
+            return detail.tierSplits.map((tierSplit) => {
+                const quantity = Number(tierSplit.quantity || 1);
+                const unitPrice = toTierPriceNumber(tierSplit.sellPrice);
+                const shippingMethodLabel = tierSplit.shippingMethod
+                    ? getShippingMethodLabel(
+                        tierSplit.shippingMethod,
+                        '-',
+                        Boolean(tierSplit.isFcl),
+                        Boolean(tierSplit.isShareFCL),
+                        true
+                    )
+                    : undefined;
+                const baseName = detail.optionName || productFamily;
+
+                return {
+                    ...createEmptyRow(),
+                    sourceRfqId: rfq.id,
+                    rfqDetailId: detail.id,
+                    tierId: '',
+                    name: shippingMethodLabel ? `${baseName} (${shippingMethodLabel})` : baseName,
+                    type,
+                    capacity,
+                    spec: detail.spec,
+                    quantity,
+                    unitPrice,
+                    unitPriceInput: String(unitPrice),
+                    amount: quantity * unitPrice,
+                    imagePreview: defaultImageUrl,
+                    imageUrl: defaultImageUrl
+                };
+            });
+        }
+
         const tiers = detail.tiers?.length ? detail.tiers : [undefined];
 
         return tiers.flatMap((tier, tierIndex) => {

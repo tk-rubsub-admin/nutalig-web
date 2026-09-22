@@ -4564,6 +4564,7 @@ export default function RFQDetail(): ReactElement {
                                         }}>
                                         <TableCell>MOQ</TableCell>
                                         <TableCell align="right">ราคาสินค้า</TableCell>
+                                        <TableCell align="right">ราคาขาย</TableCell>
                                         <TableCell align="center">วิธีการขนส่ง</TableCell>
                                         <TableCell align="right">ค่าขนส่ง</TableCell>
                                         <TableCell align="right">ราคารวม</TableCell>
@@ -4579,6 +4580,9 @@ export default function RFQDetail(): ReactElement {
                                           }}>
                                           <TableCell sx={{ fontWeight: 600 }}>
                                             {formatQuantity(tierSplit.quantity)}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            {formatPrice(tierSplit.productPrice, tierSplit.currency)}
                                           </TableCell>
                                           <TableCell align="right">
                                             {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
@@ -4931,6 +4935,14 @@ export default function RFQDetail(): ReactElement {
                                           <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">
                                               ราคาสินค้า
+                                            </Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                              {formatPrice(tierSplit.productPrice, tierSplit.currency)}
+                                            </Typography>
+                                          </Grid>
+                                          <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                              ราคาขาย
                                             </Typography>
                                             <Typography variant="body2" fontWeight={600}>
                                               {formatPrice(tierSplit.sellPrice, tierSplit.currency)}
@@ -5364,7 +5376,8 @@ export default function RFQDetail(): ReactElement {
                                               }
                                             }}>
                                             <TableCell>MOQ Split</TableCell>
-                                            <TableCell>Sell Price</TableCell>
+                                            <TableCell>ราคาสินค้า</TableCell>
+                                            <TableCell>ราคาขาย</TableCell>
                                             <TableCell>ค่าคอม</TableCell>
                                             <TableCell>ค่าส่งทางรถ</TableCell>
                                             <TableCell>ค่าส่งทางเรือ</TableCell>
@@ -5374,6 +5387,7 @@ export default function RFQDetail(): ReactElement {
                                           {tierSplits.map((tierSplit) => (
                                             <TableRow key={tierSplit.sourceTierSplitId ?? tierSplit.quantity}>
                                               <TableCell>{tierSplit.quantity ?? '-'}</TableCell>
+                                              <TableCell>{tierSplit.productPrice ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.sellPrice ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.commission ?? '-'}</TableCell>
                                               <TableCell>{tierSplit.landFreightCost ?? '-'}</TableCell>

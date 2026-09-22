@@ -15,6 +15,9 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
   ListItemIcon,
   ListItemText,
@@ -67,6 +70,7 @@ import {
   uploadPurchaseOrderAttachments
 } from 'services/PurchaseOrder/purchase-order-api';
 import {
+  PurchaseOrderAttachmentDocumentType,
   PurchaseOrderItem,
   PurchaseOrderRecord,
   UpdatePurchaseOrderRequest
@@ -88,6 +92,42 @@ interface PurchaseOrderDraft {
   remark: string;
   items: PurchaseOrderItem[];
 }
+
+interface PurchaseOrderAttachmentCategory {
+  documentType: PurchaseOrderAttachmentDocumentType;
+  title: string;
+  description: string;
+}
+
+const PURCHASE_ORDER_ATTACHMENT_CATEGORIES: PurchaseOrderAttachmentCategory[] = [
+  {
+    documentType: 'FACTORY_CONTRACT',
+    title: 'สัญญากับทางโรงงาน',
+    description: 'สัญญา ข้อตกลง หรือเอกสารยืนยันจากโรงงาน'
+  },
+  {
+    documentType: 'FINAL_ARTWORK',
+    title: 'Final Artwork',
+    description: 'Artwork ฉบับสุดท้ายที่อนุมัติแล้ว'
+  },
+  {
+    documentType: 'PAYMENT_SLIP',
+    title: 'สลิปโอนเงิน',
+    description: 'หลักฐานการชำระเงินหรือสลิปโอนเงิน'
+  },
+  {
+    documentType: 'OTHER',
+    title: 'เอกสารอื่นๆ',
+    description: 'เอกสารประกอบอื่นที่เกี่ยวข้องกับใบสั่งซื้อ'
+  }
+];
+
+const resolveAttachmentDocumentType = (
+  documentType?: PurchaseOrderAttachmentDocumentType | null
+): PurchaseOrderAttachmentDocumentType =>
+  PURCHASE_ORDER_ATTACHMENT_CATEGORIES.some((item) => item.documentType === documentType)
+    ? (documentType as PurchaseOrderAttachmentDocumentType)
+    : 'OTHER';
 
 function TabPanel({
   value,
@@ -145,12 +185,12 @@ function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
     docDate: purchaseOrder?.docDate || '',
     productionLeadTimeDay:
       purchaseOrder?.productionLeadTimeDay !== null &&
-        purchaseOrder?.productionLeadTimeDay !== undefined
+      purchaseOrder?.productionLeadTimeDay !== undefined
         ? String(purchaseOrder.productionLeadTimeDay)
         : '',
     shippingLeadTimeDay:
       purchaseOrder?.shippingLeadTimeDay !== null &&
-        purchaseOrder?.shippingLeadTimeDay !== undefined
+      purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
     remark: purchaseOrder?.remark || '',
@@ -171,6 +211,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const useStyles = makeStyles({
     tableHeader: {
       border: '2px solid #e0e0e0',
@@ -191,6 +232,27 @@ export default function PurchaseOrderDetail(): ReactElement {
       whiteSpace: 'normal',
       wordBreak: 'break-word'
     },
+    productCell: {
+      width: '1%',
+      whiteSpace: 'nowrap',
+      verticalAlign: 'top',
+      '& .MuiTextField-root': {
+        minWidth: 200
+      }
+    },
+    numericCell: {
+      width: '1%',
+      whiteSpace: 'nowrap',
+      verticalAlign: 'top',
+      '& .MuiTextField-root': {
+        minWidth: 120
+      }
+    },
+    imageCell: {
+      width: '1%',
+      whiteSpace: 'nowrap',
+      verticalAlign: 'top'
+    },
     imageThumb: {
       width: 64,
       height: 64,
@@ -198,7 +260,8 @@ export default function PurchaseOrderDetail(): ReactElement {
       objectFit: 'cover',
       border: '1px solid #e2e8f0',
       backgroundColor: '#f8fafc',
-      display: 'block'
+      display: 'block',
+      cursor: 'pointer'
     },
     itemTextField: {
       '& .MuiInputBase-input': {
@@ -238,7 +301,8 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const displayItems = isEditing ? draft.items : purchaseOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
-  const canManagePurchaseOrder = purchaseOrder?.status === 'CREATED' || purchaseOrder?.status === 'AWAITING_PAYMENT';
+  const canManagePurchaseOrder =
+    purchaseOrder?.status === 'CREATED' || purchaseOrder?.status === 'AWAITING_PAYMENT';
   const canClosePurchaseOrder =
     Boolean(purchaseOrder) &&
     purchaseOrder?.status !== 'CANCELLED' &&
@@ -450,7 +514,10 @@ export default function PurchaseOrderDetail(): ReactElement {
     }
   };
 
-  const handleUploadAttachments = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleUploadAttachments = async (
+    event: ChangeEvent<HTMLInputElement>,
+    documentType: PurchaseOrderAttachmentDocumentType
+  ) => {
     if (!purchaseOrder?.purchaseOrderNo || !event.target.files?.length) {
       return;
     }
@@ -458,11 +525,14 @@ export default function PurchaseOrderDetail(): ReactElement {
     const files = Array.from(event.target.files);
     setIsSubmitting(true);
     try {
-      await toast.promise(uploadPurchaseOrderAttachments(purchaseOrder.purchaseOrderNo, files), {
-        loading: t('toast.loading'),
-        success: t('toast.success'),
-        error: t('toast.failed')
-      });
+      await toast.promise(
+        uploadPurchaseOrderAttachments(purchaseOrder.purchaseOrderNo, files, documentType),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
       await Promise.all([refetch(), refetchHistory()]);
     } finally {
       event.target.value = '';
@@ -494,6 +564,28 @@ export default function PurchaseOrderDetail(): ReactElement {
   return (
     <Page>
       <LoadingDialog open={isFetching || isActivityHistoryFetching || isSubmitting} />
+      <Dialog
+        open={Boolean(previewImageUrl)}
+        onClose={() => setPreviewImageUrl(null)}
+        maxWidth="lg"
+        fullWidth>
+        <DialogTitle>รูปสินค้า</DialogTitle>
+        <DialogContent>
+          {previewImageUrl ? (
+            <Box
+              component="img"
+              src={previewImageUrl}
+              alt="product preview"
+              sx={{
+                display: 'block',
+                width: '100%',
+                maxHeight: '80vh',
+                objectFit: 'contain'
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <PageTitle
         title={
           purchaseOrder?.purchaseOrderNo
@@ -734,12 +826,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA'
-                            ? 'ทางเรือ'
-                            : 'ทางรถ'
-                          } | ${purchaseOrder.supplierShipping.shippingName ||
-                          `Shipping #${purchaseOrder.supplierShipping.id}`
-                          }`
+                          ? `${
+                              purchaseOrder.supplierShipping.shippingMethod === 'SEA'
+                                ? 'ทางเรือ'
+                                : 'ทางรถ'
+                            } | ${
+                              purchaseOrder.supplierShipping.shippingName ||
+                              `Shipping #${purchaseOrder.supplierShipping.id}`
+                            }`
                           : '-'
                       }
                     />
@@ -801,8 +895,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       value={
                         purchaseOrder?.supplierShipping?.destinations?.length
                           ? purchaseOrder.supplierShipping.destinations
-                            .map((item) => item.destinationName || item.fullAddress || '-')
-                            .join(', ')
+                              .map((item) => item.destinationName || item.fullAddress || '-')
+                              .join(', ')
                           : '-'
                       }
                     />
@@ -826,12 +920,22 @@ export default function PurchaseOrderDetail(): ReactElement {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell className={classes.tableHeader}>รูปภาพ</TableCell>
-                        <TableCell className={classes.tableHeader}>สินค้า</TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.imageCell}`}>
+                          รูปภาพ
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.productCell}`}>
+                          สินค้า
+                        </TableCell>
                         <TableCell className={classes.tableHeader}>รายละเอียด</TableCell>
-                        <TableCell className={classes.tableHeader}>จำนวน</TableCell>
-                        <TableCell className={classes.tableHeader}>ราคาสินค้า</TableCell>
-                        <TableCell className={classes.tableHeader}>รวม</TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.numericCell}`}>
+                          จำนวน
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.numericCell}`}>
+                          ราคาสินค้า
+                        </TableCell>
+                        <TableCell className={`${classes.tableHeader} ${classes.numericCell}`}>
+                          รวม
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -839,13 +943,23 @@ export default function PurchaseOrderDetail(): ReactElement {
                         displayItems.map((item, index) => (
                           <Fragment key={item.id || item.lineNo || index}>
                             <TableRow>
-                              <TableCell align="center">
+                              <TableCell align="center" className={classes.imageCell}>
                                 {item.imageUrl ? (
                                   <Box
                                     component="img"
                                     src={item.imageUrl}
                                     alt={item.name || 'product-image'}
                                     className={classes.imageThumb}
+                                    role="button"
+                                    tabIndex={0}
+                                    title="กดเพื่อดูรูปภาพ"
+                                    onClick={() => setPreviewImageUrl(item.imageUrl || null)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        setPreviewImageUrl(item.imageUrl || null);
+                                      }
+                                    }}
                                   />
                                 ) : (
                                   <Typography variant="caption" color="text.secondary">
@@ -853,7 +967,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                   </Typography>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className={classes.productCell}>
                                 {isEditing ? (
                                   <TextField
                                     className={classes.itemTextField}
@@ -885,7 +999,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                   item.spec || '-'
                                 )}
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="right" className={classes.numericCell}>
                                 {isEditing ? (
                                   <TextField
                                     type="number"
@@ -903,7 +1017,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                   formatNumber(item.quantity || 0)
                                 )}
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="right" className={classes.numericCell}>
                                 {isEditing ? (
                                   <TextField
                                     type="number"
@@ -918,11 +1032,12 @@ export default function PurchaseOrderDetail(): ReactElement {
                                     }
                                   />
                                 ) : (
-                                  `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
+                                  `${formatNumber(item.supplierUnitPrice || 0)} ${
+                                    item.supplierCurrency || ''
                                   }`
                                 )}
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="right" className={classes.numericCell}>
                                 {formatNumber(item.amountSupplierCurrency || 0)}{' '}
                                 {item.supplierCurrency || ''}
                               </TableCell>
@@ -957,15 +1072,21 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 packageItem.sourcePackageId ||
                                                 packageIndex
                                               }>
-                                              <TableCell>{packageItem.packageName || '-'}</TableCell>
+                                              <TableCell>
+                                                {packageItem.packageName || '-'}
+                                              </TableCell>
                                               <TableCell>
                                                 {packageItem.packageDimension || '-'}
                                               </TableCell>
-                                              <TableCell>{packageItem.packageWeight || '-'}</TableCell>
+                                              <TableCell>
+                                                {packageItem.packageWeight || '-'}
+                                              </TableCell>
                                               <TableCell align="right">
                                                 {packageItem.packageCapacity ||
                                                   (packageItem.capacityQty != null
-                                                    ? `${formatNumber(packageItem.capacityQty)} pcs.`
+                                                    ? `${formatNumber(
+                                                        packageItem.capacityQty
+                                                      )} pcs.`
                                                     : '-')}
                                               </TableCell>
                                               <TableCell align="right">
@@ -1002,12 +1123,16 @@ export default function PurchaseOrderDetail(): ReactElement {
                                           ))}
                                           <TableRow sx={{ backgroundColor: '#eef4fa' }}>
                                             <TableCell colSpan={6} align="right">
-                                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                              <Typography
+                                                variant="subtitle2"
+                                                sx={{ fontWeight: 700 }}>
                                                 รวม CBM
                                               </Typography>
                                             </TableCell>
                                             <TableCell align="right">
-                                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                              <Typography
+                                                variant="subtitle2"
+                                                sx={{ fontWeight: 700 }}>
                                                 {formatNumber(
                                                   item.packages.reduce(
                                                     (total, packageItem) =>
@@ -1049,89 +1174,132 @@ export default function PurchaseOrderDetail(): ReactElement {
                 />
               </Grid>
             ) : null}
-            <Grid item xs={12}>
+            <Grid item xs={8}>
               <Stack className={classes.section} spacing={2}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  spacing={2}>
-                  <Typography variant="h6">ไฟล์แนบ</Typography>
-                  {canManagePurchaseOrder ? (
-                    <Button
-                      variant="contained"
-                      className="btn-baby-blue"
-                      component="label"
-                      startIcon={<FilePresent />}
-                      disabled={isSubmitting}>
-                      อัปโหลดไฟล์
-                      <input hidden type="file" multiple onChange={handleUploadAttachments} />
-                    </Button>
-                  ) : null}
-                </Stack>
-                {purchaseOrder?.attachments?.length ? (
-                  <Stack spacing={1.25}>
-                    {purchaseOrder.attachments.map((attachment) => (
-                      <Stack
-                        key={attachment.id}
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={1}
-                        alignItems={{ xs: 'flex-start', sm: 'center' }}
-                        justifyContent="space-between"
-                        sx={{
-                          px: 1.5,
-                          py: 1.25,
-                          border: '1px solid #dce4ee',
-                          borderRadius: 2,
-                          backgroundColor: '#fff'
-                        }}>
-                        <Stack spacing={0.25}>
-                          <Typography sx={{ fontWeight: 600 }}>
-                            {attachment.originalFileName ||
-                              attachment.fileName ||
-                              `attachment-${attachment.id}`}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {attachment.contentType || '-'}
-                          </Typography>
+                <Typography variant="h6">ไฟล์แนบ</Typography>
+                <Grid container spacing={2}>
+                  {PURCHASE_ORDER_ATTACHMENT_CATEGORIES.map((category) => {
+                    const categoryAttachments = (purchaseOrder?.attachments || []).filter(
+                      (attachment) =>
+                        resolveAttachmentDocumentType(attachment.documentType) ===
+                        category.documentType
+                    );
+
+                    return (
+                      <Grid item xs={12} md={12} key={category.documentType}>
+                        <Stack
+                          spacing={1.5}
+                          sx={{
+                            height: '100%',
+                            p: 2,
+                            border: '1px solid #dce4ee',
+                            borderRadius: 2,
+                            backgroundColor: '#f8fafc'
+                          }}>
+                          <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            alignItems={{ xs: 'flex-start', sm: 'center' }}
+                            justifyContent="space-between"
+                            spacing={1}>
+                            <Stack spacing={0.25}>
+                              <Typography sx={{ fontWeight: 700 }}>{category.title}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {category.description}
+                              </Typography>
+                            </Stack>
+                            {canManagePurchaseOrder ? (
+                              <Button
+                                variant="contained"
+                                className="btn-baby-blue"
+                                component="label"
+                                size="small"
+                                startIcon={<FilePresent />}
+                                disabled={isSubmitting}>
+                                อัปโหลดไฟล์
+                                <input
+                                  hidden
+                                  type="file"
+                                  multiple
+                                  onChange={(event) =>
+                                    void handleUploadAttachments(event, category.documentType)
+                                  }
+                                />
+                              </Button>
+                            ) : null}
+                          </Stack>
+
+                          {categoryAttachments.length ? (
+                            <Stack spacing={1}>
+                              {categoryAttachments.map((attachment) => (
+                                <Stack
+                                  key={attachment.id}
+                                  direction={{ xs: 'column', sm: 'row' }}
+                                  spacing={1}
+                                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                                  justifyContent="space-between"
+                                  sx={{
+                                    px: 1.5,
+                                    py: 1.25,
+                                    border: '1px solid #dce4ee',
+                                    borderRadius: 2,
+                                    backgroundColor: '#fff'
+                                  }}>
+                                  <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                                    <Typography sx={{ fontWeight: 600, wordBreak: 'break-word' }}>
+                                      {attachment.originalFileName ||
+                                        attachment.fileName ||
+                                        `attachment-${attachment.id}`}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {attachment.contentType || '-'}
+                                    </Typography>
+                                  </Stack>
+                                  <Stack direction="row" spacing={1} flexShrink={0}>
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      startIcon={<Description />}
+                                      onClick={() => {
+                                        if (attachment.fileUrl) {
+                                          window.open(
+                                            attachment.fileUrl,
+                                            '_blank',
+                                            'noopener,noreferrer'
+                                          );
+                                        }
+                                      }}>
+                                      ดูไฟล์
+                                    </Button>
+                                    {canManagePurchaseOrder ? (
+                                      <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="small"
+                                        startIcon={<DeleteOutline />}
+                                        onClick={() => {
+                                          void handleDeleteAttachment(attachment.id);
+                                        }}
+                                        disabled={isSubmitting}>
+                                        ลบ
+                                      </Button>
+                                    ) : null}
+                                  </Stack>
+                                </Stack>
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              ยังไม่มีไฟล์ในหมวดนี้
+                            </Typography>
+                          )}
                         </Stack>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Description />}
-                            onClick={() => {
-                              if (attachment.fileUrl) {
-                                window.open(attachment.fileUrl, '_blank', 'noopener,noreferrer');
-                              }
-                            }}>
-                            ดูไฟล์
-                          </Button>
-                          {canManagePurchaseOrder ? (
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              size="small"
-                              startIcon={<DeleteOutline />}
-                              onClick={() => {
-                                void handleDeleteAttachment(attachment.id);
-                              }}
-                              disabled={isSubmitting}>
-                              ลบ
-                            </Button>
-                          ) : null}
-                        </Stack>
-                      </Stack>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    ยังไม่มีไฟล์แนบ
-                  </Typography>
-                )}
+                      </Grid>
+                    );
+                  })}
+                </Grid>
               </Stack>
             </Grid>
-            <Grid item xs={12} md={5}>
+            <Grid item xs={4}>
               <Stack className={classes.section} spacing={1.25}>
                 <Typography variant="h6">สรุปยอด</Typography>
                 <Summary
@@ -1139,7 +1307,11 @@ export default function PurchaseOrderDetail(): ReactElement {
                   value={summary.grandTotal}
                   suffix={purchaseOrder?.currency || ''}
                 />
-                <Summary label="CBM รวม" value={Number(purchaseOrder?.totalCbm || 0)} suffix="CBM" />
+                <Summary
+                  label="CBM รวม"
+                  value={Number(purchaseOrder?.totalCbm || 0)}
+                  suffix="CBM"
+                />
               </Stack>
             </Grid>
           </Grid>

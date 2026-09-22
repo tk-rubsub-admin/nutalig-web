@@ -79,6 +79,17 @@ export interface SupplierCapability {
   materials: SupplierCapabilityMaterial[];
 }
 
+export interface SupplierAttachment {
+  id: number;
+  supplierId: string;
+  fileName: string;
+  originalFileName: string | null;
+  fileUrl: string;
+  contentType: string | null;
+  fileSize: number | null;
+  sortOrder: number | null;
+}
+
 export interface SupplierShippingDestination {
   id: number;
   supplierShippingId: number;
@@ -137,6 +148,7 @@ export interface Supplier {
   additional: string | null;
   contacts: SupplierContact[];
   capabilities?: SupplierCapability[];
+  attachments?: SupplierAttachment[];
   contactName?: string;
   contactNumber?: string;
   phoneContactName?: string;

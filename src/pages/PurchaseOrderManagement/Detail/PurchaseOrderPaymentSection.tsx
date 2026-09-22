@@ -382,6 +382,15 @@ export default function PurchaseOrderPaymentSection({
 
   const amountError =
     showErrors && (Number(form.amount || 0) <= 0 || Number(form.amount || 0) > allowedAmount);
+  const paymentAmount = Number(form.amount || 0);
+  const paymentExchangeRate = purchaseOrder.currency === 'THB' ? 1 : Number(form.exchangeRate || 0);
+  const paymentAmountThb =
+    form.amount &&
+      Number.isFinite(paymentAmount) &&
+      Number.isFinite(paymentExchangeRate) &&
+      paymentExchangeRate > 0
+      ? paymentAmount * paymentExchangeRate
+      : null;
 
   return (
     <>
@@ -755,19 +764,21 @@ export default function PurchaseOrderPaymentSection({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                type="number"
+                type="text"
                 label={`ยอดชำระ (${purchaseOrder.currency || '-'})`}
                 value={form.amount}
                 onChange={(event) => updateForm('amount', event.target.value)}
                 error={amountError}
                 InputLabelProps={{ shrink: true }}
-                helperText={
-                  amountError
-                    ? `ยอดต้องมากกว่า 0 และไม่เกิน ${formatNumber(allowedAmount)}`
-                    : `ยอดที่ยังบันทึกเพิ่มได้ ${formatNumber(allowedAmount)} ${purchaseOrder.currency || ''
-                    }`
-                }
-                inputProps={{ min: 0.01, step: 0.01 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="ยอดชำระ (THB)"
+                value={paymentAmountThb === null ? '' : formatNumber(paymentAmountThb)}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ readOnly: true }}
               />
             </Grid>
             {purchaseOrder.currency !== 'THB' ? (
@@ -818,6 +829,7 @@ export default function PurchaseOrderPaymentSection({
                     fullWidth
                     label="ธนาคารเช็ค"
                     value={form.chequeBank}
+                    InputLabelProps={{ shrink: true }}
                     onChange={(event) => updateForm('chequeBank', event.target.value)}
                     error={showErrors && !form.chequeBank.trim()}
                   />
@@ -827,6 +839,7 @@ export default function PurchaseOrderPaymentSection({
                     fullWidth
                     label="เลขที่เช็ค"
                     value={form.chequeNo}
+                    InputLabelProps={{ shrink: true }}
                     onChange={(event) => updateForm('chequeNo', event.target.value)}
                     error={showErrors && !form.chequeNo.trim()}
                   />
@@ -837,8 +850,8 @@ export default function PurchaseOrderPaymentSection({
                     type="date"
                     label="วันที่เช็ค"
                     value={form.chequeDate}
-                    onChange={(event) => updateForm('chequeDate', event.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    onChange={(event) => updateForm('chequeDate', event.target.value)}
                     error={showErrors && !form.chequeDate}
                   />
                 </Grid>
@@ -847,6 +860,7 @@ export default function PurchaseOrderPaymentSection({
                     fullWidth
                     label="สาขา"
                     value={form.chequeBranch}
+                    InputLabelProps={{ shrink: true }}
                     onChange={(event) => updateForm('chequeBranch', event.target.value)}
                   />
                 </Grid>

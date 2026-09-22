@@ -139,9 +139,16 @@ export interface PurchaseOrderItem {
   packages?: PurchaseOrderPackageSnapshot[];
 }
 
+export type PurchaseOrderAttachmentDocumentType =
+  | 'FACTORY_CONTRACT'
+  | 'FINAL_ARTWORK'
+  | 'PAYMENT_SLIP'
+  | 'OTHER';
+
 export interface PurchaseOrderAttachment {
   id: number;
   purchaseOrderNo: string;
+  documentType?: PurchaseOrderAttachmentDocumentType | null;
   fileName: string | null;
   originalFileName: string | null;
   fileUrl: string | null;

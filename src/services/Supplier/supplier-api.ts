@@ -111,6 +111,24 @@ export const getSupplierById = async (supplierId: string): Promise<Supplier> => 
   return normalized.data.suppliers[0];
 };
 
+export const uploadSupplierAttachments = async (
+  supplierId: string,
+  files: File[]
+): Promise<Supplier> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('attachments', file));
+
+  const response = await api
+    .post(`/v1/suppliers/${supplierId}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    .then((result) => result.data);
+
+  return response.data;
+};
+
 export const getSupplierShippings = async (): Promise<SupplierShipping[]> => {
   const response = await api.get('/v1/supplier-shippings').then((res) => res.data);
   return response?.data || [];

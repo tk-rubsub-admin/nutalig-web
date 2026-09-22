@@ -46,7 +46,11 @@ import {
 import { getRFQ, getRFQSupplierQuotes } from 'services/RFQ/rfq-api';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
-import { getSupplierById, getSupplierShippings } from 'services/Supplier/supplier-api';
+import {
+  getSupplierById,
+  getSupplierShippings,
+  uploadSupplierAttachments
+} from 'services/Supplier/supplier-api';
 import { SupplierShipping } from 'services/Supplier/supplier-type';
 import { getShippingMethodCategory, getShippingMethodLabel } from 'utils/shipping';
 import { formatNumber } from 'utils/utils';
@@ -264,6 +268,7 @@ export default function NewPurchaseOrder(): ReactElement {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isUploadingSupplierAttachments, setIsUploadingSupplierAttachments] = useState(false);
   const classes = useStyles();
 
   const { data: salesOrder, isFetching } = useQuery(
@@ -310,7 +315,11 @@ export default function NewPurchaseOrder(): ReactElement {
     }
   );
 
-  const { data: supplierDetail, isFetching: isSupplierFetching } = useQuery(
+  const {
+    data: supplierDetail,
+    isFetching: isSupplierFetching,
+    refetch: refetchSupplier
+  } = useQuery(
     ['purchase-order-create-supplier', draft.supplierId],
     () => getSupplierById(draft.supplierId),
     {
@@ -778,10 +787,36 @@ export default function NewPurchaseOrder(): ReactElement {
     setAttachments((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  const handleUploadSupplierAttachments = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!draft.supplierId || !files.length) {
+      return;
+    }
+
+    setIsUploadingSupplierAttachments(true);
+    try {
+      await toast.promise(uploadSupplierAttachments(draft.supplierId, files), {
+        loading: 'กำลังอัปโหลดรูปภาพ Supplier',
+        success: 'อัปโหลดรูปภาพ Supplier สำเร็จ',
+        error: (error) => error?.response?.data?.message || 'อัปโหลดรูปภาพ Supplier ไม่สำเร็จ'
+      });
+      await refetchSupplier();
+    } finally {
+      setIsUploadingSupplierAttachments(false);
+    }
+  };
+
   return (
     <Page>
       <LoadingDialog
-        open={isFetching || isSupplierFetching || isSupplierShippingsFetching || isSaving}
+        open={
+          isFetching ||
+          isSupplierFetching ||
+          isSupplierShippingsFetching ||
+          isSaving ||
+          isUploadingSupplierAttachments
+        }
       />
       <PageTitle title="สร้างใบสั่งซื้อ" />
       <Wrapper>
@@ -1158,6 +1193,84 @@ export default function NewPurchaseOrder(): ReactElement {
                     value={draft.supplierShipping?.remark || '-'}
                     multiline
                   />
+                </Grid>
+              </Grid>
+              <Grid container spacing={1}>
+                <Grid item sm={12}>
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    รูปภาพ
+                  </Typography>
+                </Grid>
+                <Grid item sm={12}>
+                  <Stack spacing={2}>
+                    <Box>
+                      <Button
+                        variant="contained"
+                        className="btn-baby-blue"
+                        component="label"
+                        startIcon={<FilePresent />}
+                        disabled={!draft.supplierId || isUploadingSupplierAttachments}>
+                        อัปโหลดรูปภาพ Supplier
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleUploadSupplierAttachments}
+                        />
+                      </Button>
+                    </Box>
+
+                    {supplierDetail?.attachments?.length ? (
+                      <Grid container spacing={2}>
+                        {supplierDetail.attachments.map((attachment) => (
+                          <Grid item xs={12} sm={6} md={4} lg={3} key={attachment.id}>
+                            <Box
+                              sx={{
+                                border: '1px solid #dce4ee',
+                                borderRadius: 2,
+                                p: 1,
+                                backgroundColor: '#fff'
+                              }}>
+                              <Box
+                                component="img"
+                                src={attachment.fileUrl}
+                                alt={attachment.originalFileName || attachment.fileName}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setPreviewImageUrl(attachment.fileUrl)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setPreviewImageUrl(attachment.fileUrl);
+                                  }
+                                }}
+                                sx={{
+                                  display: 'block',
+                                  width: '100%',
+                                  height: 160,
+                                  objectFit: 'cover',
+                                  borderRadius: 1.5,
+                                  cursor: 'zoom-in',
+                                  backgroundColor: '#f8fafc'
+                                }}
+                              />
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                sx={{ mt: 1, wordBreak: 'break-word' }}>
+                                {attachment.originalFileName || attachment.fileName}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        ยังไม่มีรูปภาพ Supplier
+                      </Typography>
+                    )}
+                  </Stack>
                 </Grid>
               </Grid>
             </CollapsibleWrapper>
@@ -1632,13 +1745,13 @@ export default function NewPurchaseOrder(): ReactElement {
         onClose={() => setPreviewImageUrl(null)}
         fullWidth
         maxWidth="md">
-        <DialogTitle>รูปสินค้า</DialogTitle>
+        <DialogTitle>รูปภาพ</DialogTitle>
         <DialogContent sx={{ p: 2 }}>
           {previewImageUrl ? (
             <Box
               component="img"
               src={previewImageUrl}
-              alt="product preview"
+              alt="image preview"
               sx={{ display: 'block', width: '100%', maxHeight: '75vh', objectFit: 'contain' }}
             />
           ) : null}

@@ -4,6 +4,7 @@ import {
   CreatePurchaseOrderResponse,
   PurchaseOrderCbmPreview,
   PurchaseOrderCbmPreviewRequest,
+  PurchaseOrderAttachmentDocumentType,
   PurchaseOrderPayment,
   PurchaseOrderPaymentRequest,
   PurchaseOrderPaymentSchedule,
@@ -173,9 +174,11 @@ export const closePurchaseOrder = async (id: string): Promise<PurchaseOrderRecor
 
 export const uploadPurchaseOrderAttachments = async (
   id: string,
-  files: File[]
+  files: File[],
+  documentType: PurchaseOrderAttachmentDocumentType
 ): Promise<PurchaseOrderRecord> => {
   const formData = new FormData();
+  formData.append('documentType', documentType);
   files.forEach((file) => {
     formData.append('attachments', file);
   });

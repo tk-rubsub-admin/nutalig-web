@@ -333,11 +333,10 @@ export default function NewRFQ(): JSX.Element {
         capacity: selectedCapacityUnit
           ? `${values.capacity.trim()} ${selectedCapacityUnit}`.trim()
           : values.capacity,
-        requestedMoqs: values.requestedMoqs
-          .map((value) => ({
-            moq: Number(value.moq),
-            targetPrice: value.targetPrice.trim() ? Number(value.targetPrice) : null
-          })),
+        requestedMoqs: values.requestedMoqs.map((value) => ({
+          moq: Number(value.moq),
+          targetPrice: value.targetPrice.trim() ? Number(value.targetPrice) : null
+        })),
         urgentRequest: isUrgentRequest,
         urgentRequestReason: isUrgentRequest ? urgentReason.trim() : undefined,
         description: values.description,
@@ -408,9 +407,7 @@ export default function NewRFQ(): JSX.Element {
         then: Yup.string().max(255).required(t('rfqManagement.validation.contactName')),
         otherwise: Yup.string().nullable()
       }),
-      contactChannel: Yup.string()
-        .max(255)
-        .required('กรุณาเลือกช่องทางติดต่อ'),
+      contactChannel: Yup.string().max(255).required('กรุณาเลือกช่องทางติดต่อ'),
       salesId: Yup.string().required(t('rfqManagement.validation.salesId')),
       purchaseAccount: Yup.string().required('กรุณาเลือกจัดซื้อที่ดูแล'),
       rfqTypeCode: Yup.string().required(t('rfqManagement.validation.rfqTypeCode')),
@@ -464,14 +461,13 @@ export default function NewRFQ(): JSX.Element {
     const parsedCapacity = parseCapacityValue(copiedRfq.capacity, unitOptions);
     const requestedMoqs = copiedRfq.requestedMoqs?.length
       ? copiedRfq.requestedMoqs.map((value) => ({
-        moq: `${value.moq}`,
-        targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
-      }))
+          moq: `${value.moq}`,
+          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+        }))
       : [{ moq: '', targetPrice: '' }];
     const customerId = copiedRfq.customer?.id || '';
     const customerName = copiedRfq.customer?.customerName || '';
-    const copiedSalesId =
-      copiedRfq.sales?.employeeId || copiedRfq.sales?.salesId || defaultSalesId;
+    const copiedSalesId = copiedRfq.sales?.employeeId || copiedRfq.sales?.salesId || defaultSalesId;
     const copiedProcurementId =
       copiedRfq.procurement?.employeeId || copiedRfq.procurement?.salesId || '';
 
@@ -524,6 +520,35 @@ export default function NewRFQ(): JSX.Element {
       refetchOnWindowFocus: false,
       enabled: Boolean(formik.values.salesId)
     }
+  );
+  const groupedProcurementOptions = useMemo(
+    () =>
+      procurementOptions.reduce(
+        (
+          groups: { teamCode: string; teamLabel: string; records: SalesRecord[] }[],
+          procurement: SalesRecord
+        ) => {
+          const teamCode = procurement.team?.code || '__NO_TEAM__';
+          const existingGroup = groups.find((group) => group.teamCode === teamCode);
+
+          if (existingGroup) {
+            existingGroup.records.push(procurement);
+            return groups;
+          }
+
+          groups.push({
+            teamCode,
+            teamLabel:
+              teamCode === 'ADMIN'
+                ? 'จัดซื้อภายในประเทศ'
+                : procurement.team?.nameTh || procurement.team?.code || 'ไม่ระบุทีม',
+            records: [procurement]
+          });
+          return groups;
+        },
+        []
+      ),
+    [procurementOptions]
   );
 
   const selectedParentRfq = useMemo(
@@ -653,9 +678,9 @@ export default function NewRFQ(): JSX.Element {
     const parsedCapacity = parseCapacityValue(parentRfqDetail.capacity, unitOptions);
     const requestedMoqs = parentRfqDetail.requestedMoqs?.length
       ? parentRfqDetail.requestedMoqs.map((value) => ({
-        moq: `${value.moq}`,
-        targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
-      }))
+          moq: `${value.moq}`,
+          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+        }))
       : [{ moq: '', targetPrice: '' }];
 
     formik.setValues((prevValues) => ({
@@ -926,16 +951,14 @@ export default function NewRFQ(): JSX.Element {
                   InputLabelProps={{ shrink: true }}
                   name="contactChannel"
                   value={formik.values.contactChannel}
-                  onChange={(event) =>
-                    formik.setFieldValue('contactChannel', event.target.value)
-                  }
+                  onChange={(event) => formik.setFieldValue('contactChannel', event.target.value)}
                   onBlur={formik.handleBlur}
                   error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
                   helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
                   {formik.values.contactChannel &&
-                    !contactChannelOptions.some(
-                      (item: SystemConfig) => item.code === formik.values.contactChannel
-                    ) ? (
+                  !contactChannelOptions.some(
+                    (item: SystemConfig) => item.code === formik.values.contactChannel
+                  ) ? (
                     <MenuItem value={formik.values.contactChannel}>
                       {formik.values.contactChannel}
                     </MenuItem>
@@ -956,7 +979,9 @@ export default function NewRFQ(): JSX.Element {
                   loading={isCustomerFetching}
                   filterOptions={(options) => options}
                   value={selectedCustomer}
-                  getOptionLabel={(option: Customer) => '(' + option.id + ') ' + option.customerName}
+                  getOptionLabel={(option: Customer) =>
+                    '(' + option.id + ') ' + option.customerName
+                  }
                   onChange={(_event, value) => {
                     setSelectedCustomer(value);
                     const defaultContact =
@@ -1030,9 +1055,9 @@ export default function NewRFQ(): JSX.Element {
                   error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
                   helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
                   {formik.values.contactChannel &&
-                    !contactChannelOptions.some(
-                      (item: SystemConfig) => item.code === formik.values.contactChannel
-                    ) ? (
+                  !contactChannelOptions.some(
+                    (item: SystemConfig) => item.code === formik.values.contactChannel
+                  ) ? (
                     <MenuItem value={formik.values.contactChannel}>
                       {formik.values.contactChannel}
                     </MenuItem>
@@ -1225,17 +1250,22 @@ export default function NewRFQ(): JSX.Element {
                 </MenuItem>
               ) : null}
               {formik.values.salesId &&
-                !isProcurementFetching &&
-                procurementOptions.length === 0 ? (
+              !isProcurementFetching &&
+              procurementOptions.length === 0 ? (
                 <MenuItem disabled value="">
                   ไม่มีจัดซื้อดูแล
                 </MenuItem>
               ) : null}
-              {procurementOptions.map((procurement) => (
-                <MenuItem key={procurement.salesId} value={procurement.salesId}>
-                  {`${procurement.salesId} - ${procurement.nickname || procurement.name}`}
-                </MenuItem>
-              ))}
+              {groupedProcurementOptions.flatMap((group) => [
+                <ListSubheader key={`procurement-team-${group.teamCode}`}>
+                  {group.teamLabel}
+                </ListSubheader>,
+                ...group.records.map((procurement) => (
+                  <MenuItem key={procurement.salesId} value={procurement.salesId}>
+                    {`${procurement.salesId} - ${procurement.nickname || procurement.name}`}
+                  </MenuItem>
+                ))
+              ])}
             </TextField>
           </GridTextField>
 
@@ -1468,13 +1498,14 @@ export default function NewRFQ(): JSX.Element {
                         const requestedMoqErrors = formik.errors.requestedMoqs;
                         const itemErrors =
                           Array.isArray(requestedMoqErrors) &&
-                            typeof requestedMoqErrors[index] === 'object'
+                          typeof requestedMoqErrors[index] === 'object'
                             ? requestedMoqErrors[index]
                             : undefined;
                         const helperText = itemErrors?.moq;
                         const targetPriceHelperText = itemErrors?.targetPrice;
                         const fieldError =
-                          Boolean(helperText) || (shouldShowGroupError && !requestedMoq.moq?.trim());
+                          Boolean(helperText) ||
+                          (shouldShowGroupError && !requestedMoq.moq?.trim());
 
                         return (
                           <Stack
@@ -1483,7 +1514,10 @@ export default function NewRFQ(): JSX.Element {
                             spacing={1}
                             alignItems="flex-start"
                             sx={{ width: '100%' }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%', flex: 1 }}>
+                            <Stack
+                              direction={{ xs: 'column', sm: 'row' }}
+                              spacing={1}
+                              sx={{ width: '100%', flex: 1 }}>
                               <TextField
                                 fullWidth
                                 type="number"
@@ -1492,10 +1526,15 @@ export default function NewRFQ(): JSX.Element {
                                 value={requestedMoq.moq}
                                 onChange={(event) => {
                                   const nextValues = [...formik.values.requestedMoqs];
-                                  nextValues[index] = { ...nextValues[index], moq: event.target.value };
+                                  nextValues[index] = {
+                                    ...nextValues[index],
+                                    moq: event.target.value
+                                  };
                                   formik.setFieldValue('requestedMoqs', nextValues);
                                 }}
-                                onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}.moq`, true)}
+                                onBlur={() =>
+                                  formik.setFieldTouched(`requestedMoqs.${index}.moq`, true)
+                                }
                                 error={fieldError}
                                 helperText={helperText}
                                 inputProps={{ min: 0, step: '1' }}
@@ -1508,10 +1547,15 @@ export default function NewRFQ(): JSX.Element {
                                 value={requestedMoq.targetPrice}
                                 onChange={(event) => {
                                   const nextValues = [...formik.values.requestedMoqs];
-                                  nextValues[index] = { ...nextValues[index], targetPrice: event.target.value };
+                                  nextValues[index] = {
+                                    ...nextValues[index],
+                                    targetPrice: event.target.value
+                                  };
                                   formik.setFieldValue('requestedMoqs', nextValues);
                                 }}
-                                onBlur={() => formik.setFieldTouched(`requestedMoqs.${index}.targetPrice`, true)}
+                                onBlur={() =>
+                                  formik.setFieldTouched(`requestedMoqs.${index}.targetPrice`, true)
+                                }
                                 error={Boolean(targetPriceHelperText)}
                                 helperText={targetPriceHelperText}
                                 inputProps={{ min: 0, step: '0.0001' }}
@@ -1599,10 +1643,18 @@ export default function NewRFQ(): JSX.Element {
                 name="shippingMethod"
                 value={formik.values.shippingMethod}
                 onChange={formik.handleChange}>
-                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทางรถ/ทางเรือ" />
+                <FormControlLabel
+                  value="ALL"
+                  control={<Radio size="small" />}
+                  label="ทางรถ/ทางเรือ"
+                />
                 <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
                 <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
-                <FormControlLabel value="AIR" control={<Radio size="small" />} label="ทางเครื่องบิน" />
+                <FormControlLabel
+                  value="AIR"
+                  control={<Radio size="small" />}
+                  label="ทางเครื่องบิน"
+                />
               </RadioGroup>
             </Box>
           </GridTextField>

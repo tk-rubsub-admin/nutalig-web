@@ -41,7 +41,8 @@ import { getSystemConfig } from 'services/Config/config-api';
 import { GROUP_CODE } from 'services/Config/config-type';
 import {
   createPurchaseOrder,
-  getPurchaseOrderCbmPreview
+  getPurchaseOrderCbmPreview,
+  updatePurchaseOrder
 } from 'services/PurchaseOrder/purchase-order-api';
 import { getRFQ, getRFQSupplierQuotes } from 'services/RFQ/rfq-api';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
@@ -742,6 +743,31 @@ export default function NewPurchaseOrder(): ReactElement {
         error: 'สร้างใบสั่งซื้อไม่สำเร็จ'
       });
 
+      const remarkWithPurchaseOrderNo = [response.purchaseOrderNo, draft.remark.trim()]
+        .filter(Boolean)
+        .join('\n');
+      try {
+        await toast.promise(
+          updatePurchaseOrder(response.purchaseOrderNo, {
+            docDate: draft.docDate || null,
+            productionLeadTimeDay: draft.productionLeadTimeDay
+              ? Number(draft.productionLeadTimeDay)
+              : null,
+            shippingLeadTimeDay: draft.shippingLeadTimeDay
+              ? Number(draft.shippingLeadTimeDay)
+              : null,
+            remark: remarkWithPurchaseOrderNo
+          }),
+          {
+            loading: 'กำลังอัปเดตหมายเหตุใบสั่งซื้อ',
+            success: 'อัปเดตหมายเหตุใบสั่งซื้อสำเร็จ',
+            error: 'สร้างใบสั่งซื้อแล้ว แต่ไม่สามารถอัปเดตหมายเหตุได้'
+          }
+        );
+      } catch (error) {
+        console.error('Cannot update purchase order remark', error);
+      }
+
       history.push(ROUTE_PATHS.PURCHASE_ORDER_DETAIL.replace(':id', response.purchaseOrderNo));
     } finally {
       setIsSaving(false);
@@ -1153,8 +1179,8 @@ export default function NewPurchaseOrder(): ReactElement {
                       showValidationErrors && !draft.supplierShippingId
                         ? 'กรุณาเลือก Supplier Shipping'
                         : !availableSupplierShippings.length
-                          ? 'ไม่มี Shipping ที่ตรงกับประเภทการขนส่งของเอกสาร'
-                          : undefined
+                        ? 'ไม่มี Shipping ที่ตรงกับประเภทการขนส่งของเอกสาร'
+                        : undefined
                     }>
                     {groupedSupplierShippings.land.length ? (
                       <ListSubheader disableSticky>ทางรถ</ListSubheader>
@@ -1363,7 +1389,7 @@ export default function NewPurchaseOrder(): ReactElement {
                     </Box>
                   ) : null}
                   {selectedSupplierQuote.packages?.length ||
-                    selectedSupplierQuote.details.some((detail) => detail.packages?.length) ? (
+                  selectedSupplierQuote.details.some((detail) => detail.packages?.length) ? (
                     <Box>
                       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>
                         Supplier Package
@@ -1391,8 +1417,9 @@ export default function NewPurchaseOrder(): ReactElement {
                             {selectedSupplierQuote.details.flatMap((detail) =>
                               (detail.packages || []).map((packageItem, packageIndex) => (
                                 <TableRow
-                                  key={`detail-package-${detail.id || detail.sortOrder}-${packageItem.id || packageIndex
-                                    }`}>
+                                  key={`detail-package-${detail.id || detail.sortOrder}-${
+                                    packageItem.id || packageIndex
+                                  }`}>
                                   <TableCell>{detail.optionName || '-'}</TableCell>
                                   <TableCell>{packageItem.packageName || '-'}</TableCell>
                                   <TableCell>{packageItem.packageDimension || '-'}</TableCell>
@@ -1491,8 +1518,8 @@ export default function NewPurchaseOrder(): ReactElement {
                       const itemCbmPreview =
                         item.id > 0
                           ? cbmPreview?.items.find(
-                            (preview) => preview.salesOrderDetailId === item.id
-                          )
+                              (preview) => preview.salesOrderDetailId === item.id
+                            )
                           : undefined;
                       const rfqId = item.rfqId || null;
                       const previousRfqId = displayItemsByRfq[index - 1]?.rfqId || null;

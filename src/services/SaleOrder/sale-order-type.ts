@@ -59,6 +59,7 @@ export interface CreateSalesOrderDetailRequest {
     imageUrl?: string | null;
     rfqDetailId?: number | null;
     rfqTierId?: number | null;
+    rfqTierSplitId?: number | null;
     quotationDetailId?: number | null;
     shippingMethod?: string | null;
     supplierCurrency?: string | null;
@@ -186,6 +187,7 @@ export interface SalesOrderDetailV1 {
     rfqId?: string | null;
     rfqDetailId?: number | null;
     rfqTierId?: number | null;
+    rfqTierSplitId?: number | null;
     quotationDetailId?: number | null;
     shippingMethod?: 'LAND' | 'SEA' | null;
     supplierCurrency?: string | null;
@@ -209,6 +211,7 @@ export interface UpdateSalesOrderDetailRequestV1 {
     imageUrl?: string | null;
     rfqDetailId?: number | null;
     rfqTierId?: number | null;
+    rfqTierSplitId?: number | null;
     quotationDetailId?: number | null;
     shippingMethod?: 'LAND' | 'SEA' | null;
     supplierCurrency?: string | null;

@@ -537,6 +537,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                     sourceRfqId: rfq.id,
                     rfqDetailId: detail.id,
                     tierId: '',
+                    tierSplitId: tierSplit.id,
                     name: shippingMethodLabel ? `${baseName} (${shippingMethodLabel})` : baseName,
                     type,
                     capacity,

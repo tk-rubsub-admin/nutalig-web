@@ -61,7 +61,12 @@ import { Quotation } from 'services/Document/document-type';
 import { createFreelanceSale, getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
 import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
 import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
-import { RFQDetailOption, RFQDetailTier, RFQRecord } from 'services/RFQ/rfq-type';
+import {
+  RFQDetailOption,
+  RFQDetailTier,
+  RFQDetailTierSplit,
+  RFQRecord
+} from 'services/RFQ/rfq-type';
 import { getCountry, getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
 import { Country, District, Province, SubDistrict } from 'services/Address/address-type';
 import { createSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
@@ -91,6 +96,8 @@ interface SaleOrderRFQItem {
   imageUrl?: string | null;
   optionId?: number;
   tierId?: number;
+  tierSplitId?: number;
+  supplierId?: string;
   supplierQuoteTierId?: number;
   quotationDetailId?: number | string;
   shippingMethod: string | null;
@@ -377,7 +384,7 @@ function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: string
   if (!tier) {
     return 0;
   }
-
+  console.log("tier:", tier)
   const quantity = Number(tier.quantity || 0);
   const freightCost = Number(tier.shippingCost || 0);
 
@@ -386,6 +393,10 @@ function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: string
 
 function getRFQDetailSupplierId(detail?: RFQDetailOption): string {
   return detail?.supplier?.supplierId || detail?.supplier?.id || '';
+}
+
+function getTierSplitSupplierId(tierSplit?: RFQDetailTierSplit): string {
+  return tierSplit?.supplier?.supplierId || tierSplit?.supplier?.id || '';
 }
 
 function formatApiDate(value: dayjs.Dayjs | string): string | undefined {
@@ -482,6 +493,49 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
   }
 
   return rfq.details.flatMap((detail: RFQDetailOption, optionIndex) => {
+    if (detail.tierSplits?.length) {
+      return detail.tierSplits.map((tierSplit, tierSplitIndex) => {
+        const quantity = Number(tierSplit.quantity || 1);
+        const unitPrice = Number(tierSplit.sellPrice || 0);
+        const shippingMethod = tierSplit.shippingMethod || 'LAND';
+        const shippingCost = Number(tierSplit.shippingCost || 0);
+        const shippingDisplayLabel = getShippingDisplayLabel(
+          shippingMethod,
+          tierSplit.isFcl,
+          tierSplit.isShareFCL
+        );
+
+        return {
+          id: Number(`${detail.id}${tierSplit.id}${tierSplitIndex}`),
+          optionId: detail.id,
+          tierSplitId: tierSplit.id,
+          supplierId: getTierSplitSupplierId(tierSplit) || getRFQDetailSupplierId(detail),
+          shippingMethod,
+          isFcl: Boolean(tierSplit.isFcl),
+          isShareFCL: Boolean(tierSplit.isShareFCL),
+          supplierCurrency: tierSplit.currency || null,
+          supplierUnitPrice: Number(tierSplit.productPrice || 0),
+          exchangeRate: 0,
+          supplierShippingCost: shippingCost,
+          supplierTotalUnitCost: Number(tierSplit.productPrice || 0) + shippingCost,
+          name: `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
+            quantity
+          )} - ${shippingDisplayLabel}`,
+          spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
+          quantity,
+          unitPrice,
+          amount: quantity * unitPrice,
+          totalFreight: quantity * shippingCost,
+          remark: [
+            `RFQ: ${rfq.id}`,
+            `Option: ${detail.optionName || `Option ${optionIndex + 1}`}`,
+            `MOQ: ${formatNumber(quantity)}`,
+            `Shipping: ${shippingDisplayLabel}`
+          ].join('\n')
+        };
+      });
+    }
+
     const tiers = detail.tiers?.length ? detail.tiers : [undefined];
 
     return tiers.flatMap((tier, tierIndex) => {
@@ -516,6 +570,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           id: Number(`${detail.id}${tier.id}${shippingIndex}`),
           optionId: detail.id,
           tierId: tier.id,
+          supplierId: getRFQDetailSupplierId(detail),
           supplierQuoteTierId: tier.supplierQuoteTierId || undefined,
           shippingMethod,
           isFcl: Boolean(tier.isFcl),
@@ -562,15 +617,24 @@ function createSaleOrderItemsFromQuotation(
     const rfqDetailId = item.rfqDetailId;
     const parsedTierId = Number(item.tierId);
     const rfqTierId = Number.isFinite(parsedTierId) && parsedTierId > 0 ? parsedTierId : undefined;
+    const parsedTierSplitId = Number(item.tierSplitId);
+    const rfqTierSplitId =
+      Number.isFinite(parsedTierSplitId) && parsedTierSplitId > 0
+        ? parsedTierSplitId
+        : undefined;
     const numericItemId = Number(item.id);
     const mappedDetail = sourceRfq.details?.find((detail) => detail.id === rfqDetailId);
     const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === rfqTierId);
+    const mappedTierSplit = mappedDetail?.tierSplits?.find(
+      (tierSplit) => tierSplit.id === rfqTierSplitId
+    );
+    const mappedPrice = mappedTierSplit || mappedTier;
     const mappedShippingMethod =
-      inferQuotationItemShippingMethod(item.name) || mappedTier?.shippingMethod || 'LAND';
+      mappedPrice?.shippingMethod || inferQuotationItemShippingMethod(item.name) || 'LAND';
     const shippingDisplayLabel = getShippingDisplayLabel(
       mappedShippingMethod,
-      mappedTier?.isFcl,
-      mappedTier?.isShareFCL
+      mappedPrice?.isFcl,
+      mappedPrice?.isShareFCL
     );
     const normalizedItemName = item.name || productFamily || 'PRE-ORDER';
     const itemNameWithShippingLabel = normalizedItemName.includes(shippingDisplayLabel)
@@ -583,24 +647,27 @@ function createSaleOrderItemsFromQuotation(
         : Date.now() + index,
       optionId: rfqDetailId,
       tierId: rfqTierId,
+      tierSplitId: rfqTierSplitId,
+      supplierId:
+        getTierSplitSupplierId(mappedTierSplit) || getRFQDetailSupplierId(mappedDetail),
       quotationDetailId: item.id,
       supplierQuoteTierId: mappedTier?.supplierQuoteTierId || undefined,
       shippingMethod: mappedShippingMethod,
-      isFcl: Boolean(mappedTier?.isFcl),
-      isShareFCL: Boolean(mappedTier?.isShareFCL),
-      supplierCurrency: mappedTier?.currency || null,
-      supplierUnitPrice: Number(mappedTier?.productPrice || 0),
+      isFcl: Boolean(mappedPrice?.isFcl),
+      isShareFCL: Boolean(mappedPrice?.isShareFCL),
+      supplierCurrency: mappedPrice?.currency || null,
+      supplierUnitPrice: Number(mappedPrice?.productPrice || 0),
       exchangeRate: Number(mappedTier?.exchangeRate || 0),
-      supplierShippingCost: Number(mappedTier?.shippingCost || 0),
+      supplierShippingCost: Number(mappedPrice?.shippingCost || 0),
       supplierTotalUnitCost:
-        Number(mappedTier?.productPrice || 0) +
-        Number(mappedTier?.shippingCost || 0),
+        Number(mappedPrice?.productPrice || 0) +
+        Number(mappedPrice?.shippingCost || 0),
       name: itemNameWithShippingLabel,
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
       unitPrice: Number(item.unitPrice || 0),
       amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
-      totalFreight: getTotalFreight(mappedTier, mappedShippingMethod),
+      totalFreight: quantity * Number(mappedPrice?.shippingCost || 0),
       remark: [`RFQ: ${item.sourceRfqId || sourceRfq.id}`, `Shipping: ${shippingDisplayLabel}`].join('\n')
     };
   });
@@ -883,7 +950,15 @@ export default function SalesOrderRFQ(): JSX.Element {
       customerId: '',
       customerAddressId: '',
       customerContactId: '',
-      customerSnapshot: { customerName: '', taxId: '', branchCode: '', branchName: '', address: '', contactName: '', contactNumber: '' },
+      customerSnapshot: {
+        customerName: '',
+        taxId: '',
+        branchCode: '',
+        branchName: '',
+        address: '',
+        contactName: '',
+        contactNumber: ''
+      },
       customerName: '',
       contactNumber: '',
       creditTerm: '',
@@ -921,9 +996,6 @@ export default function SalesOrderRFQ(): JSX.Element {
     const shippingMethodFromItems = deriveShippingTypeFromItems(formik.values.items);
     const shippingCategoryFromItems = deriveShippingCategoryFromItems(formik.values.items);
     const shippingLabel = getShippingTypeLabel(shippingMethodFromItems);
-    console.log(shippingMethodFromItems)
-    console.log(shippingCategoryFromItems)
-    console.log(shippingLabel)
     if (formik.values.shipping !== shippingLabel) {
       formik.setFieldValue('shipping', shippingLabel, false);
     }
@@ -1409,6 +1481,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       selectedItems.some(
         (item) =>
           !(
+            item.supplierId ||
             getRFQDetailSupplierId(rfq?.details?.find((detail) => detail.id === item.optionId)) ||
             fallbackSupplierId
           )
@@ -1441,7 +1514,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       remark: formik.values.notes,
       items: selectedItems.map((selectedItem) => ({
         supplierId:
-          getRFQDetailSupplierId(
+          selectedItem.supplierId || getRFQDetailSupplierId(
             rfq?.details?.find((detail) => detail.id === selectedItem.optionId)
           ) || fallbackSupplierId,
         name: selectedItem.name,
@@ -1452,6 +1525,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         imageUrl: selectedItem.imageUrl || null,
         rfqDetailId: selectedItem.optionId,
         rfqTierId: selectedItem.tierId,
+        rfqTierSplitId: selectedItem.tierSplitId,
         quotationDetailId: selectedItem.quotationDetailId
           ? Number(selectedItem.quotationDetailId)
           : null,
@@ -1478,10 +1552,11 @@ export default function SalesOrderRFQ(): JSX.Element {
       const saleOrderId = getCreatedSaleOrderId(response);
 
       const linkSelections = selectedItems
-        .filter((item) => item.optionId && item.tierId)
+        .filter((item) => item.optionId && (item.tierId || item.tierSplitId))
         .map((item) => ({
           detailId: Number(item.optionId),
-          tierId: Number(item.tierId),
+          tierId: item.tierId ? Number(item.tierId) : undefined,
+          tierSplitId: item.tierSplitId ? Number(item.tierSplitId) : undefined,
           shippingMethod: item.shippingMethod,
           price: item.unitPrice
         }));
@@ -1491,6 +1566,7 @@ export default function SalesOrderRFQ(): JSX.Element {
           saleOrderId,
           detailId: linkSelections[0].detailId,
           tierId: linkSelections[0].tierId,
+          tierSplitId: linkSelections[0].tierSplitId,
           shippingMethod: linkSelections[0].shippingMethod,
           price: linkSelections[0].price,
           selections: linkSelections

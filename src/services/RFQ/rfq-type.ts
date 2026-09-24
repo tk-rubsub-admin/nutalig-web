@@ -184,6 +184,7 @@ export interface RFQQuotationSummary {
 
 export interface RFQDetailTierSplit {
   id: number;
+  supplier?: Supplier | null;
   quantity: number;
   productPrice: number;
   sellPrice: number;
@@ -363,6 +364,7 @@ export interface RFQRecord {
   procurementRemarks?: RFQProcurementRemark[];
   confirmedDetailId?: number | null;
   confirmedTierId?: number | null;
+  confirmedTierSplitId?: number | null;
   confirmedSupplierQuoteId?: string | null;
   confirmedShippingMethod?: string | null;
   confirmedPrice?: number | null;
@@ -544,6 +546,7 @@ export interface LinkRFQSalesOrderRequest {
   saleOrderId: string;
   detailId?: number;
   tierId?: number;
+  tierSplitId?: number;
   shippingMethod?: string;
   price?: number | null;
   selections?: LinkRFQSalesOrderSelectionRequest[];
@@ -551,7 +554,8 @@ export interface LinkRFQSalesOrderRequest {
 
 export interface LinkRFQSalesOrderSelectionRequest {
   detailId: number;
-  tierId: number;
+  tierId?: number;
+  tierSplitId?: number;
   shippingMethod: string;
   price?: number | null;
 }

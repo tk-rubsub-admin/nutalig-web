@@ -37,6 +37,7 @@ export interface CreateQuotationRequest {
 export interface CreateQuotationItem {
     id: number;
     tierId?: string;
+    tierSplitId?: number;
     rfqDetailId?: number;
     sourceRfqId?: string;
     name: string;
@@ -102,6 +103,7 @@ export interface QuotationCustomerSnapshot {
 export interface QuotationItem {
     id: number | string;
     tierId?: string;
+    tierSplitId?: number;
     rfqDetailId?: number;
     sourceRfqId?: string;
     name: string;

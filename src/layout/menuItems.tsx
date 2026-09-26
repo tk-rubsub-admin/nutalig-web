@@ -48,6 +48,10 @@ export function useMenuItems() {
       id: 'left_menu__approve_management',
       title: 'ผู้อนุมัติ',
       icon: FactCheck,
+      allowedPermission: [
+        PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW,
+        PERMISSIONS.AWAITING_APPROVE_VIEW
+      ],
       children: [
         {
           id: 'left_menu__final_price_inquiry_management',
@@ -89,6 +93,18 @@ export function useMenuItems() {
           title: t('sidebar.documentManagement.salesOrder'),
           href: ROUTE_PATHS.SALE_ORDER_MANAGEMENT,
           allowedPermission: [PERMISSIONS.SALES_ORDER_VIEW]
+        },
+        {
+          id: 'left_menu__my_purchase_order',
+          title: 'รายการสั่งซื้อของฉัน',
+          href: ROUTE_PATHS.MY_PURCHASE_ORDER_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.MY_PURCHASE_ORDER]
+        },
+        {
+          id: 'left_menu__purchase_order_production_calendar',
+          title: 'ติดตามสถานะออเดอร์',
+          href: ROUTE_PATHS.PURCHASE_ORDER_PRODUCTION_CALENDAR,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_TRACKING]
         }
       ]
     },
@@ -115,6 +131,12 @@ export function useMenuItems() {
           title: t('sidebar.procurement.purchaseOrder'),
           href: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,
           allowedPermission: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+        },
+        {
+          id: 'left_menu__purchase_order_production_calendar',
+          title: 'ติดตามสถานะออเดอร์',
+          href: ROUTE_PATHS.PURCHASE_ORDER_PRODUCTION_CALENDAR,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_TRACKING]
         }
       ]
     },

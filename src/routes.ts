@@ -54,6 +54,8 @@ export const ROUTE_PATHS = Object.freeze({
   INVOICE_CREATE_FROM_SALES_ORDER: '/invoice-create/:salesOrderId',
   INVOICE_DETAIL: '/invoice/:id',
   PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
+  PURCHASE_ORDER_PRODUCTION_CALENDAR: '/purchase-order-production-calendar',
+  MY_PURCHASE_ORDER_MANAGEMENT: '/my-purchase-order-management',
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER: '/purchase-order-create/:salesOrderId',
   PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
   RECEIPT_MANAGEMENT: '/receipt-management',
@@ -324,6 +326,20 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,
     component: lazy(() => import('./pages/PurchaseOrderManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PURCHASE_ORDER_PRODUCTION_CALENDAR,
+    component: lazy(
+      () => import('./pages/PurchaseOrderProductionCalendar' /* webpackChunkName: "app" */)
+    ),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_TRACKING]
+  },
+  {
+    path: ROUTE_PATHS.MY_PURCHASE_ORDER_MANAGEMENT,
+    component: lazy(
+      () => import('./pages/MyPurchaseOrderManagement' /* webpackChunkName: "app" */)
+    ),
+    allowedPermission: [PERMISSIONS.MY_PURCHASE_ORDER]
   },
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER,

@@ -13,6 +13,8 @@ export function getDocumentStatusLabel(
   const key = resolveDocumentStatusKey(rawStatus, statusProfile);
 
   switch (key) {
+    case 'PRODUCTION_RUNNING':
+      return 'กำลังรันงานผลิต';
     case 'AWAITING_VALIDATION':
       return 'รอตรวจสอบ';
     case 'PARTIALLY_PAID':
@@ -69,6 +71,8 @@ export function getDocumentStatusChipSx(
     case 'ACCEPTED':
     case 'FINALIZED':
       return { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' };
+    case 'PRODUCTION_RUNNING':
+      return { backgroundColor: '#dbeafe', color: '#1d4ed8', fontWeight: 'bold' };
     case 'REJECTED':
     case 'CANCELLED':
     case 'VOID':
@@ -88,6 +92,10 @@ function resolveDocumentStatusKey(
     return 'AWAITING_VALIDATION';
   }
 
+  if (rawStatus === 'PRODUCTION_RUNNING') {
+    return 'PRODUCTION_RUNNING';
+  }
+
   if (statusProfile?.paymentLifecycle === 'PARTIALLY_PAID') {
     return 'PARTIALLY_PAID';
   }
@@ -96,7 +104,12 @@ function resolveDocumentStatusKey(
     return 'PAID';
   }
 
-  if (rawStatus && ['DRAFT', 'CREATED', 'ISSUED', 'CLOSED', 'VOID', 'CANCELLED'].includes(rawStatus)) {
+  if (
+    rawStatus &&
+    ['DRAFT', 'CREATED', 'ISSUED', 'CLOSED', 'VOID', 'CANCELLED', 'PRODUCTION_RUNNING'].includes(
+      rawStatus
+    )
+  ) {
     return rawStatus;
   }
 

@@ -1,4 +1,5 @@
 import { Supplier, SupplierShipping } from 'services/Supplier/supplier-type';
+import { Customer } from 'services/Customer/customer-type';
 import { SystemConfig } from 'services/Config/config-type';
 import { DocumentStatusProfile } from 'services/document-status-type';
 import { Pagination } from 'services/general-type';
@@ -28,6 +29,18 @@ export interface CreatePurchaseOrderItemRequest {
   supplierCurrency?: string | null;
   supplierUnitPrice?: number | null;
   supplierShippingCost?: number | null;
+  components?: PurchaseOrderDetailComponentRequest[];
+}
+
+export interface PurchaseOrderDetailComponentRequest {
+  sourceQuoteDetailPackageId?: number | null;
+  componentCode?: string | null;
+  componentName?: string | null;
+  specification?: string | null;
+  quantityPerItem?: number | null;
+  unit?: string | null;
+  remark?: string | null;
+  sortOrder?: number | null;
 }
 
 export interface CreatePurchaseOrderResponse {
@@ -91,6 +104,7 @@ export interface UpdatePurchaseOrderItemRequest {
   quotationDetailId?: number | null;
   shippingMethod?: string | null;
   supplierQuoteTierId?: number | null;
+  components?: PurchaseOrderDetailComponentRequest[];
 }
 
 export interface UpdatePurchaseOrderRequest {
@@ -104,6 +118,7 @@ export interface UpdatePurchaseOrderRequest {
 export interface SearchPurchaseOrderRequest {
   purchaseOrderNo?: string;
   salesOrderNo?: string;
+  salesId?: string;
   supplierId?: string;
   docDateStart?: string;
   docDateEnd?: string;
@@ -137,6 +152,12 @@ export interface PurchaseOrderItem {
   shippingMethod?: string | null;
   supplierQuoteTierId?: number | null;
   packages?: PurchaseOrderPackageSnapshot[];
+  components?: PurchaseOrderDetailComponent[];
+}
+
+export interface PurchaseOrderDetailComponent extends PurchaseOrderDetailComponentRequest {
+  id?: number | null;
+  totalQuantity?: number | null;
 }
 
 export type PurchaseOrderAttachmentDocumentType =
@@ -155,6 +176,7 @@ export interface PurchaseOrderAttachment {
   contentType: string | null;
   fileSize: number | null;
   remark: string | null;
+  lateStartReason: string | null;
   sortOrder: number | null;
 }
 
@@ -260,6 +282,10 @@ export interface PurchaseOrderRecord {
   outstandingTotalThb: number;
   totalCbm?: number | null;
   remark: string | null;
+  lateStartReason: string | null;
+  productionStartedDate: string | null;
+  productionExpectedEndDate: string | null;
+  productionCompletedDate: string | null;
   revNo: number | null;
   supplierNameSnapshot: string | null;
   supplierAddressSnapshot: string | null;
@@ -270,6 +296,37 @@ export interface PurchaseOrderRecord {
   containerSizeSnapshot: string | null;
   attachments: PurchaseOrderAttachment[];
   items: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderProductionCalendarRecord {
+  purchaseOrderNo: string;
+  salesOrderNo: string | null;
+  salesName: string | null;
+  supplierName: string | null;
+  customer: Customer | null;
+  startDate: string | null;
+  expectedFinishDate: string;
+  actualFinishDate: string | null;
+  status: string | null;
+  overdue: boolean;
+}
+
+export interface PurchaseOrderTimelineEvent {
+  type: string;
+  label: string;
+  date: string;
+  completed: boolean;
+}
+
+export interface PurchaseOrderTimeline {
+  purchaseOrderNo: string;
+  customer: Customer | null;
+  productionLeadTimeDay: number | null;
+  productionStartedDate: string | null;
+  productionExpectedEndDate: string | null;
+  productionCompletedDate: string | null;
+  overdue: boolean;
+  events: PurchaseOrderTimelineEvent[];
 }
 
 export interface SearchPurchaseOrderResponse {

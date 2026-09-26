@@ -39,7 +39,14 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentS
 import { getShippingMethodLabel } from 'utils/shipping';
 import { formatNumber } from 'utils/utils';
 
-const PURCHASE_ORDER_STATUS_OPTIONS = ['CREATED', 'CANCELLED', 'CLOSED'];
+const PURCHASE_ORDER_STATUS_OPTIONS = [
+  'CREATED',
+  'AWAITING_PAYMENT',
+  'PAID',
+  'PRODUCTION_RUNNING',
+  'CANCELLED',
+  'CLOSED'
+];
 const PO_SHIPPING_METHOD_OPTIONS = [
   'LAND',
   'SEA',

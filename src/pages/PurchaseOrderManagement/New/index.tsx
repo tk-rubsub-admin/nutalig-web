@@ -54,6 +54,10 @@ import {
 } from 'services/Supplier/supplier-api';
 import { SupplierShipping } from 'services/Supplier/supplier-type';
 import { getShippingMethodCategory, getShippingMethodLabel } from 'utils/shipping';
+import {
+  AUTOMATIC_DELIVERY_ITEM_ID,
+  buildAutomaticDeliveryItem
+} from 'utils/purchaseOrderDelivery';
 import { formatNumber } from 'utils/utils';
 
 interface PurchaseOrderCreateParams {
@@ -477,34 +481,22 @@ export default function NewPurchaseOrder(): ReactElement {
   }, [supplierQuotes]);
 
   const automaticShippingItems = useMemo(() => {
-    const addedTierIds = new Set<string>();
-    return filteredItems.flatMap((item) => {
-      if (item.supplierQuoteTierId === null || item.supplierQuoteTierId === undefined) {
-        return [];
-      }
-      const tierId = String(item.supplierQuoteTierId);
-      const supplierQuoteTier = supplierQuoteTierById.get(tierId);
-      if (!supplierQuoteTier || supplierQuoteTier.shippingCost <= 0 || addedTierIds.has(tierId)) {
-        return [];
-      }
-      addedTierIds.add(tierId);
-      const automaticItemId = -Number(item.supplierQuoteTierId);
-      return [
-        {
-          id: automaticItemId,
-          imageUrl: null,
-          name: 'Delivery',
-          spec: ``,
-          quantity: 1,
-          supplierCurrency: supplierQuoteTier.shippingCurrency || item.supplierCurrency,
-          supplierUnitPrice: supplierQuoteTier.shippingCost,
-          supplierShippingCost: 0,
-          isAutomaticShipping: true,
-          ...(itemEdits[automaticItemId] || {})
-        }
-      ];
-    });
+    const deliveryItem = buildAutomaticDeliveryItem(filteredItems, supplierQuoteTierById);
+    return deliveryItem
+      ? [{ ...deliveryItem, ...(itemEdits[AUTOMATIC_DELIVERY_ITEM_ID] || {}) }]
+      : [];
   }, [filteredItems, itemEdits, supplierQuoteTierById]);
+
+  useEffect(() => {
+    setItemEdits((previous) => {
+      if (!previous[AUTOMATIC_DELIVERY_ITEM_ID]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[AUTOMATIC_DELIVERY_ITEM_ID];
+      return next;
+    });
+  }, [draft.supplierId, draft.supplierShippingId]);
   console.log('filteredItems', filteredItems);
   const editableItems = useMemo(
     () => [
@@ -1616,6 +1608,7 @@ export default function NewPurchaseOrder(): ReactElement {
                               onChange={(event) =>
                                 handleItemEdit(item.id, 'quantity', event.target.value)
                               }
+                              InputProps={{ readOnly: item.isAutomaticShipping }}
                               inputProps={{ min: 0, step: 1, style: { textAlign: 'right' } }}
                             />
                           </TableCell>

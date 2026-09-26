@@ -9,6 +9,8 @@ import {
   PurchaseOrderPaymentRequest,
   PurchaseOrderPaymentSchedule,
   PurchaseOrderRecord,
+  PurchaseOrderProductionCalendarRecord,
+  PurchaseOrderTimeline,
   SearchPurchaseOrderRequest,
   SearchPurchaseOrderResponse,
   UpdatePurchaseOrderRequest
@@ -137,6 +139,24 @@ export const getPurchaseOrder = async (id: string): Promise<PurchaseOrderRecord>
   return response.data;
 };
 
+export const getPurchaseOrderProductionCalendar = async (
+  start?: string,
+  end?: string
+): Promise<PurchaseOrderProductionCalendarRecord[]> => {
+  const response = await api.get('/v1/purchase-orders/production-calendar', {
+    params: { start, end }
+  }).then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderProductionTimeline = async (
+  id: string
+): Promise<PurchaseOrderTimeline> => {
+  const response = await api.get(`/v1/purchase-orders/${id}/production-timeline`)
+    .then((result) => result.data);
+  return response.data;
+};
+
 export const viewPurchaseOrder = async (id: string, original: boolean, copy: boolean) => {
   const response = await api
     .get('/v1/purchase-orders/document', {
@@ -157,6 +177,25 @@ export const updatePurchaseOrder = async (
   data: UpdatePurchaseOrderRequest
 ): Promise<PurchaseOrderRecord> => {
   const response = await api.patch(`/v1/purchase-orders/${id}`, data).then((result) => result.data);
+  return response.data;
+};
+
+export const checkPurchaseOrderLateStart = async (purchaseOrderNo: string): Promise<boolean> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${purchaseOrderNo}/late-start-check`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const startPurchaseOrderRun = async (
+  id: string,
+  lateStartReason?: string | null
+): Promise<PurchaseOrderRecord> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/start-run`, {
+      lateStartReason: lateStartReason || null
+    })
+    .then((result) => result.data);
   return response.data;
 };
 

@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
 interface CanProps {
@@ -13,11 +13,11 @@ export default function Can({
   anyPermission,
   fallback = null,
   children
-}: CanProps): ReactElement | null {
+}: CanProps): ReactNode {
   const { hasPermission, hasAnyPermission } = useAuth();
   const allowed =
     (permission ? hasPermission(permission) : true) &&
     (anyPermission?.length ? hasAnyPermission(anyPermission) : true);
 
-  return <>{allowed ? children : fallback}</>;
+  return allowed ? children : fallback;
 }

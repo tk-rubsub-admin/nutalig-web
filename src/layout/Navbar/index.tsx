@@ -19,8 +19,8 @@ import { isMobileOnly } from 'react-device-detect';
 import { appVersionLabel } from 'utils/appVersion';
 
 const AppBar = styled(MuiAppBar)`
-  background: #fff !important;
-  color: #999 !important;
+  background: linear-gradient(180deg, #0f2a17 0%, #1a3a22 100%) !important;
+  color: #fff !important;
 `;
 
 const IconButton = styled(MuiIconButton)`

@@ -1,226 +1,239 @@
-/* eslint-disable prettier/prettier */
-// OrderProgress.tsx
-import * as React from "react";
 import {
-    Stepper, Step, StepLabel, StepConnector, stepConnectorClasses, StepIconProps,
-    Stack, Typography, styled, Chip, LinearProgress, Box, useMediaQuery, List, ListItem, ListItemIcon, ListItemText, Avatar
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
-import LocalShippingIcon from "@mui/icons-material/LocalShipping";
-import InventoryIcon from "@mui/icons-material/Inventory";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import PaymentIcon from "@mui/icons-material/Payment";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import { useTranslation } from "react-i18next";
+  Cancel,
+  CheckCircle,
+  Inventory,
+  LocalShipping,
+  Payment,
+  RadioButtonUnchecked,
+  ShoppingCart
+} from '@mui/icons-material';
+import {
+  Box,
+  Chip,
+  Stack,
+  Step,
+  StepConnector,
+  StepIconProps,
+  StepLabel,
+  Stepper,
+  Typography,
+  alpha,
+  stepConnectorClasses,
+  styled,
+  useMediaQuery
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { ReactElement, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type OrderStatus =
-    | "AWAITING_PAYMENT"
-    | "ORDER_CONFIRMED"
-    | "PROCESSING"
-    | "COMPLETED"
-    | "SHIPPED"
-    | "DELIVERED"
-    | "CANCELLED";
+  | 'AWAITING_PAYMENT'
+  | 'ORDER_CONFIRMED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED';
 
-type StepType = "normal" | "success" | "cancel";
+interface OrderStepDefinition {
+  key: OrderStatus;
+  icon: ReactNode;
+}
 
-const STEPS: { key: OrderStatus; type: StepType }[] = [
-    { key: "AWAITING_PAYMENT", type: "normal" },
-    { key: "ORDER_CONFIRMED", type: "normal" },
-    { key: "PROCESSING", type: "normal" },
-    { key: "COMPLETED", type: "normal" },
-    { key: "SHIPPED", type: "normal" },
-    { key: "DELIVERED", type: "success" },
-    { key: "CANCELLED", type: "cancel" },
+const ORDER_STEPS: OrderStepDefinition[] = [
+  { key: 'AWAITING_PAYMENT', icon: <Payment /> },
+  { key: 'ORDER_CONFIRMED', icon: <ShoppingCart /> },
+  { key: 'PROCESSING', icon: <Inventory /> },
+  { key: 'COMPLETED', icon: <CheckCircle /> },
+  { key: 'SHIPPED', icon: <LocalShipping /> },
+  { key: 'DELIVERED', icon: <CheckCircle /> }
 ];
 
-const ICONS: Record<OrderStatus, React.ReactNode> = {
-    "AWAITING_PAYMENT": <PaymentIcon />,
-    "ORDER_CONFIRMED": <ShoppingCartIcon />,
-    "PROCESSING": <InventoryIcon />,
-    "COMPLETED": <InventoryIcon />,
-    "SHIPPED": <LocalShippingIcon />,
-    "DELIVERED": <CheckCircleIcon />,
-    "CANCELLED": <CancelIcon />,
+const CANCELLED_STEP: OrderStepDefinition = {
+  key: 'CANCELLED',
+  icon: <Cancel />
 };
 
-const ColorConnector = styled(StepConnector)(({ theme }) => ({
-    [`&.${stepConnectorClasses.alternativeLabel}`]: { top: 22 },
-    [`& .${stepConnectorClasses.line}`]: {
-        borderTopWidth: 2,
-        borderColor: theme.palette.divider,
-    },
+const TrackingConnector = styled(StepConnector, {
+  shouldForwardProp: (prop) => prop !== 'cancelled'
+})<{ cancelled?: boolean }>(({ theme, cancelled }) => ({
+  [`&.${stepConnectorClasses.alternativeLabel}`]: {
+    top: 25,
+    left: 'calc(-50% + 25px)',
+    right: 'calc(50% + 25px)'
+  },
+  [`&.${stepConnectorClasses.vertical}`]: {
+    marginLeft: 24
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    borderColor: theme.palette.divider,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderRadius: 2,
+    minHeight: 34,
+    transition: theme.transitions.create('border-color')
+  },
+  ...(!cancelled && {
+    [`&.${stepConnectorClasses.active} .${stepConnectorClasses.line}, &.${stepConnectorClasses.completed} .${stepConnectorClasses.line}`]:
+      {
+        borderColor: theme.palette.success.main
+      }
+  })
 }));
 
-function CustomStepIcon(
-    props: StepIconProps & { stepKey: OrderStatus; stepType: StepType }
-) {
-    const { active, completed, stepKey, stepType } = props;
-    const baseIcon = ICONS[stepKey];
+interface TrackingStepIconProps extends StepIconProps {
+  iconNode: ReactNode;
+  cancelled?: boolean;
+  delivered?: boolean;
+}
 
-    // สีของไอคอน
-    let color = "text.secondary";
-    if (stepType === "cancel") color = "error.main";
-    else if (stepType === "success") color = "success.main";
-    else if (completed || active) color = "primary.main";
+function TrackingStepIcon({
+  active,
+  completed,
+  iconNode,
+  cancelled,
+  delivered
+}: TrackingStepIconProps): ReactElement {
+  const highlighted = active || completed;
+  const color = cancelled ? 'error.main' : 'success.main';
 
-    // เน้นสเต็ปปัจจุบันบนเดสก์ท็อป/แท็บเล็ต
-    if (active) {
-        return (
-            <Stack
-                alignItems="center"
-                justifyContent="center"
-                sx={{
-                    bgcolor: "primary.light",
-                    color: "primary.contrastText",
-                    borderRadius: "50%",
-                    width: 40,
-                    height: 40,
-                    boxShadow: 2,
-                }}
-            >
-                {baseIcon}
-            </Stack>
-        );
-    }
-
-    return (
-        <Stack sx={{ color }} alignItems="center" justifyContent="center">
-            {baseIcon}
-        </Stack>
-    );
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        zIndex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 50,
+        height: 50,
+        color: highlighted ? 'common.white' : 'text.disabled',
+        bgcolor: highlighted ? color : 'background.paper',
+        border: '2px solid',
+        borderColor: highlighted ? color : 'divider',
+        borderRadius: '50%',
+        boxShadow: active ? `0 0 0 5px ${cancelled ? '#ffebee' : '#e8f5e9'}` : 'none',
+        transition: 'all 180ms ease',
+        '& svg': { fontSize: delivered || active ? 27 : 24 }
+      }}>
+      {iconNode}
+    </Box>
+  );
 }
 
 export interface OrderProgressProps {
-    status: OrderStatus | string;
-    label?: string;
+  status: OrderStatus | string;
+  label?: string;
 }
 
-export default function OrderProgress({ status }: OrderProgressProps) {
-    const theme = useTheme();
-    const { t } = useTranslation();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+export default function OrderProgress({ status, label }: OrderProgressProps): ReactElement {
+  const theme = useTheme();
+  const { t } = useTranslation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isCancelled = status === 'CANCELLED';
+  const statusIndex = ORDER_STEPS.findIndex((step) => step.key === status);
+  const hasKnownStatus = isCancelled || statusIndex >= 0;
+  const displayedSteps = isCancelled ? [...ORDER_STEPS, CANCELLED_STEP] : ORDER_STEPS;
+  const activeStep = isCancelled ? displayedSteps.length - 1 : Math.max(statusIndex, 0);
+  const currentStep = isCancelled
+    ? CANCELLED_STEP
+    : ORDER_STEPS[Math.max(statusIndex, 0)] || ORDER_STEPS[0];
+  const statusLabel = label || t(`status.saleOrder.${hasKnownStatus ? currentStep.key : status}`);
 
-    const idx = STEPS.filter((s) => s.key !== 'CANCELLED').findIndex((s) => s.key === status);
-    const activeStepIndex = Math.max(0, idx);
-    const pct = Math.round((activeStepIndex / (STEPS.filter((s) => s.key !== 'CANCELLED').length - 1)) * 100);
-    const current = STEPS[activeStepIndex];
-    // ========== MOBILE RENDER (ดูง่ายขึ้น) ==========
-    if (isMobile) {
-        const prev = STEPS[activeStepIndex - 1];
-        const next = STEPS[activeStepIndex + 1];
-
-        return (
-            <Stack spacing={1.5}>
-                {/* สถานะปัจจุบันเป็น Chip ใหญ่ */}
-                <Chip
-                    label={`${t("viewOrder.currentStatus")}: ${t(`status.saleOrder.${current?.key ?? status}`)}`}
-                    color={
-                        current?.type === "cancel"
-                            ? "error"
-                            : current?.type === "success"
-                                ? "success"
-                                : "primary"
-                    }
-                    variant="filled"
-                    sx={{ fontWeight: "bold", alignSelf: "flex-start" }}
-                />
-                <br />
-
-                {/* แถบความคืบหน้า */}
-                <Box>
-                    <LinearProgress variant="determinate" value={pct} sx={{ height: 10, borderRadius: 5 }} />
-                    <Typography variant="caption" color="text.secondary">{pct}%</Typography>
-                </Box>
-
-                {/* ลิสต์แบบย่อ: แสดงแค่ ก่อนหน้า / ปัจจุบัน / ถัดไป */}
-                <List dense sx={{ bgcolor: "background.paper", borderRadius: 2 }}>
-                    {prev && (
-                        <ListItem>
-                            <ListItemIcon>
-                                <CheckCircleIcon fontSize="small" color="disabled" />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={<Typography variant="body2" color="text.secondary">{t(`status.saleOrder.${prev.key}`)}</Typography>}
-                            />
-                        </ListItem>
-                    )}
-
-                    {current && (
-                        <ListItem sx={{ bgcolor: "action.hover", borderRadius: 2, my: 0.5 }}>
-                            <ListItemIcon>
-                                <Avatar sx={{ bgcolor: current.type === "cancel" ? "error.main" : current.type === "success" ? "success.main" : "primary.main", width: 28, height: 28 }}>
-                                    {/* ไอคอนสีขาวเล็ก ๆ */}
-                                    <Box sx={{ color: "common.white" }}>{ICONS[current.key as OrderStatus]}</Box>
-                                </Avatar>
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={<Typography variant="body1" fontWeight="bold">{t(`status.saleOrder.${current.key}`)}</Typography>}
-                            />
-                        </ListItem>
-                    )}
-
-                    {next && (
-                        <ListItem>
-                            <ListItemIcon>
-                                <RadioButtonUncheckedIcon fontSize="small" color="disabled" />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={<Typography variant="body2" color="text.secondary">{t(`status.saleOrder.${next.key}`)}</Typography>}
-                            />
-                        </ListItem>
-                    )}
-                </List>
-            </Stack>
-        );
-    }
-
-    // ========== DESKTOP/TABLET RENDER (Stepper ปกติ) ==========
-    return (
-        <Stack spacing={1}>
-            <Chip
-                label={`${t("viewOrder.currentStatus")}: ${t(`status.saleOrder.${current?.key ?? status}`)}`}
-                color={current?.type === "cancel" ? "error" : current?.type === "success" ? "success" : "primary"}
-                variant="filled"
-                sx={{ fontWeight: "bold", alignSelf: "flex-start" }}
-            />
-            <br />
-            <Box sx={{ overflowX: "auto", pb: 1 }}>
-                <Stepper
-                    activeStep={activeStepIndex}
-                    alternativeLabel
-                    connector={<ColorConnector />}
-                    sx={{
-                        minWidth: 560, // กันบีบบนจอแคบ ๆ
-                        px: 1,
-                    }}
-                >
-                    {STEPS.map((s, i) => {
-                        const isCompleted = i < activeStepIndex;
-                        const isActive = i === activeStepIndex;
-                        return (
-                            <Step key={s.key} completed={isCompleted}>
-                                <StepLabel
-                                    StepIconComponent={(p) => (
-                                        <CustomStepIcon {...p} stepKey={s.key} stepType={s.type} />
-                                    )}
-                                >
-                                    <Typography
-                                        variant="body2"
-                                        fontWeight={isActive ? "bold" : "normal"}
-                                        color={isActive ? (s.type === "cancel" ? "error.main" : "primary.main") : "inherit"}
-                                        noWrap
-                                    >
-                                        {t(`status.saleOrder.${s.key}`)}
-                                    </Typography>
-                                </StepLabel>
-                            </Step>
-                        );
-                    })}
-                </Stepper>
-            </Box>
+  return (
+    <Stack spacing={{ xs: 2, sm: 3 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={2}
+        sx={{
+          px: { xs: 1.5, sm: 2 },
+          py: 1.5,
+          bgcolor: (muiTheme) =>
+            alpha(isCancelled ? muiTheme.palette.error.main : muiTheme.palette.success.main, 0.07),
+          border: '1px solid',
+          borderColor: isCancelled ? 'error.light' : 'success.light',
+          borderRadius: 2
+        }}>
+        <Stack direction="row" alignItems="center" spacing={1.25} minWidth={0}>
+          <Box sx={{ color: isCancelled ? 'error.main' : 'success.main', display: 'flex' }}>
+            {isCancelled ? <Cancel /> : currentStep.icon}
+          </Box>
+          <Box minWidth={0}>
+            <Typography variant="caption" color="text.secondary">
+              {t('viewOrder.currentStatus')}
+            </Typography>
+            <Typography
+              variant="subtitle1"
+              fontWeight={700}
+              color={isCancelled ? 'error.main' : 'success.dark'}
+              noWrap>
+              {statusLabel}
+            </Typography>
+          </Box>
         </Stack>
-    );
+        <Chip
+          size="small"
+          color={isCancelled ? 'error' : currentStep.key === 'DELIVERED' ? 'success' : 'primary'}
+          label={isCancelled ? 'ยกเลิกแล้ว' : `ขั้นตอน ${activeStep + 1}/${ORDER_STEPS.length}`}
+          sx={{ flexShrink: 0, fontWeight: 700 }}
+        />
+      </Stack>
+
+      <Box sx={{ overflowX: isMobile ? 'visible' : 'auto', px: { xs: 0.5, sm: 1 }, pb: 1 }}>
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel={!isMobile}
+          orientation={isMobile ? 'vertical' : 'horizontal'}
+          connector={<TrackingConnector cancelled={isCancelled} />}
+          sx={{ minWidth: isMobile ? 0 : isCancelled ? 760 : 680 }}>
+          {displayedSteps.map((step, index) => {
+            const isCurrent = index === activeStep;
+            const isCompleted = !isCancelled && statusIndex >= 0 && index < activeStep;
+            const isFuture = !isCurrent && !isCompleted;
+            const stepIsCancelled = step.key === 'CANCELLED';
+
+            return (
+              <Step key={step.key} active={isCurrent} completed={isCompleted}>
+                <StepLabel
+                  StepIconComponent={(props) => (
+                    <TrackingStepIcon
+                      {...props}
+                      iconNode={isFuture && isMobile ? <RadioButtonUnchecked /> : step.icon}
+                      cancelled={stepIsCancelled}
+                      delivered={step.key === 'DELIVERED'}
+                    />
+                  )}
+                  sx={{
+                    py: isMobile ? 0.5 : 0,
+                    '& .MuiStepLabel-labelContainer': {
+                      ml: isMobile ? 1 : 0
+                    }
+                  }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight={isCurrent ? 700 : isCompleted ? 600 : 400}
+                    color={
+                      stepIsCancelled && isCurrent
+                        ? 'error.main'
+                        : isCurrent || isCompleted
+                        ? 'success.dark'
+                        : 'text.secondary'
+                    }>
+                    {t(`status.saleOrder.${step.key}`)}
+                  </Typography>
+                  {isMobile && isCurrent ? (
+                    <Typography variant="caption" color="text.secondary">
+                      สถานะปัจจุบันของคำสั่งซื้อ
+                    </Typography>
+                  ) : null}
+                </StepLabel>
+              </Step>
+            );
+          })}
+        </Stepper>
+      </Box>
+    </Stack>
+  );
 }

@@ -314,12 +314,39 @@ export interface PurchaseOrderProductionCalendarRecord {
 export interface PurchaseOrderTimelineEvent {
   type: string;
   label: string;
-  date: string;
+  date: string | null;
   completed: boolean;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED' | 'CHANGES_REQUESTED' | 'CANCELLED';
+  plannedDate: string | null;
+  actualAt: string | null;
+  note: string | null;
+  optional: boolean;
+  overdue: boolean;
+  canComplete: boolean;
+  canSkip: boolean;
+}
+
+export type PurchaseOrderMilestoneCode =
+  | 'PO_CREATED'
+  | 'JOB_STARTED'
+  | 'DIGITAL_PROOF'
+  | 'ON_PRESS_COLOR_CHECK'
+  | 'PRODUCTION_STARTED'
+  | 'PRODUCTION_EXPECTED_END'
+  | 'PRODUCTION_COMPLETED'
+  | 'ARRIVED_AT_CARRIER'
+  | 'IN_TRANSIT'
+  | 'WAREHOUSE_RECEIVED';
+
+export interface UpdatePurchaseOrderMilestoneRequest {
+  plannedDate?: string | null;
+  note?: string | null;
 }
 
 export interface PurchaseOrderTimeline {
   purchaseOrderNo: string;
+  purchaseOrderStatus: string | null;
+  supplierName: string | null;
   customer: Customer | null;
   productionLeadTimeDay: number | null;
   productionStartedDate: string | null;
@@ -327,6 +354,69 @@ export interface PurchaseOrderTimeline {
   productionCompletedDate: string | null;
   overdue: boolean;
   events: PurchaseOrderTimelineEvent[];
+}
+
+export type PurchaseOrderProofStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'CHANGES_REQUESTED'
+  | 'APPROVED'
+  | 'CANCELLED';
+export type PurchaseOrderProofMediaType = 'IMAGE' | 'VIDEO';
+
+export interface PurchaseOrderProofAttachment {
+  id: number;
+  fileName: string;
+  originalFileName: string | null;
+  fileUrl: string;
+  contentType: string | null;
+  fileSize: number | null;
+  mediaType: PurchaseOrderProofMediaType;
+  thumbnailUrl: string | null;
+  sortOrder: number | null;
+}
+
+export interface PurchaseOrderProofRevision {
+  id: number;
+  revisionNo: number;
+  title: string;
+  procurementNote: string | null;
+  status: PurchaseOrderProofStatus;
+  requestedByUserId: string;
+  requestedByName: string;
+  requestedAt: string;
+  dueDate: string | null;
+  actedByUserId: string | null;
+  actedByName: string | null;
+  actedAt: string | null;
+  salesComment: string | null;
+  changeReason: string | null;
+  approvalRequestId: number | null;
+  attachments: PurchaseOrderProofAttachment[];
+}
+
+export interface PurchaseOrderProof {
+  id: number;
+  purchaseOrderNo: string;
+  salesOrderNo: string | null;
+  customerName: string | null;
+  proofType: SystemConfig;
+  required: boolean;
+  currentRevision: number;
+  status: PurchaseOrderProofStatus;
+  assignedSalesUserId: string;
+  assignedSalesName: string;
+  canApprove: boolean;
+  canResubmit: boolean;
+  canCancel: boolean;
+  revisions: PurchaseOrderProofRevision[];
+}
+
+export interface SubmitPurchaseOrderProofRequest {
+  proofType: string;
+  title: string;
+  procurementNote?: string | null;
+  dueDate?: string | null;
 }
 
 export interface SearchPurchaseOrderResponse {

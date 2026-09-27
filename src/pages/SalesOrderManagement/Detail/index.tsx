@@ -57,11 +57,13 @@ import DocumentLanguageDialog from 'components/DocumentLanguageDialog';
 import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import PurchaseOrderProductionSteps from 'components/PurchaseOrderProductionSteps';
 import CreateFreelanceSaleDialog from 'dialogs/QuotationManagement/New/CreateFreelanceSaleDialog';
 import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
 import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
+  ChangeEvent,
   MouseEvent as ReactMouseEvent,
   ReactElement,
   SyntheticEvent,
@@ -85,6 +87,7 @@ import { getRFQ, getRFQQuotationNos } from 'services/RFQ/rfq-api';
 import { RFQRecord } from 'services/RFQ/rfq-type';
 import {
   getSalesOrderV1,
+  getSalesOrderProductionTimelines,
   cancelSalesOrderV1,
   deleteSalesOrderAttachment,
   updateSalesOrderV1,
@@ -111,7 +114,16 @@ import { buildSalesOrderDocumentFlowItems } from 'utils/documentFlow';
 import { TemplateLanguage } from 'services/Document/document-type';
 import { getShippingMethodLabel, SHIPPING_METHOD_LABELS } from 'utils/shipping';
 
-const SALES_ORDER_SHIPPING_TYPE_OPTIONS = ['ALL', 'LAND', 'SEA', 'AIR', 'SEA_FCL_20GP', 'SEA_FCL_40HQ', 'SEA_SHARE_FCL_20GP', 'SEA_SHARE_FCL_40HQ'] as const;
+const SALES_ORDER_SHIPPING_TYPE_OPTIONS = [
+  'ALL',
+  'LAND',
+  'SEA',
+  'AIR',
+  'SEA_FCL_20GP',
+  'SEA_FCL_40HQ',
+  'SEA_SHARE_FCL_20GP',
+  'SEA_SHARE_FCL_40HQ'
+] as const;
 
 interface SalesOrderDetailParams {
   id: string;
@@ -158,7 +170,10 @@ function getCustomerLabel(salesOrder?: SalesOrderV1): string {
   const customer = salesOrder?.customer as any;
   const snapshot = salesOrder?.customerSnapshot;
   return (
-    [customer?.id ? `(${customer.id})` : '', snapshot?.customerName || customer?.customerName || customer?.companyName || '']
+    [
+      customer?.id ? `(${customer.id})` : '',
+      snapshot?.customerName || customer?.customerName || customer?.companyName || ''
+    ]
       .filter(Boolean)
       .join(' ') || '-'
   );
@@ -262,13 +277,18 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     requestPo: Boolean(salesOrder?.requestPo),
     remark: salesOrder?.remark || '',
     customerSnapshot: {
-      customerName: salesOrder?.customerSnapshot?.customerName || customer?.customerName || customer?.companyName || '',
+      customerName:
+        salesOrder?.customerSnapshot?.customerName ||
+        customer?.customerName ||
+        customer?.companyName ||
+        '',
       taxId: salesOrder?.customerSnapshot?.taxId || customer?.taxId || '',
       branchCode: salesOrder?.customerSnapshot?.branchCode || customer?.branchNumber || '',
       branchName: salesOrder?.customerSnapshot?.branchName || customer?.branchName || '',
       address: fallbackAddress === '-' ? '' : fallbackAddress,
       contactName: salesOrder?.customerSnapshot?.contactName || fallbackContact?.contactName || '',
-      contactNumber: salesOrder?.customerSnapshot?.contactNumber || fallbackContact?.contactNumber || ''
+      contactNumber:
+        salesOrder?.customerSnapshot?.contactNumber || fallbackContact?.contactNumber || ''
     },
     items: (salesOrder?.items || []).map((item) => ({ ...item }))
   };
@@ -309,7 +329,8 @@ export default function SalesOrderDetail(): ReactElement {
   const [draft, setDraft] = useState<SalesOrderDraft>(createDraft());
   const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
   const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
-  const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
+  const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] =
+    useState<FreelanceSaleRecord | null>(null);
   const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [requestPoConfirmOpen, setRequestPoConfirmOpen] = useState(false);
   const [requestPoReason, setRequestPoReason] = useState('');
@@ -380,6 +401,15 @@ export default function SalesOrderDetail(): ReactElement {
     enabled: Boolean(id),
     refetchOnWindowFocus: false
   });
+
+  const { data: productionTimelines = [], isFetching: isProductionTimelinesFetching } = useQuery(
+    ['sales-order-production-timelines', id],
+    () => getSalesOrderProductionTimelines(id),
+    {
+      enabled: Boolean(id),
+      refetchOnWindowFocus: false
+    }
+  );
 
   const {
     data: activityHistory = [],
@@ -572,10 +602,7 @@ export default function SalesOrderDetail(): ReactElement {
 
         return recalculateSalesOrderItem(nextItem);
       });
-      const updatedSubTotal = updatedItems.reduce(
-        (sum, item) => sum + Number(item.amount || 0),
-        0
-      );
+      const updatedSubTotal = updatedItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const updatedFreight = calculateSalesOrderFreight(updatedItems);
 
       return {
@@ -661,11 +688,14 @@ export default function SalesOrderDetail(): ReactElement {
 
     setIsSaving(true);
     try {
-      await toast.promise(cancelSalesOrderV1(salesOrder.salesOrderNo, cancelSalesOrderReason.trim()), {
-        loading: 'กำลังยกเลิกใบยืนยันสั่งซื้อ',
-        success: 'ยกเลิกใบยืนยันสั่งซื้อเรียบร้อย',
-        error: (error) => error?.response?.data?.message || 'ไม่สามารถยกเลิกใบยืนยันสั่งซื้อได้'
-      });
+      await toast.promise(
+        cancelSalesOrderV1(salesOrder.salesOrderNo, cancelSalesOrderReason.trim()),
+        {
+          loading: 'กำลังยกเลิกใบยืนยันสั่งซื้อ',
+          success: 'ยกเลิกใบยืนยันสั่งซื้อเรียบร้อย',
+          error: (error) => error?.response?.data?.message || 'ไม่สามารถยกเลิกใบยืนยันสั่งซื้อได้'
+        }
+      );
       setCancelSalesOrderDialogOpen(false);
       setCancelSalesOrderReason('');
       await Promise.all([refetch(), refetchHistory()]);
@@ -825,39 +855,42 @@ export default function SalesOrderDetail(): ReactElement {
     const shouldDownloadFile = isDownSm;
 
     try {
-      await toast.promise(downloadSaleOrder(salesOrder.salesOrderNo, 'PDF', true, false, language), {
-        loading: t('toast.loading'),
-        success: (response) => {
-          const data = response.data as DownloadDocumentResponse;
-          const files = data.files || [];
+      await toast.promise(
+        downloadSaleOrder(salesOrder.salesOrderNo, 'PDF', true, false, language),
+        {
+          loading: t('toast.loading'),
+          success: (response) => {
+            const data = response.data as DownloadDocumentResponse;
+            const files = data.files || [];
 
-          if (!files.length) {
-            throw new Error('No file');
-          }
-
-          files.forEach((file) => {
-            const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
-            const url = URL.createObjectURL(blob);
-
-            if (shouldDownloadFile) {
-              const anchor = document.createElement('a');
-              anchor.href = url;
-              anchor.download = file.fileName || `${salesOrder.salesOrderNo}.pdf`;
-              anchor.rel = 'noopener';
-              document.body.appendChild(anchor);
-              anchor.click();
-              anchor.remove();
-            } else {
-              window.open(url, '_blank', 'noopener,noreferrer');
+            if (!files.length) {
+              throw new Error('No file');
             }
 
-            setTimeout(() => URL.revokeObjectURL(url), 60_000);
-          });
+            files.forEach((file) => {
+              const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+              const url = URL.createObjectURL(blob);
 
-          return t('toast.success');
-        },
-        error: t('toast.failed')
-      });
+              if (shouldDownloadFile) {
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = file.fileName || `${salesOrder.salesOrderNo}.pdf`;
+                anchor.rel = 'noopener';
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+              } else {
+                window.open(url, '_blank', 'noopener,noreferrer');
+              }
+
+              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            });
+
+            return t('toast.success');
+          },
+          error: t('toast.failed')
+        }
+      );
     } finally {
       setIsSalesOrderDocumentLoading(false);
     }
@@ -1067,7 +1100,8 @@ export default function SalesOrderDetail(): ReactElement {
               salesOrder?.urgentRequest ||
               ['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
                 salesOrder?.procurementStatus
-              )}>
+              )
+            }>
             ขออนุมัติสร้างใบสั่งซื้อ
           </Button>
           <Button
@@ -1173,6 +1207,32 @@ export default function SalesOrderDetail(): ReactElement {
         </Stack>
 
         <DocumentFlow items={documentFlowItems} />
+
+        <Stack className={classes.section} spacing={2} sx={{ my: 2 }}>
+          <Typography variant="h6">Timeline</Typography>
+          {isProductionTimelinesFetching ? (
+            <Typography color="text.secondary">กำลังโหลด Timeline การผลิต...</Typography>
+          ) : productionTimelines.length ? (
+            <Stack spacing={2}>
+              {productionTimelines.map((timeline) => (
+                <Box
+                  key={timeline.purchaseOrderNo}
+                  sx={{ p: { xs: 1.5, sm: 2 }, border: '1px solid #e6ebf1', borderRadius: 2 }}>
+                  <PurchaseOrderProductionSteps
+                    timeline={timeline}
+                    purchaseOrderStatus={timeline.purchaseOrderStatus}
+                    title={`เลขที่ใบสั่งซื้อ ${timeline.purchaseOrderNo}`}
+                    subtitle={null}
+                  />
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <Typography color="text.secondary">
+              ยังไม่มี Purchase Order สำหรับใบยืนยันสั่งซื้อนี้
+            </Typography>
+          )}
+        </Stack>
 
         <Box
           sx={{
@@ -1328,27 +1388,91 @@ export default function SalesOrderDetail(): ReactElement {
                   />
                   {isEditing ? (
                     <>
-                      <TextField label="ชื่อลูกค้า" value={draft.customerSnapshot.customerName}
-                        onChange={(event) => updateCustomerSnapshotField('customerName', event.target.value)} />
-                      <TextField label="เลขประจำตัวผู้เสียภาษี" value={draft.customerSnapshot.taxId}
-                        onChange={(event) => updateCustomerSnapshotField('taxId', event.target.value)} />
-                      <TextField label="รหัสสาขา" value={draft.customerSnapshot.branchCode}
-                        onChange={(event) => updateCustomerSnapshotField('branchCode', event.target.value)} />
-                      <TextField label="ชื่อสาขา" value={draft.customerSnapshot.branchName}
-                        onChange={(event) => updateCustomerSnapshotField('branchName', event.target.value)} />
-                      <TextField label="ชื่อผู้ติดต่อ" value={draft.customerSnapshot.contactName}
-                        onChange={(event) => updateCustomerSnapshotField('contactName', event.target.value)} />
-                      <TextField label="เบอร์โทรผู้ติดต่อ" value={draft.customerSnapshot.contactNumber}
-                        onChange={(event) => updateCustomerSnapshotField('contactNumber', event.target.value)} />
-                      <TextField label="ที่อยู่" multiline minRows={2} value={draft.customerSnapshot.address}
-                        onChange={(event) => updateCustomerSnapshotField('address', event.target.value)} />
+                      <TextField
+                        label="ชื่อลูกค้า"
+                        value={draft.customerSnapshot.customerName}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('customerName', event.target.value)
+                        }
+                      />
+                      <TextField
+                        label="เลขประจำตัวผู้เสียภาษี"
+                        value={draft.customerSnapshot.taxId}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('taxId', event.target.value)
+                        }
+                      />
+                      <TextField
+                        label="รหัสสาขา"
+                        value={draft.customerSnapshot.branchCode}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('branchCode', event.target.value)
+                        }
+                      />
+                      <TextField
+                        label="ชื่อสาขา"
+                        value={draft.customerSnapshot.branchName}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('branchName', event.target.value)
+                        }
+                      />
+                      <TextField
+                        label="ชื่อผู้ติดต่อ"
+                        value={draft.customerSnapshot.contactName}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('contactName', event.target.value)
+                        }
+                      />
+                      <TextField
+                        label="เบอร์โทรผู้ติดต่อ"
+                        value={draft.customerSnapshot.contactNumber}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('contactNumber', event.target.value)
+                        }
+                      />
+                      <TextField
+                        label="ที่อยู่"
+                        multiline
+                        minRows={2}
+                        value={draft.customerSnapshot.address}
+                        onChange={(event) =>
+                          updateCustomerSnapshotField('address', event.target.value)
+                        }
+                      />
                     </>
                   ) : (
                     <>
-                      <Info label="เลขประจำตัวผู้เสียภาษี" value={salesOrder?.customerSnapshot?.taxId || salesOrder?.customer?.taxId} />
-                      <Info label="สาขา" value={[salesOrder?.customerSnapshot?.branchCode, salesOrder?.customerSnapshot?.branchName].filter(Boolean).join(' ') || '-'} />
-                      <Info label={t('documentManagement.quotation.customerSection.contactName')} value={salesOrder?.customerSnapshot?.contactName || salesOrder?.customerContact?.contactName || salesOrder?.customer?.contacts?.[0]?.contactName} />
-                      <Info label={t('documentManagement.quotation.customerSection.contactNumber')} value={salesOrder?.customerSnapshot?.contactNumber || salesOrder?.customerContact?.contactNumber || salesOrder?.customer?.contacts?.[0]?.contactNumber} />
+                      <Info
+                        label="เลขประจำตัวผู้เสียภาษี"
+                        value={salesOrder?.customerSnapshot?.taxId || salesOrder?.customer?.taxId}
+                      />
+                      <Info
+                        label="สาขา"
+                        value={
+                          [
+                            salesOrder?.customerSnapshot?.branchCode,
+                            salesOrder?.customerSnapshot?.branchName
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || '-'
+                        }
+                      />
+                      <Info
+                        label={t('documentManagement.quotation.customerSection.contactName')}
+                        value={
+                          salesOrder?.customerSnapshot?.contactName ||
+                          salesOrder?.customerContact?.contactName ||
+                          salesOrder?.customer?.contacts?.[0]?.contactName
+                        }
+                      />
+                      <Info
+                        label={t('documentManagement.quotation.customerSection.contactNumber')}
+                        value={
+                          salesOrder?.customerSnapshot?.contactNumber ||
+                          salesOrder?.customerContact?.contactNumber ||
+                          salesOrder?.customer?.contacts?.[0]?.contactNumber
+                        }
+                      />
                       <Info label="ที่อยู่" value={getCustomerAddress(salesOrder)} />
                     </>
                   )}
@@ -1540,7 +1664,10 @@ export default function SalesOrderDetail(): ReactElement {
                                 accept="image/*"
                                 type="file"
                                 onChange={(event) => {
-                                  void handleUploadSalesOrderItemImage(index, event.target.files?.[0]);
+                                  void handleUploadSalesOrderItemImage(
+                                    index,
+                                    event.target.files?.[0]
+                                  );
                                   event.target.value = '';
                                 }}
                               />
@@ -2338,7 +2465,9 @@ export default function SalesOrderDetail(): ReactElement {
         open={openCreateFreelanceSaleDialog}
         onClose={() => setOpenCreateFreelanceSaleDialog(false)}
         defaultSaleCoverage={salesId}
-        customerLabel={draft.customerSnapshot.customerName || salesOrder?.customer?.customerName || ''}
+        customerLabel={
+          draft.customerSnapshot.customerName || salesOrder?.customer?.customerName || ''
+        }
         onCreated={(freelanceSale) => {
           updateDraftField('coSaleId', freelanceSale.id || '');
           setSelectedFreelanceSaleItem(freelanceSale);
@@ -2389,7 +2518,10 @@ export default function SalesOrderDetail(): ReactElement {
               minRows={3}
               InputLabelProps={{ shrink: true }}
               InputProps={{
-                readOnly: !(hasRole(ROLES.SUPER_ADMIN) && salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL')
+                readOnly: !(
+                  hasRole(ROLES.SUPER_ADMIN) &&
+                  salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL'
+                )
               }}
               helperText={
                 hasRole(ROLES.SUPER_ADMIN) && salesOrder?.urgentRequestStatus === 'PENDING_APPROVAL'
@@ -2423,8 +2555,7 @@ export default function SalesOrderDetail(): ReactElement {
         isShowCancelButton
         isShowConfirmButton
         onConfirm={() => void handleConfirmCancelSalesOrder()}
-        onCancel={handleCloseCancelSalesOrderDialog}
-      >
+        onCancel={handleCloseCancelSalesOrderDialog}>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Typography variant="body2" color="text.secondary">
             การยกเลิกไม่สามารถย้อนกลับได้ และจะทำให้ใบยืนยันสั่งซื้อนี้ใช้งานต่อไม่ได้
@@ -2454,8 +2585,7 @@ export default function SalesOrderDetail(): ReactElement {
         onConfirm={() => {
           void handleConfirmRequestPo();
         }}
-        onCancel={handleCloseRequestPoConfirm}
-      >
+        onCancel={handleCloseRequestPoConfirm}>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Typography variant="body2" color="text.secondary">
             ต้องการส่งคำขออนุมัติสร้างใบสั่งซื้อนี้ใช่หรือไม่

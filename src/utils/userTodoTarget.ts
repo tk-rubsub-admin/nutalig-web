@@ -35,6 +35,8 @@ export function buildUserTodoTargetPath(
       return replaceRouteId(ROUTE_PATHS.CUSTOMER_DETAIL, targetId);
     case 'SUPPLIER':
       return replaceRouteId(ROUTE_PATHS.SUPPLIER_DETAIL, targetId);
+    case 'PURCHASE_ORDER':
+      return replaceRouteId(ROUTE_PATHS.PURCHASE_ORDER_DETAIL, targetId);
     default:
       return null;
   }

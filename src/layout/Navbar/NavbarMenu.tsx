@@ -19,6 +19,11 @@ const MenuLink = styled(Link)`
 
 const Footer = styled.div`
   padding: ${(props) => props.theme.spacing(2.75)} ${(props) => props.theme.spacing(4)};
+  background: transparent;
+
+  .MuiIconButton-root {
+    color: rgba(255, 255, 255, 0.88);
+  }
 `;
 
 const FooterBadge = styled(Badge)`
@@ -37,7 +42,7 @@ const ProfileInfo = styled.div`
 `;
 
 const DisplayNameText = styled(Typography)`
-  color: #1f2937;
+  color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.2;
@@ -52,8 +57,8 @@ const RoleNameText = styled(Typography)`
   margin-top: 4px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: #eef3ff;
-  color: #376fd0;
+  background: rgba(255, 255, 255, 0.14);
+  color: #d1fae5;
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.3;
@@ -127,11 +132,7 @@ function NavbarMenu({ ...rest }): JSX.Element {
           <Grid item xs style={{ textAlign: 'left' }}>
             <ProfileInfo>
               <DisplayNameText title={displayName}>{displayName}</DisplayNameText>
-              <RoleNameText
-                title={roleName}
-              >
-                {roleName}
-              </RoleNameText>
+              <RoleNameText title={roleName}>{roleName}</RoleNameText>
             </ProfileInfo>
           </Grid>
 

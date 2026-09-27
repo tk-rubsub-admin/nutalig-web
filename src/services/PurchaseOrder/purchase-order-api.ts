@@ -11,10 +11,27 @@ import {
   PurchaseOrderRecord,
   PurchaseOrderProductionCalendarRecord,
   PurchaseOrderTimeline,
+  PurchaseOrderProof,
+  PurchaseOrderMilestoneCode,
+  UpdatePurchaseOrderMilestoneRequest,
+  SubmitPurchaseOrderProofRequest,
   SearchPurchaseOrderRequest,
   SearchPurchaseOrderResponse,
   UpdatePurchaseOrderRequest
 } from './purchase-order-type';
+
+function buildPurchaseOrderProofFormData(
+  data: SubmitPurchaseOrderProofRequest,
+  attachments: File[]
+): FormData {
+  const formData = new FormData();
+  formData.append('proofType', data.proofType);
+  formData.append('title', data.title);
+  if (data.procurementNote) formData.append('procurementNote', data.procurementNote);
+  if (data.dueDate) formData.append('dueDate', data.dueDate);
+  attachments.forEach((file) => formData.append('attachments', file));
+  return formData;
+}
 
 function buildPurchaseOrderPaymentFormData(
   data: PurchaseOrderPaymentRequest,
@@ -143,16 +160,124 @@ export const getPurchaseOrderProductionCalendar = async (
   start?: string,
   end?: string
 ): Promise<PurchaseOrderProductionCalendarRecord[]> => {
-  const response = await api.get('/v1/purchase-orders/production-calendar', {
-    params: { start, end }
-  }).then((result) => result.data);
+  const response = await api
+    .get('/v1/purchase-orders/production-calendar', {
+      params: { start, end }
+    })
+    .then((result) => result.data);
   return response.data;
 };
 
 export const getPurchaseOrderProductionTimeline = async (
   id: string
 ): Promise<PurchaseOrderTimeline> => {
-  const response = await api.get(`/v1/purchase-orders/${id}/production-timeline`)
+  const response = await api
+    .get(`/v1/purchase-orders/${id}/production-timeline`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const completePurchaseOrderMilestone = async (
+  id: string,
+  milestoneCode: PurchaseOrderMilestoneCode,
+  data: UpdatePurchaseOrderMilestoneRequest = {}
+): Promise<PurchaseOrderRecord> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${id}/milestones/${milestoneCode}/complete`, data)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const updatePurchaseOrderProductionExpectedEndDate = async (
+  id: string,
+  plannedDate: string
+): Promise<PurchaseOrderRecord> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${id}/production-expected-end-date`, { plannedDate })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const skipPurchaseOrderMilestone = async (
+  id: string,
+  milestoneCode: PurchaseOrderMilestoneCode,
+  reason: string
+): Promise<PurchaseOrderTimeline> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${id}/milestones/${milestoneCode}/skip`, { note: reason })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderProofs = async (
+  purchaseOrderNo: string
+): Promise<PurchaseOrderProof[]> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${purchaseOrderNo}/proofs`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderProof = async (proofId: number): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .get(`/v1/purchase-order-proofs/${proofId}`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const submitPurchaseOrderProof = async (
+  purchaseOrderNo: string,
+  data: SubmitPurchaseOrderProofRequest,
+  attachments: File[]
+): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .post(
+      `/v1/purchase-orders/${purchaseOrderNo}/proofs`,
+      buildPurchaseOrderProofFormData(data, attachments),
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const resubmitPurchaseOrderProof = async (
+  proofId: number,
+  data: SubmitPurchaseOrderProofRequest,
+  attachments: File[]
+): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .post(
+      `/v1/purchase-order-proofs/${proofId}/revisions`,
+      buildPurchaseOrderProofFormData(data, attachments),
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const approvePurchaseOrderProof = async (
+  proofId: number,
+  comment?: string
+): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .post(`/v1/purchase-order-proofs/${proofId}/approve`, { comment: comment || null })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const requestPurchaseOrderProofChanges = async (
+  proofId: number,
+  reason: string
+): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .post(`/v1/purchase-order-proofs/${proofId}/request-changes`, { reason })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const cancelPurchaseOrderProof = async (proofId: number): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .post(`/v1/purchase-order-proofs/${proofId}/cancel`)
     .then((result) => result.data);
   return response.data;
 };

@@ -5,7 +5,8 @@ export type UserTodoType =
   | 'SALE_ORDER'
   | 'QUOTATION'
   | 'CUSTOMER'
-  | 'SUPPLIER';
+  | 'SUPPLIER'
+  | 'PURCHASE_ORDER';
 
 export type UserTodoStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
 

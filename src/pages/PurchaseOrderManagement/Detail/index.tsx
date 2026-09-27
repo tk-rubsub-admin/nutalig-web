@@ -1,6 +1,7 @@
 import {
   ArrowBackIos,
   ArrowDropDown,
+  CalendarMonth,
   Cancel,
   CancelPresentation,
   DeleteOutline,
@@ -10,6 +11,7 @@ import {
   Menu as MenuIcon,
   PlayArrow,
   Save,
+  Settings,
   TaskAlt
 } from '@mui/icons-material';
 import {
@@ -17,6 +19,7 @@ import {
   Button,
   Chip,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
@@ -39,10 +42,13 @@ import {
   useTheme
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
+import { PERMISSIONS } from 'auth/permissions';
+import { usePermissions } from 'auth/PermissionContext';
 import ActivityHistoryTimeline from 'components/ActivityHistoryTimeline';
 import ConfirmDialog from 'components/ConfirmDialog';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import PurchaseOrderProductionSteps from 'components/PurchaseOrderProductionSteps';
 import { Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
@@ -67,10 +73,13 @@ import {
   closePurchaseOrder,
   getPurchaseOrderPayments,
   getPurchaseOrderProductionTimeline,
+  completePurchaseOrderMilestone,
+  skipPurchaseOrderMilestone,
   deletePurchaseOrderAttachment,
   getPurchaseOrder,
   viewPurchaseOrder,
   updatePurchaseOrder,
+  updatePurchaseOrderProductionExpectedEndDate,
   startPurchaseOrderRun,
   uploadPurchaseOrderAttachments
 } from 'services/PurchaseOrder/purchase-order-api';
@@ -78,6 +87,8 @@ import {
   PurchaseOrderAttachmentDocumentType,
   PurchaseOrderDetailComponent,
   PurchaseOrderItem,
+  PurchaseOrderMilestoneCode,
+  PurchaseOrderTimelineEvent,
   PurchaseOrderRecord,
   UpdatePurchaseOrderRequest
 } from 'services/PurchaseOrder/purchase-order-type';
@@ -86,6 +97,8 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentS
 import { getShippingMethodLabel } from 'utils/shipping';
 import { formatNumber } from 'utils/utils';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
+import PurchaseOrderProofSection from './PurchaseOrderProofSection';
+import App from 'App';
 
 interface PurchaseOrderDetailParams {
   id: string;
@@ -191,17 +204,35 @@ function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
     docDate: purchaseOrder?.docDate || '',
     productionLeadTimeDay:
       purchaseOrder?.productionLeadTimeDay !== null &&
-        purchaseOrder?.productionLeadTimeDay !== undefined
+      purchaseOrder?.productionLeadTimeDay !== undefined
         ? String(purchaseOrder.productionLeadTimeDay)
         : '',
     shippingLeadTimeDay:
       purchaseOrder?.shippingLeadTimeDay !== null &&
-        purchaseOrder?.shippingLeadTimeDay !== undefined
+      purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
     remark: purchaseOrder?.remark || '',
     items: (purchaseOrder?.items || []).map((item) => ({ ...item }))
   };
+}
+
+function milestoneErrorMessage(error: any): string {
+  return (
+    error?.response?.data?.message || error?.response?.data?.error || 'ไม่สามารถอัปเดต Timeline ได้'
+  );
+}
+
+function milestoneActionLabel(event?: PurchaseOrderTimelineEvent): string {
+  if (!event) return '';
+  const labels: Record<string, string> = {
+    PRODUCTION_STARTED: 'เริ่มผลิต',
+    PRODUCTION_COMPLETED: 'บันทึกผลิตเสร็จ',
+    ARRIVED_AT_CARRIER: 'บันทึกสินค้าถึงขนส่ง',
+    IN_TRANSIT: 'บันทึกอยู่ระหว่างขนส่ง',
+    WAREHOUSE_RECEIVED: 'บันทึกถึงคลังสินค้า'
+  };
+  return labels[event.type] || `บันทึก ${event.label}`;
 }
 
 export default function PurchaseOrderDetail(): ReactElement {
@@ -210,17 +241,29 @@ export default function PurchaseOrderDetail(): ReactElement {
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'detail' | 'history'>('detail');
+  const { has } = usePermissions();
+  const canViewProof = has(PERMISSIONS.PO_PROOF_VIEW);
+  const canManageTimeline = has(PERMISSIONS.PURCHASE_ORDER_START_RUN);
+  const [tab, setTab] = useState<'detail' | 'proof' | 'history'>('detail');
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft());
+  const [operationMenuAnchorEl, setOperationMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isStartRunConfirmOpen, setIsStartRunConfirmOpen] = useState(false);
+  const [isExpectedEndDateDialogOpen, setIsExpectedEndDateDialogOpen] = useState(false);
+  const [newExpectedEndDate, setNewExpectedEndDate] = useState('');
   const [isLateStart, setIsLateStart] = useState(false);
   const [lateStartReason, setLateStartReason] = useState('');
   const [isCheckingLateStart, setIsCheckingLateStart] = useState(false);
+  const [milestoneDialog, setMilestoneDialog] = useState<{
+    event: PurchaseOrderTimelineEvent;
+    mode: 'complete' | 'skip';
+  } | null>(null);
+  const [milestonePlannedDate, setMilestonePlannedDate] = useState('');
+  const [milestoneNote, setMilestoneNote] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const useStyles = makeStyles({
     tableHeader: {
@@ -313,7 +356,11 @@ export default function PurchaseOrderDetail(): ReactElement {
     }
   );
 
-  const { data: productionTimeline } = useQuery(
+  const {
+    data: productionTimeline,
+    isFetching: isProductionTimelineFetching,
+    refetch: refetchProductionTimeline
+  } = useQuery(
     ['purchase-order-production-timeline', id],
     () => getPurchaseOrderProductionTimeline(id),
     { enabled: Boolean(id), refetchOnWindowFocus: false }
@@ -326,6 +373,7 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const displayItems = isEditing ? draft.items : purchaseOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
+  const isOperationMenuOpen = Boolean(operationMenuAnchorEl);
   const canManagePurchaseOrder =
     purchaseOrder?.status === 'CREATED' || purchaseOrder?.status === 'AWAITING_PAYMENT';
   const canClosePurchaseOrder =
@@ -333,24 +381,41 @@ export default function PurchaseOrderDetail(): ReactElement {
     purchaseOrder?.status !== 'CANCELLED' &&
     purchaseOrder?.status !== 'CLOSED';
   const canStartPurchaseOrderRun =
+    canManageTimeline &&
     (purchaseOrder?.status === 'AWAITING_PAYMENT' || purchaseOrder?.status === 'PAID') &&
     purchaseOrderPayments.some(
       (payment) => payment.installmentNo === 1 && payment.status === 'APPROVED'
     );
+  const canUpdateExpectedEndDate =
+    canManageTimeline &&
+    purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
+    !purchaseOrder.productionCompletedDate;
   const missingStartRunDocuments = [
     ...(purchaseOrder?.attachments?.some(
-      (attachment) =>
-        resolveAttachmentDocumentType(attachment.documentType) === 'FACTORY_CONTRACT'
+      (attachment) => resolveAttachmentDocumentType(attachment.documentType) === 'FACTORY_CONTRACT'
     )
       ? []
       : ['สัญญาจากโรงงาน']),
     ...(purchaseOrder?.attachments?.some(
-      (attachment) =>
-        resolveAttachmentDocumentType(attachment.documentType) === 'FINAL_ARTWORK'
+      (attachment) => resolveAttachmentDocumentType(attachment.documentType) === 'FINAL_ARTWORK'
     )
       ? []
       : ['Final Artwork'])
   ];
+  const nextProofMilestone = productionTimeline?.events.find(
+    (event) =>
+      ['DIGITAL_PROOF', 'ON_PRESS_COLOR_CHECK'].includes(event.type) &&
+      !['COMPLETED', 'SKIPPED'].includes(event.status)
+  );
+  const nextCompletableMilestone = productionTimeline?.events.find((event) => event.canComplete);
+
+  const openMilestoneDialog = (event: PurchaseOrderTimelineEvent, mode: 'complete' | 'skip') => {
+    setMilestoneDialog({ event, mode });
+    setMilestonePlannedDate(
+      event.type === 'PRODUCTION_STARTED' ? productionTimeline?.productionExpectedEndDate || '' : ''
+    );
+    setMilestoneNote('');
+  };
 
   const summary = useMemo(() => {
     const exchangeRate = Number(purchaseOrder?.exchangeRate || 0);
@@ -450,12 +515,17 @@ export default function PurchaseOrderDetail(): ReactElement {
       items: previous.items.map((item, index) =>
         index === itemIndex
           ? {
-            ...item,
-            components: [
-              ...(item.components || []),
-              { componentName: '', quantityPerItem: 1, unit: 'pcs', sortOrder: item.components?.length || 0 }
-            ]
-          }
+              ...item,
+              components: [
+                ...(item.components || []),
+                {
+                  componentName: '',
+                  quantityPerItem: 1,
+                  unit: 'pcs',
+                  sortOrder: item.components?.length || 0
+                }
+              ]
+            }
           : item
       )
     }));
@@ -478,6 +548,14 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const handleCloseActionMenu = () => {
     setActionMenuAnchorEl(null);
+  };
+
+  const handleOpenOperationMenu = (event: ReactMouseEvent<HTMLElement>) => {
+    setOperationMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseOperationMenu = () => {
+    setOperationMenuAnchorEl(null);
   };
 
   const handleSelectEdit = () => {
@@ -547,8 +625,8 @@ export default function PurchaseOrderDetail(): ReactElement {
         rfqTierId: item.rfqTierId ?? null,
         quotationDetailId: item.quotationDetailId ?? null,
         shippingMethod: item.shippingMethod || null,
-        supplierQuoteTierId: item.supplierQuoteTierId ?? null
-        , components: item.components?.map((component, componentIndex) => ({
+        supplierQuoteTierId: item.supplierQuoteTierId ?? null,
+        components: item.components?.map((component, componentIndex) => ({
           sourceQuoteDetailPackageId: component.sourceQuoteDetailPackageId ?? null,
           componentCode: component.componentCode || null,
           componentName: component.componentName || null,
@@ -569,7 +647,79 @@ export default function PurchaseOrderDetail(): ReactElement {
         error: t('toast.failed')
       });
       setIsEditing(false);
-      await Promise.all([refetch(), refetchHistory()]);
+      await Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()]);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMilestoneAction = async () => {
+    if (!purchaseOrder?.purchaseOrderNo || !milestoneDialog) return;
+    if (milestoneDialog.mode === 'skip' && !milestoneNote.trim()) {
+      toast.error('กรุณาระบุเหตุผลที่ข้ามขั้นตอน');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const milestoneCode = milestoneDialog.event.type as PurchaseOrderMilestoneCode;
+      if (milestoneDialog.mode === 'skip') {
+        await skipPurchaseOrderMilestone(
+          purchaseOrder.purchaseOrderNo,
+          milestoneCode,
+          milestoneNote.trim()
+        );
+      } else {
+        await completePurchaseOrderMilestone(purchaseOrder.purchaseOrderNo, milestoneCode, {
+          plannedDate:
+            milestoneDialog.event.type === 'PRODUCTION_STARTED' && milestonePlannedDate
+              ? milestonePlannedDate
+              : null,
+          note: milestoneNote.trim() || null
+        });
+      }
+      toast.success(
+        milestoneDialog.mode === 'skip'
+          ? `ข้ามขั้นตอน ${milestoneDialog.event.label} แล้ว`
+          : `บันทึก ${milestoneDialog.event.label} แล้ว`
+      );
+      setMilestoneDialog(null);
+      await Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()]);
+    } catch (error) {
+      toast.error(milestoneErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseExpectedEndDateDialog = () => {
+    setIsExpectedEndDateDialogOpen(false);
+    setNewExpectedEndDate('');
+  };
+
+  const handleUpdateExpectedEndDate = async () => {
+    if (!purchaseOrder?.purchaseOrderNo || !newExpectedEndDate) {
+      toast.error('กรุณาระบุวันที่ผลิตเสร็จใหม่');
+      return;
+    }
+    if (
+      purchaseOrder.productionStartedDate &&
+      newExpectedEndDate < purchaseOrder.productionStartedDate
+    ) {
+      toast.error('วันที่ผลิตเสร็จต้องไม่ก่อนวันที่เริ่มผลิต');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await updatePurchaseOrderProductionExpectedEndDate(
+        purchaseOrder.purchaseOrderNo,
+        newExpectedEndDate
+      );
+      toast.success('บันทึกกำหนดวันผลิตเสร็จแล้ว');
+      handleCloseExpectedEndDateDialog();
+      await Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()]);
+    } catch (error) {
+      toast.error(milestoneErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -591,12 +741,12 @@ export default function PurchaseOrderDetail(): ReactElement {
           isLateStart ? lateStartReason.trim() : null
         ),
         {
-        loading: 'กำลังเริ่มรันงาน',
-        success: 'เริ่มรันงานสำเร็จ',
-        error: 'ยังไม่สามารถเริ่มรันงานได้ กรุณาตรวจสอบการชำระเงินงวดที่ 1'
+          loading: 'กำลังเริ่มรันงาน',
+          success: 'เริ่มรันงานสำเร็จ',
+          error: 'ยังไม่สามารถเริ่มรันงานได้ กรุณาตรวจสอบการชำระเงินงวดที่ 1'
         }
       );
-      await Promise.all([refetch(), refetchHistory()]);
+      await Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()]);
     } finally {
       setIsSubmitting(false);
     }
@@ -755,11 +905,15 @@ export default function PurchaseOrderDetail(): ReactElement {
           <Button
             fullWidth={isDownSm}
             variant="contained"
-            className="btn-emerald-green"
-            startIcon={<PlayArrow />}
-            onClick={handleRequestStartPurchaseOrderRun}
-            disabled={!canStartPurchaseOrderRun || isSubmitting || isCheckingLateStart}>
-            เริ่มรันงาน
+            className="btn-indigo-blue"
+            startIcon={<Settings />}
+            endIcon={<ArrowDropDown />}
+            onClick={handleOpenOperationMenu}
+            disabled={!purchaseOrder}
+            aria-controls={isOperationMenuOpen ? 'purchase-order-operation-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={isOperationMenuOpen ? 'true' : undefined}>
+            ดำเนินการ
           </Button>
           <Button
             fullWidth={isDownSm}
@@ -783,6 +937,46 @@ export default function PurchaseOrderDetail(): ReactElement {
             กลับ
           </Button>
         </Stack>
+
+        <Menu
+          id="purchase-order-operation-menu"
+          anchorEl={operationMenuAnchorEl}
+          open={isOperationMenuOpen}
+          onClose={handleCloseOperationMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          PaperProps={{
+            sx: {
+              minWidth: operationMenuAnchorEl?.offsetWidth || undefined
+            }
+          }}
+          keepMounted>
+          <MenuItem
+            onClick={() => {
+              handleCloseOperationMenu();
+              void handleRequestStartPurchaseOrderRun();
+            }}
+            disabled={!canStartPurchaseOrderRun || isSubmitting || isCheckingLateStart}
+            sx={{ width: '100%' }}>
+            <ListItemIcon>
+              <PlayArrow fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="เริ่มรันงาน" />
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleCloseOperationMenu();
+              setNewExpectedEndDate('');
+              setIsExpectedEndDateDialogOpen(true);
+            }}
+            disabled={!canUpdateExpectedEndDate || isSubmitting}
+            sx={{ width: '100%' }}>
+            <ListItemIcon>
+              <CalendarMonth fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="กำหนดวันผลิตเสร็จ" />
+          </MenuItem>
+        </Menu>
 
         <Menu
           id="purchase-order-action-menu"
@@ -863,6 +1057,52 @@ export default function PurchaseOrderDetail(): ReactElement {
           )}
         </Menu>
 
+        <Dialog
+          open={isExpectedEndDateDialogOpen}
+          onClose={handleCloseExpectedEndDateDialog}
+          fullWidth
+          maxWidth="xs">
+          <DialogTitle>กำหนดวันผลิตเสร็จ</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <TextField
+                type="date"
+                label="วันที่กำหนดผลิตเสร็จปัจจุบัน"
+                value={purchaseOrder?.productionExpectedEndDate || ''}
+                InputLabelProps={{ shrink: true }}
+                disabled
+                fullWidth
+              />
+              <TextField
+                type="date"
+                label="วันที่ผลิตเสร็จใหม่"
+                value={newExpectedEndDate}
+                onChange={(event) => setNewExpectedEndDate(event.target.value)}
+                inputProps={{ min: purchaseOrder?.productionStartedDate || undefined }}
+                InputLabelProps={{ shrink: true }}
+                required
+                autoFocus
+                fullWidth
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseExpectedEndDateDialog} disabled={isSubmitting}>
+              ยกเลิก
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => void handleUpdateExpectedEndDate()}
+              disabled={
+                isSubmitting ||
+                !newExpectedEndDate ||
+                newExpectedEndDate === purchaseOrder?.productionExpectedEndDate
+              }>
+              บันทึก
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <ConfirmDialog
           open={isCancelDialogOpen}
           title="ยืนยันการยกเลิกใบสั่งซื้อ"
@@ -898,7 +1138,8 @@ export default function PurchaseOrderDetail(): ReactElement {
           onConfirm={() => void handleStartPurchaseOrderRun()}>
           <Stack spacing={2}>
             <Typography>
-              ยืนยันการเริ่มรันงานสำหรับใบสั่งซื้อเลขที่ <strong>{purchaseOrder?.purchaseOrderNo || ''}</strong> หรือไม่
+              ยืนยันการเริ่มรันงานสำหรับใบสั่งซื้อเลขที่{' '}
+              <strong>{purchaseOrder?.purchaseOrderNo || ''}</strong> หรือไม่
             </Typography>
             {isLateStart ? (
               <>
@@ -918,7 +1159,8 @@ export default function PurchaseOrderDetail(): ReactElement {
             ) : null}
             {missingStartRunDocuments.length ? (
               <Typography color="warning.main">
-                <strong>คำเตือน:</strong> ยังไม่มีไฟล์ {missingStartRunDocuments.join(' และ ')} แต่สามารถเริ่มรันงานได้
+                <strong>คำเตือน:</strong> ยังไม่มีไฟล์ {missingStartRunDocuments.join(' และ ')}{' '}
+                แต่สามารถเริ่มรันงานได้
               </Typography>
             ) : (
               <Typography>เอกสารประกอบที่เกี่ยวข้องมีครบแล้ว</Typography>
@@ -926,40 +1168,104 @@ export default function PurchaseOrderDetail(): ReactElement {
           </Stack>
         </ConfirmDialog>
 
+        <ConfirmDialog
+          open={Boolean(milestoneDialog)}
+          title={
+            milestoneDialog?.mode === 'skip'
+              ? `ข้ามขั้นตอน ${milestoneDialog.event.label}`
+              : milestoneActionLabel(milestoneDialog?.event)
+          }
+          confirmText={milestoneDialog?.mode === 'skip' ? 'ยืนยันข้ามขั้นตอน' : 'ยืนยัน'}
+          cancelText="ยกเลิก"
+          isShowCancelButton
+          isShowConfirmButton
+          onCancel={() => setMilestoneDialog(null)}
+          onConfirm={() => void handleMilestoneAction()}>
+          <Stack spacing={2}>
+            <Typography>
+              {milestoneDialog?.mode === 'skip'
+                ? 'ขั้นตอนที่ข้ามจะแสดงอยู่ใน Timeline เพื่อเก็บประวัติการตัดสินใจ'
+                : `ยืนยันการบันทึกขั้นตอน ${milestoneDialog?.event.label || ''}`}
+            </Typography>
+            {milestoneDialog?.event.type === 'PRODUCTION_STARTED' ? (
+              <TextField
+                type="date"
+                label="กำหนดผลิตเสร็จ"
+                value={milestonePlannedDate}
+                onChange={(event) => setMilestonePlannedDate(event.target.value)}
+                helperText="หากไม่ระบุ ระบบจะคำนวณจาก Production Lead Time"
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+            ) : null}
+            <TextField
+              label={milestoneDialog?.mode === 'skip' ? 'เหตุผลที่ข้ามขั้นตอน' : 'หมายเหตุ'}
+              value={milestoneNote}
+              onChange={(event) => setMilestoneNote(event.target.value)}
+              required={milestoneDialog?.mode === 'skip'}
+              multiline
+              minRows={3}
+              fullWidth
+            />
+          </Stack>
+        </ConfirmDialog>
+
+        <Stack className={classes.section} spacing={2} sx={{ mb: 2 }}>
+          {isProductionTimelineFetching ? (
+            <Typography color="text.secondary">กำลังโหลด Timeline การผลิต...</Typography>
+          ) : productionTimeline ? (
+            <PurchaseOrderProductionSteps
+              timeline={productionTimeline}
+              purchaseOrderStatus={purchaseOrder?.status}
+              actions={null}
+              //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
+              //     <Stack
+              //       direction={{ xs: 'column', sm: 'row' }}
+              //       spacing={1}
+              //       justifyContent="flex-end">
+              //       {nextProofMilestone && canViewProof ? (
+              //         <Button variant="outlined" onClick={() => setTab('proof')}>
+              //           {nextProofMilestone.status === 'IN_PROGRESS'
+              //             ? `ดู ${nextProofMilestone.label}`
+              //             : `ดำเนินการ ${nextProofMilestone.label}`}
+              //         </Button>
+              //       ) : null}
+              //       {nextProofMilestone?.canSkip && canManageTimeline ? (
+              //         <Button
+              //           variant="outlined"
+              //           color="inherit"
+              //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
+              //           ข้าม {nextProofMilestone.label}
+              //         </Button>
+              //       ) : null}
+              //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
+              //         <Button
+              //           variant="contained"
+              //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
+              //           {milestoneActionLabel(nextCompletableMilestone)}
+              //         </Button>
+              //       ) : null}
+              //     </Stack>
+              //   ) : null
+              // }
+            />
+          ) : (
+            <Typography color="text.secondary">ยังไม่มีข้อมูล Timeline การผลิต</Typography>
+          )}
+        </Stack>
+
         <Tabs
           value={tab}
-          onChange={(_event: SyntheticEvent, value: 'detail' | 'history') => setTab(value)}>
+          onChange={(_event: SyntheticEvent, value: 'detail' | 'proof' | 'history') =>
+            setTab(value)
+          }>
           <Tab value="detail" label="รายละเอียด" />
+          {canViewProof ? <Tab value="proof" label="งานพรูฟ" /> : null}
           <Tab value="history" label="ประวัติ" />
         </Tabs>
 
         <TabPanel value="detail" currentTab={tab}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Stack className={classes.section} spacing={2}>
-                <Typography variant="h6">Timeline การผลิต</Typography>
-                {productionTimeline?.customer ? (
-                  <Typography color="text.secondary">
-                    ลูกค้า: {productionTimeline.customer.customerName || productionTimeline.customer.companyName || '-'}
-                  </Typography>
-                ) : null}
-                {productionTimeline?.overdue ? (
-                  <Typography color="error">การผลิตเลยกำหนดแล้ว</Typography>
-                ) : null}
-                <Stack spacing={1.5}>
-                  {(productionTimeline?.events || []).map((event) => (
-                    <Stack key={`${event.type}-${event.date}`} direction="row" spacing={1} alignItems="center">
-                      <Chip size="small" label={event.completed ? 'เสร็จแล้ว' : 'กำหนดการ'} color={event.completed ? 'success' : 'default'} />
-                      <Typography>{event.label}</Typography>
-                      <Typography color="text.secondary">{event.date}</Typography>
-                    </Stack>
-                  ))}
-                  {!productionTimeline?.events?.length ? (
-                    <Typography color="text.secondary">ยังไม่มีข้อมูลการเริ่มผลิต</Typography>
-                  ) : null}
-                </Stack>
-              </Stack>
-            </Grid>
             <Grid item xs={12} md={6}>
               <Stack className={classes.section} spacing={2}>
                 <Typography variant="h6">ข้อมูลใบสั่งซื้อ</Typography>
@@ -1041,12 +1347,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA'
-                            ? 'ทางเรือ'
-                            : 'ทางรถ'
-                          } | ${purchaseOrder.supplierShipping.shippingName ||
-                          `Shipping #${purchaseOrder.supplierShipping.id}`
-                          }`
+                          ? `${
+                              purchaseOrder.supplierShipping.shippingMethod === 'SEA'
+                                ? 'ทางเรือ'
+                                : 'ทางรถ'
+                            } | ${
+                              purchaseOrder.supplierShipping.shippingName ||
+                              `Shipping #${purchaseOrder.supplierShipping.id}`
+                            }`
                           : '-'
                       }
                     />
@@ -1059,7 +1367,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Shipping Method"
                       value={getShippingMethodLabel(
                         purchaseOrder?.shippingMethodSnapshot ||
-                        purchaseOrder?.supplierShipping?.shippingMethod
+                          purchaseOrder?.supplierShipping?.shippingMethod
                       )}
                     />
                   </Grid>
@@ -1108,8 +1416,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       value={
                         purchaseOrder?.supplierShipping?.destinations?.length
                           ? purchaseOrder.supplierShipping.destinations
-                            .map((item) => item.destinationName || item.fullAddress || '-')
-                            .join(', ')
+                              .map((item) => item.destinationName || item.fullAddress || '-')
+                              .join(', ')
                           : '-'
                       }
                     />
@@ -1245,7 +1553,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                                     }
                                   />
                                 ) : (
-                                  `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
+                                  `${formatNumber(item.supplierUnitPrice || 0)} ${
+                                    item.supplierCurrency || ''
                                   }`
                                 )}
                               </TableCell>
@@ -1258,17 +1567,24 @@ export default function PurchaseOrderDetail(): ReactElement {
                               <TableRow>
                                 <TableCell colSpan={6} sx={{ backgroundColor: '#fffaf0', p: 1.5 }}>
                                   <Stack spacing={1}>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Stack
+                                      direction="row"
+                                      justifyContent="space-between"
+                                      alignItems="center">
                                       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                         ชิ้นส่วน / อะไหล่
                                       </Typography>
                                       {isEditing ? (
-                                        <Button size="small" startIcon={<Edit />} onClick={() => addDraftComponent(index)}>
+                                        <Button
+                                          size="small"
+                                          startIcon={<Edit />}
+                                          onClick={() => addDraftComponent(index)}>
                                           เพิ่มชิ้นส่วน
                                         </Button>
                                       ) : null}
                                     </Stack>
-                                    <TableContainer sx={{ border: '1px solid #eadfca', borderRadius: 2 }}>
+                                    <TableContainer
+                                      sx={{ border: '1px solid #eadfca', borderRadius: 2 }}>
                                       <Table size="small">
                                         <TableHead>
                                           <TableRow sx={{ backgroundColor: '#fff3d6' }}>
@@ -1282,28 +1598,130 @@ export default function PurchaseOrderDetail(): ReactElement {
                                           </TableRow>
                                         </TableHead>
                                         <TableBody>
-                                          {(item.components || []).map((component, componentIndex) => (
-                                            <TableRow key={component.id || componentIndex}>
-                                              <TableCell>
-                                                {isEditing ? <TextField size="small" value={component.componentCode || ''} onChange={(e) => updateDraftComponent(index, componentIndex, 'componentCode', e.target.value)} /> : component.componentCode || '-'}
+                                          {(item.components || []).map(
+                                            (component, componentIndex) => (
+                                              <TableRow key={component.id || componentIndex}>
+                                                <TableCell>
+                                                  {isEditing ? (
+                                                    <TextField
+                                                      size="small"
+                                                      value={component.componentCode || ''}
+                                                      onChange={(e) =>
+                                                        updateDraftComponent(
+                                                          index,
+                                                          componentIndex,
+                                                          'componentCode',
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                    />
+                                                  ) : (
+                                                    component.componentCode || '-'
+                                                  )}
+                                                </TableCell>
+                                                <TableCell>
+                                                  {isEditing ? (
+                                                    <TextField
+                                                      required
+                                                      size="small"
+                                                      value={component.componentName || ''}
+                                                      onChange={(e) =>
+                                                        updateDraftComponent(
+                                                          index,
+                                                          componentIndex,
+                                                          'componentName',
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                    />
+                                                  ) : (
+                                                    component.componentName || '-'
+                                                  )}
+                                                </TableCell>
+                                                <TableCell>
+                                                  {isEditing ? (
+                                                    <TextField
+                                                      size="small"
+                                                      value={component.specification || ''}
+                                                      onChange={(e) =>
+                                                        updateDraftComponent(
+                                                          index,
+                                                          componentIndex,
+                                                          'specification',
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                    />
+                                                  ) : (
+                                                    component.specification || '-'
+                                                  )}
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                  {isEditing ? (
+                                                    <TextField
+                                                      size="small"
+                                                      type="number"
+                                                      inputProps={{ min: 0.00001, step: 0.00001 }}
+                                                      value={component.quantityPerItem || 0}
+                                                      onChange={(e) =>
+                                                        updateDraftComponent(
+                                                          index,
+                                                          componentIndex,
+                                                          'quantityPerItem',
+                                                          Number(e.target.value || 0)
+                                                        )
+                                                      }
+                                                    />
+                                                  ) : (
+                                                    formatNumber(component.quantityPerItem || 0)
+                                                  )}
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                  {formatNumber(
+                                                    Number(item.quantity || 0) *
+                                                      Number(component.quantityPerItem || 0)
+                                                  )}
+                                                </TableCell>
+                                                <TableCell>
+                                                  {isEditing ? (
+                                                    <TextField
+                                                      size="small"
+                                                      value={component.unit || 'pcs'}
+                                                      onChange={(e) =>
+                                                        updateDraftComponent(
+                                                          index,
+                                                          componentIndex,
+                                                          'unit',
+                                                          e.target.value
+                                                        )
+                                                      }
+                                                    />
+                                                  ) : (
+                                                    component.unit || 'pcs'
+                                                  )}
+                                                </TableCell>
+                                                {isEditing ? (
+                                                  <TableCell>
+                                                    <Button
+                                                      color="error"
+                                                      size="small"
+                                                      onClick={() =>
+                                                        removeDraftComponent(index, componentIndex)
+                                                      }>
+                                                      <DeleteOutline />
+                                                    </Button>
+                                                  </TableCell>
+                                                ) : null}
+                                              </TableRow>
+                                            )
+                                          )}
+                                          {!item.components?.length ? (
+                                            <TableRow>
+                                              <TableCell colSpan={isEditing ? 7 : 6} align="center">
+                                                ยังไม่มีรายการชิ้นส่วน
                                               </TableCell>
-                                              <TableCell>
-                                                {isEditing ? <TextField required size="small" value={component.componentName || ''} onChange={(e) => updateDraftComponent(index, componentIndex, 'componentName', e.target.value)} /> : component.componentName || '-'}
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditing ? <TextField size="small" value={component.specification || ''} onChange={(e) => updateDraftComponent(index, componentIndex, 'specification', e.target.value)} /> : component.specification || '-'}
-                                              </TableCell>
-                                              <TableCell align="right">
-                                                {isEditing ? <TextField size="small" type="number" inputProps={{ min: 0.00001, step: 0.00001 }} value={component.quantityPerItem || 0} onChange={(e) => updateDraftComponent(index, componentIndex, 'quantityPerItem', Number(e.target.value || 0))} /> : formatNumber(component.quantityPerItem || 0)}
-                                              </TableCell>
-                                              <TableCell align="right">{formatNumber(Number(item.quantity || 0) * Number(component.quantityPerItem || 0))}</TableCell>
-                                              <TableCell>
-                                                {isEditing ? <TextField size="small" value={component.unit || 'pcs'} onChange={(e) => updateDraftComponent(index, componentIndex, 'unit', e.target.value)} /> : component.unit || 'pcs'}
-                                              </TableCell>
-                                              {isEditing ? <TableCell><Button color="error" size="small" onClick={() => removeDraftComponent(index, componentIndex)}><DeleteOutline /></Button></TableCell> : null}
                                             </TableRow>
-                                          ))}
-                                          {!item.components?.length ? <TableRow><TableCell colSpan={isEditing ? 7 : 6} align="center">ยังไม่มีรายการชิ้นส่วน</TableCell></TableRow> : null}
+                                          ) : null}
                                         </TableBody>
                                       </Table>
                                     </TableContainer>
@@ -1354,8 +1772,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 {packageItem.packageCapacity ||
                                                   (packageItem.capacityQty != null
                                                     ? `${formatNumber(
-                                                      packageItem.capacityQty
-                                                    )} pcs.`
+                                                        packageItem.capacityQty
+                                                      )} pcs.`
                                                     : '-')}
                                               </TableCell>
                                               <TableCell align="right">
@@ -1585,6 +2003,19 @@ export default function PurchaseOrderDetail(): ReactElement {
             </Grid>
           </Grid>
         </TabPanel>
+
+        {canViewProof ? (
+          <TabPanel value="proof" currentTab={tab}>
+            <PurchaseOrderProofSection
+              purchaseOrderNo={id}
+              purchaseOrderStatus={purchaseOrder?.status}
+              timelineEvents={productionTimeline?.events}
+              onChanged={() =>
+                Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()])
+              }
+            />
+          </TabPanel>
+        ) : null}
 
         <TabPanel value="history" currentTab={tab}>
           <ActivityHistoryTimeline records={activityHistory} />

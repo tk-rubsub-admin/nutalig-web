@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { api } from 'api/api';
+import { PurchaseOrderTimeline } from 'services/PurchaseOrder/purchase-order-type';
 import {
     AssignPORequest,
     CreateSaleOrderLineRequestV2,
@@ -108,6 +109,15 @@ export const getSalesOrderV1 = async (id: string) => {
             }
         })
         .then((response) => response.data);
+    return response.data;
+};
+
+export const getSalesOrderProductionTimelines = async (
+    id: string
+): Promise<PurchaseOrderTimeline[]> => {
+    const response = await api
+        .get(`/v1/sales-orders/${id}/production-timelines`)
+        .then((result) => result.data);
     return response.data;
 };
 

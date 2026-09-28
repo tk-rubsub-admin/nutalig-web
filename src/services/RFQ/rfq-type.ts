@@ -396,6 +396,7 @@ export interface RFQRecord {
   capacity: string;
   requestedMoqs?: RFQRequestedMoq[] | null;
   requestSample?: boolean | null;
+  requestSampleProduction?: boolean | null;
   urgentApproval?: RFQUrgentApproval | null;
   customerTransferApproval?: RFQUrgentApproval | null;
   description: string;
@@ -465,6 +466,7 @@ export interface CreateRFQRequest {
   capacity: string;
   requestedMoqs?: RFQRequestedMoq[];
   requestSample?: boolean;
+  requestSampleProduction?: boolean;
   urgentRequest?: boolean;
   urgentRequestReason?: string;
   description: string;
@@ -497,6 +499,7 @@ export interface UpdateRFQRequest {
   capacity: string;
   requestedMoqs?: RFQRequestedMoq[];
   requestSample?: boolean;
+  requestSampleProduction?: boolean;
   description: string;
   project?: string;
   requestInformation?: string;

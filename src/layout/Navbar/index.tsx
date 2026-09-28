@@ -174,12 +174,21 @@ function Navbar({ onSidebarToggle }: NavbarProps) {
                   <Button
                     key={item.code}
                     onClick={() => handleLanguageChange(item.code)}
-                    disabled={selected}
-                    variant={selected ? 'contained' : 'outlined'}
-                    color={selected ? 'primary' : 'inherit'}
+                    aria-pressed={selected}
+                    variant="outlined"
+                    color="inherit"
                     sx={{
                       minWidth: 56,
-                      opacity: selected ? 1 : 0.9
+                      borderColor: selected ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
+                      backgroundColor: selected ? '#ffffff' : 'transparent',
+                      color: selected ? '#0f2a17' : 'rgba(255, 255, 255, 0.82)',
+                      fontWeight: selected ? 700 : 500,
+                      boxShadow: selected ? '0 2px 8px rgba(0, 0, 0, 0.28)' : 'none',
+                      '&:hover': {
+                        borderColor: '#ffffff',
+                        backgroundColor: selected ? '#ffffff' : 'rgba(255, 255, 255, 0.12)',
+                        color: selected ? '#0f2a17' : '#ffffff'
+                      }
                     }}>
                     {item.label}
                   </Button>

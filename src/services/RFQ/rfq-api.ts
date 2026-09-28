@@ -450,6 +450,9 @@ export const createRFQ = async (payload: CreateRFQRequest): Promise<CreateRFQRes
   if (payload.requestSample !== undefined) {
     formData.append('requestSample', String(payload.requestSample));
   }
+  if (payload.requestSampleProduction !== undefined) {
+    formData.append('requestSampleProduction', String(payload.requestSampleProduction));
+  }
   payload.requestedMoqs?.forEach((requestedMoq, index) => {
     formData.append(`requestedMoqs[${index}].moq`, String(requestedMoq.moq));
     if (requestedMoq.targetPrice !== undefined && requestedMoq.targetPrice !== null) {

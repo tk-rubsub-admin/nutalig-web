@@ -655,7 +655,7 @@ export default function NewQuotation() {
     const [isAddCustomerContactDialogOpen, setIsAddCustomerContactDialogOpen] = useState(false);
     const [isUpdateCustomerDialogOpen, setIsUpdateCustomerDialogOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isSupplierQuoteLeadTimesApplied, setIsSupplierQuoteLeadTimesApplied] = useState(false);
+    const [supplierQuoteLeadTimesAppliedKey, setSupplierQuoteLeadTimesAppliedKey] = useState<string | null>(null);
     const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
     const [title, setTitle] = useState<string>('')
     const [msg, setMsg] = useState<string>('')
@@ -1021,10 +1021,6 @@ export default function NewQuotation() {
     ].join('|');
 
     useEffect(() => {
-        setIsSupplierQuoteLeadTimesApplied(false);
-    }, [supplierQuotePrefillKey]);
-
-    useEffect(() => {
         if (!defaultProductQtyTolerance || formik.values.productQtyTolerance) {
             return;
         }
@@ -1126,17 +1122,21 @@ export default function NewQuotation() {
         formik.setFieldValue('productionLeadTime', isSupplierQuotesLoaded ? productionLeadTimeValue : '');
         formik.setFieldValue('moldLeadTime', isSupplierQuotesLoaded ? moldLeadTimeValue : '');
         formik.setFieldValue('shippingLeadTime', isSupplierQuotesLoaded ? shippingLeadTimeValue : '');
-        setIsSupplierQuoteLeadTimesApplied(true);
+        setSupplierQuoteLeadTimesAppliedKey(supplierQuotePrefillKey);
     }, [
         isSupplierQuotesLoaded,
         isSupplierQuotesError,
         sampleLeadTimeValue,
         productionLeadTimeValue,
         moldLeadTimeValue,
-        shippingLeadTimeValue
+        shippingLeadTimeValue,
+        supplierQuotePrefillKey
     ]);
     const isSupplierQuotePrefillLoading = Boolean(formik.values.rfqIds?.length)
-        && ((!isSupplierQuotesLoaded && !isSupplierQuotesError) || !isSupplierQuoteLeadTimesApplied);
+        && (
+            (!isSupplierQuotesLoaded && !isSupplierQuotesError)
+            || supplierQuoteLeadTimesAppliedKey !== supplierQuotePrefillKey
+        );
 
     const { data: freelanceSales = [], isFetching: isFreelanceSalesFetching } = useQuery(
         'quotation-freelance-sales',

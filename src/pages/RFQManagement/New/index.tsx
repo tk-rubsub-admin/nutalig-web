@@ -284,6 +284,7 @@ export default function NewRFQ(): JSX.Element {
       customerId: string;
       parentRfqId: string;
       requestSample: boolean;
+      requestSampleProduction: boolean;
       contactName: string;
       contactPhone: string;
       contactChannel: string;
@@ -299,7 +300,6 @@ export default function NewRFQ(): JSX.Element {
       capacity: string;
       capacityUnit: string;
       requestedMoqs: { moq: string; targetPrice: string }[];
-      requestSample: boolean;
       description: string;
       project: string;
     },
@@ -318,6 +318,7 @@ export default function NewRFQ(): JSX.Element {
         customerId: values.customerMode === 'EXISTING' ? values.customerId : undefined,
         referenceRfqId: values.parentRfqId || undefined,
         requestSample: values.requestSample,
+        requestSampleProduction: values.requestSampleProduction,
         contactName: values.contactName,
         contactPhone: values.contactPhone,
         contactChannel: values.contactChannel || undefined,
@@ -372,6 +373,7 @@ export default function NewRFQ(): JSX.Element {
       customerId: '',
       parentRfqId: '',
       requestSample: false,
+      requestSampleProduction: false,
       contactName: '',
       contactPhone: '',
       contactChannel: '',
@@ -461,9 +463,9 @@ export default function NewRFQ(): JSX.Element {
     const parsedCapacity = parseCapacityValue(copiedRfq.capacity, unitOptions);
     const requestedMoqs = copiedRfq.requestedMoqs?.length
       ? copiedRfq.requestedMoqs.map((value) => ({
-          moq: `${value.moq}`,
-          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
-        }))
+        moq: `${value.moq}`,
+        targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+      }))
       : [{ moq: '', targetPrice: '' }];
     const customerId = copiedRfq.customer?.id || '';
     const customerName = copiedRfq.customer?.customerName || '';
@@ -479,6 +481,7 @@ export default function NewRFQ(): JSX.Element {
       customerId,
       parentRfqId: copiedRfq.referenceRfqId || '',
       requestSample: copiedRfq.requestSample ?? false,
+      requestSampleProduction: copiedRfq.requestSampleProduction ?? false,
       contactName: copiedRfq.contactName || '',
       contactPhone: copiedRfq.contactPhone || '',
       contactChannel: copiedRfq.contactChannel || '',
@@ -678,9 +681,9 @@ export default function NewRFQ(): JSX.Element {
     const parsedCapacity = parseCapacityValue(parentRfqDetail.capacity, unitOptions);
     const requestedMoqs = parentRfqDetail.requestedMoqs?.length
       ? parentRfqDetail.requestedMoqs.map((value) => ({
-          moq: `${value.moq}`,
-          targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
-        }))
+        moq: `${value.moq}`,
+        targetPrice: value.targetPrice == null ? '' : `${value.targetPrice}`
+      }))
       : [{ moq: '', targetPrice: '' }];
 
     formik.setValues((prevValues) => ({
@@ -688,6 +691,7 @@ export default function NewRFQ(): JSX.Element {
       customerMode: parentRfqDetail.customer ? 'EXISTING' : prevValues.customerMode,
       customerId: parentRfqDetail.customer?.id || '',
       requestSample: prevValues.requestSample,
+      requestSampleProduction: prevValues.requestSampleProduction,
       contactName: parentRfqDetail.contactName || '',
       contactPhone: parentRfqDetail.contactPhone || '',
       contactChannel: prevValues.contactChannel || parentRfqDetail.contactChannel || '',
@@ -743,6 +747,7 @@ export default function NewRFQ(): JSX.Element {
       customerId: true,
       parentRfqId: true,
       requestSample: true,
+      requestSampleProduction: true,
       contactName: true,
       contactPhone: true,
       contactChannel: true,
@@ -956,9 +961,9 @@ export default function NewRFQ(): JSX.Element {
                   error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
                   helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
                   {formik.values.contactChannel &&
-                  !contactChannelOptions.some(
-                    (item: SystemConfig) => item.code === formik.values.contactChannel
-                  ) ? (
+                    !contactChannelOptions.some(
+                      (item: SystemConfig) => item.code === formik.values.contactChannel
+                    ) ? (
                     <MenuItem value={formik.values.contactChannel}>
                       {formik.values.contactChannel}
                     </MenuItem>
@@ -1055,9 +1060,9 @@ export default function NewRFQ(): JSX.Element {
                   error={formik.touched.contactChannel && Boolean(formik.errors.contactChannel)}
                   helperText={formik.touched.contactChannel && formik.errors.contactChannel}>
                   {formik.values.contactChannel &&
-                  !contactChannelOptions.some(
-                    (item: SystemConfig) => item.code === formik.values.contactChannel
-                  ) ? (
+                    !contactChannelOptions.some(
+                      (item: SystemConfig) => item.code === formik.values.contactChannel
+                    ) ? (
                     <MenuItem value={formik.values.contactChannel}>
                       {formik.values.contactChannel}
                     </MenuItem>
@@ -1072,7 +1077,10 @@ export default function NewRFQ(): JSX.Element {
             </>
           )}
 
-          <GridTextField item xs={12} sm={4}>
+          <GridTextField
+            item
+            xs={12}
+            sm={PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ? 3 : 6}>
             <TextField
               select
               fullWidth
@@ -1082,6 +1090,10 @@ export default function NewRFQ(): JSX.Element {
               value={formik.values.rfqTypeCode}
               onChange={(event) => {
                 appliedParentRfqIdRef.current = '';
+                if (event.target.value === 'SAMPLE_REQUEST') {
+                  formik.setFieldValue('requestSample', true);
+                  formik.setFieldValue('requestSampleProduction', true);
+                }
                 formik.handleChange(event);
               }}
               onBlur={() => formik.setFieldTouched('rfqTypeCode', true)}
@@ -1095,45 +1107,8 @@ export default function NewRFQ(): JSX.Element {
             </TextField>
           </GridTextField>
 
-          <GridTextField item xs={12} sm={2}>
-            <TextField
-              select
-              fullWidth
-              label={t('rfqManagement.form.orderTypeCode')}
-              InputLabelProps={{ shrink: true }}
-              name="orderTypeCode"
-              value={formik.values.orderTypeCode}
-              onChange={formik.handleChange}
-              onBlur={() => formik.setFieldTouched('orderTypeCode', true)}
-              error={formik.touched.orderTypeCode && Boolean(formik.errors.orderTypeCode)}
-              helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}>
-              {(orderTypeList || []).map((item: SystemConfig) => (
-                <MenuItem key={item.code} value={item.code}>
-                  {item.nameTh || item.code}
-                </MenuItem>
-              ))}
-            </TextField>
-          </GridTextField>
-
-          <GridTextField item xs={12} sm={2}>
-            <Box>
-              <FormControlLabel
-                sx={{ m: 0 }}
-                control={
-                  <Checkbox
-                    name="requestSample"
-                    checked={Boolean(formik.values.requestSample)}
-                    onChange={(event) =>
-                      formik.setFieldValue('requestSample', event.target.checked)
-                    }
-                  />
-                }
-                label="ขอราคาค่าตีตัวอย่าง"
-              />
-            </Box>
-          </GridTextField>
           {PARENT_RFQ_TYPE_CODES.includes(formik.values.rfqTypeCode) ? (
-            <GridTextField item xs={12} sm={4}>
+            <GridTextField item xs={12} sm={3}>
               <Autocomplete
                 options={parentRfqOptions}
                 loading={isParentRfqFetching}
@@ -1181,9 +1156,62 @@ export default function NewRFQ(): JSX.Element {
                 )}
               />
             </GridTextField>
-          ) : (
-            <GridTextField item xs={12} sm={4} />
-          )}
+          ) : null}
+
+          <GridTextField item xs={12} sm={2}>
+            <TextField
+              select
+              fullWidth
+              label={t('rfqManagement.form.orderTypeCode')}
+              InputLabelProps={{ shrink: true }}
+              name="orderTypeCode"
+              value={formik.values.orderTypeCode}
+              onChange={formik.handleChange}
+              onBlur={() => formik.setFieldTouched('orderTypeCode', true)}
+              error={formik.touched.orderTypeCode && Boolean(formik.errors.orderTypeCode)}
+              helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}>
+              {(orderTypeList || []).map((item: SystemConfig) => (
+                <MenuItem key={item.code} value={item.code}>
+                  {item.nameTh || item.code}
+                </MenuItem>
+              ))}
+            </TextField>
+          </GridTextField>
+
+          <GridTextField item xs={12} sm={2}>
+            <Box>
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Checkbox
+                    name="requestSample"
+                    checked={Boolean(formik.values.requestSample)}
+                    onChange={(event) =>
+                      formik.setFieldValue('requestSample', event.target.checked)
+                    }
+                  />
+                }
+                label="ขอราคาค่าตีตัวอย่าง"
+              />
+            </Box>
+          </GridTextField>
+          <GridTextField item xs={12} sm={2}>
+            <Box>
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Checkbox
+                    name="requestSampleProduction"
+                    checked={Boolean(formik.values.requestSampleProduction)}
+                    onChange={(event) =>
+                      formik.setFieldValue('requestSampleProduction', event.target.checked)
+                    }
+                  />
+                }
+                label="ขอตีตัวอย่าง"
+              />
+            </Box>
+          </GridTextField>
 
           <GridTextField item xs={12} sm={6}>
             <TextField
@@ -1250,8 +1278,8 @@ export default function NewRFQ(): JSX.Element {
                 </MenuItem>
               ) : null}
               {formik.values.salesId &&
-              !isProcurementFetching &&
-              procurementOptions.length === 0 ? (
+                !isProcurementFetching &&
+                procurementOptions.length === 0 ? (
                 <MenuItem disabled value="">
                   ไม่มีจัดซื้อดูแล
                 </MenuItem>
@@ -1498,7 +1526,7 @@ export default function NewRFQ(): JSX.Element {
                         const requestedMoqErrors = formik.errors.requestedMoqs;
                         const itemErrors =
                           Array.isArray(requestedMoqErrors) &&
-                          typeof requestedMoqErrors[index] === 'object'
+                            typeof requestedMoqErrors[index] === 'object'
                             ? requestedMoqErrors[index]
                             : undefined;
                         const helperText = itemErrors?.moq;

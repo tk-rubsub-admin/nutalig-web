@@ -203,6 +203,8 @@ interface RFQEditableFormValues {
   capacity: string;
   project: string;
   requestedMoqs: { moq: string; targetPrice: string }[];
+  requestSample: boolean;
+  requestSampleProduction: boolean;
   description: string;
 }
 
@@ -599,12 +601,15 @@ function getInitialValues(rfq?: RFQRecord): RFQEditableFormValues {
       getNamedCodeValueCode<RFQProductSubtype2>(rfq?.productSubType2) || rfq?.systemMechanic || '',
     material: getNamedCodeValueCode<RFQProductMaterial>(rfq?.material),
     capacity: rfq?.capacity || '',
+    project: rfq?.project || '',
     requestedMoqs: rfq?.requestedMoqs?.length
       ? rfq.requestedMoqs.map((item) => ({
         moq: `${item.moq}`,
         targetPrice: item.targetPrice == null ? '' : formatTargetPrice(item.targetPrice)
       }))
       : [{ moq: '', targetPrice: '' }],
+    requestSample: rfq?.requestSample ?? false,
+    requestSampleProduction: rfq?.requestSampleProduction ?? false,
     description: rfq?.description || ''
   };
 }
@@ -1558,6 +1563,8 @@ export default function RFQDetail(): ReactElement {
               moq: Number(value.moq),
               targetPrice: value.targetPrice.trim() ? Number(value.targetPrice) : null
             })),
+            requestSample: values.requestSample,
+            requestSampleProduction: values.requestSampleProduction,
             description: values.description
           }),
           {
@@ -2484,6 +2491,7 @@ export default function RFQDetail(): ReactElement {
       customerId: true,
       parentRfqId: true,
       requestSample: true,
+      requestSampleProduction: true,
       contactName: true,
       contactPhone: true,
       contactChannel: true,
@@ -3376,7 +3384,7 @@ export default function RFQDetail(): ReactElement {
                     </TextField>
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={4}>
+                  <GridTextField item xs={12} sm={3}>
                     <TextField
                       select
                       fullWidth
@@ -3397,42 +3405,7 @@ export default function RFQDetail(): ReactElement {
                     </TextField>
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={2}>
-                    <TextField
-                      select
-                      fullWidth
-                      label={t('rfqManagement.form.orderTypeCode')}
-                      name="orderTypeCode"
-                      value={
-                        formik.values.orderTypeCode ||
-                        orderTypeLabel ||
-                        rfq?.orderType?.nameTh ||
-                        ''
-                      }
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      error={Boolean(formik.touched.orderTypeCode && formik.errors.orderTypeCode)}
-                      helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}
-                      InputLabelProps={{ shrink: true }}
-                      disabled={!isSalesPermission}>
-                      {(orderTypeList || []).map((item: SystemConfig) => (
-                        <MenuItem key={item.code} value={item.code}>
-                          {item.nameTh || item.code}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </GridTextField>
-                  <GridTextField item xs={12} sm={2}>
-                    <TextField
-                      fullWidth
-                      label={'ตีตัวอย่าง'}
-                      name="description"
-                      value={rfq?.requestSample ? 'ขอราคาตีตัวอย่าง' : '-'}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: !isSalesPermission }}
-                    />
-                  </GridTextField>
-                  <GridTextField item xs={12} sm={4}>
+                  <GridTextField item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       label={t('rfqManagement.detail.fields.referenceRfqId')}
@@ -3461,6 +3434,60 @@ export default function RFQDetail(): ReactElement {
                           </InputAdornment>
                         ) : undefined
                       }}
+                    />
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={2}>
+                    <TextField
+                      select
+                      fullWidth
+                      label={t('rfqManagement.form.orderTypeCode')}
+                      name="orderTypeCode"
+                      value={
+                        formik.values.orderTypeCode ||
+                        orderTypeLabel ||
+                        rfq?.orderType?.nameTh ||
+                        ''
+                      }
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={Boolean(formik.touched.orderTypeCode && formik.errors.orderTypeCode)}
+                      helperText={formik.touched.orderTypeCode && formik.errors.orderTypeCode}
+                      InputLabelProps={{ shrink: true }}
+                      disabled={!isSalesPermission}>
+                      {(orderTypeList || []).map((item: SystemConfig) => (
+                        <MenuItem key={item.code} value={item.code}>
+                          {item.nameTh || item.code}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </GridTextField>
+                  <GridTextField item xs={12} sm={2}>
+                    <FormControlLabel
+                      sx={{ m: 0 }}
+                      control={
+                        <Checkbox
+                          name="requestSample"
+                          checked={formik.values.requestSample}
+                          onChange={formik.handleChange}
+                          disabled={!isSalesPermission}
+                        />
+                      }
+                      label="ขอราคาค่าตีตัวอย่าง"
+                    />
+                  </GridTextField>
+                  <GridTextField item xs={12} sm={2}>
+                    <FormControlLabel
+                      sx={{ m: 0 }}
+                      control={
+                        <Checkbox
+                          name="requestSampleProduction"
+                          checked={formik.values.requestSampleProduction}
+                          onChange={formik.handleChange}
+                          disabled={!isSalesPermission}
+                        />
+                      }
+                      label="ขอตีตัวอย่าง"
                     />
                   </GridTextField>
 

@@ -233,10 +233,10 @@ interface DraftAdditionalCost {
 
 interface ConfirmQuotationRow {
   key: string;
-  detail: RFQDetailOption;
-  tier: RFQDetailTier;
+  detail: RFQDetailOption | null;
+  tier: RFQDetailTier | null;
   optionIndex: number;
-  shippingMethod: ConfirmRfqShippingMethod;
+  shippingMethod: ConfirmRfqShippingMethod | null;
   quotationItem: QuotationItem;
 }
 
@@ -779,6 +779,9 @@ function getSortedDetailOptions(details?: RFQDetailOption[]): RFQDetailOption[] 
 }
 
 type ConfirmRfqShippingMethod = string;
+
+const isSampleProductionQuotationItem = (item: QuotationItem): boolean =>
+  (item.name || '').includes('ค่าตัวอย่าง');
 
 function inferQuotationItemShippingMethod(name?: string | null): ConfirmRfqShippingMethod | null {
   if (!name) {
@@ -1779,10 +1782,21 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
+    const hasInvalidSelection = selectedRows.some(
+      (row) =>
+        !isSampleProductionQuotationItem(row.quotationItem) &&
+        (!row.detail || !row.tier || !row.shippingMethod)
+    );
+
+    if (hasInvalidSelection) {
+      toast.error('ข้อมูลรายการใบเสนอราคาไม่ครบถ้วน');
+      return;
+    }
+
     const serializedSelections = encodeURIComponent(
       JSON.stringify(
         selectedRows.map((row) => ({
-          detailId: row.detail.id,
+          detailId: row.detail?.id ?? null,
           quotationDetailId: row.quotationItem.id,
           shippingMethod: row.shippingMethod
         }))
@@ -1790,21 +1804,26 @@ export default function RFQDetail(): ReactElement {
     );
 
     const firstSelectedRow = selectedRows[0];
-    const selectedDetailIndex = detailOptions.findIndex(
-      (detail) => detail.id === firstSelectedRow.detail.id
-    );
     const selectedDetail = firstSelectedRow.detail;
+    const selectedDetailIndex = selectedDetail
+      ? detailOptions.findIndex((detail) => detail.id === selectedDetail.id)
+      : -1;
     const selectedShippingMethod = firstSelectedRow.shippingMethod;
-    const optionLabel = selectedDetail.optionName || `Option ${selectedDetailIndex + 1}`;
-    const shippingLabel = getShippingMethodLabel(selectedShippingMethod);
+    const optionLabel =
+      firstSelectedRow.quotationItem.name ||
+      selectedDetail?.optionName ||
+      `Option ${selectedDetailIndex + 1}`;
+    const shippingLabel = selectedShippingMethod
+      ? ` ${getShippingMethodLabel(selectedShippingMethod)}`
+      : '';
     const selectedPrice = firstSelectedRow.quotationItem.unitPrice;
 
     setVisibleConfirmRfqDialog(false);
     toast.success(
       selectedRows.length === 1
-        ? `เลือก ${firstSelectedRow.quotationItem.name || optionLabel} จำนวน ${formatQuantity(
+        ? `เลือก ${optionLabel} จำนวน ${formatQuantity(
           firstSelectedRow.quotationItem.quantity
-        )} ${shippingLabel} ราคา ${formatPrice(selectedPrice)}`
+        )}${shippingLabel} ราคา ${formatPrice(selectedPrice)}`
         : `เลือกรายการสำหรับคอนเฟิร์มราคาแล้ว ${selectedRows.length} รายการ`
     );
     history.push(
@@ -2031,6 +2050,17 @@ export default function RFQDetail(): ReactElement {
     const quotationItems = quotation?.data.items || [];
 
     return quotationItems.map((quotationItem, index) => {
+      if (isSampleProductionQuotationItem(quotationItem)) {
+        return {
+          key: `quotation:${quotationItem.id}:${index}:NO_SHIPPING`,
+          detail: null,
+          tier: null,
+          optionIndex: index,
+          shippingMethod: null,
+          quotationItem
+        };
+      }
+
       const inferredShippingMethod = inferQuotationItemShippingMethod(quotationItem.name);
       const rfqDetailId = quotationItem.rfqDetailId;
       const quantity = Number(quotationItem.quantity || 0);
@@ -5893,17 +5923,25 @@ export default function RFQDetail(): ReactElement {
                       const row = confirmQuotationRows[index];
                       const fallbackShippingMethod =
                         inferQuotationItemShippingMethod(quotationItem.name) || 'LAND';
-                      const resolvedShippingMethod = row?.shippingMethod || fallbackShippingMethod;
+                      const resolvedShippingMethod = row
+                        ? row.shippingMethod
+                        : fallbackShippingMethod;
+                      const isSelectable = Boolean(row) && (
+                        isSampleProductionQuotationItem(quotationItem) ||
+                        Boolean(row?.detail && row?.tier && resolvedShippingMethod)
+                      );
                       const optionLabel = formatOptionNameWithPlan(
                         row?.detail?.optionName || `Option ${index + 1}`,
                         row?.detail?.plan
                       );
-                      const shippingMethodLabel = getShippingMethodLabel(
-                        resolvedShippingMethod,
-                        '-',
-                        Boolean(row?.tier?.isFcl),
-                        Boolean(row?.tier?.isShareFCL)
-                      );
+                      const shippingMethodLabel = resolvedShippingMethod
+                        ? getShippingMethodLabel(
+                          resolvedShippingMethod,
+                          '-',
+                          Boolean(row?.tier?.isFcl),
+                          Boolean(row?.tier?.isShareFCL)
+                        )
+                        : '';
                       const rowCurrency = 'THB';
                       const unitPrice = quotationItem.unitPrice;
                       const amount = quotationItem.amount;
@@ -5914,12 +5952,18 @@ export default function RFQDetail(): ReactElement {
                           key={rowKey}
                           hover
                           selected={selectedConfirmRfqTierKeys.includes(rowKey)}
-                          onClick={() => toggleConfirmRfqTierKey(rowKey)}
-                          sx={{ cursor: 'pointer' }}>
+                          onClick={() => {
+                            if (isSelectable) {
+                              toggleConfirmRfqTierKey(rowKey);
+                            }
+                          }}
+                          sx={{ cursor: isSelectable ? 'pointer' : 'default' }}>
                           <TableCell align="center">
                             <Checkbox
                               checked={selectedConfirmRfqTierKeys.includes(rowKey)}
+                              onClick={(event) => event.stopPropagation()}
                               onChange={() => toggleConfirmRfqTierKey(rowKey)}
+                              disabled={!isSelectable}
                               inputProps={{
                                 'aria-label': `${quotationItem.name || optionLabel
                                   } ${formatQuantity(
@@ -5947,14 +5991,16 @@ export default function RFQDetail(): ReactElement {
                             {formatQuantity(quotationItem.quantity)}
                           </TableCell>
                           <TableCell>
-                            <Stack direction="row" spacing={0.75} alignItems="center">
-                              {isSeaShippingMethod(resolvedShippingMethod) ? (
-                                <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
-                              ) : (
-                                <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
-                              )}
-                              <Typography variant="body2">{shippingMethodLabel}</Typography>
-                            </Stack>
+                            {resolvedShippingMethod ? (
+                              <Stack direction="row" spacing={0.75} alignItems="center">
+                                {isSeaShippingMethod(resolvedShippingMethod) ? (
+                                  <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
+                                ) : (
+                                  <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                )}
+                                <Typography variant="body2">{shippingMethodLabel}</Typography>
+                              </Stack>
+                            ) : null}
                           </TableCell>
                           <TableCell align="center" sx={{ fontWeight: 700 }}>
                             {formatPrice(unitPrice, rowCurrency)}

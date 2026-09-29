@@ -152,9 +152,9 @@ interface SaleOrderRFQFormValues {
 }
 
 interface SelectedRFQQueryItem {
-  detailId: number;
+  detailId: number | null;
   quotationDetailId: string;
-  shippingMethod: string;
+  shippingMethod: string | null;
 }
 
 function createEmptySaleOrderItem(id: number): SaleOrderRFQItem {
@@ -629,17 +629,22 @@ function createSaleOrderItemsFromQuotation(
       (tierSplit) => tierSplit.id === rfqTierSplitId
     );
     const mappedPrice = mappedTierSplit || mappedTier;
-    const mappedShippingMethod =
-      mappedPrice?.shippingMethod || inferQuotationItemShippingMethod(item.name) || 'LAND';
-    const shippingDisplayLabel = getShippingDisplayLabel(
-      mappedShippingMethod,
-      mappedPrice?.isFcl,
-      mappedPrice?.isShareFCL
-    );
+    const isSampleProductionItem = (item.name || '').includes('ค่าตัวอย่าง');
+    const mappedShippingMethod = isSampleProductionItem
+      ? null
+      : mappedPrice?.shippingMethod || inferQuotationItemShippingMethod(item.name) || 'LAND';
+    const shippingDisplayLabel = mappedShippingMethod
+      ? getShippingDisplayLabel(
+        mappedShippingMethod,
+        mappedPrice?.isFcl,
+        mappedPrice?.isShareFCL
+      )
+      : '';
     const normalizedItemName = item.name || productFamily || 'PRE-ORDER';
-    const itemNameWithShippingLabel = normalizedItemName.includes(shippingDisplayLabel)
-      ? normalizedItemName
-      : `${normalizedItemName} - ${shippingDisplayLabel}`;
+    const itemNameWithShippingLabel =
+      shippingDisplayLabel && !normalizedItemName.includes(shippingDisplayLabel)
+        ? `${normalizedItemName} - ${shippingDisplayLabel}`
+        : normalizedItemName;
 
     return {
       id: Number.isFinite(numericItemId)
@@ -668,7 +673,10 @@ function createSaleOrderItemsFromQuotation(
       unitPrice: Number(item.unitPrice || 0),
       amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
       totalFreight: quantity * Number(mappedPrice?.shippingCost || 0),
-      remark: [`RFQ: ${item.sourceRfqId || sourceRfq.id}`, `Shipping: ${shippingDisplayLabel}`].join('\n')
+      remark: [
+        `RFQ: ${item.sourceRfqId || sourceRfq.id}`,
+        shippingDisplayLabel ? `Shipping: ${shippingDisplayLabel}` : ''
+      ].filter(Boolean).join('\n')
     };
   });
 }
@@ -762,12 +770,17 @@ export default function SalesOrderRFQ(): JSX.Element {
 
         if (Array.isArray(parsedItems)) {
           return parsedItems
-            .map((item) => ({
-              detailId: Number(item?.detailId || 0),
-              quotationDetailId: String(item?.quotationDetailId || ''),
-              shippingMethod: String(item?.shippingMethod || 'LAND').trim().toUpperCase()
-            }))
-            .filter((item) => item.detailId && item.quotationDetailId);
+            .map((item) => {
+              const detailId = Number(item?.detailId || 0);
+              const shippingMethod = String(item?.shippingMethod || '').trim().toUpperCase();
+
+              return {
+                detailId: Number.isFinite(detailId) && detailId > 0 ? detailId : null,
+                quotationDetailId: String(item?.quotationDetailId || ''),
+                shippingMethod: shippingMethod || null
+              };
+            })
+            .filter((item) => Boolean(item.quotationDetailId));
         }
       } catch (error) {
         console.error('Failed to parse selected RFQ items from query string', error);

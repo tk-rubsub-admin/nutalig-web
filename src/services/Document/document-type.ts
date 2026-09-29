@@ -46,6 +46,7 @@ export interface CreateQuotationItem {
     size: string;
     spec: string;
     unitPrice: number;
+    minimumUnitPrice?: number;
     quantity: number;
     unitPriceInput: string;
     amount: number;

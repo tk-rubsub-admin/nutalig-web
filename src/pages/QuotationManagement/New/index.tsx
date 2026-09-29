@@ -140,6 +140,7 @@ function QuotationItemMobileCard({
     showItemErrors,
     itemErrors,
     onUpdateItem,
+    onUnitPriceBlur,
     onUploadImage,
     onRemoveImage,
     onSelectRfqPicture,
@@ -157,6 +158,7 @@ function QuotationItemMobileCard({
         unitPrice?: string;
     };
     onUpdateItem: (index: number, field: keyof CreateQuotationItem, value: any) => void;
+    onUnitPriceBlur: (index: number) => void;
     onUploadImage: (index: number, file?: File | null) => void;
     onRemoveImage: (index: number) => void;
     onSelectRfqPicture: (index: number, pictureUrl: string) => void;
@@ -390,6 +392,8 @@ function QuotationItemMobileCard({
                             label={t('documentManagement.quotation.itemSection.unitPrice')}
                             value={row.unitPriceInput ?? String(row.unitPrice)}
                             onChange={(e) => onUpdateItem(index, 'unitPriceInput', e.target.value)}
+                            onBlur={() => onUnitPriceBlur(index)}
+                            inputProps={{ min: row.minimumUnitPrice || 0 }}
                             variant="outlined"
                             sx={{
                                 '& .MuiOutlinedInput-root': {
@@ -404,7 +408,13 @@ function QuotationItemMobileCard({
                                 }
                             }}
                             error={Boolean(showItemErrors && itemErrors.unitPrice)}
-                            helperText={showItemErrors ? itemErrors.unitPrice : ''}
+                            helperText={
+                                showItemErrors && itemErrors.unitPrice
+                                    ? itemErrors.unitPrice
+                                    : Number(row.minimumUnitPrice || 0) > 0
+                                        ? `ราคาขั้นต่ำ ${formatNumber(row.minimumUnitPrice || 0)}`
+                                        : ''
+                            }
                         />
                     </Stack>
 
@@ -496,12 +506,42 @@ const calculateQuotationGrandTotal = (
     return taxableAmount + (isVat ? taxableAmount * 0.07 : 0) + Number(freight || 0);
 };
 
+const SAMPLE_COST_DESCRIPTION = 'ค่าตัวอย่าง';
+
+const createSampleProductionItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
+    if (!rfq.requestSampleProduction) {
+        return [];
+    }
+
+    return [...(rfq.additionalCosts || [])]
+        .filter((additionalCost) =>
+            (additionalCost.description || '').includes(SAMPLE_COST_DESCRIPTION)
+        )
+        .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))
+        .map((additionalCost) => {
+            const parsedValue = Number(String(additionalCost.value || 0).replace(/,/g, ''));
+            const unitPrice = Number.isFinite(parsedValue) ? parsedValue : 0;
+
+            return {
+                ...createEmptyRow(),
+                sourceRfqId: rfq.id,
+                name: additionalCost.description,
+                quantity: 1,
+                unitPrice,
+                minimumUnitPrice: unitPrice,
+                unitPriceInput: String(unitPrice),
+                amount: unitPrice
+            };
+        });
+};
+
 const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
     const defaultImageUrl = (rfq.pictures || [])?.[0]?.pictureUrl || '';
     const type = getConfigLabel(rfq.orderType);
     const capacity = rfq.capacity || '';
     const productFamily = getProductFamilyLabel(rfq.productFamily);
     const material = getMaterialLabel(rfq.material);
+    const sampleProductionItems = createSampleProductionItemsFromRFQ(rfq);
 
     if (!rfq.details?.length) {
         return [{
@@ -513,10 +553,10 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
             spec: [material, rfq.description].filter(Boolean).join('\n'),
             imagePreview: defaultImageUrl,
             imageUrl: defaultImageUrl
-        }];
+        }, ...sampleProductionItems];
     }
 
-    return rfq.details.flatMap((detail: RFQDetailOption) => {
+    const productItems = rfq.details.flatMap((detail: RFQDetailOption) => {
         if (detail.tierSplits?.length) {
             return detail.tierSplits.map((tierSplit) => {
                 const quantity = Number(tierSplit.quantity || 1);
@@ -544,6 +584,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                     spec: detail.spec,
                     quantity,
                     unitPrice,
+                    minimumUnitPrice: unitPrice,
                     unitPriceInput: String(unitPrice),
                     amount: quantity * unitPrice,
                     imagePreview: defaultImageUrl,
@@ -572,6 +613,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                 spec,
                 quantity,
                 unitPrice,
+                minimumUnitPrice: unitPrice,
                 unitPriceInput: String(unitPrice),
                 amount: quantity * unitPrice,
                 imagePreview: defaultImageUrl,
@@ -594,6 +636,8 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
             return [buildQuotationItem(unitPrice, shippingMethodLabel)];
         });
     });
+
+    return [...productItems, ...sampleProductionItems];
 };
 
 export default function NewQuotation() {
@@ -969,6 +1013,23 @@ export default function NewQuotation() {
                             )
                             .typeError('ต้องระบุราคาต่อชิ้น')
                             .moreThan(0, 'ราคาต่อชิ้นต้องมากกว่า 0')
+                            .test(
+                                'minimum-unit-price',
+                                'ราคาต่อหน่วยต่ำกว่าราคาขั้นต่ำ',
+                                function (value) {
+                                    const minimumUnitPrice = Number(
+                                        this.parent.minimumUnitPrice || 0
+                                    );
+
+                                    if (!minimumUnitPrice || value === undefined || value === null) {
+                                        return true;
+                                    }
+
+                                    return Number(value) >= minimumUnitPrice || this.createError({
+                                        message: `ราคาต่อหน่วยต้องไม่น้อยกว่า ${formatNumber(minimumUnitPrice)}`
+                                    });
+                                }
+                            )
                             .required('ต้องระบุราคาต่อชิ้น')
                     })
                 )
@@ -980,6 +1041,7 @@ export default function NewQuotation() {
             const productQtyTolerance = values.productQtyTolerance.trim();
             const payload = {
                 ...values,
+                items: values.items.map(({ minimumUnitPrice: _minimumUnitPrice, ...item }) => item),
                 docDate: formatApiDate(values.docDate) || '',
                 effectiveDate: formatApiDate(values.effectiveDate) || '',
                 productQtyTolerance: productQtyTolerance
@@ -1484,6 +1546,19 @@ export default function NewQuotation() {
 
         items[index][field] = value;
         formik.setFieldValue('items', items.map((item) => recalculateQuotationItem(item)));
+    };
+
+    const handleUnitPriceBlur = (index: number) => {
+        const item = formik.values.items[index];
+        const minimumUnitPrice = Number(item?.minimumUnitPrice || 0);
+        const currentUnitPrice = Number(item?.unitPrice || 0);
+
+        formik.setFieldTouched(`items.${index}.unitPrice`, true, false);
+
+        if (minimumUnitPrice > 0 && currentUnitPrice < minimumUnitPrice) {
+            updateItem(index, 'unitPriceInput', String(minimumUnitPrice));
+            toast.error(`ราคาต่อหน่วยต้องไม่น้อยกว่า ${formatNumber(minimumUnitPrice)}`);
+        }
     };
 
     const addNewRow = () => {
@@ -2178,6 +2253,7 @@ export default function NewQuotation() {
                                             showItemErrors={showItemErrors}
                                             itemErrors={itemErrors}
                                             onUpdateItem={updateItem}
+                                            onUnitPriceBlur={handleUnitPriceBlur}
                                             onUploadImage={handleUploadImage}
                                             onRemoveImage={removeImage}
                                             onSelectRfqPicture={handleSelectRfqPicture}
@@ -2491,6 +2567,8 @@ export default function NewQuotation() {
                                                             inputMode="decimal"
                                                             value={row.unitPriceInput ?? String(row.unitPrice)}
                                                             onChange={(e) => updateItem(index, 'unitPriceInput', e.target.value)}
+                                                            onBlur={() => handleUnitPriceBlur(index)}
+                                                            inputProps={{ min: row.minimumUnitPrice || 0 }}
                                                             variant="outlined"
                                                             sx={{
                                                                 maxWidth: 155,
@@ -2507,7 +2585,13 @@ export default function NewQuotation() {
                                                                 }
                                                             }}
                                                             error={Boolean(showItemErrors && itemErrors.unitPrice)}
-                                                            helperText={showItemErrors ? itemErrors.unitPrice : ''}
+                                                            helperText={
+                                                                showItemErrors && itemErrors.unitPrice
+                                                                    ? itemErrors.unitPrice
+                                                                    : Number(row.minimumUnitPrice || 0) > 0
+                                                                        ? `ราคาขั้นต่ำ ${formatNumber(row.minimumUnitPrice || 0)}`
+                                                                        : ''
+                                                            }
                                                         />
                                                     </TableCell>
 

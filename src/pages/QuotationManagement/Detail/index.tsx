@@ -115,13 +115,16 @@ type ConfirmQuotationRow = {
     quotationItem: QuotationItem;
     detailId: number | null;
     tierId: string | null;
-    shippingMethod: string;
+    shippingMethod: string | null;
     optionName: string;
     quantity: number;
     unitPrice: number;
     isFcl: boolean;
     isShareFCL: boolean;
 };
+
+const isSampleProductionQuotationItem = (item: QuotationItem): boolean =>
+    (item.name || '').includes('ค่าตัวอย่าง');
 
 const recalculateQuotationItem = (item: QuotationItem): QuotationItem => {
     const quantity = Number(item.quantity || 0);
@@ -473,6 +476,21 @@ export default function QuotationDetail(): JSX.Element {
         receiptCount: receiptRecords.length
     });
     const confirmQuotationRows: ConfirmQuotationRow[] = (quotation?.items || []).map((item, index) => {
+        if (isSampleProductionQuotationItem(item)) {
+            return {
+                key: `${item.id || index}:NO_SHIPPING`,
+                quotationItem: item,
+                detailId: null,
+                tierId: null,
+                shippingMethod: null,
+                optionName: item.name || `รายการที่ ${index + 1}`,
+                quantity: Number(item.quantity || 0),
+                unitPrice: Number(item.unitPrice || 0),
+                isFcl: false,
+                isShareFCL: false
+            };
+        }
+
         const matched = findMatchingTier(rfq?.details || [], item);
         return {
             key: `${item.id || index}:${matched.shippingMethod}`,
@@ -488,7 +506,11 @@ export default function QuotationDetail(): JSX.Element {
         };
     });
     const selectableConfirmQuotationRowKeys = useMemo(
-        () => confirmQuotationRows.filter((row) => Boolean(row.detailId)).map((row) => row.key),
+        () => confirmQuotationRows
+            .filter((row) =>
+                Boolean(row.detailId) || isSampleProductionQuotationItem(row.quotationItem)
+            )
+            .map((row) => row.key),
         [confirmQuotationRows]
     );
     const isAllConfirmQuotationRowsSelected =
@@ -798,7 +820,9 @@ export default function QuotationDetail(): JSX.Element {
 
         console.log('selectedRows', selectedRows);
 
-        if (selectedRows.some((row) => !row.detailId)) {
+        if (selectedRows.some(
+            (row) => !row.detailId && !isSampleProductionQuotationItem(row.quotationItem)
+        )) {
             toast.error('ไม่สามารถจับคู่รายการใบเสนอราคากับ RFQ เดิมได้ครบทุกแถว');
             return;
         }
@@ -814,14 +838,17 @@ export default function QuotationDetail(): JSX.Element {
         );
 
         setVisibleConfirmPriceDialog(false);
+        const selectedShippingLabel = selectedRows[0].shippingMethod
+            ? ` ${getShippingMethodLabel(
+                selectedRows[0].shippingMethod,
+                '-',
+                selectedRows[0].isFcl,
+                selectedRows[0].isShareFCL
+            )}`
+            : '';
         toast.success(
             selectedRows.length === 1
-                ? `เลือก ${selectedRows[0].optionName} จำนวน ${formatNumber(selectedRows[0].quantity)} ${getShippingMethodLabel(
-                    selectedRows[0].shippingMethod,
-                    '-',
-                    selectedRows[0].isFcl,
-                    selectedRows[0].isShareFCL
-                )}`
+                ? `เลือก ${selectedRows[0].optionName} จำนวน ${formatNumber(selectedRows[0].quantity)}${selectedShippingLabel}`
                 : `เลือกรายการสำหรับคอนเฟิร์มราคาแล้ว ${selectedRows.length} รายการ`
         );
         history.push(
@@ -1773,7 +1800,10 @@ export default function QuotationDetail(): JSX.Element {
                                                 <Checkbox
                                                     checked={selectedConfirmQuotationRowKeys.includes(row.key)}
                                                     onChange={() => toggleConfirmQuotationRow(row.key)}
-                                                    disabled={!row.detailId}
+                                                    disabled={
+                                                        !row.detailId &&
+                                                        !isSampleProductionQuotationItem(row.quotationItem)
+                                                    }
                                                 />
                                             </TableCell>
                                             <TableCell>
@@ -1788,21 +1818,23 @@ export default function QuotationDetail(): JSX.Element {
                                             </TableCell>
                                             <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
                                             <TableCell>
-                                                <Stack direction="row" spacing={1} alignItems="center">
-                                                    {isSeaShippingMethod(row.shippingMethod) ? (
-                                                        <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
-                                                    ) : (
-                                                        <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
-                                                    )}
-                                                    <Typography variant="body2">
-                                                        {getShippingMethodLabel(
-                                                            row.shippingMethod,
-                                                            '-',
-                                                            row.isFcl,
-                                                            row.isShareFCL
+                                                {row.shippingMethod ? (
+                                                    <Stack direction="row" spacing={1} alignItems="center">
+                                                        {isSeaShippingMethod(row.shippingMethod) ? (
+                                                            <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
+                                                        ) : (
+                                                            <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
                                                         )}
-                                                    </Typography>
-                                                </Stack>
+                                                        <Typography variant="body2">
+                                                            {getShippingMethodLabel(
+                                                                row.shippingMethod,
+                                                                '-',
+                                                                row.isFcl,
+                                                                row.isShareFCL
+                                                            )}
+                                                        </Typography>
+                                                    </Stack>
+                                                ) : null}
                                             </TableCell>
                                             <TableCell align="right">{formatNumber(row.unitPrice)}</TableCell>
                                             <TableCell align="right">

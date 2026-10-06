@@ -88,6 +88,7 @@ import {
 } from 'react';
 import toast from 'react-hot-toast';
 import { ROUTE_PATHS } from 'routes';
+import { openDocumentPreview } from 'utils/documentPreview';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
@@ -1886,7 +1887,10 @@ export default function RFQDetail(): ReactElement {
     });
   };
 
-  const handleDownloadQuotationByNo = async (quotationNo: string) => {
+  const handleDownloadQuotationByNo = async (
+    quotationNo: string,
+    language: TemplateLanguage = 'TH'
+  ) => {
     if (!quotationNo) {
       return;
     }
@@ -1894,7 +1898,7 @@ export default function RFQDetail(): ReactElement {
     setIsQuotationDocumentLoading(true);
 
     try {
-      await toast.promise(viewQuotation(quotationNo, true, false), {
+      await toast.promise(viewQuotation(quotationNo, true, false, language), {
         loading: t('toast.loading'),
         success: (response) => {
           const data = response.data as DownloadDocumentResponse;
@@ -1949,30 +1953,10 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    setIsQuotationDocumentLoading(true);
-
-    try {
-      await toast.promise(viewQuotation(activeQuotationNo, true, false, language), {
-        loading: t('toast.loading'),
-        success: (response) => {
-          const data = response.data as DownloadDocumentResponse;
-
-          if (!data.files?.length) {
-            throw new Error('No quotation file');
-          }
-
-          const file = data.files[0];
-          const blob = base64ToBlob(file.base64, file.contentType);
-          const url = URL.createObjectURL(blob);
-
-          window.open(url, '_blank', 'noopener,noreferrer');
-
-          return t('toast.success');
-        },
-        error: () => t('toast.failed')
-      });
-    } finally {
-      setIsQuotationDocumentLoading(false);
+    if (isDownSm) {
+      await handleDownloadQuotationByNo(activeQuotationNo, language);
+    } else {
+      openDocumentPreview('quotation', activeQuotationNo, language);
     }
   };
 

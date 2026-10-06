@@ -314,11 +314,13 @@ export const checkPurchaseOrderLateStart = async (purchaseOrderNo: string): Prom
 
 export const startPurchaseOrderRun = async (
   id: string,
-  lateStartReason?: string | null
+  lateStartReason?: string | null,
+  startRunOverrideReason?: string | null
 ): Promise<PurchaseOrderRecord> => {
   const response = await api
     .post(`/v1/purchase-orders/${id}/start-run`, {
-      lateStartReason: lateStartReason || null
+      lateStartReason: lateStartReason || null,
+      startRunOverrideReason: startRunOverrideReason || null
     })
     .then((result) => result.data);
   return response.data;

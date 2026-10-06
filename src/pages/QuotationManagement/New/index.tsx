@@ -40,7 +40,7 @@ import { getCountry, getDistrict, getProvince, getSubDistrict } from "services/A
 import { Country, District, Province, SubDistrict } from "services/Address/address-type";
 import { GROUP_CODE, SystemConfig } from "services/Config/config-type";
 import { getSystemConfig } from "services/Config/config-api";
-import { getShippingMethodLabel } from 'utils/shipping';
+import { getShippingMethodCategory, getShippingMethodLabel, SHIPPING_METHOD_LABELS } from 'utils/shipping';
 
 const createEmptyRow = (): CreateQuotationItem => ({
     id: Date.now() + Math.floor(Math.random() * 1000),
@@ -1136,7 +1136,7 @@ export default function NewQuotation() {
     );
     const shippingLeadTimeCode = formik.values.shipping === 'LAND'
         ? 'LAND_SHIPPING_LEAD_TIME'
-        : formik.values.shipping === 'SEA'
+        : getShippingMethodCategory(formik.values.shipping) === 'SEA'
             ? 'SEA_SHIPPING_LEAD_TIME'
             : '';
     const shippingLeadTime = shippingLeadTimeCode
@@ -1938,10 +1938,9 @@ export default function NewQuotation() {
                                 name="shipping"
                                 value={formik.values.shipping}
                                 onChange={formik.handleChange}>
-                                <FormControlLabel value="ALL" control={<Radio size="small" />} label="ทางรถ/ทางเรือ" />
-                                <FormControlLabel value="LAND" control={<Radio size="small" />} label="ทางรถ" />
-                                <FormControlLabel value="SEA" control={<Radio size="small" />} label="ทางเรือ" />
-                                <FormControlLabel value="AIR" control={<Radio size="small" />} label="ทางเครื่องบิน" />
+                                {Object.entries(SHIPPING_METHOD_LABELS).map(([method, label]) => (
+                                    <FormControlLabel key={method} value={method} control={<Radio size="small" />} label={label} />
+                                ))}
                             </RadioGroup>
                         </Box>
                     </GridTextField>

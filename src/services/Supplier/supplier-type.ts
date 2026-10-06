@@ -108,6 +108,7 @@ export interface SupplierShippingDestination {
 export interface SupplierShipping {
   id: number;
   shippingMethod: 'LAND' | 'SEA';
+  shippingMode?: 'STANDARD' | 'FCL' | null;
   shippingName: string | null;
   originCountryCode: string | null;
   originProvince: string | null;

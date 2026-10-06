@@ -41,6 +41,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import { openDocumentPreview } from 'utils/documentPreview';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getInvoice } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
@@ -291,6 +292,11 @@ export default function ReceiptDetail(): ReactElement {
 
     handleCloseActionMenu();
 
+    if (!isDownSm) {
+      openDocumentPreview('receipt', receipt.receiptNo);
+      return;
+    }
+
     await toast.promise(viewReceipt(receipt.receiptNo, true, false), {
       loading: t('toast.loading'),
       success: (response) => {
@@ -306,9 +312,11 @@ export default function ReceiptDetail(): ReactElement {
           const url = URL.createObjectURL(blob);
           const anchor = document.createElement('a');
           anchor.href = url;
-          anchor.download = file.fileName || `${receipt.receiptNo}.pdf`;
+          anchor.download = `${receipt.receiptNo}.pdf`;
+          document.body.appendChild(anchor);
           anchor.click();
-          URL.revokeObjectURL(url);
+          anchor.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
         });
 
         return t('toast.success');

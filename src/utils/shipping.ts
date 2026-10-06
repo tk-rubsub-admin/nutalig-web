@@ -44,7 +44,6 @@ export function getShippingMethodLabel(
 
     return SHIPPING_METHOD_LABELS[normalized] || shippingMethod;
   }
-
 }
 
 export function isSeaShippingMethod(shippingMethod?: string | null): boolean {
@@ -65,4 +64,23 @@ export function getShippingMethodCategory(shippingMethod?: string | null): strin
     return null;
   }
   return normalized.startsWith('SEA') ? 'SEA' : normalized;
+}
+
+export function getShippingMode(shippingMethod?: string | null): 'STANDARD' | 'FCL' {
+  const normalized = shippingMethod?.trim().toUpperCase();
+  return normalized?.startsWith('SEA_FCL_') || normalized?.startsWith('SEA_SHARE_FCL_')
+    ? 'FCL'
+    : 'STANDARD';
+}
+
+export function matchesSupplierShipping(
+  shippingMethod: string | null | undefined,
+  supplierShipping: { shippingMethod: string; shippingMode?: 'STANDARD' | 'FCL' | null }
+): boolean {
+  const category = getShippingMethodCategory(shippingMethod);
+  return (
+    Boolean(category) &&
+    category === supplierShipping.shippingMethod &&
+    getShippingMode(shippingMethod) === (supplierShipping.shippingMode || 'STANDARD')
+  );
 }

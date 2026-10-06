@@ -53,7 +53,7 @@ import {
   uploadSupplierAttachments
 } from 'services/Supplier/supplier-api';
 import { SupplierShipping } from 'services/Supplier/supplier-type';
-import { getShippingMethodCategory, getShippingMethodLabel } from 'utils/shipping';
+import { getShippingMethodCategory, getShippingMethodLabel, matchesSupplierShipping } from 'utils/shipping';
 import {
   AUTOMATIC_DELIVERY_ITEM_ID,
   buildAutomaticDeliveryItem
@@ -364,15 +364,11 @@ export default function NewPurchaseOrder(): ReactElement {
   }, [draft.supplierId, supplierDetail]);
 
   const availableSupplierShippings = useMemo(() => {
-    const shippingCategory = getShippingMethodCategory(salesOrder?.shippingType);
-    if (shippingCategory === 'LAND') {
-      return supplierShippings.filter((item) => item.shippingMethod === 'LAND');
-    }
-    if (shippingCategory === 'SEA') {
-      return supplierShippings.filter((item) => item.shippingMethod === 'SEA');
-    }
-    return supplierShippings;
-  }, [salesOrder?.shippingType, supplierShippings]);
+    const shippingCategory = getShippingMethodCategory(draft.shippingMethodSnapshot);
+    return shippingCategory
+      ? supplierShippings.filter((item) => matchesSupplierShipping(draft.shippingMethodSnapshot, item))
+      : supplierShippings.filter((item) => (item.shippingMode || 'STANDARD') === 'STANDARD');
+  }, [draft.shippingMethodSnapshot, supplierShippings]);
 
   useEffect(() => {
     if (!availableSupplierShippings.length) {
@@ -691,7 +687,7 @@ export default function NewPurchaseOrder(): ReactElement {
 
   const handleSubmit = async () => {
     setShowValidationErrors(true);
-    if (!salesOrder?.salesOrderNo || !draft.supplierId || !draft.supplierShippingId) {
+    if (!salesOrder?.salesOrderNo || !draft.supplierId || !selectedShipping) {
       toast.error('กรุณาเลือก Supplier และ Supplier Shipping');
       return;
     }
@@ -769,7 +765,7 @@ export default function NewPurchaseOrder(): ReactElement {
 
   const handleOpenConfirm = () => {
     setShowValidationErrors(true);
-    if (!salesOrder?.salesOrderNo || !draft.supplierId || !draft.supplierShippingId) {
+    if (!salesOrder?.salesOrderNo || !draft.supplierId || !selectedShipping) {
       toast.error('กรุณาเลือก Supplier และ Supplier Shipping');
       return;
     }
@@ -1151,9 +1147,9 @@ export default function NewPurchaseOrder(): ReactElement {
                     select
                     fullWidth
                     label="Supplier Shipping"
-                    value={draft.supplierShippingId}
+                    value={selectedShipping ? String(selectedShipping.id) : ''}
                     required
-                    error={showValidationErrors && !draft.supplierShippingId}
+                    error={showValidationErrors && !selectedShipping}
                     InputLabelProps={{ shrink: true }}
                     onChange={(event) => {
                       const supplierShipping =
@@ -1163,15 +1159,14 @@ export default function NewPurchaseOrder(): ReactElement {
                       setDraft((previous) => ({
                         ...previous,
                         supplierShippingId: event.target.value,
-                        supplierShipping,
-                        shippingMethodSnapshot: ''
+                        supplierShipping
                       }));
                     }}
                     helperText={
-                      showValidationErrors && !draft.supplierShippingId
+                      showValidationErrors && !selectedShipping
                         ? 'กรุณาเลือก Supplier Shipping'
                         : !availableSupplierShippings.length
-                        ? 'ไม่มี Shipping ที่ตรงกับประเภทการขนส่งของเอกสาร'
+                        ? 'ไม่มี Shipping ที่ตรงกับการขนส่งที่เลือก'
                         : undefined
                     }>
                     {groupedSupplierShippings.land.length ? (
@@ -1180,6 +1175,7 @@ export default function NewPurchaseOrder(): ReactElement {
                     {groupedSupplierShippings.land.map((shipping) => (
                       <MenuItem key={shipping.id} value={String(shipping.id)}>
                         {shipping.shippingName || `Shipping #${shipping.id}`}
+                        {shipping.carCode ? ` | ${shipping.carCode}` : ''}
                       </MenuItem>
                     ))}
                     {groupedSupplierShippings.sea.length ? (
@@ -1188,6 +1184,7 @@ export default function NewPurchaseOrder(): ReactElement {
                     {groupedSupplierShippings.sea.map((shipping) => (
                       <MenuItem key={shipping.id} value={String(shipping.id)}>
                         {shipping.shippingName || `Shipping #${shipping.id}`}
+                        {shipping.carCode ? ` | ${shipping.carCode}` : ''}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -1195,7 +1192,7 @@ export default function NewPurchaseOrder(): ReactElement {
                 <Grid item xs={12} sm={6}>
                   <ReadonlyTextField
                     label="Car Code"
-                    value={draft.supplierShipping?.carCode || '-'}
+                    value={selectedShipping?.carCode || '-'}
                   />
                 </Grid>
                 <Grid item xs={12} sm={12}>

@@ -36,6 +36,8 @@ import { Quotation, SearchQuotationRequest } from "services/Document/document-ty
 import { DownloadDocumentResponse } from "services/general-type";
 import { EmployeeRecord } from "services/Employee/employee-type";
 import { ROUTE_PATHS } from "routes";
+import { openDocumentPreview } from 'utils/documentPreview';
+
 import dayjs from "dayjs";
 import toast from "react-hot-toast";
 import { base64ToBlob } from "utils";
@@ -43,7 +45,6 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from "utils/documentS
 import { formatNumber } from "utils/utils";
 import { getSales } from "services/Sales/sales-api";
 import { SalesRecord } from "services/Sales/sales-type";
-import ViewQuotationDialog from "dialogs/QuotationManagement/ViewQuotationDialog";
 
 function getDefaultDocDateRange() {
     const now = dayjs();
@@ -96,9 +97,6 @@ export default function QuotationManagement(): JSX.Element {
     const [page, setPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(10);
     const [quotationFilter, setQuotationFilter] = useState<SearchQuotationRequest>(defaultFilter);
-    const [openViewDialog, setOpenViewDialog] = useState(false);
-    const [pdfUrl, setPdfUrl] = useState('');
-    const [selectedQuotation, setSelectedQuotation] = useState<Quotation>();
 
     const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
         ['quotation-sales-options'],
@@ -156,6 +154,10 @@ export default function QuotationManagement(): JSX.Element {
     };
 
     const viewQuotationFunction = (quotation: Quotation) => {
+        if (!isDownSm) {
+            openDocumentPreview('quotation', quotation.quotationNo);
+            return;
+        }
         toast.promise(viewQuotation(quotation.quotationNo, true, false), {
             loading: t('toast.loading'),
             success: (response) => {
@@ -169,9 +171,13 @@ export default function QuotationManagement(): JSX.Element {
                 const blob = base64ToBlob(file.base64, file.contentType);
                 const url = URL.createObjectURL(blob);
 
-                setSelectedQuotation(quotation);
-                setPdfUrl(url);
-                setOpenViewDialog(true);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `${quotation.quotationNo}.pdf`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
                 return t('toast.success');
             },
@@ -562,17 +568,7 @@ export default function QuotationManagement(): JSX.Element {
                 </GridSearchSection>
             </Wrapper>
 
-            <ViewQuotationDialog
-                open={openViewDialog}
-                url={pdfUrl}
-                quotationNo={selectedQuotation?.quotationNo}
-                quotation={selectedQuotation}
-                options={{
-                    original: true,
-                    copy: false
-                }}
-                onClose={() => setOpenViewDialog(false)}
-            />
+
         </Page>
     );
 }

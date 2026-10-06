@@ -125,7 +125,7 @@ export interface UpdateQuotationRequest {
     isVat?: boolean;
     customerSnapshot?: QuotationCustomerSnapshot;
     coSaleId?: string;
-    shipping?: 'ALL' | 'LAND' | 'SEA' | null;
+    shipping?: string | null;
     project?: string;
     sampleLeadTime?: string;
     productionLeadTime?: string;

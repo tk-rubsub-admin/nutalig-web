@@ -77,6 +77,7 @@ import { IoPencil } from 'react-icons/io5';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import { openDocumentPreview } from 'utils/documentPreview';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
@@ -851,8 +852,12 @@ export default function SalesOrderDetail(): ReactElement {
     }
 
     setVisibleSalesOrderLanguageDialog(false);
+    if (!isDownSm) {
+      openDocumentPreview('sales-order', salesOrder.salesOrderNo, language);
+      return;
+    }
+
     setIsSalesOrderDocumentLoading(true);
-    const shouldDownloadFile = isDownSm;
 
     try {
       await toast.promise(
@@ -871,17 +876,13 @@ export default function SalesOrderDetail(): ReactElement {
               const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
               const url = URL.createObjectURL(blob);
 
-              if (shouldDownloadFile) {
-                const anchor = document.createElement('a');
-                anchor.href = url;
-                anchor.download = file.fileName || `${salesOrder.salesOrderNo}.pdf`;
-                anchor.rel = 'noopener';
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
-              } else {
-                window.open(url, '_blank', 'noopener,noreferrer');
-              }
+              const anchor = document.createElement('a');
+              anchor.href = url;
+              anchor.download = `${salesOrder.salesOrderNo}.pdf`;
+              anchor.rel = 'noopener';
+              document.body.appendChild(anchor);
+              anchor.click();
+              anchor.remove();
 
               setTimeout(() => URL.revokeObjectURL(url), 60_000);
             });
@@ -897,6 +898,11 @@ export default function SalesOrderDetail(): ReactElement {
   };
 
   const handleViewReceipt = async (receiptNo: string) => {
+    if (!isDownSm) {
+      openDocumentPreview('receipt', receiptNo);
+      return;
+    }
+
     await toast.promise(viewReceipt(receiptNo, true, false), {
       loading: t('toast.loading'),
       success: (response) => {
@@ -912,9 +918,11 @@ export default function SalesOrderDetail(): ReactElement {
           const url = URL.createObjectURL(blob);
           const anchor = document.createElement('a');
           anchor.href = url;
-          anchor.download = file.fileName || `${receiptNo}.pdf`;
+          anchor.download = `${receiptNo}.pdf`;
+          document.body.appendChild(anchor);
           anchor.click();
-          URL.revokeObjectURL(url);
+          anchor.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
         });
 
         return t('toast.success');

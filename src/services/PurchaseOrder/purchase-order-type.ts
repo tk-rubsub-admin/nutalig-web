@@ -284,6 +284,7 @@ export interface PurchaseOrderRecord {
   remark: string | null;
   lateStartReason: string | null;
   productionStartedDate: string | null;
+  startRunOverrideReason: string | null;
   productionExpectedEndDate: string | null;
   productionCompletedDate: string | null;
   revNo: number | null;
@@ -293,6 +294,7 @@ export interface PurchaseOrderRecord {
   supplierPhoneSnapshot: string | null;
   supplierContactNoSnapshot: string | null;
   shippingMethodSnapshot: string | null;
+  carCodeSnapshot: string | null;
   containerSizeSnapshot: string | null;
   attachments: PurchaseOrderAttachment[];
   items: PurchaseOrderItem[];

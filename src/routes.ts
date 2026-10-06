@@ -50,25 +50,30 @@ export const ROUTE_PATHS = Object.freeze({
   SALE_ORDER_CREATE: '/sales-order-create',
   SALE_ORDER_CREATE_FROM_RFQ: '/create-sales-order-rfq/:rfqId',
   SALE_ORDER_DETAIL: '/sales-order/:id',
+  SALE_ORDER_DOCUMENT: '/sales-order/:id/document',
   INVOICE_MANAGEMENT: '/invoice-management',
   INVOICE_CREATE_FROM_SALES_ORDER: '/invoice-create/:salesOrderId',
   INVOICE_DETAIL: '/invoice/:id',
+  INVOICE_DOCUMENT: '/invoice/:id/document',
   PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
   PURCHASE_ORDER_PRODUCTION_CALENDAR: '/purchase-order-production-calendar',
   MY_PURCHASE_ORDER_MANAGEMENT: '/my-purchase-order-management',
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER: '/purchase-order-create/:salesOrderId',
   PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
+  PURCHASE_ORDER_DOCUMENT: '/purchase-order/:id/document',
   PURCHASE_ORDER_PROOF_DETAIL: '/purchase-order-proof/:id',
   RECEIPT_MANAGEMENT: '/receipt-management',
   RECEIPT_CREATE_FROM_INVOICE_PAYMENT: '/receipt-create/:invoiceId/:paymentId',
   RECEIPT_DETAIL: '/receipt/:id',
+  RECEIPT_DOCUMENT: '/receipt/:id/document',
   USER_MANAGEMENT: '/user-management',
   USER_PERMISSION_MANAGEMENT: '/user-permission-management',
   MANUAL: '/manual',
   QUOTATION_CREATE: '/quotation-create',
   QUOTATION_CREATE_FROM_RFQ: '/create-quotation-rfq/:rfqId',
   QUOTATION_MANAGEMENT: '/quotation-management',
-  QUOTATION_DETAIL: '/quotation-detail/:id'
+  QUOTATION_DETAIL: '/quotation-detail/:id',
+  QUOTATION_DOCUMENT: '/quotation-detail/:id/document'
 });
 
 export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([

@@ -49,7 +49,8 @@ import { IoPencil } from 'react-icons/io5';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
-import { getShippingMethodLabel, isSeaShippingMethod } from 'utils/shipping';
+import { openDocumentPreview } from 'utils/documentPreview';
+import { getShippingMethodLabel, isSeaShippingMethod, SHIPPING_METHOD_LABELS } from 'utils/shipping';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getQuotation, syncQuotationCustomerSnapshot, updateQuotation, viewQuotation } from 'services/Document/document-api';
 import { Quotation, QuotationCustomerSnapshot, QuotationItem, TemplateLanguage } from 'services/Document/document-type';
@@ -330,7 +331,7 @@ export default function QuotationDetail(): JSX.Element {
     const [draftRemark, setDraftRemark] = useState('');
     const [draftItems, setDraftItems] = useState<QuotationItem[]>([]);
     const [draftIsVat, setDraftIsVat] = useState(false);
-    const [draftShipping, setDraftShipping] = useState<'ALL' | 'LAND' | 'SEA'>('ALL');
+    const [draftShipping, setDraftShipping] = useState('ALL');
     const [draftProject, setDraftProject] = useState('');
     const [draftSampleLeadTime, setDraftSampleLeadTime] = useState('');
     const [draftProductionLeadTime, setDraftProductionLeadTime] = useState('');
@@ -532,7 +533,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
-        setDraftShipping(quotation.shipping === 'LAND' || quotation.shipping === 'SEA' ? quotation.shipping : 'ALL');
+        setDraftShipping(quotation.shipping || 'ALL');
         setDraftProject(quotation.project || '');
         setDraftSampleLeadTime(quotation.sampleLeadTime || '');
         setDraftProductionLeadTime(quotation.productionLeadTime || '');
@@ -554,7 +555,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation.remark || '');
         setDraftItems(quotation.items || []);
         setDraftIsVat(Number(quotation.vatRate || 0) > 0);
-        setDraftShipping(quotation.shipping === 'LAND' || quotation.shipping === 'SEA' ? quotation.shipping : 'ALL');
+        setDraftShipping(quotation.shipping || 'ALL');
         setDraftProject(quotation.project || '');
         setDraftSampleLeadTime(quotation.sampleLeadTime || '');
         setDraftProductionLeadTime(quotation.productionLeadTime || '');
@@ -573,7 +574,7 @@ export default function QuotationDetail(): JSX.Element {
         setDraftRemark(quotation?.remark || '');
         setDraftItems(quotation?.items || []);
         setDraftIsVat(Number(quotation?.vatRate || 0) > 0);
-        setDraftShipping(quotation?.shipping === 'LAND' || quotation?.shipping === 'SEA' ? quotation.shipping : 'ALL');
+        setDraftShipping(quotation?.shipping || 'ALL');
         setDraftProject(quotation?.project || '');
         setDraftSampleLeadTime(quotation?.sampleLeadTime || '');
         setDraftProductionLeadTime(quotation?.productionLeadTime || '');
@@ -721,6 +722,11 @@ export default function QuotationDetail(): JSX.Element {
             return;
         }
 
+        if (!isDownSm) {
+            openDocumentPreview('quotation', quotation.quotationNo, language);
+            return;
+        }
+
         await toast.promise(viewQuotation(quotation.quotationNo, true, false, language), {
             loading: t('toast.loading'),
             success: (response) => {
@@ -730,26 +736,17 @@ export default function QuotationDetail(): JSX.Element {
                     throw new Error('No file');
                 }
 
-                if (isDownSm) {
-                    data.files.forEach((file) => {
-                        const blob = base64ToBlob(file.base64, file.contentType);
-                        const url = URL.createObjectURL(blob);
-
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = file.fileName || `${quotation.quotationNo}.pdf`;
-                        link.click();
-
-                        setTimeout(() => URL.revokeObjectURL(url), 30_000);
-                    });
-                } else {
-                    const file = data.files[0];
+                data.files.forEach((file) => {
                     const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
                     const url = URL.createObjectURL(blob);
-
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-                }
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${quotation.quotationNo}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                });
 
                 return t('toast.success');
             },
@@ -1109,15 +1106,15 @@ export default function QuotationDetail(): JSX.Element {
 
                                             label="การขนส่ง"
                                             value={draftShipping}
-                                            onChange={(event) => setDraftShipping(event.target.value as 'ALL' | 'LAND' | 'SEA')}>
-                                            <MenuItem value="ALL">ทางรถ / ทางเรือ</MenuItem>
-                                            <MenuItem value="LAND">ทางรถ</MenuItem>
-                                            <MenuItem value="SEA">ทางเรือ</MenuItem>
+                                            onChange={(event) => setDraftShipping(event.target.value)}>
+                                            {Object.entries(SHIPPING_METHOD_LABELS).map(([method, label]) => (
+                                                <MenuItem key={method} value={method}>{label}</MenuItem>
+                                            ))}
                                         </TextField>
                                     ) : (
                                         <Info
                                             label="การขนส่ง"
-                                            value={quotation?.shipping === 'LAND' ? 'ทางรถ' : quotation?.shipping === 'SEA' ? 'ทางเรือ' : 'ทางรถ / ทางเรือ'}
+                                            value={getShippingMethodLabel(quotation?.shipping || 'ALL')}
                                         />
                                     )}
                                     {isEditing ? (

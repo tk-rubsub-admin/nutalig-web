@@ -66,12 +66,14 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
+import { openDocumentPreview } from 'utils/documentPreview';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import {
   cancelPurchaseOrder,
   checkPurchaseOrderLateStart,
   closePurchaseOrder,
   getPurchaseOrderPayments,
+  getPurchaseOrderPaymentSchedules,
   getPurchaseOrderProductionTimeline,
   completePurchaseOrderMilestone,
   skipPurchaseOrderMilestone,
@@ -95,6 +97,7 @@ import {
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 import { getShippingMethodLabel } from 'utils/shipping';
+import { getPurchaseOrderStartRunWarnings } from 'utils/purchaseOrderStartRun';
 import { formatNumber } from 'utils/utils';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
 import PurchaseOrderProofSection from './PurchaseOrderProofSection';
@@ -204,12 +207,12 @@ function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
     docDate: purchaseOrder?.docDate || '',
     productionLeadTimeDay:
       purchaseOrder?.productionLeadTimeDay !== null &&
-      purchaseOrder?.productionLeadTimeDay !== undefined
+        purchaseOrder?.productionLeadTimeDay !== undefined
         ? String(purchaseOrder.productionLeadTimeDay)
         : '',
     shippingLeadTimeDay:
       purchaseOrder?.shippingLeadTimeDay !== null &&
-      purchaseOrder?.shippingLeadTimeDay !== undefined
+        purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
     remark: purchaseOrder?.remark || '',
@@ -257,6 +260,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [newExpectedEndDate, setNewExpectedEndDate] = useState('');
   const [isLateStart, setIsLateStart] = useState(false);
   const [lateStartReason, setLateStartReason] = useState('');
+  const [startRunOverrideReason, setStartRunOverrideReason] = useState('');
   const [isCheckingLateStart, setIsCheckingLateStart] = useState(false);
   const [milestoneDialog, setMilestoneDialog] = useState<{
     event: PurchaseOrderTimelineEvent;
@@ -347,9 +351,21 @@ export default function PurchaseOrderDetail(): ReactElement {
     }
   );
 
-  const { data: purchaseOrderPayments = [] } = useQuery(
-    ['purchase-order-payments-for-start-run', id],
+  const { data: purchaseOrderPayments = [], isFetching: isStartRunPaymentsFetching } = useQuery(
+    ['purchase-order-payments', id],
     () => getPurchaseOrderPayments(id),
+    {
+      enabled: Boolean(id),
+      refetchOnWindowFocus: true
+    }
+  );
+
+  const {
+    data: purchaseOrderPaymentSchedules = [],
+    isFetching: isStartRunPaymentSchedulesFetching
+  } = useQuery(
+    ['purchase-order-payment-schedules', id],
+    () => getPurchaseOrderPaymentSchedules(id),
     {
       enabled: Boolean(id),
       refetchOnWindowFocus: true
@@ -375,17 +391,22 @@ export default function PurchaseOrderDetail(): ReactElement {
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const isOperationMenuOpen = Boolean(operationMenuAnchorEl);
   const canManagePurchaseOrder =
-    purchaseOrder?.status === 'CREATED' || purchaseOrder?.status === 'AWAITING_PAYMENT';
+    purchaseOrder?.status === 'CREATED' ||
+    purchaseOrder?.status === 'AWAITING_PAYMENT' ||
+    purchaseOrder?.status === 'PAID' ||
+    purchaseOrder?.status === 'PRODUCTION_RUNNING';
   const canClosePurchaseOrder =
     Boolean(purchaseOrder) &&
     purchaseOrder?.status !== 'CANCELLED' &&
     purchaseOrder?.status !== 'CLOSED';
   const canStartPurchaseOrderRun =
     canManageTimeline &&
-    (purchaseOrder?.status === 'AWAITING_PAYMENT' || purchaseOrder?.status === 'PAID') &&
-    purchaseOrderPayments.some(
-      (payment) => payment.installmentNo === 1 && payment.status === 'APPROVED'
-    );
+    ['CREATED', 'AWAITING_PAYMENT', 'PAID'].includes(purchaseOrder?.status || '');
+  const startRunWarnings = getPurchaseOrderStartRunWarnings(
+    purchaseOrder?.status,
+    purchaseOrderPayments,
+    purchaseOrderPaymentSchedules
+  );
   const canUpdateExpectedEndDate =
     canManageTimeline &&
     purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
@@ -515,17 +536,17 @@ export default function PurchaseOrderDetail(): ReactElement {
       items: previous.items.map((item, index) =>
         index === itemIndex
           ? {
-              ...item,
-              components: [
-                ...(item.components || []),
-                {
-                  componentName: '',
-                  quantityPerItem: 1,
-                  unit: 'pcs',
-                  sortOrder: item.components?.length || 0
-                }
-              ]
-            }
+            ...item,
+            components: [
+              ...(item.components || []),
+              {
+                componentName: '',
+                quantityPerItem: 1,
+                unit: 'pcs',
+                sortOrder: item.components?.length || 0
+              }
+            ]
+          }
           : item
       )
     }));
@@ -569,6 +590,10 @@ export default function PurchaseOrderDetail(): ReactElement {
       return;
     }
     handleCloseActionMenu();
+    if (!isDownSm) {
+      openDocumentPreview('purchase-order', purchaseOrder.purchaseOrderNo);
+      return;
+    }
     const response = await toast.promise(
       viewPurchaseOrder(purchaseOrder.purchaseOrderNo, true, false),
       {
@@ -583,7 +608,12 @@ export default function PurchaseOrderDetail(): ReactElement {
       const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
       const url = URL.createObjectURL(blob);
 
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${purchaseOrder.purchaseOrderNo}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     });
   };
@@ -727,6 +757,10 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const handleStartPurchaseOrderRun = async () => {
     if (!purchaseOrder?.purchaseOrderNo) return;
+    if (startRunWarnings.length && !startRunOverrideReason.trim()) {
+      toast.error('กรุณาระบุเหตุผลในการเริ่มรันงานแบบ Override');
+      return;
+    }
     if (isLateStart && !lateStartReason.trim()) {
       toast.error('กรุณาระบุเหตุผลที่รันงานล่าช้า');
       return;
@@ -738,12 +772,13 @@ export default function PurchaseOrderDetail(): ReactElement {
       await toast.promise(
         startPurchaseOrderRun(
           purchaseOrder.purchaseOrderNo,
-          isLateStart ? lateStartReason.trim() : null
+          isLateStart ? lateStartReason.trim() : null,
+          startRunWarnings.length ? startRunOverrideReason.trim() : null
         ),
         {
           loading: 'กำลังเริ่มรันงาน',
           success: 'เริ่มรันงานสำเร็จ',
-          error: 'ยังไม่สามารถเริ่มรันงานได้ กรุณาตรวจสอบการชำระเงินงวดที่ 1'
+          error: 'ไม่สามารถเริ่มรันงานได้ กรุณาลองใหม่'
         }
       );
       await Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()]);
@@ -760,6 +795,7 @@ export default function PurchaseOrderDetail(): ReactElement {
       const late = await checkPurchaseOrderLateStart(purchaseOrder.purchaseOrderNo);
       setIsLateStart(late);
       setLateStartReason('');
+      setStartRunOverrideReason('');
       setIsStartRunConfirmOpen(true);
     } catch (_error) {
       toast.error('ไม่สามารถตรวจสอบกำหนดเริ่มรันงานได้');
@@ -1130,7 +1166,14 @@ export default function PurchaseOrderDetail(): ReactElement {
         <ConfirmDialog
           open={isStartRunConfirmOpen}
           title="ยืนยันการเริ่มรันงาน"
-          confirmText="ยืนยันเริ่มรันงาน"
+          confirmText={startRunWarnings.length ? 'ยืนยันเริ่มรันงานต่อ' : 'ยืนยันเริ่มรันงาน'}
+          confirmDisabled={
+            isSubmitting ||
+            isStartRunPaymentsFetching ||
+            isStartRunPaymentSchedulesFetching ||
+            (startRunWarnings.length > 0 && !startRunOverrideReason.trim()) ||
+            (isLateStart && !lateStartReason.trim())
+          }
           cancelText="ยกเลิก"
           isShowCancelButton
           isShowConfirmButton
@@ -1141,6 +1184,31 @@ export default function PurchaseOrderDetail(): ReactElement {
               ยืนยันการเริ่มรันงานสำหรับใบสั่งซื้อเลขที่{' '}
               <strong>{purchaseOrder?.purchaseOrderNo || ''}</strong> หรือไม่
             </Typography>
+            {startRunWarnings.length ? (
+              <Box>
+                <Typography color="warning.main">
+                  <strong>คำเตือนก่อนเริ่มรันงาน:</strong>
+                </Typography>
+                <Box component="ul" sx={{ mt: 1, mb: 1, pl: 3 }}>
+                  {startRunWarnings.map((warning) => (
+                    <Typography component="li" color="warning.main" key={warning}>
+                      {warning}
+                    </Typography>
+                  ))}
+                </Box>
+                <TextField
+                  label="เหตุผลในการเริ่มรันงานแบบ Override"
+                  value={startRunOverrideReason}
+                  onChange={(event) => setStartRunOverrideReason(event.target.value)}
+                  helperText="กรุณาระบุเหตุผลที่เริ่มงานก่อนผ่านเงื่อนไขสถานะหรือชำระเงินงวดที่ 1 ครบ"
+                  inputProps={{ maxLength: 2000 }}
+                  required
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+              </Box>
+            ) : null}
             {isLateStart ? (
               <>
                 <Typography color="warning.main">
@@ -1218,36 +1286,36 @@ export default function PurchaseOrderDetail(): ReactElement {
               timeline={productionTimeline}
               purchaseOrderStatus={purchaseOrder?.status}
               actions={null}
-              //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
-              //     <Stack
-              //       direction={{ xs: 'column', sm: 'row' }}
-              //       spacing={1}
-              //       justifyContent="flex-end">
-              //       {nextProofMilestone && canViewProof ? (
-              //         <Button variant="outlined" onClick={() => setTab('proof')}>
-              //           {nextProofMilestone.status === 'IN_PROGRESS'
-              //             ? `ดู ${nextProofMilestone.label}`
-              //             : `ดำเนินการ ${nextProofMilestone.label}`}
-              //         </Button>
-              //       ) : null}
-              //       {nextProofMilestone?.canSkip && canManageTimeline ? (
-              //         <Button
-              //           variant="outlined"
-              //           color="inherit"
-              //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
-              //           ข้าม {nextProofMilestone.label}
-              //         </Button>
-              //       ) : null}
-              //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
-              //         <Button
-              //           variant="contained"
-              //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
-              //           {milestoneActionLabel(nextCompletableMilestone)}
-              //         </Button>
-              //       ) : null}
-              //     </Stack>
-              //   ) : null
-              // }
+            //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
+            //     <Stack
+            //       direction={{ xs: 'column', sm: 'row' }}
+            //       spacing={1}
+            //       justifyContent="flex-end">
+            //       {nextProofMilestone && canViewProof ? (
+            //         <Button variant="outlined" onClick={() => setTab('proof')}>
+            //           {nextProofMilestone.status === 'IN_PROGRESS'
+            //             ? `ดู ${nextProofMilestone.label}`
+            //             : `ดำเนินการ ${nextProofMilestone.label}`}
+            //         </Button>
+            //       ) : null}
+            //       {nextProofMilestone?.canSkip && canManageTimeline ? (
+            //         <Button
+            //           variant="outlined"
+            //           color="inherit"
+            //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
+            //           ข้าม {nextProofMilestone.label}
+            //         </Button>
+            //       ) : null}
+            //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
+            //         <Button
+            //           variant="contained"
+            //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
+            //           {milestoneActionLabel(nextCompletableMilestone)}
+            //         </Button>
+            //       ) : null}
+            //     </Stack>
+            //   ) : null
+            // }
             />
           ) : (
             <Typography color="text.secondary">ยังไม่มีข้อมูล Timeline การผลิต</Typography>
@@ -1347,14 +1415,12 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${
-                              purchaseOrder.supplierShipping.shippingMethod === 'SEA'
-                                ? 'ทางเรือ'
-                                : 'ทางรถ'
-                            } | ${
-                              purchaseOrder.supplierShipping.shippingName ||
-                              `Shipping #${purchaseOrder.supplierShipping.id}`
-                            }`
+                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA'
+                            ? 'ทางเรือ'
+                            : 'ทางรถ'
+                          } | ${purchaseOrder.supplierShipping.shippingName ||
+                          `Shipping #${purchaseOrder.supplierShipping.id}`
+                          }`
                           : '-'
                       }
                     />
@@ -1363,11 +1429,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                     <Info label="อัตราแลกเปลี่ยน" value={purchaseOrder?.exchangeRate || 0} />
                   </Grid>
                   <Grid item xs={12} sm={6}>
+                    <Info label="Car Code" value={purchaseOrder?.carCodeSnapshot || '-'} />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
                     <Info
                       label="Shipping Method"
                       value={getShippingMethodLabel(
                         purchaseOrder?.shippingMethodSnapshot ||
-                          purchaseOrder?.supplierShipping?.shippingMethod
+                        purchaseOrder?.supplierShipping?.shippingMethod
                       )}
                     />
                   </Grid>
@@ -1395,6 +1464,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                       <Info label="หมายเหตุ" value={purchaseOrder?.remark} />
                     )}
                   </Grid>
+                  {purchaseOrder?.startRunOverrideReason ? (
+                    <Grid item xs={12}>
+                      <Info
+                        label="เหตุผลในการเริ่มรันงานแบบ Override"
+                        value={purchaseOrder.startRunOverrideReason}
+                      />
+                    </Grid>
+                  ) : null}
                 </Grid>
               </Stack>
             </Grid>
@@ -1416,8 +1493,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       value={
                         purchaseOrder?.supplierShipping?.destinations?.length
                           ? purchaseOrder.supplierShipping.destinations
-                              .map((item) => item.destinationName || item.fullAddress || '-')
-                              .join(', ')
+                            .map((item) => item.destinationName || item.fullAddress || '-')
+                            .join(', ')
                           : '-'
                       }
                     />
@@ -1553,8 +1630,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                     }
                                   />
                                 ) : (
-                                  `${formatNumber(item.supplierUnitPrice || 0)} ${
-                                    item.supplierCurrency || ''
+                                  `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
                                   }`
                                 )}
                               </TableCell>
@@ -1679,7 +1755,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 <TableCell align="right">
                                                   {formatNumber(
                                                     Number(item.quantity || 0) *
-                                                      Number(component.quantityPerItem || 0)
+                                                    Number(component.quantityPerItem || 0)
                                                   )}
                                                 </TableCell>
                                                 <TableCell>
@@ -1772,8 +1848,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 {packageItem.packageCapacity ||
                                                   (packageItem.capacityQty != null
                                                     ? `${formatNumber(
-                                                        packageItem.capacityQty
-                                                      )} pcs.`
+                                                      packageItem.capacityQty
+                                                    )} pcs.`
                                                     : '-')}
                                               </TableCell>
                                               <TableCell align="right">

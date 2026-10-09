@@ -47,7 +47,7 @@ import { GridTextField, Wrapper } from 'components/Styled';
 import dayjs from 'dayjs';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
@@ -93,6 +93,7 @@ interface SaleOrderRFQParams {
 
 interface SaleOrderRFQItem {
   id: number;
+  sourceRfqId?: string;
   imageUrl?: string | null;
   optionId?: number;
   tierId?: number;
@@ -480,6 +481,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
     return [
       {
         id: Date.now(),
+        sourceRfqId: rfq.id,
         shippingMethod: 'LAND',
         name: productFamily || 'PRE-ORDER',
         spec: [orderType, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
@@ -507,6 +509,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
 
         return {
           id: Number(`${detail.id}${tierSplit.id}${tierSplitIndex}`),
+          sourceRfqId: rfq.id,
           optionId: detail.id,
           tierSplitId: tierSplit.id,
           supplierId: getTierSplitSupplierId(tierSplit) || getRFQDetailSupplierId(detail),
@@ -543,6 +546,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
         return [
           {
             id: Date.now() + optionIndex,
+            sourceRfqId: rfq.id,
             optionId: detail.id,
             shippingMethod: 'LAND' as const,
             name: detail.optionName || productFamily || 'PRE-ORDER',
@@ -568,6 +572,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
 
         return {
           id: Number(`${detail.id}${tier.id}${shippingIndex}`),
+          sourceRfqId: rfq.id,
           optionId: detail.id,
           tierId: tier.id,
           supplierId: getRFQDetailSupplierId(detail),
@@ -650,6 +655,7 @@ function createSaleOrderItemsFromQuotation(
       id: Number.isFinite(numericItemId)
         ? numericItemId
         : Date.now() + index,
+      sourceRfqId: item.sourceRfqId || sourceRfq.id,
       optionId: rfqDetailId,
       tierId: rfqTierId,
       tierSplitId: rfqTierSplitId,
@@ -1489,7 +1495,8 @@ export default function SalesOrderRFQ(): JSX.Element {
 
     const fallbackSupplierId =
       rfq?.finalSupplier?.supplierId || rfq?.finalSupplier?.id || formik.values.supplierId;
-
+    console.log('selectedItem', selectedItems)
+    console.log('fallbackSupplierId', fallbackSupplierId)
     if (
       selectedItems.some(
         (item) =>
@@ -1743,6 +1750,22 @@ export default function SalesOrderRFQ(): JSX.Element {
     });
 
     return Array.from(shippingSummary.values());
+  }, [formik.values.items]);
+  const itemGroupsByRfq = useMemo(() => {
+    const groups = new Map<string, { row: SaleOrderRFQItem; index: number }[]>();
+    formik.values.items.forEach((row, index) => {
+      const sourceRfqId = row.sourceRfqId || '';
+      const group = groups.get(sourceRfqId) || [];
+      group.push({ row, index });
+      groups.set(sourceRfqId, group);
+    });
+
+    const rfqGroups = Array.from(groups.entries()).filter(([sourceRfqId]) => sourceRfqId);
+    const additionalItems = groups.get('');
+    if (additionalItems) {
+      rfqGroups.push(['', additionalItems]);
+    }
+    return rfqGroups;
   }, [formik.values.items]);
   const subtotal = formik.values.items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const discount = Number(formik.values.discount || 0);
@@ -2395,108 +2418,123 @@ export default function SalesOrderRFQ(): JSX.Element {
               </TableRow>
             </TableHead>
             <TableBody>
-              {formik.values.items.map((row, index) => (
-                <TableRow key={row.id}>
-                  <TableCell align="center">
-                    <Box
-                      sx={{
-                        width: 88,
-                        height: 88,
-                        border: '1px dashed #C8D0DB',
-                        borderRadius: '14px',
-                        overflow: 'hidden',
-                        backgroundColor: '#FAFBFC',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mx: 'auto'
-                      }}>
-                      {row.imageUrl ? (
+              {itemGroupsByRfq.map(([sourceRfqId, items]) => (
+                <Fragment key={sourceRfqId}>
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      component="th"
+                      scope="rowgroup"
+                      sx={{ backgroundColor: '#eff6ff', py: 1 }}>
+                      <Typography variant="body2" fontWeight={700}>
+                        {sourceRfqId ? `RFQ: ${sourceRfqId}` : 'รายการเพิ่มเติม'}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                  {items.map(({ row, index }) => (
+                    <TableRow key={row.id}>
+                      <TableCell align="center">
                         <Box
-                          component="img"
-                          src={row.imageUrl}
-                          alt="product"
-                          onClick={() => setPreviewImageUrl(row.imageUrl)}
                           sx={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            cursor: 'zoom-in'
-                          }}
+                            width: 88,
+                            height: 88,
+                            border: '1px dashed #C8D0DB',
+                            borderRadius: '14px',
+                            overflow: 'hidden',
+                            backgroundColor: '#FAFBFC',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            mx: 'auto'
+                          }}>
+                          {row.imageUrl ? (
+                            <Box
+                              component="img"
+                              src={row.imageUrl}
+                              alt="product"
+                              onClick={() => setPreviewImageUrl(row.imageUrl)}
+                              sx={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                cursor: 'zoom-in'
+                              }}
+                            />
+                          ) : (
+                            <Typography variant="caption" color="text.secondary" textAlign="center">
+                              ไม่มีรูป
+                            </Typography>
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Stack spacing={1.25}>
+                          <TextField
+                            fullWidth
+                            required
+                            label="สินค้า"
+                            value={row.name}
+                            onChange={(event) => updateItem(index, 'name', event.target.value)}
+                            sx={fieldSx}
+                          />
+                          <TextField
+                            fullWidth
+                            label="Spec"
+                            multiline
+                            minRows={2}
+                            value={row.spec}
+                            onChange={(event) => updateItem(index, 'spec', event.target.value)}
+                          />
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Chip
+                              size="small"
+                              label="SKU: PRE-ORDER"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </Stack>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          type="number"
+                          value={row.quantity}
+                          onChange={(event) =>
+                            updateItem(index, 'quantity', Number(event.target.value || 0))
+                          }
+                          inputProps={{ min: 0, style: { textAlign: 'right' } }}
+                          sx={{ maxWidth: 140, mx: 'auto' }}
                         />
-                      ) : (
-                        <Typography variant="caption" color="text.secondary" textAlign="center">
-                          ไม่มีรูป
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          type="text"
+                          inputMode="decimal"
+                          value={row.unitPriceInput ?? String(row.unitPrice)}
+                          onChange={(event) =>
+                            updateItem(index, 'unitPriceInput', event.target.value)
+                          }
+                          inputProps={{ min: 0, style: { textAlign: 'right' } }}
+                          sx={{ maxWidth: 155, mx: 'auto' }}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography fontWeight={700} sx={{ fontSize: 20, color: '#2F3447' }}>
+                          {formatNumber(row.amount)}
                         </Typography>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Stack spacing={1.25}>
-                      <TextField
-                        fullWidth
-                        required
-                        label="สินค้า"
-                        value={row.name}
-                        onChange={(event) => updateItem(index, 'name', event.target.value)}
-                        sx={fieldSx}
-                      />
-                      <TextField
-                        fullWidth
-                        label="Spec"
-                        multiline
-                        minRows={2}
-                        value={row.spec}
-                        onChange={(event) => updateItem(index, 'spec', event.target.value)}
-                      />
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Chip
-                          size="small"
-                          label="SKU: PRE-ORDER"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </Stack>
-                    </Stack>
-                  </TableCell>
-                  <TableCell align="center">
-                    <TextField
-                      type="number"
-                      value={row.quantity}
-                      onChange={(event) =>
-                        updateItem(index, 'quantity', Number(event.target.value || 0))
-                      }
-                      inputProps={{ min: 0, style: { textAlign: 'right' } }}
-                      sx={{ maxWidth: 140, mx: 'auto' }}
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <TextField
-                      type="text"
-                      inputMode="decimal"
-                      value={row.unitPriceInput ?? String(row.unitPrice)}
-                      onChange={(event) =>
-                        updateItem(index, 'unitPriceInput', event.target.value)
-                      }
-                      inputProps={{ min: 0, style: { textAlign: 'right' } }}
-                      sx={{ maxWidth: 155, mx: 'auto' }}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography fontWeight={700} sx={{ fontSize: 20, color: '#2F3447' }}>
-                      {formatNumber(row.amount)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Button
-                      color="error"
-                      variant="text"
-                      startIcon={<DeleteOutline />}
-                      onClick={() => handleDeleteItem(index)}>
-                      ลบ
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Button
+                          color="error"
+                          variant="text"
+                          startIcon={<DeleteOutline />}
+                          onClick={() => handleDeleteItem(index)}>
+                          ลบ
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </Fragment>
               ))}
               {!formik.values.items.length ? (
                 <TableRow>

@@ -59,6 +59,7 @@ export const ROUTE_PATHS = Object.freeze({
   PURCHASE_ORDER_PRODUCTION_CALENDAR: '/purchase-order-production-calendar',
   MY_PURCHASE_ORDER_MANAGEMENT: '/my-purchase-order-management',
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER: '/purchase-order-create/:salesOrderId',
+  PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2: '/purchase-order-create-v2/:salesOrderId',
   PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
   PURCHASE_ORDER_DOCUMENT: '/purchase-order/:id/document',
   PURCHASE_ORDER_PROOF_DETAIL: '/purchase-order-proof/:id',
@@ -351,6 +352,13 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER,
     component: lazy(
       () => import('./pages/PurchaseOrderManagement/New' /* webpackChunkName: "app" */)
+    ),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_CREATE]
+  },
+  {
+    path: ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2,
+    component: lazy(
+      () => import('./pages/PurchaseOrderManagement/New/v2' /* webpackChunkName: "app" */)
     ),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_CREATE]
   },

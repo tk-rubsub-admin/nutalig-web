@@ -8,6 +8,7 @@ export interface CreatePurchaseOrderRequest {
   salesOrderNo: string;
   supplierId: string;
   supplierShippingId: number;
+  salesOrderDetailIds?: number[];
   docDate?: string;
   productionLeadTimeDay?: number | null;
   shippingLeadTimeDay?: number | null;
@@ -148,6 +149,7 @@ export interface PurchaseOrderItem {
   imageUrl: string | null;
   rfqDetailId?: number | null;
   rfqTierId?: number | null;
+  rfqTierSplitId?: number | null;
   quotationDetailId?: number | null;
   shippingMethod?: string | null;
   supplierQuoteTierId?: number | null;

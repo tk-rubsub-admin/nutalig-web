@@ -64,6 +64,7 @@ import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
   ChangeEvent,
+  Fragment,
   MouseEvent as ReactMouseEvent,
   ReactElement,
   SyntheticEvent,
@@ -482,6 +483,22 @@ export default function SalesOrderDetail(): ReactElement {
   }, [salesOrder]);
 
   const displayItems = isEditing ? draft.items : salesOrder?.items || [];
+  const itemGroupsByRfq = useMemo(() => {
+    const groups = new Map<string, { item: SalesOrderDetailV1; index: number }[]>();
+    displayItems.forEach((item, index) => {
+      const rfqId = item.rfqId?.trim() || '';
+      const group = groups.get(rfqId) || [];
+      group.push({ item, index });
+      groups.set(rfqId, group);
+    });
+
+    const rfqGroups = Array.from(groups.entries()).filter(([rfqId]) => rfqId);
+    const additionalItems = groups.get('');
+    if (additionalItems) {
+      rfqGroups.push(['', additionalItems]);
+    }
+    return rfqGroups;
+  }, [displayItems]);
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const canManageSalesOrderAttachments =
     salesOrder?.status !== 'CANCELLED' && salesOrder?.status !== 'REJECTED';
@@ -972,6 +989,7 @@ export default function SalesOrderDetail(): ReactElement {
         imageUrl: item.imageUrl || null,
         rfqDetailId: item.rfqDetailId ?? null,
         rfqTierId: item.rfqTierId ?? null,
+        rfqTierSplitId: item.rfqTierSplitId ?? null,
         quotationDetailId: item.quotationDetailId ?? null,
         shippingMethod: item.shippingMethod || null,
         supplierCurrency: item.supplierCurrency || null,
@@ -1609,180 +1627,190 @@ export default function SalesOrderDetail(): ReactElement {
               {isDownSm ? (
                 <Stack spacing={1.25} sx={{ width: '100%' }}>
                   {displayItems.length ? (
-                    displayItems.map((item, index) => (
-                      <Stack
-                        key={item.id || item.lineNo || index}
-                        spacing={1.25}
-                        className={classes.mobileItemCard}>
-                        <Stack
-                          direction="row"
-                          spacing={1.25}
-                          alignItems="flex-start"
-                          className={classes.mobileItemHeader}>
-                          {item.imageUrl ? (
-                            <Box
-                              component="img"
-                              src={item.imageUrl}
-                              alt={item.name || 'รูปภาพสินค้า'}
-                              className={classes.productImage}
-                            />
-                          ) : (
+                    itemGroupsByRfq.map(([rfqId, items]) => (
+                      <Fragment key={rfqId}>
+                        <Typography
+                          variant="body2"
+                          fontWeight={700}
+                          sx={{ backgroundColor: '#eff6ff', px: 1.5, py: 1, borderRadius: 1 }}>
+                          {rfqId ? `RFQ: ${rfqId}` : 'รายการเพิ่มเติม'}
+                        </Typography>
+                        {items.map(({ item, index }) => (
+                          <Stack
+                            key={item.id || item.lineNo || index}
+                            spacing={1.25}
+                            className={classes.mobileItemCard}>
                             <Stack
-                              justifyContent="center"
-                              alignItems="center"
-                              className={classes.productImage}
-                              sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
-                              ไม่มีรูป
-                            </Stack>
-                          )}
-                          <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                              รายการที่ {item.lineNo || index + 1}
-                            </Typography>
-                            {isEditing ? (
-                              <TextField
-                                className={classes.itemTextField}
-                                fullWidth
-                                value={item.name || ''}
-                                onChange={(event) =>
-                                  updateDraftItem(index, 'name', event.target.value)
-                                }
-                              />
-                            ) : (
-                              <Typography
-                                variant="body2"
-                                fontWeight={700}
-                                sx={{ wordBreak: 'break-word' }}>
-                                {item.name || '-'}
-                              </Typography>
-                            )}
-                          </Stack>
-                        </Stack>
-                        {isEditing ? (
-                          <Stack direction="row" spacing={0.75} flexWrap="wrap">
-                            <Button
-                              component="label"
-                              size="small"
-                              variant="outlined"
-                              startIcon={<CloudUpload />}
-                              disabled={isSaving}>
-                              {item.imageUrl ? 'อัปโหลดรูปใหม่' : 'อัปโหลดรูป'}
-                              <input
-                                hidden
-                                accept="image/*"
-                                type="file"
-                                onChange={(event) => {
-                                  void handleUploadSalesOrderItemImage(
-                                    index,
-                                    event.target.files?.[0]
-                                  );
-                                  event.target.value = '';
-                                }}
-                              />
-                            </Button>
-                            {item.imageUrl ? (
-                              <Button
-                                size="small"
-                                color="error"
-                                variant="outlined"
-                                disabled={isSaving}
-                                onClick={() => handleRemoveSalesOrderItemImage(index)}>
-                                ลบรูป
-                              </Button>
-                            ) : null}
-                          </Stack>
-                        ) : null}
-                        <Stack spacing={1}>
-                          <Info
-                            label="รายละเอียด"
-                            value={isEditing ? undefined : item.spec || '-'}
-                          />
-                          {isEditing ? (
-                            <TextField
-                              className={classes.itemTextField}
-                              value={item.spec || ''}
-                              fullWidth
-                              multiline
-                              minRows={2}
-                              label="รายละเอียด"
-                              InputLabelProps={{ shrink: true }}
-                              onChange={(event) =>
-                                updateDraftItem(index, 'spec', event.target.value)
-                              }
-                            />
-                          ) : null}
-                          <Grid container spacing={1.25}>
-                            <Grid item xs={6}>
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  fullWidth
-                                  label="ราคาต่อหน่วย"
-                                  InputLabelProps={{ shrink: true }}
-                                  value={item.unitPrice ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(
-                                      index,
-                                      'unitPrice',
-                                      Number(event.target.value || 0)
-                                    )
-                                  }
+                              direction="row"
+                              spacing={1.25}
+                              alignItems="flex-start"
+                              className={classes.mobileItemHeader}>
+                              {item.imageUrl ? (
+                                <Box
+                                  component="img"
+                                  src={item.imageUrl}
+                                  alt={item.name || 'รูปภาพสินค้า'}
+                                  className={classes.productImage}
                                 />
                               ) : (
-                                <Info
-                                  label="ราคาต่อหน่วย"
-                                  value={formatNumberWithDigit(item.unitPrice || 0, 4)}
-                                />
+                                <Stack
+                                  justifyContent="center"
+                                  alignItems="center"
+                                  className={classes.productImage}
+                                  sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
+                                  ไม่มีรูป
+                                </Stack>
                               )}
-                            </Grid>
-                            <Grid item xs={6}>
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  fullWidth
-                                  label="จำนวน"
-                                  InputLabelProps={{ shrink: true }}
-                                  value={item.quantity ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(
-                                      index,
-                                      'quantity',
-                                      Number(event.target.value || 0)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                <Info label="จำนวน" value={formatNumber(item.quantity || 0)} />
-                              )}
-                            </Grid>
-                            <Grid item xs={12}>
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                                alignItems="center"
-                                sx={{
-                                  px: 1.25,
-                                  py: 1,
-                                  borderRadius: 2,
-                                  backgroundColor: '#f8fafc',
-                                  border: '1px solid #e2e8f0'
-                                }}>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  fontWeight={700}>
-                                  รวม
+                              <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>
+                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                  รายการที่ {item.lineNo || index + 1}
                                 </Typography>
-                                <Typography variant="body2" fontWeight={700}>
-                                  {formatNumber(item.amount || 0)}
-                                </Typography>
+                                {isEditing ? (
+                                  <TextField
+                                    className={classes.itemTextField}
+                                    fullWidth
+                                    value={item.name || ''}
+                                    onChange={(event) =>
+                                      updateDraftItem(index, 'name', event.target.value)
+                                    }
+                                  />
+                                ) : (
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={700}
+                                    sx={{ wordBreak: 'break-word' }}>
+                                    {item.name || '-'}
+                                  </Typography>
+                                )}
                               </Stack>
-                            </Grid>
-                          </Grid>
-                        </Stack>
-                      </Stack>
+                            </Stack>
+                            {isEditing ? (
+                              <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                                <Button
+                                  component="label"
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<CloudUpload />}
+                                  disabled={isSaving}>
+                                  {item.imageUrl ? 'อัปโหลดรูปใหม่' : 'อัปโหลดรูป'}
+                                  <input
+                                    hidden
+                                    accept="image/*"
+                                    type="file"
+                                    onChange={(event) => {
+                                      void handleUploadSalesOrderItemImage(
+                                        index,
+                                        event.target.files?.[0]
+                                      );
+                                      event.target.value = '';
+                                    }}
+                                  />
+                                </Button>
+                                {item.imageUrl ? (
+                                  <Button
+                                    size="small"
+                                    color="error"
+                                    variant="outlined"
+                                    disabled={isSaving}
+                                    onClick={() => handleRemoveSalesOrderItemImage(index)}>
+                                    ลบรูป
+                                  </Button>
+                                ) : null}
+                              </Stack>
+                            ) : null}
+                            <Stack spacing={1}>
+                              <Info
+                                label="รายละเอียด"
+                                value={isEditing ? undefined : item.spec || '-'}
+                              />
+                              {isEditing ? (
+                                <TextField
+                                  className={classes.itemTextField}
+                                  value={item.spec || ''}
+                                  fullWidth
+                                  multiline
+                                  minRows={2}
+                                  label="รายละเอียด"
+                                  InputLabelProps={{ shrink: true }}
+                                  onChange={(event) =>
+                                    updateDraftItem(index, 'spec', event.target.value)
+                                  }
+                                />
+                              ) : null}
+                              <Grid container spacing={1.25}>
+                                <Grid item xs={6}>
+                                  {isEditing ? (
+                                    <TextField
+                                      type="number"
+                                      className={classes.itemTextField}
+                                      fullWidth
+                                      label="ราคาต่อหน่วย"
+                                      InputLabelProps={{ shrink: true }}
+                                      value={item.unitPrice ?? 0}
+                                      onChange={(event) =>
+                                        updateDraftItem(
+                                          index,
+                                          'unitPrice',
+                                          Number(event.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  ) : (
+                                    <Info
+                                      label="ราคาต่อหน่วย"
+                                      value={formatNumberWithDigit(item.unitPrice || 0, 4)}
+                                    />
+                                  )}
+                                </Grid>
+                                <Grid item xs={6}>
+                                  {isEditing ? (
+                                    <TextField
+                                      type="number"
+                                      className={classes.itemTextField}
+                                      fullWidth
+                                      label="จำนวน"
+                                      InputLabelProps={{ shrink: true }}
+                                      value={item.quantity ?? 0}
+                                      onChange={(event) =>
+                                        updateDraftItem(
+                                          index,
+                                          'quantity',
+                                          Number(event.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  ) : (
+                                    <Info label="จำนวน" value={formatNumber(item.quantity || 0)} />
+                                  )}
+                                </Grid>
+                                <Grid item xs={12}>
+                                  <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    sx={{
+                                      px: 1.25,
+                                      py: 1,
+                                      borderRadius: 2,
+                                      backgroundColor: '#f8fafc',
+                                      border: '1px solid #e2e8f0'
+                                    }}>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      fontWeight={700}>
+                                      รวม
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight={700}>
+                                      {formatNumber(item.amount || 0)}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                              </Grid>
+                            </Stack>
+                          </Stack>
+                        ))}
+                      </Fragment>
                     ))
                   ) : (
                     <Typography align="center">{t('warning.noResultList')}</Typography>
@@ -1828,130 +1856,145 @@ export default function SalesOrderDetail(): ReactElement {
                     </TableHead>
                     <TableBody>
                       {displayItems.length ? (
-                        displayItems.map((item, index) => (
-                          <TableRow key={item.id || item.lineNo || index}>
-                            <TableCell align="center" className={classes.fitContentCell}>
-                              {item.lineNo || index + 1}
-                            </TableCell>
-                            <TableCell align="center" className={classes.fitContentCell}>
-                              <Stack spacing={0.75} alignItems="center">
-                                {item.imageUrl ? (
-                                  <Box
-                                    component="img"
-                                    src={item.imageUrl}
-                                    alt={item.name || 'รูปภาพสินค้า'}
-                                    className={classes.productImage}
-                                  />
-                                ) : (
-                                  <Typography variant="caption" color="text.secondary">
-                                    ไม่มีรูป
-                                  </Typography>
-                                )}
-                                {isEditing ? (
-                                  <Stack spacing={0.5} alignItems="center">
-                                    <Button
-                                      component="label"
-                                      size="small"
-                                      variant="outlined"
-                                      startIcon={<CloudUpload />}
-                                      disabled={isSaving}>
-                                      {item.imageUrl ? 'อัปโหลดรูปใหม่' : 'อัปโหลดรูป'}
-                                      <input
-                                        hidden
-                                        accept="image/*"
-                                        type="file"
-                                        onChange={(event) => {
-                                          void handleUploadSalesOrderItemImage(
-                                            index,
-                                            event.target.files?.[0]
-                                          );
-                                          event.target.value = '';
-                                        }}
-                                      />
-                                    </Button>
+                        itemGroupsByRfq.map(([rfqId, items]) => (
+                          <Fragment key={rfqId}>
+                            <TableRow>
+                              <TableCell
+                                colSpan={7}
+                                component="th"
+                                scope="rowgroup"
+                                sx={{ backgroundColor: '#eff6ff', py: 1 }}>
+                                <Typography variant="body2" fontWeight={700}>
+                                  {rfqId ? `RFQ: ${rfqId}` : 'รายการเพิ่มเติม'}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                            {items.map(({ item, index }) => (
+                              <TableRow key={item.id || item.lineNo || index}>
+                                <TableCell align="center" className={classes.fitContentCell}>
+                                  {item.lineNo || index + 1}
+                                </TableCell>
+                                <TableCell align="center" className={classes.fitContentCell}>
+                                  <Stack spacing={0.75} alignItems="center">
                                     {item.imageUrl ? (
-                                      <Button
-                                        size="small"
-                                        color="error"
-                                        variant="outlined"
-                                        disabled={isSaving}
-                                        onClick={() => handleRemoveSalesOrderItemImage(index)}>
-                                        ลบรูป
-                                      </Button>
+                                      <Box
+                                        component="img"
+                                        src={item.imageUrl}
+                                        alt={item.name || 'รูปภาพสินค้า'}
+                                        className={classes.productImage}
+                                      />
+                                    ) : (
+                                      <Typography variant="caption" color="text.secondary">
+                                        ไม่มีรูป
+                                      </Typography>
+                                    )}
+                                    {isEditing ? (
+                                      <Stack spacing={0.5} alignItems="center">
+                                        <Button
+                                          component="label"
+                                          size="small"
+                                          variant="outlined"
+                                          startIcon={<CloudUpload />}
+                                          disabled={isSaving}>
+                                          {item.imageUrl ? 'อัปโหลดรูปใหม่' : 'อัปโหลดรูป'}
+                                          <input
+                                            hidden
+                                            accept="image/*"
+                                            type="file"
+                                            onChange={(event) => {
+                                              void handleUploadSalesOrderItemImage(
+                                                index,
+                                                event.target.files?.[0]
+                                              );
+                                              event.target.value = '';
+                                            }}
+                                          />
+                                        </Button>
+                                        {item.imageUrl ? (
+                                          <Button
+                                            size="small"
+                                            color="error"
+                                            variant="outlined"
+                                            disabled={isSaving}
+                                            onClick={() => handleRemoveSalesOrderItemImage(index)}>
+                                            ลบรูป
+                                          </Button>
+                                        ) : null}
+                                      </Stack>
                                     ) : null}
                                   </Stack>
-                                ) : null}
-                              </Stack>
-                            </TableCell>
-                            <TableCell className={classes.fitContentCell}>
-                              {isEditing ? (
-                                <TextField
-                                  className={classes.itemTextField}
-                                  value={item.name || ''}
-                                  onChange={(event) =>
-                                    updateDraftItem(index, 'name', event.target.value)
-                                  }
-                                />
-                              ) : (
-                                item.name || '-'
-                              )}
-                            </TableCell>
-                            <TableCell className={classes.specCell}>
-                              {isEditing ? (
-                                <TextField
-                                  className={classes.itemTextField}
-                                  value={item.spec || ''}
-                                  fullWidth
-                                  multiline
-                                  minRows={2}
-                                  onChange={(event) =>
-                                    updateDraftItem(index, 'spec', event.target.value)
-                                  }
-                                />
-                              ) : (
-                                item.spec || '-'
-                              )}
-                            </TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  value={item.unitPrice ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(
-                                      index,
-                                      'unitPrice',
-                                      Number(event.target.value || 0)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                formatNumberWithDigit(item.unitPrice || 0, 4)
-                              )}
-                            </TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>
-                              {isEditing ? (
-                                <TextField
-                                  type="number"
-                                  className={classes.itemTextField}
-                                  value={item.quantity ?? 0}
-                                  onChange={(event) =>
-                                    updateDraftItem(
-                                      index,
-                                      'quantity',
-                                      Number(event.target.value || 0)
-                                    )
-                                  }
-                                />
-                              ) : (
-                                formatNumber(item.quantity || 0)
-                              )}
-                            </TableCell>
-                            <TableCell align="right" className={classes.fitContentCell}>
-                              {formatNumber(item.amount || 0)}
-                            </TableCell>
-                          </TableRow>
+                                </TableCell>
+                                <TableCell className={classes.fitContentCell}>
+                                  {isEditing ? (
+                                    <TextField
+                                      className={classes.itemTextField}
+                                      value={item.name || ''}
+                                      onChange={(event) =>
+                                        updateDraftItem(index, 'name', event.target.value)
+                                      }
+                                    />
+                                  ) : (
+                                    item.name || '-'
+                                  )}
+                                </TableCell>
+                                <TableCell className={classes.specCell}>
+                                  {isEditing ? (
+                                    <TextField
+                                      className={classes.itemTextField}
+                                      value={item.spec || ''}
+                                      fullWidth
+                                      multiline
+                                      minRows={2}
+                                      onChange={(event) =>
+                                        updateDraftItem(index, 'spec', event.target.value)
+                                      }
+                                    />
+                                  ) : (
+                                    item.spec || '-'
+                                  )}
+                                </TableCell>
+                                <TableCell align="right" className={classes.fitContentCell}>
+                                  {isEditing ? (
+                                    <TextField
+                                      type="number"
+                                      className={classes.itemTextField}
+                                      value={item.unitPrice ?? 0}
+                                      onChange={(event) =>
+                                        updateDraftItem(
+                                          index,
+                                          'unitPrice',
+                                          Number(event.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  ) : (
+                                    formatNumberWithDigit(item.unitPrice || 0, 4)
+                                  )}
+                                </TableCell>
+                                <TableCell align="right" className={classes.fitContentCell}>
+                                  {isEditing ? (
+                                    <TextField
+                                      type="number"
+                                      className={classes.itemTextField}
+                                      value={item.quantity ?? 0}
+                                      onChange={(event) =>
+                                        updateDraftItem(
+                                          index,
+                                          'quantity',
+                                          Number(event.target.value || 0)
+                                        )
+                                      }
+                                    />
+                                  ) : (
+                                    formatNumber(item.quantity || 0)
+                                  )}
+                                </TableCell>
+                                <TableCell align="right" className={classes.fitContentCell}>
+                                  {formatNumber(item.amount || 0)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </Fragment>
                         ))
                       ) : (
                         <TableRow>

@@ -222,8 +222,11 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
         refetch: refetchSalesOrders,
         isFetching
     } = useQuery(
-        ['sales-order-list', filter, page, pageSize],
-        () => searchSalesOrdersV1(filter, page, pageSize),
+        ['sales-order-list', filter, page, pageSize, 'salesOrderNo', 'DESC'],
+        () => searchSalesOrdersV1(filter, page, pageSize, {
+            sortBy: 'salesOrderNo',
+            sortDirection: 'DESC'
+        }),
         {
             refetchOnWindowFocus: false,
             keepPreviousData: true

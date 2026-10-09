@@ -73,6 +73,7 @@ import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
 import { GridTextField, Wrapper } from 'components/Styled';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import QuotationRfqGroupedRows from 'components/QuotationRfqGroupedRows';
 import ViewNoteDialog from 'components/ViewNoteDialog';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
@@ -5903,98 +5904,102 @@ export default function RFQDetail(): ReactElement {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {quotationItems.map((quotationItem, index) => {
-                      const row = confirmQuotationRows[index];
-                      const fallbackShippingMethod =
-                        inferQuotationItemShippingMethod(quotationItem.name) || 'LAND';
-                      const resolvedShippingMethod = row
-                        ? row.shippingMethod
-                        : fallbackShippingMethod;
-                      const isSelectable = Boolean(row) && (
-                        isSampleProductionQuotationItem(quotationItem) ||
-                        Boolean(row?.detail && row?.tier && resolvedShippingMethod)
-                      );
-                      const optionLabel = formatOptionNameWithPlan(
-                        row?.detail?.optionName || `Option ${index + 1}`,
-                        row?.detail?.plan
-                      );
-                      const shippingMethodLabel = resolvedShippingMethod
-                        ? getShippingMethodLabel(
-                          resolvedShippingMethod,
-                          '-',
-                          Boolean(row?.tier?.isFcl),
-                          Boolean(row?.tier?.isShareFCL)
-                        )
-                        : '';
-                      const rowCurrency = 'THB';
-                      const unitPrice = quotationItem.unitPrice;
-                      const amount = quotationItem.amount;
-                      const rowKey = row?.key || `quotation:${quotationItem.id}:${index}`;
+                    <QuotationRfqGroupedRows
+                      rows={confirmQuotationRows}
+                      fallbackRfqId={quotation?.data.rfqId || quotation?.data.referenceRfqId || params.id}
+                      renderRow={(row, index) => {
+                        const quotationItem = row.quotationItem;
+                        const fallbackShippingMethod =
+                          inferQuotationItemShippingMethod(quotationItem.name) || 'LAND';
+                        const resolvedShippingMethod = row
+                          ? row.shippingMethod
+                          : fallbackShippingMethod;
+                        const isSelectable = Boolean(row) && (
+                          isSampleProductionQuotationItem(quotationItem) ||
+                          Boolean(row?.detail && row?.tier && resolvedShippingMethod)
+                        );
+                        const optionLabel = formatOptionNameWithPlan(
+                          row?.detail?.optionName || `Option ${index + 1}`,
+                          row?.detail?.plan
+                        );
+                        const shippingMethodLabel = resolvedShippingMethod
+                          ? getShippingMethodLabel(
+                            resolvedShippingMethod,
+                            '-',
+                            Boolean(row?.tier?.isFcl),
+                            Boolean(row?.tier?.isShareFCL)
+                          )
+                          : '';
+                        const rowCurrency = 'THB';
+                        const unitPrice = quotationItem.unitPrice;
+                        const amount = quotationItem.amount;
+                        const rowKey = row?.key || `quotation:${quotationItem.id}:${index}`;
 
-                      return (
-                        <TableRow
-                          key={rowKey}
-                          hover
-                          selected={selectedConfirmRfqTierKeys.includes(rowKey)}
-                          onClick={() => {
-                            if (isSelectable) {
-                              toggleConfirmRfqTierKey(rowKey);
-                            }
-                          }}
-                          sx={{ cursor: isSelectable ? 'pointer' : 'default' }}>
-                          <TableCell align="center">
-                            <Checkbox
-                              checked={selectedConfirmRfqTierKeys.includes(rowKey)}
-                              onClick={(event) => event.stopPropagation()}
-                              onChange={() => toggleConfirmRfqTierKey(rowKey)}
-                              disabled={!isSelectable}
-                              inputProps={{
-                                'aria-label': `${quotationItem.name || optionLabel
-                                  } ${formatQuantity(
-                                    quotationItem.quantity
-                                  )} ${shippingMethodLabel} ${formatPrice(unitPrice, rowCurrency)}`
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Stack spacing={0.5}>
-                              <Typography variant="body2" fontWeight={700}>
-                                {quotationItem.name || optionLabel}
-                              </Typography>
-                              {quotationItem.spec ? (
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ whiteSpace: 'pre-line' }}>
-                                  {row?.detail?.spec || ''}
+                        return (
+                          <TableRow
+                            key={rowKey}
+                            hover
+                            selected={selectedConfirmRfqTierKeys.includes(rowKey)}
+                            onClick={() => {
+                              if (isSelectable) {
+                                toggleConfirmRfqTierKey(rowKey);
+                              }
+                            }}
+                            sx={{ cursor: isSelectable ? 'pointer' : 'default' }}>
+                            <TableCell align="center">
+                              <Checkbox
+                                checked={selectedConfirmRfqTierKeys.includes(rowKey)}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={() => toggleConfirmRfqTierKey(rowKey)}
+                                disabled={!isSelectable}
+                                inputProps={{
+                                  'aria-label': `${quotationItem.name || optionLabel
+                                    } ${formatQuantity(
+                                      quotationItem.quantity
+                                    )} ${shippingMethodLabel} ${formatPrice(unitPrice, rowCurrency)}`
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Stack spacing={0.5}>
+                                <Typography variant="body2" fontWeight={700}>
+                                  {quotationItem.name || optionLabel}
                                 </Typography>
-                              ) : null}
-                            </Stack>
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 600 }}>
-                            {formatQuantity(quotationItem.quantity)}
-                          </TableCell>
-                          <TableCell>
-                            {resolvedShippingMethod ? (
-                              <Stack direction="row" spacing={0.75} alignItems="center">
-                                {isSeaShippingMethod(resolvedShippingMethod) ? (
-                                  <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
-                                ) : (
-                                  <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
-                                )}
-                                <Typography variant="body2">{shippingMethodLabel}</Typography>
+                                {quotationItem.spec ? (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ whiteSpace: 'pre-line' }}>
+                                    {row?.detail?.spec || ''}
+                                  </Typography>
+                                ) : null}
                               </Stack>
-                            ) : null}
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>
-                            {formatPrice(unitPrice, rowCurrency)}
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 700 }}>
-                            {formatPrice(amount, rowCurrency)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                            </TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 600 }}>
+                              {formatQuantity(quotationItem.quantity)}
+                            </TableCell>
+                            <TableCell>
+                              {resolvedShippingMethod ? (
+                                <Stack direction="row" spacing={0.75} alignItems="center">
+                                  {isSeaShippingMethod(resolvedShippingMethod) ? (
+                                    <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
+                                  ) : (
+                                    <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                  )}
+                                  <Typography variant="body2">{shippingMethodLabel}</Typography>
+                                </Stack>
+                              ) : null}
+                            </TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700 }}>
+                              {formatPrice(unitPrice, rowCurrency)}
+                            </TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700 }}>
+                              {formatPrice(amount, rowCurrency)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }}
+                    />
                   </TableBody>
                 </Table>
               </Box>

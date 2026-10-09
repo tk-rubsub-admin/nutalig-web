@@ -471,7 +471,7 @@ export default function RFQManagement(): ReactElement {
   const classes = useStyles();
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
-  const { getEmployeeId, getRole, getSalesId, hasAnyRole } = useAuth();
+  const { getEmployeeId, getRole, getSalesId, hasPermission } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
   const location = useLocation<RFQManagementLocationState>();
@@ -479,7 +479,7 @@ export default function RFQManagement(): ReactElement {
   const [page, setPage] = useState<number>(returnToListState?.page || 1);
   const [pageSize, setPageSize] = useState<number>(returnToListState?.pageSize || 10);
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const canCreateRFQ = hasAnyRole([ROLES.SUPER_ADMIN, ROLES.SALES, ROLES.ADMIN]);
+  const canCreateRFQ = hasPermission(PERMISSIONS.RFQ_CREATE);
   const currentRole = getRole();
   const currentSalesId = getSalesId() || getEmployeeId();
   const isSalesRole = currentRole === ROLES.SALES;

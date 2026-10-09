@@ -6489,6 +6489,8 @@ export default function RFQDetail(): ReactElement {
         open={Boolean(finalPriceQuote)}
         finalPriceQuote={finalPriceQuote}
         rfqDetails={rfq?.details || []}
+        rfqTypeCode={rfq?.rfqType?.code}
+        referenceRfqId={rfq?.referenceRfqId}
         procurementRemarks={rfq?.procurementRemarks || []}
         procurementRemark={finalPriceProcurementRemark}
         finalPriceDraft={finalPriceDraft}

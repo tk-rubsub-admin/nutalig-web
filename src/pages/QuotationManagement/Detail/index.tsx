@@ -40,6 +40,7 @@ import CreateFreelanceSaleDialog from 'dialogs/QuotationManagement/New/CreateFre
 import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
+import QuotationRfqGroupedRows from 'components/QuotationRfqGroupedRows';
 import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import { MouseEvent as ReactMouseEvent, ReactElement, SyntheticEvent, useEffect, useMemo, useState } from 'react';
@@ -776,6 +777,8 @@ export default function QuotationDetail(): JSX.Element {
             toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
             return;
         }
+
+        console.log('confirmQuotationRows', confirmQuotationRows);
 
         setSelectedConfirmQuotationRowKeys([]);
         setVisibleConfirmPriceDialog(true);
@@ -1791,54 +1794,58 @@ export default function QuotationDetail(): JSX.Element {
                             </TableHead>
                             <TableBody>
                                 {confirmQuotationRows.length ? (
-                                    confirmQuotationRows.map((row) => (
-                                        <TableRow key={row.key} hover>
-                                            <TableCell padding="checkbox">
-                                                <Checkbox
-                                                    checked={selectedConfirmQuotationRowKeys.includes(row.key)}
-                                                    onChange={() => toggleConfirmQuotationRow(row.key)}
-                                                    disabled={
-                                                        !row.detailId &&
-                                                        !isSampleProductionQuotationItem(row.quotationItem)
-                                                    }
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Stack spacing={0.25}>
-                                                    <Typography variant="body2" fontWeight={700}>
-                                                        {row.quotationItem.name || row.optionName}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {row.quotationItem.spec || '-'}
-                                                    </Typography>
-                                                </Stack>
-                                            </TableCell>
-                                            <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
-                                            <TableCell>
-                                                {row.shippingMethod ? (
-                                                    <Stack direction="row" spacing={1} alignItems="center">
-                                                        {isSeaShippingMethod(row.shippingMethod) ? (
-                                                            <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
-                                                        ) : (
-                                                            <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
-                                                        )}
-                                                        <Typography variant="body2">
-                                                            {getShippingMethodLabel(
-                                                                row.shippingMethod,
-                                                                '-',
-                                                                row.isFcl,
-                                                                row.isShareFCL
-                                                            )}
+                                    <QuotationRfqGroupedRows
+                                        rows={confirmQuotationRows}
+                                        fallbackRfqId={rfqId}
+                                        renderRow={(row) => (
+                                            <TableRow key={row.key} hover>
+                                                <TableCell padding="checkbox">
+                                                    <Checkbox
+                                                        checked={selectedConfirmQuotationRowKeys.includes(row.key)}
+                                                        onChange={() => toggleConfirmQuotationRow(row.key)}
+                                                        disabled={
+                                                            !row.detailId &&
+                                                            !isSampleProductionQuotationItem(row.quotationItem)
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Stack spacing={0.25}>
+                                                        <Typography variant="body2" fontWeight={700}>
+                                                            {row.quotationItem.name || row.optionName}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {row.quotationItem.spec || '-'}
                                                         </Typography>
                                                     </Stack>
-                                                ) : null}
-                                            </TableCell>
-                                            <TableCell align="right">{formatNumber(row.unitPrice)}</TableCell>
-                                            <TableCell align="right">
-                                                {formatNumber(row.quantity * row.unitPrice)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
+                                                </TableCell>
+                                                <TableCell align="right">{formatNumber(row.quantity)}</TableCell>
+                                                <TableCell>
+                                                    {row.shippingMethod ? (
+                                                        <Stack direction="row" spacing={1} alignItems="center">
+                                                            {isSeaShippingMethod(row.shippingMethod) ? (
+                                                                <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
+                                                            ) : (
+                                                                <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                                            )}
+                                                            <Typography variant="body2">
+                                                                {getShippingMethodLabel(
+                                                                    row.shippingMethod,
+                                                                    '-',
+                                                                    row.isFcl,
+                                                                    row.isShareFCL
+                                                                )}
+                                                            </Typography>
+                                                        </Stack>
+                                                    ) : null}
+                                                </TableCell>
+                                                <TableCell align="right">{formatNumber(row.unitPrice)}</TableCell>
+                                                <TableCell align="right">
+                                                    {formatNumber(row.quantity * row.unitPrice)}
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    />
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={6} align="center" sx={{ py: 3 }}>

@@ -1,5 +1,6 @@
 import { ArrowBackIos, Cancel, CheckCircle, Description, Edit } from '@mui/icons-material';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -53,6 +54,10 @@ function errorMessage(error: any): string {
   return error?.response?.data?.message || error?.response?.data?.error || 'ไม่สามารถดำเนินการได้';
 }
 
+function isProofNotFound(error: any): boolean {
+  return error?.response?.status === 404 || error?.response?.data?.status === 'data_not_found';
+}
+
 export default function PurchaseOrderProofDetail(): ReactElement {
   const { id } = useParams<{ id: string }>();
   const history = useHistory();
@@ -63,11 +68,14 @@ export default function PurchaseOrderProofDetail(): ReactElement {
 
   const {
     data: proof,
+    error,
+    isError,
     isFetching,
     refetch
   } = useQuery(['purchase-order-proof', proofId], () => getPurchaseOrderProof(proofId), {
     enabled: Number.isFinite(proofId),
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
+    retry: (failureCount, error) => !isProofNotFound(error) && failureCount < 3
   });
 
   const handleDecision = async () => {
@@ -159,6 +167,14 @@ export default function PurchaseOrderProofDetail(): ReactElement {
           </Stack>
 
           {isFetching ? <Typography>กำลังโหลดข้อมูล...</Typography> : null}
+
+          {isError ? (
+            <Alert severity="error">
+              {isProofNotFound(error)
+                ? 'ไม่พบข้อมูลพรูฟงาน ลิงก์นี้อาจเป็นคำขอที่บันทึกไม่สำเร็จ กรุณาเปิดรายการพรูฟล่าสุดจากหน้าใบสั่งซื้อ'
+                : errorMessage(error)}
+            </Alert>
+          ) : null}
 
           {proof ? (
             <>

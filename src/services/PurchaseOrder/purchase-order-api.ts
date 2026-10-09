@@ -79,6 +79,9 @@ export const createPurchaseOrder = async (
   formData.append('salesOrderNo', data.salesOrderNo);
   formData.append('supplierId', data.supplierId);
   formData.append('supplierShippingId', String(data.supplierShippingId));
+  data.salesOrderDetailIds?.forEach((id, index) => {
+    formData.append(`salesOrderDetailIds[${index}]`, String(id));
+  });
   if (data.docDate) {
     formData.append('docDate', data.docDate);
   }

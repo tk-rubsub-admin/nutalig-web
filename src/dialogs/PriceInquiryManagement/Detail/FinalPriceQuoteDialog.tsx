@@ -1,5 +1,6 @@
 import { Add, ArrowDropDown, AutoAwesome, ContentCopy, DeleteOutline, EmojiTransportation, Visibility } from '@mui/icons-material';
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -24,6 +25,8 @@ import {
   Typography
 } from '@mui/material';
 import { ReactElement, useEffect, useState } from 'react';
+import { useQuery } from 'react-query';
+import { getRFQ } from 'services/RFQ/rfq-api';
 import { SystemConfig } from 'services/Config/config-type';
 import {
   RFQDetailOption,
@@ -103,6 +106,8 @@ interface FinalPriceQuoteDialogProps {
   open: boolean;
   finalPriceQuote: RFQSupplierQuote | null;
   rfqDetails: RFQDetailOption[];
+  rfqTypeCode?: string | null;
+  referenceRfqId?: string | null;
   procurementRemarks: RFQProcurementRemark[];
   procurementRemark: string;
   finalPriceDraft: {
@@ -170,6 +175,8 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     open,
     finalPriceQuote,
     rfqDetails,
+    rfqTypeCode,
+    referenceRfqId,
     procurementRemarks,
     procurementRemark,
     finalPriceDraft,
@@ -203,6 +210,18 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     t
   } = props;
   const [isOldPriceSectionExpanded, setIsOldPriceSectionExpanded] = useState(true);
+  const isRepeatPrice = rfqTypeCode === 'REPEAT_PRICE';
+  const referenceId = referenceRfqId?.trim() || '';
+  const {
+    data: referenceRfq,
+    isLoading: isReferenceRfqLoading,
+    isError: isReferenceRfqError
+  } = useQuery(['rfq-final-price-reference', referenceId], () => getRFQ(referenceId), {
+    enabled: open && isRepeatPrice && Boolean(referenceId),
+    refetchOnWindowFocus: false
+  });
+  const oldPriceDetails = isRepeatPrice ? referenceRfq?.details || [] : rfqDetails;
+  const oldPriceDetailsWithTiers = oldPriceDetails.filter((detail) => (detail.tiers || []).length > 0);
 
   const renderPackageSummary = (packageItem: FinalPriceDraftPackage): string => {
     const dimension = packageItem.packageDimension?.trim();
@@ -278,7 +297,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
   });
 
   const shouldShowOldPriceSection =
-    rfqDetails.length > 0 && rfqDetails.some((detail) => (detail.tiers || []).length > 0);
+    isRepeatPrice || oldPriceDetailsWithTiers.length > 0;
 
   useEffect(() => {
     if (shouldShowOldPriceSection) {
@@ -1305,9 +1324,22 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               </Button>
               <Collapse in={isOldPriceSectionExpanded} timeout="auto" unmountOnExit>
                 <Stack spacing={1.5} sx={{ px: 2, pb: 2 }}>
-                  {rfqDetails
-                    .filter((detail) => (detail.tiers || []).length > 0)
-                    .map((detail) => renderOldPriceDetailCard(detail))}
+                  {isRepeatPrice && referenceId ? (
+                    <Typography variant="body2" color="text.secondary">
+                      อ้างอิง RFQ {referenceId}
+                    </Typography>
+                  ) : null}
+                  {isRepeatPrice && !referenceId ? (
+                    <Alert severity="warning">ไม่พบเลขที่ RFQ อ้างอิงสำหรับแสดงราคาที่เคยให้</Alert>
+                  ) : isRepeatPrice && isReferenceRfqLoading ? (
+                    <Typography role="status">กำลังโหลดราคาจาก RFQ อ้างอิง...</Typography>
+                  ) : isRepeatPrice && isReferenceRfqError ? (
+                    <Alert severity="error">ไม่สามารถโหลดราคาจาก RFQ อ้างอิงได้</Alert>
+                  ) : oldPriceDetailsWithTiers.length ? (
+                    oldPriceDetailsWithTiers.map((detail) => renderOldPriceDetailCard(detail))
+                  ) : (
+                    <Typography color="text.secondary">ไม่มีราคาจาก Tier ใน RFQ อ้างอิง</Typography>
+                  )}
                 </Stack>
               </Collapse>
             </Box>

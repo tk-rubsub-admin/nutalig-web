@@ -188,6 +188,7 @@ export interface SalesOrderDetailV1 {
     rfqDetailId?: number | null;
     rfqTierId?: number | null;
     rfqTierSplitId?: number | null;
+    resolvedShippingMethod?: string | null;
     quotationDetailId?: number | null;
     shippingMethod?: 'LAND' | 'SEA' | null;
     supplierCurrency?: string | null;

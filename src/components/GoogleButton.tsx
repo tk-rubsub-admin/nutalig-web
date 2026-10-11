@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 /* eslint-disable prettier/prettier */
 import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
@@ -27,14 +28,14 @@ const GoogleIcon = () => (
 );
 
 const GoogleButton = styled(Button)({
-    backgroundColor: '#4d8a3f',
-    color: '#fff',
+    backgroundColor: BRAND_COLORS.green,
+    color: BRAND_COLORS.ivory,
     borderRadius: 30,
     padding: '10px 20px',
     fontSize: '16px',
     fontWeight: 500,
     '&:hover': {
-        backgroundColor: '#3b6f30'
+        backgroundColor: BRAND_UI.greenHover
     }
 });
 

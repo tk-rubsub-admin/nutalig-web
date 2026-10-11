@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { DisabledByDefault, Search } from '@mui/icons-material';
 import {
   Autocomplete,
@@ -25,6 +26,7 @@ import { makeStyles } from '@mui/styles';
 import { useAuth } from 'auth/AuthContext';
 import { ROLES } from 'auth/roles';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
+import CustomerTierChip from 'components/CustomerTierChip';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { GridSearchSection, GridTextField, TextLineClamp, Wrapper } from 'components/Styled';
@@ -113,10 +115,6 @@ function getCustomerLabel(rfq: RFQRecord): string | null {
   return rfq.customer?.customerName || rfq.customer?.companyName || null;
 }
 
-function getCustomerTierLabel(rfq: RFQRecord): string | null {
-  return rfq.customer?.customerTier?.nameEn || null;
-}
-
 function normalizeRfqIdForDisplay(id?: string | null): string {
   if (!id) {
     return '';
@@ -129,21 +127,6 @@ function buildRfqIdForRequest(id?: string | null): string {
   const suffix = normalizeRfqIdForDisplay(id).trim();
 
   return suffix ? `${RFQ_ID_PREFIX}${suffix}` : '';
-}
-
-function getCustomerTierColor(code?: string | null): { backgroundColor: string; color: string } {
-  switch (code) {
-    case 'VIP':
-      return { backgroundColor: '#7C3AED', color: '#FFFFFF' };
-    case 'TIER_2':
-      return { backgroundColor: '#2563EB', color: '#FFFFFF' };
-    case 'TIER_3':
-      return { backgroundColor: '#0F766E', color: '#FFFFFF' };
-    case 'TIER_4':
-      return { backgroundColor: '#F59E0B', color: '#FFFFFF' };
-    default:
-      return { backgroundColor: '#CBD5E1', color: '#334155' };
-  }
 }
 
 function getDefaultRequestedDateStart(): string {
@@ -334,9 +317,9 @@ function getRFQRowSx(rfq: RFQRecord) {
 
   return {
     cursor: 'pointer',
-    backgroundColor: '#e8f5e9',
+    backgroundColor: BRAND_UI.greenTint,
     '&:hover': {
-      backgroundColor: '#dff0e1'
+      backgroundColor: BRAND_UI.greenSelected
     }
   };
 }
@@ -357,8 +340,8 @@ function RFQPictureGrid({
           width: 56,
           height: 56,
           borderRadius: 2,
-          border: '1px dashed #d7dce2',
-          backgroundColor: '#f8fafb'
+          border: `1px dashed ${BRAND_COLORS.sand}`,
+          backgroundColor: BRAND_UI.sandTint
         }}
       />
     );
@@ -385,8 +368,8 @@ function RFQPictureGrid({
             height: 56,
             borderRadius: 2,
             overflow: 'hidden',
-            border: '1px solid #e3e8ee',
-            backgroundColor: '#f8fafb',
+            border: `1px solid ${BRAND_COLORS.sand}`,
+            backgroundColor: BRAND_UI.sandTint,
             boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
             cursor: 'pointer'
           }}>
@@ -418,7 +401,7 @@ function RFQPictureGrid({
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: 'rgba(15, 23, 42, 0.62)',
-                color: '#ffffff',
+                color: BRAND_COLORS.ivory,
                 fontWeight: 800,
                 fontSize: 16,
                 letterSpacing: 0.3
@@ -477,7 +460,7 @@ export default function PriceInquiryManagement(): ReactElement {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -832,21 +815,12 @@ export default function PriceInquiryManagement(): ReactElement {
                 label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
                 size="small"
                 sx={{
-                  backgroundColor: '#e8f5e9',
-                  color: '#2e7d32',
+                  backgroundColor: BRAND_UI.greenTint,
+                  color: BRAND_COLORS.green,
                   fontWeight: 700
                 }}
               />
-              {rfq.customer?.customerTier ? (
-                <Chip
-                  label={getCustomerTierLabel(rfq) || '-'}
-                  size="small"
-                  sx={{
-                    ...getCustomerTierColor(rfq.customer.customerTier.code),
-                    fontWeight: 700
-                  }}
-                />
-              ) : null}
+              <CustomerTierChip tier={rfq.customer?.customerTier} />
               {rfq.urgentApproval?.status === 'APPROVED' ? (
                 <Chip
                   label="เร่งด่วน"
@@ -925,21 +899,12 @@ export default function PriceInquiryManagement(): ReactElement {
                   label={t(`rfqManagement.rfqsStatus.${rfq.status}`, rfq.status)}
                   size="small"
                   sx={{
-                    backgroundColor: '#e8f5e9',
-                    color: '#2e7d32',
+                    backgroundColor: BRAND_UI.greenTint,
+                    color: BRAND_COLORS.green,
                     fontWeight: 700
                   }}
                 />
-                {rfq.customer?.customerTier ? (
-                  <Chip
-                    label={getCustomerTierLabel(rfq) || '-'}
-                    size="small"
-                    sx={{
-                      ...getCustomerTierColor(rfq.customer.customerTier.code),
-                      fontWeight: 700
-                    }}
-                  />
-                ) : null}
+                <CustomerTierChip tier={rfq.customer?.customerTier} />
                 {rfq.urgentApproval?.status === 'APPROVED' ? (
                   <Chip
                     label="เร่งด่วน"

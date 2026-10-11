@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { DisabledByDefault, OpenInNew, Search } from '@mui/icons-material';
 import {
     Button,
@@ -132,7 +133,7 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
             padding: '48px 0'
         },
         tableHeader: {
-            border: '2px solid #e0e0e0',
+            border: `2px solid ${BRAND_COLORS.sand}`,
             fontWeight: 'bold',
             paddingLeft: '10px',
             textAlign: 'center'
@@ -342,8 +343,8 @@ export default function AwaitingSalesOrderManagement(): ReactElement {
                                 label={`(${getCustomerTagLabel(salesOrder)})`}
                                 size="small"
                                 sx={{
-                                    backgroundColor: '#eff6ff',
-                                    color: '#1d4ed8',
+                                    backgroundColor: BRAND_UI.greenTint,
+                                    color: BRAND_COLORS.green,
                                     fontWeight: 700
                                 }}
                             />

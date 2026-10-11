@@ -35,7 +35,7 @@ export default function QuotationRfqGroupedRows<T extends QuotationRfqRow>({
               colSpan={6}
               component="th"
               scope="rowgroup"
-              sx={{ backgroundColor: '#eff6ff', py: 1 }}>
+              sx={{ backgroundColor: 'action.hover', py: 1 }}>
               <Typography variant="body2" fontWeight={700}>
                 {sourceRfqId ? `RFQ: ${sourceRfqId}` : 'ไม่ระบุ RFQ'}
               </Typography>

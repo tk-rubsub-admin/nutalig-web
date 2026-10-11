@@ -6,20 +6,20 @@ const ChipStandard = styled(Chip)`
 `;
 
 const ChipGreen = styled(Chip)`
-  background-color: #4caf50 !important;
-  color: #ffffff !important;
+  background-color: ${({ theme }) => theme.palette.success.main} !important;
+  color: ${({ theme }) => theme.palette.primary.contrastText} !important;
   border-radius: 64px !important;
 `;
 
 const ChipRed = styled(Chip)`
-  background-color: #f44336 !important;
-  color: #ffffff !important;
+  background-color: ${({ theme }) => theme.palette.error.main} !important;
+  color: ${({ theme }) => theme.palette.primary.contrastText} !important;
   border-radius: 64px !important;
 `;
 
 const ChipLightGrey = styled(Chip)`
-  background-color: #e0e0e0 !important;
-  color: #30302f !important;
+  background-color: ${({ theme }) => theme.palette.divider} !important;
+  color: ${({ theme }) => theme.palette.text.primary} !important;
   border-radius: 64px !important;
 `;
 

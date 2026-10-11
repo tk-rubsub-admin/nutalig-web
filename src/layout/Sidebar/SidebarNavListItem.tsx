@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { NavLink, Link } from 'react-router-dom';
-import { rgba, darken } from 'polished';
+import { rgba } from 'polished';
 import { Chip, Collapse, ListItemProps, ListItemButton, ListItemText } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 
@@ -27,11 +27,12 @@ const Item = styled(ListItemButton) <ItemType>`
     opacity: 0.5;
   }
   &:hover {
-    background: rgba(0, 0, 0, 0.08);
+    background: ${(props) => rgba(props.theme.sidebar.color, 0.08)};
     color: ${(props) => props.theme.sidebar.color};
   }
   &.${(props) => props.activeclassname} {
-    background-color: ${(props) => darken(0.03, props.theme.sidebar.background)};
+    background-color: ${(props) => rgba(props.theme.sidebar.color, 0.14)};
+    box-shadow: inset 3px 0 ${(props) => props.theme.palette.secondary.main};
     span {
       color: ${(props) => props.theme.sidebar.color};
     }
@@ -41,7 +42,8 @@ const Item = styled(ListItemButton) <ItemType>`
 const ItemLink = styled(Link)`
   text-decoration: none;
   &.active > div {
-    background-color: ${(props) => darken(0.03, props.theme.sidebar.background)};
+    background-color: ${(props) => rgba(props.theme.sidebar.color, 0.14)};
+    box-shadow: inset 3px 0 ${(props) => props.theme.palette.secondary.main};
     span {
       color: ${(props) => props.theme.sidebar.color};
     }

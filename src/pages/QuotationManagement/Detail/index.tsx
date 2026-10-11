@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { ArrowBackIos, ArrowDropDown, Cancel, CloudUpload, DeleteOutline, Description, DirectionsBoat, LocalShipping, Menu as MenuIcon, Save, Search } from '@mui/icons-material';
 import {
     Box,
@@ -268,20 +269,20 @@ export default function QuotationDetail(): JSX.Element {
     const { id: quotationNo = '' } = useParams<{ id: string }>();
     const useStyles = makeStyles({
         tableHeader: {
-            border: '2px solid #e0e0e0',
+            border: `2px solid ${BRAND_COLORS.sand}`,
             fontWeight: 'bold',
             paddingLeft: '10px',
             textAlign: 'center'
         },
         section: {
-            backgroundColor: '#fff',
-            border: '1px solid #e6ebf1',
+            backgroundColor: BRAND_COLORS.ivory,
+            border: `1px solid ${BRAND_COLORS.sand}`,
             borderRadius: 12,
             padding: 16,
             boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
         },
         label: {
-            color: '#64748b',
+            color: BRAND_UI.mutedText,
             fontSize: 12,
             fontWeight: 700
         },
@@ -290,8 +291,8 @@ export default function QuotationDetail(): JSX.Element {
             height: 64,
             objectFit: 'cover',
             borderRadius: 8,
-            border: '1px solid #e6ebf1',
-            backgroundColor: '#f8fafc'
+            border: `1px solid ${BRAND_COLORS.sand}`,
+            backgroundColor: BRAND_UI.sandTint
         },
         specCell: {
             width: 260,
@@ -307,7 +308,7 @@ export default function QuotationDetail(): JSX.Element {
             border: '1px solid #e5e7eb',
             borderRadius: 12,
             padding: 14,
-            backgroundColor: '#ffffff'
+            backgroundColor: BRAND_COLORS.ivory
         },
         mobileItemHeader: {
             paddingBottom: 10,
@@ -1016,8 +1017,8 @@ export default function QuotationDetail(): JSX.Element {
 
                 <Box
                     sx={{
-                        backgroundColor: '#fff',
-                        border: '1px solid #e6ebf1',
+                        backgroundColor: BRAND_COLORS.ivory,
+                        border: `1px solid ${BRAND_COLORS.sand}`,
                         borderRadius: 3,
                         overflow: 'hidden',
                         boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -1335,7 +1336,7 @@ export default function QuotationDetail(): JSX.Element {
                                                                 justifyContent="center"
                                                                 alignItems="center"
                                                                 className={classes.productImage}
-                                                                sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
+                                                                sx={{ color: BRAND_UI.mutedText, fontSize: 11, textAlign: 'center', px: 1 }}>
                                                                 {t('documentManagement.quotation.itemSection.noImage')}
                                                             </Stack>
                                                         )}
@@ -1505,8 +1506,8 @@ export default function QuotationDetail(): JSX.Element {
                                                                             px: 1.25,
                                                                             py: 1,
                                                                             borderRadius: 2,
-                                                                            backgroundColor: '#f8fafc',
-                                                                            border: '1px solid #e2e8f0'
+                                                                            backgroundColor: BRAND_UI.sandTint,
+                                                                            border: `1px solid ${BRAND_COLORS.sand}`
                                                                         }}>
                                                                         <Typography variant="caption" color="text.secondary" fontWeight={700}>
                                                                             {t('documentManagement.quotation.itemSection.totalAmount')}
@@ -1780,7 +1781,7 @@ export default function QuotationDetail(): JSX.Element {
                                     sx={{
                                         '& th': {
                                             fontWeight: 700,
-                                            backgroundColor: '#f8fafc',
+                                            backgroundColor: BRAND_UI.sandTint,
                                             whiteSpace: 'nowrap'
                                         }
                                     }}>
@@ -1826,7 +1827,7 @@ export default function QuotationDetail(): JSX.Element {
                                                             {isSeaShippingMethod(row.shippingMethod) ? (
                                                                 <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
                                                             ) : (
-                                                                <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                                                <LocalShipping fontSize="small" sx={{ color: BRAND_COLORS.green }} />
                                                             )}
                                                             <Typography variant="body2">
                                                                 {getShippingMethodLabel(

@@ -14,10 +14,11 @@ export default function PhoneCallBox({ phoneNumber, onClickLink }: Props) {
             sx={{
                 display: 'flex',
                 alignItems: 'center',
-                border: '1px solid #ccc',
+                border: '1px solid',
+                borderColor: 'divider',
                 borderRadius: '5px',
                 padding: '5px 3px',
-                backgroundColor: '#f9f9f9'
+                backgroundColor: 'background.paper'
             }}>
             <LocalPhone color="primary" sx={{ marginRight: 2 }} />
             {/* <Box> */}

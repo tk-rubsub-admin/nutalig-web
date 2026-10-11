@@ -17,10 +17,12 @@ import { useEffect, useMemo, useState } from 'react';
 import NavbarMenu from './NavbarMenu';
 import { isMobileOnly } from 'react-device-detect';
 import { appVersionLabel } from 'utils/appVersion';
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS } from 'theme/brandTokens';
 
 const AppBar = styled(MuiAppBar)`
-  background: linear-gradient(180deg, #0f2a17 0%, #1a3a22 100%) !important;
-  color: #fff !important;
+  background: ${({ theme }) => theme.header.background} !important;
+  color: ${({ theme }) => theme.header.color} !important;
 `;
 
 const IconButton = styled(MuiIconButton)`
@@ -179,15 +181,15 @@ function Navbar({ onSidebarToggle }: NavbarProps) {
                     color="inherit"
                     sx={{
                       minWidth: 56,
-                      borderColor: selected ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
-                      backgroundColor: selected ? '#ffffff' : 'transparent',
-                      color: selected ? '#0f2a17' : 'rgba(255, 255, 255, 0.82)',
+                      borderColor: selected ? BRAND_COLORS.ivory : alpha(BRAND_COLORS.ivory, 0.45),
+                      backgroundColor: selected ? BRAND_COLORS.ivory : 'transparent',
+                      color: selected ? BRAND_COLORS.green : alpha(BRAND_COLORS.ivory, 0.82),
                       fontWeight: selected ? 700 : 500,
                       boxShadow: selected ? '0 2px 8px rgba(0, 0, 0, 0.28)' : 'none',
                       '&:hover': {
-                        borderColor: '#ffffff',
-                        backgroundColor: selected ? '#ffffff' : 'rgba(255, 255, 255, 0.12)',
-                        color: selected ? '#0f2a17' : '#ffffff'
+                        borderColor: BRAND_COLORS.ivory,
+                        backgroundColor: selected ? BRAND_COLORS.ivory : alpha(BRAND_COLORS.ivory, 0.12),
+                        color: selected ? BRAND_COLORS.green : BRAND_COLORS.ivory
                       }
                     }}>
                     {item.label}

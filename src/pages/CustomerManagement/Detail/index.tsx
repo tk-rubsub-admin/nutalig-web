@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { Add, ArrowBackIos, Cancel, DeleteOutline, Edit, Person, Save } from '@mui/icons-material';
 import {
   Button,
@@ -92,7 +93,7 @@ export default function CustomerDetail(): JSX.Element {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -1061,7 +1062,7 @@ export default function CustomerDetail(): JSX.Element {
                         borderBottom: '1px solid #eee',
                         cursor: 'pointer',
                         '&:hover': {
-                          backgroundColor: '#fafafa'
+                          backgroundColor: BRAND_UI.sandTint
                         }
                       }}>
                       <Stack direction="row" spacing={1} alignItems="flex-start">
@@ -1085,7 +1086,7 @@ export default function CustomerDetail(): JSX.Element {
                                 label="ค่าเริ่มต้น"
                                 size="small"
                                 sx={{
-                                  bgcolor: '#ff5722',
+                                  bgcolor: BRAND_COLORS.terracotta,
                                   color: '#000'
                                 }}
                               />
@@ -1154,7 +1155,7 @@ export default function CustomerDetail(): JSX.Element {
                         borderBottom: '1px solid #eee',
                         cursor: 'pointer',
                         '&:hover': {
-                          backgroundColor: '#fafafa'
+                          backgroundColor: BRAND_UI.sandTint
                         }
                       }}>
                       <Stack direction="row" spacing={1} alignItems="flex-start">

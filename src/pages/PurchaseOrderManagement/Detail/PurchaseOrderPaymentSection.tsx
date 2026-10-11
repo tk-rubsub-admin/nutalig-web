@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   Add,
   CheckCircleOutline,
@@ -397,8 +398,8 @@ export default function PurchaseOrderPaymentSection({
       <Stack
         spacing={2}
         sx={{
-          backgroundColor: '#fff',
-          border: '1px solid #e6ebf1',
+          backgroundColor: BRAND_COLORS.ivory,
+          border: `1px solid ${BRAND_COLORS.sand}`,
           borderRadius: 3,
           p: 2,
           boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -425,7 +426,7 @@ export default function PurchaseOrderPaymentSection({
 
         <Grid container spacing={1.5}>
           <Grid item xs={12} sm={3}>
-            <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc' }}>
+            <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: BRAND_UI.sandTint }}>
               <Typography variant="caption" color="text.secondary">
                 ยอด PO
               </Typography>
@@ -455,11 +456,11 @@ export default function PurchaseOrderPaymentSection({
             </Box>
           </Grid>
           <Grid item xs={12} sm={3}>
-            <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#eff6ff' }}>
+            <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: BRAND_UI.greenTint }}>
               <Typography variant="caption" color="text.secondary">
                 คงเหลือ
               </Typography>
-              <Typography sx={{ fontWeight: 700, color: '#1d4ed8' }}>
+              <Typography sx={{ fontWeight: 700, color: BRAND_COLORS.green }}>
                 {formatNumber(purchaseOrder.outstandingTotal || 0)} {purchaseOrder.currency || ''}
               </Typography>
             </Box>
@@ -471,10 +472,10 @@ export default function PurchaseOrderPaymentSection({
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
               แผนการชำระเงิน
             </Typography>
-            <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}>
+            <TableContainer sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}>
               <Table size="small" sx={{ minWidth: 760 }}>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f8fafc' }}>
+                  <TableRow sx={{ backgroundColor: BRAND_UI.sandTint }}>
                     <TableCell>งวด</TableCell>
                     <TableCell>ประเภท</TableCell>
                     <TableCell align="right">สัดส่วน</TableCell>
@@ -527,10 +528,10 @@ export default function PurchaseOrderPaymentSection({
         ) : null}
 
         {payments.length ? (
-          <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}>
+          <TableContainer sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}>
             <Table size="small" sx={{ minWidth: 980 }}>
               <TableHead>
-                <TableRow sx={{ backgroundColor: '#f8fafc' }}>
+                <TableRow sx={{ backgroundColor: BRAND_UI.sandTint }}>
                   <TableCell>ประเภท</TableCell>
                   <TableCell>วันที่ชำระ</TableCell>
                   <TableCell>วิธีชำระ</TableCell>

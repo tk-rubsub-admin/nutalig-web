@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   Add,
   ContentCopy,
@@ -212,10 +213,10 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
   return (
     <Box
       sx={{
-        border: '1px solid #e6ebf1',
+        border: `1px solid ${BRAND_COLORS.sand}`,
         borderRadius: 3,
         overflow: 'hidden',
-        backgroundColor: '#fff'
+        backgroundColor: BRAND_COLORS.ivory
       }}>
       <Stack spacing={2} sx={{ p: 2 }}>
         {quotes.length ? (
@@ -227,10 +228,10 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
               <Box
                 key={quote.id}
                 sx={{
-                  border: '1px solid #dce4ee',
+                  border: `1px solid ${BRAND_COLORS.sand}`,
                   borderRadius: 3,
                   p: 2,
-                  backgroundColor: '#fff'
+                  backgroundColor: BRAND_COLORS.ivory
                 }}>
                 <Stack spacing={2}>
                   <Stack
@@ -244,9 +245,9 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                           size="small"
                           label={quote.id}
                           sx={{
-                            backgroundColor: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe',
+                            backgroundColor: BRAND_UI.greenTint,
+                            color: BRAND_COLORS.green,
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             fontWeight: 700
                           }}
                         />
@@ -257,9 +258,9 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                           size="small"
                           label={`Rev. ${quote.revisionNo || 1}`}
                           sx={{
-                            backgroundColor: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe',
+                            backgroundColor: BRAND_UI.greenTint,
+                            color: BRAND_COLORS.green,
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             fontWeight: 700
                           }}
                         />
@@ -267,8 +268,8 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                           size="small"
                           label={quote.status || 'DRAFT'}
                           sx={{
-                            backgroundColor: '#e8f5e9',
-                            color: '#2e7d32',
+                            backgroundColor: BRAND_UI.greenTint,
+                            color: BRAND_COLORS.green,
                             border: '1px solid #2e7d3233',
                             fontWeight: 700
                           }}
@@ -369,10 +370,10 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                             <Box
                               key={detail.id || `${quote.id}-${detailIndex}`}
                               sx={{
-                                border: '1px solid #edf2f7',
+                                border: `1px solid ${BRAND_COLORS.sand}`,
                                 borderRadius: 2,
                                 p: 1.5,
-                                backgroundColor: '#fbfdff'
+                                backgroundColor: BRAND_COLORS.ivory
                               }}>
                               <Stack spacing={1.25}>
                                 <Box>
@@ -388,9 +389,9 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                               size="small"
                                               label={`id: ${detail.id}`}
                                               sx={{
-                                                backgroundColor: '#eff6ff',
-                                                color: '#1d4ed8',
-                                                border: '1px solid #bfdbfe',
+                                                backgroundColor: BRAND_UI.greenTint,
+                                                color: BRAND_COLORS.green,
+                                                border: `1px solid ${BRAND_COLORS.sand}`,
                                                 fontWeight: 700,
                                                 flexShrink: 0
                                               }}
@@ -406,7 +407,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                             <IconButton
                                               size="small"
                                               onClick={() => onCopyDetail(detail.id)}
-                                              sx={{ color: '#1565c0' }}>
+                                              sx={{ color: BRAND_COLORS.green }}>
                                               <ContentCopy fontSize="small" />
                                             </IconButton>
                                             {quoteDraftDetails.length > 1 ? (
@@ -420,36 +421,36 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                           </Stack>
                                         </Stack>
                                       </Grid>
-                              <Grid item xs={12} md={4}>
-                                <TextField
-                                  fullWidth
-                                  size="small"
-                                  label="Option"
-                                  value={detail.optionName || ''}
-                                  error={Boolean(detailError.optionName)}
-                                  helperText={detailError.optionName}
-                                  InputLabelProps={{ shrink: true }}
-                                  onChange={(event) =>
-                                    onDetailChange(detail.id, 'optionName', event.target.value)
-                                  }
-                                />
-                              </Grid>
-                              <Grid item xs={12} md={4}>
-                                <TextField
-                                  fullWidth
-                                  size="small"
-                                  label="Plan"
-                                  value={detail.plan || ''}
-                                  InputLabelProps={{ shrink: true }}
-                                  onChange={(event) =>
-                                    onDetailChange(detail.id, 'plan', event.target.value)
-                                  }
-                                />
-                              </Grid>
-                              <Grid item xs={12} md={4}>
-                                <TextField
-                                  fullWidth
-                                  size="small"
+                                      <Grid item xs={12} md={4}>
+                                        <TextField
+                                          fullWidth
+                                          size="small"
+                                          label="Option"
+                                          value={detail.optionName || ''}
+                                          error={Boolean(detailError.optionName)}
+                                          helperText={detailError.optionName}
+                                          InputLabelProps={{ shrink: true }}
+                                          onChange={(event) =>
+                                            onDetailChange(detail.id, 'optionName', event.target.value)
+                                          }
+                                        />
+                                      </Grid>
+                                      <Grid item xs={12} md={4}>
+                                        <TextField
+                                          fullWidth
+                                          size="small"
+                                          label="Plan"
+                                          value={detail.plan || ''}
+                                          InputLabelProps={{ shrink: true }}
+                                          onChange={(event) =>
+                                            onDetailChange(detail.id, 'plan', event.target.value)
+                                          }
+                                        />
+                                      </Grid>
+                                      <Grid item xs={12} md={4}>
+                                        <TextField
+                                          fullWidth
+                                          size="small"
                                           label="Spec"
                                           value={detail.spec || ''}
                                           error={Boolean(detailError.spec)}
@@ -482,19 +483,19 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                           size="small"
                                           label={`id: ${detail.id}`}
                                           sx={{
-                                            backgroundColor: '#eff6ff',
-                                            color: '#1d4ed8',
-                                            border: '1px solid #bfdbfe',
+                                            backgroundColor: BRAND_UI.greenTint,
+                                            color: BRAND_COLORS.green,
+                                            border: `1px solid ${BRAND_COLORS.sand}`,
                                             fontWeight: 700,
                                             flexShrink: 0
                                           }}
                                         />
-                                      <Typography variant="body2" fontWeight={700}>
+                                        <Typography variant="body2" fontWeight={700}>
                                           {formatOptionNameWithPlan(
                                             detail.optionName || `Option ${detailIndex + 1}`,
                                             detail.plan
                                           )}
-                                      </Typography>
+                                        </Typography>
                                       </Stack>
                                       <Typography variant="body2" color="text.secondary">
                                         {detail.spec || '-'}
@@ -514,7 +515,7 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                       sx={{
                                         '& th': {
                                           fontWeight: 700,
-                                          backgroundColor: '#f8fafc',
+                                          backgroundColor: BRAND_UI.sandTint,
                                           whiteSpace: 'nowrap'
                                         }
                                       }}>
@@ -725,8 +726,8 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                 <TableCell>กว้าง</TableCell>
                                 <TableCell>ยาว</TableCell>
                                 <TableCell>สูง</TableCell>
-                                <TableCell>1 กล่องบรรจุจำนวนกี่ชิ้น</TableCell>
                                 <TableCell>1 กล่อง ขนาดกี่ kg</TableCell>
+                                <TableCell>1 กล่องบรรจุจำนวนกี่ชิ้น</TableCell>
                                 <TableCell align="center">จัดการ</TableCell>
                               </TableRow>
                             </TableHead>
@@ -1111,12 +1112,12 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
         ) : (
           <Box
             sx={{
-              border: '1px dashed #cbd5e1',
+              border: `1px dashed ${BRAND_COLORS.sand}`,
               borderRadius: 3,
               py: 4,
               px: 2,
               textAlign: 'center',
-              backgroundColor: '#f8fafc'
+              backgroundColor: BRAND_UI.sandTint
             }}>
             <Typography variant="body1" fontWeight={600}>
               ยังไม่มี supplier quote

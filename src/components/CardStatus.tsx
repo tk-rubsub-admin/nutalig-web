@@ -1,3 +1,5 @@
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS, BRAND_UI, SEMANTIC_COLORS } from 'theme/brandTokens';
 import { ReactElement } from 'react';
 import { Avatar as AvatarBase, Box, Card, CardContent, Grid, Typography } from '@material-ui/core';
 import styled from 'styled-components';
@@ -39,22 +41,22 @@ interface CardStatusProps {
 function CardStatus(props: CardStatusProps): JSX.Element {
   const useStyles = makeStyles({
     bgRed: {
-      backgroundColor: 'rgba(255, 0, 0, 0.5)'
+      backgroundColor: alpha(SEMANTIC_COLORS.error, 0.1)
     },
     bgWhite: {
-      backgroundColor: 'rgba(255, 255, 255, 0.5)'
+      backgroundColor: BRAND_COLORS.ivory
     },
     bgYellow: {
-      backgroundColor: 'rgba(255, 195, 60, 0.5)'
+      backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.1)
     },
     bgGreen: {
-      backgroundColor: 'rgba(0, 160, 10, 0.5)'
+      backgroundColor: BRAND_UI.greenTint
     },
     bgBlue: {
-      backgroundColor: 'rgba(0, 50, 220, 0.5)'
+      backgroundColor: BRAND_UI.greenSelected
     },
     bgGrey: {
-      backgroundColor: '#9c9c9c80'
+      backgroundColor: BRAND_UI.sandTint
     }
   });
   const classes = useStyles();

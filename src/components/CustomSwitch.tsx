@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { FormControlLabel, Switch } from '@mui/material';
+import { SxProps, Theme } from '@mui/material/styles';
 
 interface CustomSwitchProps {
   checked: boolean;
@@ -46,7 +47,7 @@ export default function CustomSwitch({
             // วงกลม (thumb)
             '& .MuiSwitch-thumb': {
               border: '2px solid',
-              borderColor: checked ? '#1976d2' : '#bdbdbd',
+              borderColor: checked ? 'primary.main' : 'divider',
               boxSizing: 'border-box',
             },
 

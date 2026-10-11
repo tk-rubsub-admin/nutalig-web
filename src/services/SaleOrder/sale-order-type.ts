@@ -105,6 +105,7 @@ export interface SearchSalesOrderRequestV1 {
     statuses?: string[];
     urgentRequestStatus?: string | null;
     procurementStatus?: string[] | null;
+    shippingType?: string;
     keyword?: string;
     sortBy?: string;
     sortDirection?: string;

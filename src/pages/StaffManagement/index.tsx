@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import {
   PersonAddAlt1,
   DisabledByDefault,
@@ -56,7 +57,7 @@ export default function StaffManagement(): JSX.Element {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'

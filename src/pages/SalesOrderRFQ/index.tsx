@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   AddCircle,
   ArrowBackIos,
@@ -200,7 +201,7 @@ function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 7): number
 const fieldSx = {
   '& .MuiOutlinedInput-root': {
     borderRadius: '12px',
-    backgroundColor: '#fff',
+    backgroundColor: BRAND_COLORS.ivory,
     minHeight: 54
   },
   '& .MuiInputBase-input': {
@@ -319,7 +320,7 @@ function getShippingMethodIcon(shippingMethod?: string | null): JSX.Element | nu
   }
 
   if (shippingMethod === 'LAND') {
-    return <LocalShipping sx={{ color: '#1565c0', fontSize: 30 }} />;
+    return <LocalShipping sx={{ color: BRAND_COLORS.green, fontSize: 30 }} />;
   }
 
   return null;
@@ -475,6 +476,7 @@ function buildPaymentTermRemark(customer?: Customer | null, grandTotal = 0): str
 function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
   const material = getRFQProductLabel(rfq.material);
   const productFamily = getRFQProductLabel(rfq.productFamily);
+  const productName = [getRFQProductLabel(rfq.productSubtype1), material].filter(Boolean).join(' ');
   const orderType = getSystemConfigLabel(rfq.orderType);
 
   if (!rfq.details?.length) {
@@ -521,7 +523,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           exchangeRate: 0,
           supplierShippingCost: shippingCost,
           supplierTotalUnitCost: Number(tierSplit.productPrice || 0) + shippingCost,
-          name: `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
+          name: productName || `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
             quantity
           )} - ${shippingDisplayLabel}`,
           spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
@@ -549,7 +551,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
             sourceRfqId: rfq.id,
             optionId: detail.id,
             shippingMethod: 'LAND' as const,
-            name: detail.optionName || productFamily || 'PRE-ORDER',
+            name: productName || detail.optionName || productFamily || 'PRE-ORDER',
             spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
             quantity: 1,
             unitPrice: 0,
@@ -589,7 +591,7 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           supplierTotalUnitCost:
             Number(tier.productPrice || 0) +
             Number(isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0),
-          name: `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
+          name: productName || `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
             quantity
           )} - ${shippingDisplayLabel}`,
           spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
@@ -618,6 +620,7 @@ function createSaleOrderItemsFromQuotation(
     const sourceRfq = rfqsById.get(item.sourceRfqId || '') || rfq;
     const material = getRFQProductLabel(sourceRfq.material);
     const productFamily = getRFQProductLabel(sourceRfq.productFamily);
+    const productName = [getRFQProductLabel(sourceRfq.productSubtype1), material].filter(Boolean).join(' ');
     const quantity = Number(item.quantity || 1);
     const rfqDetailId = item.rfqDetailId;
     const parsedTierId = Number(item.tierId);
@@ -645,11 +648,6 @@ function createSaleOrderItemsFromQuotation(
         mappedPrice?.isShareFCL
       )
       : '';
-    const normalizedItemName = item.name || productFamily || 'PRE-ORDER';
-    const itemNameWithShippingLabel =
-      shippingDisplayLabel && !normalizedItemName.includes(shippingDisplayLabel)
-        ? `${normalizedItemName} - ${shippingDisplayLabel}`
-        : normalizedItemName;
 
     return {
       id: Number.isFinite(numericItemId)
@@ -673,7 +671,7 @@ function createSaleOrderItemsFromQuotation(
       supplierTotalUnitCost:
         Number(mappedPrice?.productPrice || 0) +
         Number(mappedPrice?.shippingCost || 0),
-      name: itemNameWithShippingLabel,
+      name: rfqDetailId ? productName || item.name || productFamily || 'PRE-ORDER' : item.name,
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
       unitPrice: Number(item.unitPrice || 0),
@@ -733,7 +731,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       fontWeight: 'bold'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -757,7 +755,7 @@ export default function SalesOrderRFQ(): JSX.Element {
     fileInput: {
       width: '100%',
       padding: '11px',
-      border: '1px solid #ccc',
+      border: `1px solid ${BRAND_COLORS.sand}`,
       borderRadius: '4px',
       fontSize: '14px',
       '::file-selector-button': {
@@ -2376,10 +2374,10 @@ export default function SalesOrderRFQ(): JSX.Element {
         <Paper
           elevation={0}
           sx={{
-            border: '1px solid #D9DCE3',
+            border: `1px solid ${BRAND_COLORS.sand}`,
             borderRadius: '24px',
             overflow: 'hidden',
-            backgroundColor: '#fff'
+            backgroundColor: BRAND_COLORS.ivory
           }}>
           <Table
             sx={{
@@ -2396,7 +2394,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                   '& .MuiTableCell-root': {
                     py: 2.25,
                     fontSize: 16,
-                    borderBottom: '1px solid #D9DCE3'
+                    borderBottom: `1px solid ${BRAND_COLORS.sand}`
                   }
                 }}>
                 <TableCell width={140} align="center">
@@ -2425,7 +2423,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                       colSpan={6}
                       component="th"
                       scope="rowgroup"
-                      sx={{ backgroundColor: '#eff6ff', py: 1 }}>
+                      sx={{ backgroundColor: BRAND_UI.greenTint, py: 1 }}>
                       <Typography variant="body2" fontWeight={700}>
                         {sourceRfqId ? `RFQ: ${sourceRfqId}` : 'รายการเพิ่มเติม'}
                       </Typography>
@@ -2587,7 +2585,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                           {option.icon}
                           <Typography
                             fontWeight={800}
-                            sx={{ color: option.isSelected ? option.color : '#64748B' }}>
+                            sx={{ color: option.isSelected ? option.color: BRAND_UI.mutedText }}>
                             {option.shippingMethod}
                           </Typography>
                           <Typography

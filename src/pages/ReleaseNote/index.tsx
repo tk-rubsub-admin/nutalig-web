@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Card, CardContent, Chip, Divider, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -86,7 +87,7 @@ export default function ReleaseNote(): JSX.Element {
                   key={note.version}
                   elevation={0}
                   sx={{
-                    border: '1px solid #D9DCE3',
+                    border: `1px solid ${BRAND_COLORS.sand}`,
                     borderRadius: 3,
                     overflow: 'hidden',
                     background:
@@ -143,7 +144,7 @@ export default function ReleaseNote(): JSX.Element {
                               fontWeight={800}
                               sx={{
                                 lineHeight: 1.1,
-                                color: '#1F3F37',
+                                color: BRAND_COLORS.green,
                                 wordBreak: 'break-word'
                               }}>
                               {note.publishedAt || '-'}
@@ -180,7 +181,7 @@ export default function ReleaseNote(): JSX.Element {
               );
             })
           ) : (
-            <Card elevation={0} sx={{ border: '1px dashed #D9DCE3', borderRadius: 3 }}>
+            <Card elevation={0} sx={{ border: `1px dashed ${BRAND_COLORS.sand}`, borderRadius: 3 }}>
               <CardContent>
                 <Typography variant="body2" color="text.secondary">
                   {t('general.noData') || 'No release notes found.'}

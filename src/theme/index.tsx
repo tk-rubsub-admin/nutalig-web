@@ -7,14 +7,7 @@ import components from './components';
 import shadows from './shadows';
 
 const createTheme = (name: string) => {
-  let themeConfig = variants.find((variant) => variant.name === name);
-
-  console.log(themeConfig.name);
-
-  if (!themeConfig) {
-    themeConfig = variants[0];  // <-- fallback เป็น DEFAULT
-  }
-  console.log(themeConfig.palette)
+  const themeConfig = variants.find((variant) => variant.name === name) || variants[0];
   return createMuiTheme(
     {
       spacing: 4,

@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 export const actionButtonSx = {
   minHeight: 40,
   px: 2.25,
@@ -21,10 +22,10 @@ export const outlinedActionButtonSx = {
 
 export const blueActionButtonSx = {
   ...actionButtonSx,
-  backgroundColor: '#1976d2',
-  color: '#fff',
+  backgroundColor: BRAND_COLORS.green,
+  color: BRAND_COLORS.ivory,
   '&:hover': {
-    backgroundColor: '#1565c0',
+    backgroundColor: BRAND_UI.greenHover,
     boxShadow: 'none'
   }
 };

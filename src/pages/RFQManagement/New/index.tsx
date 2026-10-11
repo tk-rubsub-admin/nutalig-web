@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import {
   AddCircleOutline,
   ArrowBackIos,
@@ -31,6 +32,7 @@ import {
   useTheme
 } from '@mui/material';
 import ConfirmDialog from 'components/ConfirmDialog';
+import CustomerTierChip from 'components/CustomerTierChip';
 import FileUploader from 'components/FileUploader';
 import ImageFileUploaderWrapper from 'components/ImageFileUploaderWrapper';
 import LoadingDialog from 'components/LoadingDialog';
@@ -987,6 +989,14 @@ export default function NewRFQ(): JSX.Element {
                   getOptionLabel={(option: Customer) =>
                     '(' + option.id + ') ' + option.customerName
                   }
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} sx={{ gap: 1, flexWrap: 'wrap' }}>
+                      <Box component="span">
+                        ({option.id}) {option.customerName}
+                      </Box>
+                      <CustomerTierChip tier={option.customerTier} />
+                    </Box>
+                  )}
                   onChange={(_event, value) => {
                     setSelectedCustomer(value);
                     const defaultContact =
@@ -1035,6 +1045,11 @@ export default function NewRFQ(): JSX.Element {
                         ...params.InputProps,
                         endAdornment: (
                           <>
+                            {selectedCustomer ? (
+                              <Box component="span" sx={{ mr: 1 }}>
+                                <CustomerTierChip tier={selectedCustomer.customerTier} />
+                              </Box>
+                            ) : null}
                             {isCustomerFetching ? (
                               <CircularProgress color="inherit" size={20} />
                             ) : null}
@@ -1785,9 +1800,9 @@ export default function NewRFQ(): JSX.Element {
                         sx={{
                           px: 1.5,
                           py: 1.25,
-                          border: '1px solid #dce4ee',
+                          border: `1px solid ${BRAND_COLORS.sand}`,
                           borderRadius: 2,
-                          backgroundColor: '#fff',
+                          backgroundColor: BRAND_COLORS.ivory,
                           boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)'
                         }}>
                         <Stack spacing={0.25} sx={{ minWidth: 0 }}>

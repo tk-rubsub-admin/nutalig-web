@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { Close } from '@mui/icons-material';
 import {
   Box,
@@ -52,7 +53,7 @@ export default function SearchRfqDialog({
       fontWeight: 'bold'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -215,8 +216,8 @@ export default function SearchRfqDialog({
                                       height: 56,
                                       borderRadius: 2,
                                       overflow: 'hidden',
-                                      border: '1px solid #e3e8ee',
-                                      backgroundColor: '#f8fafb',
+                                      border: `1px solid ${BRAND_COLORS.sand}`,
+                                      backgroundColor: BRAND_UI.sandTint,
                                       boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)'
                                     }}
                                   >
@@ -247,8 +248,8 @@ export default function SearchRfqDialog({
                                     width: 56,
                                     height: 56,
                                     borderRadius: 2,
-                                    border: '1px dashed #d7dce2',
-                                    backgroundColor: '#f8fafb',
+                                    border: `1px dashed ${BRAND_COLORS.sand}`,
+                                    backgroundColor: BRAND_UI.sandTint,
                                     mx: 'auto'
                                   }}
                                 />

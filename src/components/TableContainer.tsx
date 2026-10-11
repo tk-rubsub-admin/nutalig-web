@@ -23,7 +23,7 @@ interface TableContainerProps {
 }
 
 const HeaderTableCell = styled.div`
-  border-left: 2px solid #e0e0e0;
+  border-left: 2px solid ${({ theme }) => theme.palette.divider};
   font-weight: 500;
   padding-left: 16px;
 `;

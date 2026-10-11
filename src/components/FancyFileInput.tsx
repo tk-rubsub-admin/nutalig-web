@@ -34,7 +34,7 @@ const Dropzone = styled('div', {
         background: dragActive
             ? theme.palette.action.hover
             : theme.palette.mode === 'light'
-                ? '#fafafa'
+                ? theme.palette.background.paper
                 : theme.palette.background.paper,
         padding: theme.spacing(3),
         transition: 'border-color .2s, background .2s',

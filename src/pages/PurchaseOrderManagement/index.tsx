@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { Search, DisabledByDefault } from '@mui/icons-material';
 import {
   Button,
@@ -79,7 +80,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'

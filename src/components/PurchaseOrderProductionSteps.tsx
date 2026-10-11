@@ -135,6 +135,7 @@ interface ProductionStepIconProps extends StepIconProps {
 }
 
 function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps): ReactElement {
+  const theme = useTheme();
   const status = event?.status || 'PENDING';
   const completed = status === 'COMPLETED';
   const skipped = status === 'SKIPPED';
@@ -166,7 +167,7 @@ function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps
         borderColor: color,
         borderRadius: '50%',
         opacity: cancelled ? 0.65 : 1,
-        boxShadow: active ? `0 0 0 5px ${warning ? '#ffebee' : '#e3f2fd'}` : 'none',
+        boxShadow: active ? `0 0 0 5px ${alpha(warning ? theme.palette.error.main : theme.palette.primary.main, 0.12)}` : 'none',
         '& svg': { fontSize: active ? 25 : 22 }
       }}>
       {iconNode}

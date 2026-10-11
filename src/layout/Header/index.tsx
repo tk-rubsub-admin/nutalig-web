@@ -15,7 +15,8 @@ import LoggedInUser from './LoggedInUser';
 
 const AppBar = styled(MuiAppBar)`
   z-index: ${({ theme }) => theme.zIndex.drawer + 1};
-  background: #333c4d;
+  background: ${({ theme }) => theme.header.background};
+  color: ${({ theme }) => theme.header.color};
 
   img {
     height: 30px;

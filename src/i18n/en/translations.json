@@ -681,6 +681,11 @@
           "title": "Product Family Distribution",
           "subtitle": "Most frequently requested product groups"
         },
+        "rfqType": {
+          "title": "RFQ Type Distribution",
+          "subtitle": "RFQs grouped by type within the selected months",
+          "unspecified": "Unspecified"
+        },
         "subtype1": {
           "title": "Product Subtype 1 Distribution",
           "subtitle": "Most frequently requested product subtypes"
@@ -731,6 +736,18 @@
             "lte3d": "Within 3 days",
             "gt3d": "More than 3 days",
             "remaining": "Not yet replied"
+          }
+        },
+        "procurementKpi": {
+          "title": "Procurement KPI Distribution",
+          "subtitle": "Time from NEW to SUPPLIER_QUOTED, excluding weekends and holidays",
+          "buckets": {
+            "lt1d": "Less than 1 day",
+            "lt2d": "Less than 2 days",
+            "lt3d": "Less than 3 days",
+            "gte3d": "3 days or more",
+            "pending": "Not yet SUPPLIER_QUOTED",
+            "missingData": "Missing timestamps"
           }
         },
         "acceptWorkDurationPercentile": {
@@ -795,6 +812,10 @@
     },
     "filters": {
       "month": "Month",
+      "monthFrom": "Start month",
+      "monthTo": "End month",
+      "monthRangeLimit": "Select up to {{maxMonths}} months, including the start and end months",
+      "viewData": "View data",
       "dateFrom": "Date from",
       "dateTo": "Date to",
       "sales": "Sales owner",

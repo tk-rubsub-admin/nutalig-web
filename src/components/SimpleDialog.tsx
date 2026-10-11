@@ -18,11 +18,11 @@ export default function SimpleDialog(props: SimpleDialogProps): JSX.Element {
         <DialogContent style={{ textAlign: 'center' }}>
           <Grid item xs={12} sm={12}>
             {icon === 'error' ? (
-              <Cancel style={{ fontSize: '60px', color: '#ff3333' }} />
+              <Cancel sx={{ fontSize: '60px', color: 'error.main' }} />
             ) : icon === 'warning' ? (
-              <ReportProblem style={{ fontSize: '60px', color: '#f5c122' }} />
+              <ReportProblem sx={{ fontSize: '60px', color: 'warning.main' }} />
             ) : icon === 'success' ? (
-              <CheckCircle style={{ fontSize: '60px', color: '#009944' }} />
+              <CheckCircle sx={{ fontSize: '60px', color: 'success.main' }} />
             ) : (
               ''
             )}

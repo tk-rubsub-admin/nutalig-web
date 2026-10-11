@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   Box,
   Button,
@@ -46,16 +47,16 @@ const useStyles = makeStyles({
     left: 0,
     zIndex: 4,
     position: 'sticky',
-    background: '#ffffff',
-    borderRight: '1px solid #e0e0e0'
+    background: BRAND_COLORS.ivory,
+    borderRight: `1px solid ${BRAND_COLORS.sand}`
   },
   permissionCell: {
     minWidth: 320,
     left: 0,
     zIndex: 2,
     position: 'sticky',
-    background: '#ffffff',
-    borderRight: '1px solid #e0e0e0'
+    background: BRAND_COLORS.ivory,
+    borderRight: `1px solid ${BRAND_COLORS.sand}`
   },
   roleHeaderCell: {
     minWidth: 150,
@@ -67,7 +68,7 @@ const useStyles = makeStyles({
   },
   groupCell: {
     textAlign: 'left',
-    background: '#f5f5f5'
+    background: BRAND_UI.sandTint
   },
   noResultMessage: {
     textAlign: 'center',

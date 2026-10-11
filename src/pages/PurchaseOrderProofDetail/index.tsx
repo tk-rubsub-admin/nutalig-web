@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { ArrowBackIos, Cancel, CheckCircle, Description, Edit } from '@mui/icons-material';
 import {
   Alert,
@@ -178,7 +179,7 @@ export default function PurchaseOrderProofDetail(): ReactElement {
 
           {proof ? (
             <>
-              <Stack sx={{ p: 2, border: '1px solid #dce4ee', borderRadius: 2 }} spacing={1.5}>
+              <Stack sx={{ p: 2, border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }} spacing={1.5}>
                 <Typography variant="h6">
                   {proof.proofType.nameTh || proof.proofType.nameEn || proof.proofType.code}
                 </Typography>
@@ -219,7 +220,7 @@ export default function PurchaseOrderProofDetail(): ReactElement {
               {proof.revisions.map((revision) => (
                 <Stack
                   key={revision.id}
-                  sx={{ p: 2, border: '1px solid #dce4ee', borderRadius: 2 }}
+                  sx={{ p: 2, border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}
                   spacing={2}>
                   <Stack
                     direction={{ xs: 'column', sm: 'row' }}
@@ -275,7 +276,7 @@ export default function PurchaseOrderProofDetail(): ReactElement {
                           sx={{
                             height: '100%',
                             p: 1.5,
-                            border: '1px solid #e2e8f0',
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: 2
                           }}>
                           {attachment.mediaType === 'IMAGE' ? (
@@ -287,7 +288,7 @@ export default function PurchaseOrderProofDetail(): ReactElement {
                                 width: '100%',
                                 height: 220,
                                 objectFit: 'contain',
-                                bgcolor: '#f8fafc',
+                                bgcolor: BRAND_UI.sandTint,
                                 borderRadius: 1
                               }}
                             />

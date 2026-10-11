@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="NUTALIG animated loading logo">
+<style>
+  :root { --green:#174d40; --copper:#a95f45; --bg:#fff; }
+  .stroke{fill:none;stroke-width:25;stroke-linecap:round;stroke-linejoin:miter;
+          stroke-dasharray:520;stroke-dashoffset:520;
+          animation:draw 3s cubic-bezier(.65,0,.35,1) infinite;}
+  .g{stroke:var(--green)}
+  .c{stroke:var(--copper);animation-name:drawCopper}
+  .word,.tag,.rule{opacity:0;transform:translateY(8px);animation:reveal 3s ease infinite}
+  .tag,.rule{animation-name:revealTag}
+  .shine{opacity:0;animation:shine 3s ease infinite}
+  /* Keep all parts on the same cycle: draw, reveal, hold, then fade out. */
+  @keyframes draw{
+    0%{stroke-dashoffset:520;opacity:0}
+    1%{opacity:1}
+    38%,90%{stroke-dashoffset:0;opacity:1}
+    100%{stroke-dashoffset:0;opacity:0}
+  }
+  @keyframes drawCopper{
+    0%,6%{stroke-dashoffset:520;opacity:0}
+    7%{opacity:1}
+    44%,90%{stroke-dashoffset:0;opacity:1}
+    100%{stroke-dashoffset:0;opacity:0}
+  }
+  @keyframes reveal{
+    0%,35%{opacity:0;transform:translateY(8px)}
+    50%,90%{opacity:1;transform:translateY(0)}
+    100%{opacity:0;transform:translateY(0)}
+  }
+  @keyframes revealTag{
+    0%,43%{opacity:0;transform:translateY(8px)}
+    58%,90%{opacity:1;transform:translateY(0)}
+    100%{opacity:0;transform:translateY(0)}
+  }
+  @keyframes shine{0%,47%,66%,100%{opacity:0}56%{opacity:.35}}
+  @media (prefers-reduced-motion:reduce){
+    .stroke{stroke-dashoffset:0;animation:none}.word,.tag,.rule{opacity:1;transform:none;animation:none}.shine{display:none}
+  }
+</style>
+<rect width="900" height="560" fill="var(--bg)"/>
+<!-- Approximate vector reconstruction from the supplied raster logo -->
+<g transform="translate(0,-10)">
+  <!-- green half -->
+  <path class="stroke g" pathLength="520"
+    d="M390 268 L335 215 L280 268 L280 380 L335 432"/>
+  <path class="stroke g" pathLength="520"
+    d="M390 322 L390 268"/>
+  <!-- copper half -->
+  <path class="stroke c" pathLength="520"
+    d="M510 214 L565 266 L565 380 L510 432 L390 322"/>
+  <circle class="shine" cx="510" cy="214" r="30" fill="#fff"/>
+</g>
+
+<text class="word" x="450" y="475" text-anchor="middle"
+ font-family="Georgia, 'Times New Roman', serif" font-size="76" letter-spacing="18" fill="var(--green)">NUTALIG</text>
+
+<g class="tag" fill="var(--green)" font-family="Arial, Helvetica, sans-serif">
+ <text x="450" y="520" text-anchor="middle" font-size="18" font-weight="600" letter-spacing="5">STRATEGIC PACKAGING PARTNER</text>
+</g>
+<g class="rule" stroke="var(--copper)" stroke-width="3">
+ <line x1="160" y1="514" x2="225" y2="514"/>
+ <line x1="675" y1="514" x2="740" y2="514"/>
+</g>
+</svg>

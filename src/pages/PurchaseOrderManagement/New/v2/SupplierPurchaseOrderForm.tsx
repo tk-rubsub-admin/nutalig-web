@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   Add,
   AssignmentTurnedIn,
@@ -164,7 +165,7 @@ const PO_CONTAINER_SIZE_OPTIONS = ['', '20GP', '40HQ'];
 
 const useStyles = makeStyles({
   tableHeader: {
-    border: '2px solid #e0e0e0',
+    border: `2px solid ${BRAND_COLORS.sand}`,
     fontWeight: 'bold',
     paddingLeft: '14px',
     paddingRight: '14px',
@@ -177,7 +178,7 @@ const useStyles = makeStyles({
     wordBreak: 'break-word'
   },
   tableContainer: {
-    border: '1px solid #e6ebf1',
+    border: `1px solid ${BRAND_COLORS.sand}`,
     borderRadius: 10,
     overflow: 'hidden'
   },
@@ -186,8 +187,8 @@ const useStyles = makeStyles({
     height: 64,
     borderRadius: 8,
     objectFit: 'cover',
-    border: '1px solid #e2e8f0',
-    backgroundColor: '#f8fafc',
+    border: `1px solid ${BRAND_COLORS.sand}`,
+    backgroundColor: BRAND_UI.sandTint,
     display: 'block'
   }
 });
@@ -241,7 +242,7 @@ function formatShippingAddress(
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -872,10 +873,10 @@ export default function SupplierPurchaseOrderForm({
                           <Box
                             key={`${procurementRemark.createdDate || 'remark'}-${index}`}
                             sx={{
-                              border: '1px solid #dce4ee',
+                              border: `1px solid ${BRAND_COLORS.sand}`,
                               borderRadius: 2,
                               p: 1.5,
-                              backgroundColor: '#f8fafc'
+                              backgroundColor: BRAND_UI.sandTint
                             }}>
                             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                               {procurementRemark.remark}
@@ -1000,9 +1001,9 @@ export default function SupplierPurchaseOrderForm({
                               sx={{
                                 px: 1.5,
                                 py: 1.25,
-                                border: '1px solid #dce4ee',
+                                border: `1px solid ${BRAND_COLORS.sand}`,
                                 borderRadius: 2,
-                                backgroundColor: '#fff'
+                                backgroundColor: BRAND_COLORS.ivory
                               }}>
                               <Typography sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
                                 {file.name}
@@ -1223,10 +1224,10 @@ export default function SupplierPurchaseOrderForm({
                             <Grid item xs={12} sm={6} md={4} lg={3} key={attachment.id}>
                               <Box
                                 sx={{
-                                  border: '1px solid #dce4ee',
+                                  border: `1px solid ${BRAND_COLORS.sand}`,
                                   borderRadius: 2,
                                   p: 1,
-                                  backgroundColor: '#fff'
+                                  backgroundColor: BRAND_COLORS.ivory
                                 }}>
                                 <Box
                                   component="img"
@@ -1248,7 +1249,7 @@ export default function SupplierPurchaseOrderForm({
                                     objectFit: 'cover',
                                     borderRadius: 1.5,
                                     cursor: 'zoom-in',
-                                    backgroundColor: '#f8fafc'
+                                    backgroundColor: BRAND_UI.sandTint
                                   }}
                                 />
                                 <Typography

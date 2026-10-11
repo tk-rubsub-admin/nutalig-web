@@ -45,6 +45,7 @@ export interface DashboardDistributionChart {
   title: string;
   subtitle: string;
   items: DashboardDistributionItem[];
+  series?: DashboardSeries[];
   visibleTo?: string[];
 }
 
@@ -93,6 +94,7 @@ export interface DashboardData {
   trendCharts: DashboardTrendChart[];
   acceptWorkDurationChart?: DashboardTrendChart;
   supplierQuoteDurationChart?: DashboardTrendChart;
+  procurementKpiChart?: DashboardTrendChart;
   salesCountChart?: DashboardDistributionChart;
   customerTypeCountChart?: DashboardDistributionChart;
   distributionCharts: DashboardDistributionChart[];

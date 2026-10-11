@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { DisabledByDefault, Search, AddCircle, Download } from '@mui/icons-material';
 import {
   Autocomplete,
@@ -211,9 +212,9 @@ function getRFQRowSx(rfq: RFQRecord) {
   if (rfq.status === 'QUOTED') {
     return {
       cursor: 'pointer',
-      backgroundColor: '#e8f5e9',
+      backgroundColor: BRAND_UI.greenTint,
       '&:hover': {
-        backgroundColor: '#dff0e1'
+        backgroundColor: BRAND_UI.greenSelected
       }
     };
   }
@@ -235,8 +236,8 @@ function RFQPictureGrid({
           width: 56,
           height: 56,
           borderRadius: 2,
-          border: '1px dashed #d7dce2',
-          backgroundColor: '#f8fafb'
+          border: `1px dashed ${BRAND_COLORS.sand}`,
+          backgroundColor: BRAND_UI.sandTint
         }}
       />
     );
@@ -263,8 +264,8 @@ function RFQPictureGrid({
             height: 56,
             borderRadius: 2,
             overflow: 'hidden',
-            border: '1px solid #e3e8ee',
-            backgroundColor: '#f8fafb',
+            border: `1px solid ${BRAND_COLORS.sand}`,
+            backgroundColor: BRAND_UI.sandTint,
             boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
             cursor: 'pointer'
           }}>
@@ -296,7 +297,7 @@ function RFQPictureGrid({
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: 'rgba(15, 23, 42, 0.62)',
-                color: '#ffffff',
+                color: BRAND_COLORS.ivory,
                 fontWeight: 800,
                 fontSize: 16,
                 letterSpacing: 0.3
@@ -461,7 +462,7 @@ export default function RFQManagement(): ReactElement {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -848,8 +849,8 @@ export default function RFQManagement(): ReactElement {
                   label={getRfqTypeLabel(rfq)}
                   size="small"
                   sx={{
-                    backgroundColor: '#eff6ff',
-                    color: '#1d4ed8',
+                    backgroundColor: BRAND_UI.greenTint,
+                    color: BRAND_COLORS.green,
                     fontWeight: 700
                   }}
                 />
@@ -857,8 +858,8 @@ export default function RFQManagement(): ReactElement {
                   label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
                   size="small"
                   sx={{
-                    backgroundColor: '#e8f5e9',
-                    color: '#2e7d32',
+                    backgroundColor: BRAND_UI.greenTint,
+                    color: BRAND_COLORS.green,
                     fontWeight: 700
                   }}
                 />
@@ -878,8 +879,8 @@ export default function RFQManagement(): ReactElement {
                   label={`(${getCustomerTagLabel(rfq)})`}
                   size="small"
                   sx={{
-                    backgroundColor: '#eff6ff',
-                    color: '#1d4ed8',
+                    backgroundColor: BRAND_UI.greenTint,
+                    color: BRAND_COLORS.green,
                     fontWeight: 700
                   }}
                 />
@@ -942,8 +943,8 @@ export default function RFQManagement(): ReactElement {
                   label={getRfqTypeLabel(rfq)}
                   size="small"
                   sx={{
-                    backgroundColor: '#eff6ff',
-                    color: '#1d4ed8',
+                    backgroundColor: BRAND_UI.greenTint,
+                    color: BRAND_COLORS.green,
                     fontWeight: 700
                   }}
                 />
@@ -951,8 +952,8 @@ export default function RFQManagement(): ReactElement {
                   label={t(`rfqManagement.rfqsStatus.${rfq.status}`)}
                   size="small"
                   sx={{
-                    backgroundColor: '#e8f5e9',
-                    color: '#2e7d32',
+                    backgroundColor: BRAND_UI.greenTint,
+                    color: BRAND_COLORS.green,
                     fontWeight: 700
                   }}
                 />

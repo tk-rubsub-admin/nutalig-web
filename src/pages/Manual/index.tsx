@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { useEffect, useState } from 'react';
 import {
     Box,
@@ -102,7 +103,7 @@ export default function Manual() {
                             elevation={0}
                             sx={{
                                 borderRadius: 2,
-                                border: '1px dashed #ccc',
+                                border: `1px dashed ${BRAND_COLORS.sand}`,
                                 p: 3,
                                 textAlign: 'center',
                             }}

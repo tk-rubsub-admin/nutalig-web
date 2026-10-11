@@ -94,6 +94,12 @@ export const searchSalesOrdersV1 = async (
     return response;
 };
 
+export const exportSalesOrdersV1 = async (data: SearchSalesOrderRequestV1) => {
+    return api.post<Blob>('/v1/sales-orders/export', data, {
+        responseType: 'blob'
+    });
+};
+
 export const getSaleOrder = async (id: string) => {
     const response: GetSaleOrderResponse = await api
         .get(`/v1/sale-orders/${id}`)

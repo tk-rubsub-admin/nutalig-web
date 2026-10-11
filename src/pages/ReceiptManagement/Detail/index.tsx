@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   ArrowBackIos,
   ArrowDropDown,
@@ -135,7 +136,7 @@ function paymentMethodLabel(paymentMethod?: string | null): string {
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -156,7 +157,7 @@ function Summary({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography variant="body2" sx={{ fontWeight: strong ? 700 : 500 }}>
         {formatNumber(value || 0)}
       </Typography>
@@ -176,14 +177,14 @@ export default function ReceiptDetail(): ReactElement {
 
   const useStyles = makeStyles({
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
     },
     section: {
-      backgroundColor: '#fff',
-      border: '1px solid #e6ebf1',
+      backgroundColor: BRAND_COLORS.ivory,
+      border: `1px solid ${BRAND_COLORS.sand}`,
       borderRadius: 12,
       padding: 16,
       boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -202,7 +203,7 @@ export default function ReceiptDetail(): ReactElement {
       border: '1px solid #e5e7eb',
       borderRadius: 12,
       padding: 14,
-      backgroundColor: '#ffffff'
+      backgroundColor: BRAND_COLORS.ivory
     },
     mobileItemHeader: {
       paddingBottom: 10,
@@ -424,8 +425,8 @@ export default function ReceiptDetail(): ReactElement {
 
         <Box
           sx={{
-            backgroundColor: '#fff',
-            border: '1px solid #e6ebf1',
+            backgroundColor: BRAND_COLORS.ivory,
+            border: `1px solid ${BRAND_COLORS.sand}`,
             borderRadius: 3,
             overflow: 'hidden',
             boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -533,7 +534,7 @@ export default function ReceiptDetail(): ReactElement {
                               <Info label="จำนวน" value={formatNumber(item.quantity || 0)} />
                             </Grid>
                             <Grid item xs={12}>
-                              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderRadius: 2, backgroundColor: BRAND_UI.sandTint, border: `1px solid ${BRAND_COLORS.sand}` }}>
                                 <Typography variant="caption" color="text.secondary" fontWeight={700}>
                                   รวม
                                 </Typography>

@@ -2,6 +2,7 @@
 import { ArrowForwardIos, OpenInNew } from '@mui/icons-material';
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import type { DocumentFlowItem } from 'utils/documentFlow';
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 
 export type { DocumentFlowItem, DocumentFlowRelatedItem } from 'utils/documentFlow';
@@ -11,8 +12,8 @@ export default function DocumentFlow({ items }: { items: DocumentFlowItem[] }) {
         <Box
             sx={{
                 mb: 2,
-                backgroundColor: '#fff',
-                border: '1px solid #e6ebf1',
+                backgroundColor: BRAND_COLORS.ivory,
+                border: `1px solid ${BRAND_COLORS.sand}`,
                 borderRadius: 3,
                 px: { xs: 1.5, md: 2 },
                 py: { xs: 1.5, md: 2 },
@@ -40,7 +41,7 @@ export default function DocumentFlow({ items }: { items: DocumentFlowItem[] }) {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#94a3b8',
+                                    color: BRAND_UI.mutedText,
                                     minWidth: { md: 28 }
                                 }}>
                                 <ArrowForwardIos
@@ -71,10 +72,10 @@ function DocumentFlowCard({ item }: { item: DocumentFlowItem }) {
                 minWidth: 0,
                 width: { xs: '100%', md: item.relatedItems?.length ? 'fit-content' : '100%' },
                 alignSelf: 'stretch',
-                border: item.isCurrent ? '1px solid #c7d2fe' : '1px solid #e2e8f0',
+                border: item.isCurrent ? `1px solid ${BRAND_COLORS.green}` : `1px solid ${BRAND_COLORS.sand}`,
                 background: item.isCurrent
-                    ? 'linear-gradient(180deg, rgba(238, 242, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%)'
-                    : 'linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(255, 255, 255, 1) 100%)',
+                    ? BRAND_UI.greenTint
+                    : BRAND_COLORS.ivory,
                 borderRadius: 2.5,
                 p: 1.5
             }}>
@@ -89,7 +90,7 @@ function DocumentFlowCard({ item }: { item: DocumentFlowItem }) {
                     variant="body2"
                     fontWeight={700}
                     sx={{
-                        color: hasDocument ? '#0f172a' : '#94a3b8',
+                        color: hasDocument ? BRAND_COLORS.charcoal : BRAND_UI.mutedText,
                         wordBreak: 'break-word',
                         minHeight: 20
                     }}>
@@ -149,11 +150,11 @@ function DocumentFlowCard({ item }: { item: DocumentFlowItem }) {
                                             width: 'fit-content',
                                             maxWidth: '100%',
                                             alignSelf: 'flex-start',
-                                            border: relatedItem.isCurrent ? '1px solid #93c5fd' : '1px solid #e2e8f0',
+                                            border: relatedItem.isCurrent ? `1px solid ${BRAND_COLORS.green}` : `1px solid ${BRAND_COLORS.sand}`,
                                             borderRadius: 2,
                                             px: 1.25,
                                             py: 1,
-                                            backgroundColor: relatedItem.isCurrent ? '#eff6ff' : '#fff'
+                                            backgroundColor: relatedItem.isCurrent ? BRAND_UI.greenTint : BRAND_COLORS.ivory
                                         }}>
                                         <Stack
                                             direction={{ xs: 'column', sm: 'row' }}

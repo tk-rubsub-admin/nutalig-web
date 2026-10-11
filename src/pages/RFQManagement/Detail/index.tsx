@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   Add,
   AddComment,
@@ -522,7 +523,7 @@ function getSLAStatusPresentation(
       label: '-',
       caption: 'SLA ไม่ถูกนำมาคิดในสถานะนี้',
       accentColor: '#475569',
-      backgroundColor: '#f8fafc'
+      backgroundColor: BRAND_UI.sandTint
     };
   }
 
@@ -531,7 +532,7 @@ function getSLAStatusPresentation(
       label: '-',
       caption: 'ยังไม่มีข้อมูล SLA',
       accentColor: '#475569',
-      backgroundColor: '#f8fafc'
+      backgroundColor: BRAND_UI.sandTint
     };
   }
 
@@ -567,7 +568,7 @@ function getSLAStatusPresentation(
     label: dayLeft.toString(),
     caption: `เหลือ ${dayLeft} ${dayTypeLabel}`,
     accentColor: '#2e7d32',
-    backgroundColor: '#e8f5e9'
+    backgroundColor: BRAND_UI.greenTint
   };
 }
 
@@ -715,8 +716,8 @@ const actionButtonSx = {
 
 const confirmPriceButtonSx = {
   ...actionButtonSx,
-  backgroundColor: '#16A34A',
-  color: '#FFFFFF',
+  backgroundColor: BRAND_COLORS.green,
+  color: BRAND_COLORS.ivory,
   '&:hover': {
     backgroundColor: '#15803D',
     boxShadow: 'none'
@@ -2666,8 +2667,8 @@ export default function RFQDetail(): ReactElement {
                 size="small"
                 sx={{
                   height: 28,
-                  backgroundColor: '#e8f5e9',
-                  color: '#2e7d32',
+                  backgroundColor: BRAND_UI.greenTint,
+                  color: BRAND_COLORS.green,
                   border: '1px solid #2e7d3233',
                   fontWeight: 700,
                   alignSelf: 'center',
@@ -2684,10 +2685,10 @@ export default function RFQDetail(): ReactElement {
                     width: 28,
                     height: 28,
                     border: '1px solid #94a3b833',
-                    color: '#475569',
-                    backgroundColor: '#ffffff',
+                    color: BRAND_UI.mutedText,
+                    backgroundColor: BRAND_COLORS.ivory,
                     '&:hover': {
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }
                   }}>
                   <CommentOutlined fontSize="small" />
@@ -3059,7 +3060,7 @@ export default function RFQDetail(): ReactElement {
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: isReached ? reachedColor : pendingColor,
-                          color: '#FFFFFF',
+                          color: BRAND_COLORS.ivory,
                           fontSize: 12,
                           fontWeight: 700,
                           lineHeight: 1
@@ -3126,8 +3127,8 @@ export default function RFQDetail(): ReactElement {
           </Box>
           <Box
             sx={{
-              backgroundColor: '#fff',
-              border: '1px solid #e6ebf1',
+              backgroundColor: BRAND_COLORS.ivory,
+              border: `1px solid ${BRAND_COLORS.sand}`,
               borderRadius: 3,
               overflow: 'hidden',
               boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -3155,8 +3156,8 @@ export default function RFQDetail(): ReactElement {
                 <Box
                   sx={{
                     mb: 2,
-                    backgroundColor: '#fff',
-                    border: '1px solid #e6ebf1',
+                    backgroundColor: BRAND_COLORS.ivory,
+                    border: `1px solid ${BRAND_COLORS.sand}`,
                     borderRadius: 3,
                     overflow: 'hidden',
                     boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -3166,7 +3167,7 @@ export default function RFQDetail(): ReactElement {
                     spacing={1}
                     alignItems={{ xs: 'flex-start', sm: 'center' }}
                     justifyContent="space-between"
-                    sx={{ px: 2, py: 1.5, borderBottom: '1px solid #e6ebf1' }}>
+                    sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${BRAND_COLORS.sand}` }}>
                     <Stack spacing={0.25}>
                       <Typography variant="h6">รายการใบเสนอราคา</Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -3985,9 +3986,9 @@ export default function RFQDetail(): ReactElement {
                             sx={{
                               px: 1.5,
                               py: 1.25,
-                              border: '1px solid #dce4ee',
+                              border: `1px solid ${BRAND_COLORS.sand}`,
                               borderRadius: 2,
-                              backgroundColor: '#fff'
+                              backgroundColor: BRAND_COLORS.ivory
                             }}>
                             <Stack
                               direction={{ xs: 'column', sm: 'row' }}
@@ -4038,12 +4039,12 @@ export default function RFQDetail(): ReactElement {
                     ) : (
                       <Box
                         sx={{
-                          border: '1px dashed #cbd5e1',
+                          border: `1px dashed ${BRAND_COLORS.sand}`,
                           borderRadius: 3,
                           py: 3,
                           px: 2,
                           textAlign: 'center',
-                          backgroundColor: '#f8fafc'
+                          backgroundColor: BRAND_UI.sandTint
                         }}>
                         <Typography variant="body2" color="text.secondary">
                           {t('rfqManagement.form.noAttachments')}
@@ -4100,7 +4101,7 @@ export default function RFQDetail(): ReactElement {
                         <Box
                           key={detail.id}
                           sx={{
-                            border: '1px solid #dce4ee',
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: 3,
                             overflow: 'hidden',
                             background:
@@ -4242,7 +4243,7 @@ export default function RFQDetail(): ReactElement {
                                         px: 1.5,
                                         py: 1,
                                         borderRadius: 2,
-                                        backgroundColor: '#e8f5e9'
+                                        backgroundColor: BRAND_UI.greenTint
                                       }}>
                                       <Typography variant="caption" color="text.secondary">
                                         คำแนะนำ (สำหรับลูกค้า)
@@ -4278,8 +4279,8 @@ export default function RFQDetail(): ReactElement {
                                 size="small"
                                 onClick={() => handleToggleDetailOption(detail.id)}
                                 sx={{
-                                  color: '#475569',
-                                  backgroundColor: '#f8fafc',
+                                  color: BRAND_UI.mutedText,
+                                  backgroundColor: BRAND_UI.sandTint,
                                   border: '1px solid #dbe3ec',
                                   '&:hover': {
                                     backgroundColor: '#eef2f7'
@@ -4327,7 +4328,7 @@ export default function RFQDetail(): ReactElement {
                                         sx={{
                                           '& th': {
                                             fontWeight: 700,
-                                            backgroundColor: '#f8fafc',
+                                            backgroundColor: BRAND_UI.sandTint,
                                             whiteSpace: 'nowrap'
                                           }
                                         }}>
@@ -4456,7 +4457,7 @@ export default function RFQDetail(): ReactElement {
                                             </TableCell>
                                             <TableCell
                                               align="right"
-                                              sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                              sx={{ fontWeight: 700, color: BRAND_COLORS.green }}>
                                               {formatPrice(tier.totalPrice, tier.currency)}
                                             </TableCell>
                                             <TableCell align="center">
@@ -4505,7 +4506,7 @@ export default function RFQDetail(): ReactElement {
                                       sx={{
                                         '& th': {
                                           fontWeight: 700,
-                                          backgroundColor: '#f8fafc',
+                                          backgroundColor: BRAND_UI.sandTint,
                                           whiteSpace: 'nowrap'
                                         }
                                       }}>
@@ -4567,7 +4568,7 @@ export default function RFQDetail(): ReactElement {
                                           </TableCell>
                                           <TableCell
                                             align="right"
-                                            sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                            sx={{ fontWeight: 700, color: BRAND_COLORS.green }}>
                                             {formatPrice(tier.shippingCost, tier.currency)}
                                           </TableCell>
                                           <TableCell
@@ -4600,7 +4601,7 @@ export default function RFQDetail(): ReactElement {
                                         sx={{
                                           '& th': {
                                             fontWeight: 700,
-                                            backgroundColor: '#f8fafc',
+                                            backgroundColor: BRAND_UI.sandTint,
                                             whiteSpace: 'nowrap'
                                           }
                                         }}>
@@ -4694,7 +4695,7 @@ export default function RFQDetail(): ReactElement {
                                           p: 1.5,
                                           border: '1px solid #e5e7eb',
                                           borderRadius: 2,
-                                          backgroundColor: '#ffffff'
+                                          backgroundColor: BRAND_COLORS.ivory
                                         }}>
                                         <Grid container spacing={1}>
                                           <Grid item xs={12}>
@@ -4860,9 +4861,9 @@ export default function RFQDetail(): ReactElement {
                                     <Box
                                       sx={{
                                         p: 1.5,
-                                        border: '1px dashed #d1d5db',
+                                        border: `1px dashed ${BRAND_COLORS.sand}`,
                                         borderRadius: 2,
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: BRAND_COLORS.ivory,
                                         color: 'text.secondary'
                                       }}>
                                       ยังไม่มี tier กรุณากด "เพิ่ม Tier"
@@ -4877,7 +4878,7 @@ export default function RFQDetail(): ReactElement {
                                       p: 1.5,
                                       border: '1px solid #e5e7eb',
                                       borderRadius: 2,
-                                      backgroundColor: '#ffffff'
+                                      backgroundColor: BRAND_COLORS.ivory
                                     }}>
                                     <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
                                       {formatQuantity(tier.quantity)}
@@ -4964,7 +4965,7 @@ export default function RFQDetail(): ReactElement {
                                         sx={{
                                           p: 1.25,
                                           borderRadius: 2,
-                                          backgroundColor: '#ffffff',
+                                          backgroundColor: BRAND_COLORS.ivory,
                                           border: '1px solid #e5e7eb'
                                         }}>
                                         <Typography
@@ -5056,9 +5057,9 @@ export default function RFQDetail(): ReactElement {
                                 <Box
                                   sx={{
                                     p: 1.5,
-                                    border: '1px dashed #d1d5db',
+                                    border: `1px dashed ${BRAND_COLORS.sand}`,
                                     borderRadius: 2,
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: BRAND_COLORS.ivory,
                                     color: 'text.secondary'
                                   }}>
                                   ยังไม่มีช่วงราคาในตัวเลือกนี้
@@ -5072,12 +5073,12 @@ export default function RFQDetail(): ReactElement {
                   ) : (
                     <Box
                       sx={{
-                        border: '1px dashed #cbd5e1',
+                        border: `1px dashed ${BRAND_COLORS.sand}`,
                         borderRadius: 3,
                         py: 4,
                         px: 2,
                         textAlign: 'center',
-                        backgroundColor: '#f8fafc'
+                        backgroundColor: BRAND_UI.sandTint
                       }}>
                       <Typography variant="body1" fontWeight={600}>
                         ยังไม่มีข้อมูลตัวเลือกราคา
@@ -5090,10 +5091,10 @@ export default function RFQDetail(): ReactElement {
                 {latestSupplierQuoteLeadTimes.length ? (
                   <Box
                     sx={{
-                      border: '1px solid #dce4ee',
+                      border: `1px solid ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       overflow: 'hidden',
-                      backgroundColor: '#fff'
+                      backgroundColor: BRAND_COLORS.ivory
                     }}>
                     <Table size="small">
                       <TableHead>
@@ -5101,7 +5102,7 @@ export default function RFQDetail(): ReactElement {
                           sx={{
                             '& th': {
                               fontWeight: 700,
-                              backgroundColor: '#f8fafc',
+                              backgroundColor: BRAND_UI.sandTint,
                               whiteSpace: 'nowrap'
                             }
                           }}>
@@ -5136,12 +5137,12 @@ export default function RFQDetail(): ReactElement {
                 ) : (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       {isSupplierQuotesFetching
@@ -5158,10 +5159,10 @@ export default function RFQDetail(): ReactElement {
                 {additionalCosts.length || draftAdditionalCosts.length ? (
                   <Box
                     sx={{
-                      border: '1px solid #dce4ee',
+                      border: `1px solid ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       overflow: 'hidden',
-                      backgroundColor: '#fff'
+                      backgroundColor: BRAND_COLORS.ivory
                     }}>
                     <Table size="small">
                       <TableHead>
@@ -5169,7 +5170,7 @@ export default function RFQDetail(): ReactElement {
                           sx={{
                             '& th': {
                               fontWeight: 700,
-                              backgroundColor: '#f8fafc',
+                              backgroundColor: BRAND_UI.sandTint,
                               whiteSpace: 'nowrap'
                             }
                           }}>
@@ -5255,12 +5256,12 @@ export default function RFQDetail(): ReactElement {
                 ) : (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       {t('rfqManagement.detail.additionalCost.empty')}
@@ -5272,12 +5273,12 @@ export default function RFQDetail(): ReactElement {
                 {isDetailHistoryFetching ? (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       กำลังโหลดประวัติชุดตัวเลือกราคา
@@ -5289,10 +5290,10 @@ export default function RFQDetail(): ReactElement {
                       <Box
                         key={group.detailSetNo}
                         sx={{
-                          border: '1px solid #dce4ee',
+                          border: `1px solid ${BRAND_COLORS.sand}`,
                           borderRadius: 3,
                           overflow: 'hidden',
-                          backgroundColor: '#fff'
+                          backgroundColor: BRAND_COLORS.ivory
                         }}>
                         <Box
                           sx={{
@@ -5302,8 +5303,8 @@ export default function RFQDetail(): ReactElement {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             gap: 2,
-                            backgroundColor: '#f8fafc',
-                            borderBottom: '1px solid #e2e8f0'
+                            backgroundColor: BRAND_UI.sandTint,
+                            borderBottom: `1px solid ${BRAND_COLORS.sand}`
                           }}>
                           <Box>
                             <Typography variant="subtitle2" fontWeight={700}>
@@ -5341,10 +5342,10 @@ export default function RFQDetail(): ReactElement {
                                 <Box
                                   key={record.id}
                                   sx={{
-                                    border: '1px solid #e2e8f0',
+                                    border: `1px solid ${BRAND_COLORS.sand}`,
                                     borderRadius: 2,
                                     p: 2,
-                                    backgroundColor: '#fff'
+                                    backgroundColor: BRAND_COLORS.ivory
                                   }}>
                                   <Stack spacing={1.5}>
                                     <Stack
@@ -5382,7 +5383,7 @@ export default function RFQDetail(): ReactElement {
                                             sx={{
                                               '& th': {
                                                 fontWeight: 700,
-                                                backgroundColor: '#f8fafc',
+                                                backgroundColor: BRAND_UI.sandTint,
                                                 whiteSpace: 'nowrap'
                                               }
                                             }}>
@@ -5413,7 +5414,7 @@ export default function RFQDetail(): ReactElement {
                                             sx={{
                                               '& th': {
                                                 fontWeight: 700,
-                                                backgroundColor: '#f8fafc',
+                                                backgroundColor: BRAND_UI.sandTint,
                                                 whiteSpace: 'nowrap'
                                               }
                                             }}>
@@ -5451,12 +5452,12 @@ export default function RFQDetail(): ReactElement {
                 ) : (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       ยังไม่มีประวัติชุดตัวเลือกราคา
@@ -5862,12 +5863,12 @@ export default function RFQDetail(): ReactElement {
             {isQuotationFetching ? (
               <Box
                 sx={{
-                  border: '1px dashed #cbd5e1',
+                  border: `1px dashed ${BRAND_COLORS.sand}`,
                   borderRadius: 3,
                   py: 4,
                   px: 2,
                   textAlign: 'center',
-                  backgroundColor: '#f8fafc'
+                  backgroundColor: BRAND_UI.sandTint
                 }}>
                 <Typography variant="body1" fontWeight={600}>
                   {t('rfqManagement.detail.dialogs.loadingQuotation')}
@@ -5881,7 +5882,7 @@ export default function RFQDetail(): ReactElement {
                       sx={{
                         '& th': {
                           fontWeight: 700,
-                          backgroundColor: '#f8fafc',
+                          backgroundColor: BRAND_UI.sandTint,
                           whiteSpace: 'nowrap'
                         }
                       }}>
@@ -5984,7 +5985,7 @@ export default function RFQDetail(): ReactElement {
                                   {isSeaShippingMethod(resolvedShippingMethod) ? (
                                     <DirectionsBoat fontSize="small" sx={{ color: '#00897b' }} />
                                   ) : (
-                                    <LocalShipping fontSize="small" sx={{ color: '#1565c0' }} />
+                                    <LocalShipping fontSize="small" sx={{ color: BRAND_COLORS.green }} />
                                   )}
                                   <Typography variant="body2">{shippingMethodLabel}</Typography>
                                 </Stack>
@@ -6006,12 +6007,12 @@ export default function RFQDetail(): ReactElement {
             ) : (
               <Box
                 sx={{
-                  border: '1px dashed #cbd5e1',
+                  border: `1px dashed ${BRAND_COLORS.sand}`,
                   borderRadius: 3,
                   py: 4,
                   px: 2,
                   textAlign: 'center',
-                  backgroundColor: '#f8fafc'
+                  backgroundColor: BRAND_UI.sandTint
                 }}>
                 <Typography variant="body1" fontWeight={600}>
                   {t('rfqManagement.detail.dialogs.noQuotation')}

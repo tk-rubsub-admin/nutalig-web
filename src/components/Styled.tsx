@@ -14,28 +14,28 @@ export const TableContainerWithNoBorder = styled(TableContainer)`
 `;
 export const DisabledField = styled(TextField)`
   .MuiInputBase-root {
-    background-color: #f5f5f5;
+    background-color: ${({ theme }) => theme.palette.action.disabledBackground};
   }
   .MuiInputBase-input:disabled {
-    color: #30302f !important;
-    -webkit-text-fill-color: #30302f !important;
+    color: ${({ theme }) => theme.palette.text.primary} !important;
+    -webkit-text-fill-color: ${({ theme }) => theme.palette.text.primary} !important;
   }
   label.Mui-disabled {
-    color: #30302f !important;
-    -webkit-text-fill-color: #30302f !important;
+    color: ${({ theme }) => theme.palette.text.primary} !important;
+    -webkit-text-fill-color: ${({ theme }) => theme.palette.text.primary} !important;
   }
 `;
 export const EnabledTextField = styled(TextField)`
   .MuiInputBase-input {
-    color: #30302f !important;
-    -webkit-text-fill-color: #30302f !important;
+    color: ${({ theme }) => theme.palette.text.primary} !important;
+    -webkit-text-fill-color: ${({ theme }) => theme.palette.text.primary} !important;
   }
   fieldset.MuiOutlinedInput-notchedOutline {
-    border-color: #30302f;
+    border-color: ${({ theme }) => theme.palette.divider};
   }
   label {
-    color: #30302f !important;
-    -webkit-text-fill-color: #30302f !important;
+    color: ${({ theme }) => theme.palette.text.primary} !important;
+    -webkit-text-fill-color: ${({ theme }) => theme.palette.text.primary} !important;
   }
 `;
 export const GridSearchSection = styled(Grid)`

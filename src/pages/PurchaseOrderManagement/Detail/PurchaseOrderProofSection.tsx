@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { CloudUpload, SkipNext, Visibility } from '@mui/icons-material';
 import {
   Box,
@@ -228,7 +229,7 @@ export default function PurchaseOrderProofSection({
                 sx={{
                   height: '100%',
                   p: 2,
-                  border: '1px solid #dce4ee',
+                  border: `1px solid ${BRAND_COLORS.sand}`,
                   borderRadius: 2,
                   position: 'relative',
                   overflow: 'hidden'

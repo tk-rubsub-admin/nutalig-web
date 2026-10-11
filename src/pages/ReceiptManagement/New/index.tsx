@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { ArrowBackIos, ReceiptLong } from '@mui/icons-material';
 import {
   Button,
@@ -107,7 +108,7 @@ function getCustomerContactNumber(invoice?: InvoiceRecord): string {
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -128,7 +129,7 @@ function Summary({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: '#475569', fontSize: 15, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 15, fontWeight: 700 }}>{label}</Typography>
       <Typography variant="body1" sx={{ fontWeight: strong ? 800 : 700, fontSize: 18 }}>
         {formatNumber(value || 0)}
       </Typography>
@@ -173,14 +174,14 @@ export default function NewReceipt(): ReactElement {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const useStyles = makeStyles({
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
     },
     section: {
-      backgroundColor: '#fff',
-      border: '1px solid #e6ebf1',
+      backgroundColor: BRAND_COLORS.ivory,
+      border: `1px solid ${BRAND_COLORS.sand}`,
       borderRadius: 12,
       padding: 16,
       boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'

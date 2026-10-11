@@ -1,3 +1,5 @@
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
@@ -86,7 +88,7 @@ export default function SignInSide(): JSX.Element {
           py: { xs: 2, sm: 3 },
           m: 0,
           background:
-            'radial-gradient(circle at top, rgba(140, 162, 129, 0.16), transparent 34%), linear-gradient(180deg, #fcfcf8 0%, #f3f4ee 100%)'
+            BRAND_COLORS.ivory
         }}>
         <CssBaseline />
         <Paper
@@ -95,10 +97,10 @@ export default function SignInSide(): JSX.Element {
             width: '100%',
             maxWidth: 440,
             borderRadius: { xs: '24px', sm: '28px' },
-            border: '1px solid rgba(38, 52, 33, 0.08)',
-            boxShadow: '0 28px 70px rgba(30, 40, 24, 0.10), 0 10px 28px rgba(30, 40, 24, 0.05)',
+            border: `1px solid ${BRAND_COLORS.sand}`,
+            boxShadow: `0 28px 70px ${alpha(BRAND_COLORS.charcoal, 0.1)}, 0 10px 28px ${alpha(BRAND_COLORS.charcoal, 0.05)}`,
             background:
-              'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 251, 246, 0.98) 100%)',
+              BRAND_COLORS.ivory,
             overflow: 'hidden',
             position: 'relative',
             alignSelf: { xs: 'stretch', sm: 'center' },
@@ -109,7 +111,7 @@ export default function SignInSide(): JSX.Element {
               left: 0,
               right: 0,
               height: '6px',
-              background: 'linear-gradient(90deg, #27411f 0%, #8aa281 100%)'
+              background: BRAND_COLORS.green
             }
           }}>
           <Box
@@ -124,7 +126,7 @@ export default function SignInSide(): JSX.Element {
             <Typography
               sx={{
                 mb: { xs: 1.75, sm: 2.5 },
-                color: '#6a7464',
+                color: 'text.secondary',
                 fontSize: { xs: '0.68rem', sm: '0.74rem' },
                 fontWeight: 700,
                 letterSpacing: { xs: '0.18em', sm: '0.22em' },
@@ -140,8 +142,8 @@ export default function SignInSide(): JSX.Element {
                 width: { xs: 92, sm: 132 },
                 height: { xs: 92, sm: 132 },
                 bgcolor: 'transparent',
-                border: '1px solid rgba(38, 52, 33, 0.08)',
-                boxShadow: '0 14px 34px rgba(31, 56, 24, 0.08)'
+                border: `1px solid ${BRAND_COLORS.sand}`,
+                boxShadow: `0 14px 34px ${alpha(BRAND_COLORS.charcoal, 0.08)}`
               }}
             />
             <Typography
@@ -149,7 +151,7 @@ export default function SignInSide(): JSX.Element {
               sx={{
                 fontWeight: 700,
                 mb: 0.75,
-                color: '#1f2a1c',
+                color: 'primary.main',
                 letterSpacing: '-0.02em',
                 fontSize: { xs: '1.45rem', sm: '1.75rem' }
               }}>
@@ -164,7 +166,7 @@ export default function SignInSide(): JSX.Element {
                 px: { xs: 0.5, sm: 0 },
                 lineHeight: 1.7,
                 fontSize: { xs: '0.92rem', sm: '1rem' },
-                color: '#6b7468'
+                color: 'text.secondary'
               }}>
               เข้าสู่ระบบเพื่อใช้งานระบบ ผ่านบัญชี LINE ของคุณ
             </Typography>
@@ -174,14 +176,14 @@ export default function SignInSide(): JSX.Element {
                 mb: { xs: 2.25, sm: 3 },
                 p: { xs: 1.5, sm: 2.25 },
                 borderRadius: { xs: 2.5, sm: 3 },
-                border: '1px solid rgba(38, 52, 33, 0.10)',
+                border: `1px solid ${BRAND_COLORS.sand}`,
                 background:
-                  'linear-gradient(180deg, rgba(248, 251, 245, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%)'
+                  BRAND_UI.sandTint
               }}>
               <Typography
                 sx={{
                   fontWeight: 700,
-                  color: '#1f2a1c',
+                  color: 'primary.main',
                   mb: 1,
                   fontSize: { xs: '0.98rem', sm: '1rem' }
                 }}>
@@ -189,22 +191,22 @@ export default function SignInSide(): JSX.Element {
               </Typography>
               <Typography
                 variant="body2"
-                sx={{ color: '#5f6c5a', lineHeight: 1.7, mb: 0.75, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
+                sx={{ color: 'text.primary', lineHeight: 1.7, mb: 0.75, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 ระบบจะขออีเมลจากบัญชี LINE ของคุณเพื่อใช้สำหรับระบุตัวตนผู้ใช้งาน และผูกบัญชีสำหรับเข้าสู่ระบบ Nutalig Portal
               </Typography>
               <Typography
                 variant="body2"
-                sx={{ color: '#5f6c5a', lineHeight: 1.7, mb: 0.75, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
+                sx={{ color: 'text.primary', lineHeight: 1.7, mb: 0.75, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 อีเมลจะถูกใช้เพื่อ:
               </Typography>
               <Typography
                 variant="body2"
-                sx={{ color: '#5f6c5a', lineHeight: 1.7, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
+                sx={{ color: 'text.primary', lineHeight: 1.7, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 1. ตรวจสอบและยืนยันตัวตนผู้ใช้งาน
               </Typography>
               <Typography
                 variant="body2"
-                sx={{ color: '#5f6c5a', lineHeight: 1.7, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
+                sx={{ color: 'text.primary', lineHeight: 1.7, fontSize: { xs: '0.84rem', sm: '0.875rem' } }}>
                 2. เชื่อมบัญชี LINE กับบัญชีผู้ใช้งานในระบบ
               </Typography>
             </Box>
@@ -217,7 +219,7 @@ export default function SignInSide(): JSX.Element {
                 gap: 0.5,
                 '& .MuiFormControlLabel-label': {
                   fontSize: { xs: '0.84rem', sm: '0.92rem' },
-                  color: '#42503e',
+                  color: 'text.primary',
                   lineHeight: 1.6
                 }
               }}
@@ -227,9 +229,9 @@ export default function SignInSide(): JSX.Element {
                   onChange={(event) => setIsEmailConsentChecked(event.target.checked)}
                   sx={{
                     mt: isDownSm ? -0.25 : 0,
-                    color: '#8aa281',
+                    color: 'primary.main',
                     '&.Mui-checked': {
-                      color: '#4d6b41'
+                      color: 'primary.main'
                     }
                   }}
                 />
@@ -241,7 +243,13 @@ export default function SignInSide(): JSX.Element {
               variant="contained"
               disabled={!isEmailConsentChecked}
               sx={{
-                backgroundColor: '#06c755 !important',
+                backgroundColor: '#06c755',
+                color: BRAND_COLORS.ivory,
+                '&.Mui-disabled': {
+                  backgroundColor: BRAND_UI.sandTint,
+                  color: BRAND_UI.disabledText,
+                  boxShadow: 'none'
+                },
                 borderRadius: '999px',
                 px: { xs: 2.5, sm: 5 },
                 py: { xs: 1.45, sm: 1.55 },
@@ -252,6 +260,7 @@ export default function SignInSide(): JSX.Element {
                 letterSpacing: '0.01em',
                 boxShadow: '0 12px 28px rgba(6, 199, 85, 0.22)',
                 '&:hover': {
+                  backgroundColor: '#06b34c',
                   boxShadow: '0 16px 32px rgba(6, 199, 85, 0.28)'
                 }
               }}>

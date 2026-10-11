@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { Check, Close } from "@mui/icons-material";
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Typography } from "@mui/material";
 import ConfirmDialog from "components/ConfirmDialog";
@@ -97,7 +97,7 @@ export default function UploadStaffDialog(props: UploadStaffDialogProps): JSX.El
                         onClick={() => {
                             handleDownloadTemplate('TEMPL-00006');
                         }}
-                        style={{ cursor: 'pointer', color: '#1976d2' }} // ทำให้เหมือนลิงก์
+                        style={{ cursor: 'pointer', color: BRAND_COLORS.green }} // ทำให้เหมือนลิงก์
                     >
                         {t('productManagement.productSupplier.downloadTemplate')}
                     </Typography>

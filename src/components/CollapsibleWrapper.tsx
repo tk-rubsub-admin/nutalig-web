@@ -57,7 +57,7 @@ function CollapsibleWrapper({
                     {isCompleted && (
                         <CheckCircle
                             sx={{
-                                color: '#2e7d32',
+                                color: 'success.main',
                                 // fontSize: 20
                             }}
                         />

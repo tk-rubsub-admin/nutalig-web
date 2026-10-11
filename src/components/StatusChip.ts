@@ -1,52 +1,53 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS, BRAND_UI, SEMANTIC_COLORS } from 'theme/brandTokens';
 export const getStatusChipSx = (status: string) => {
     switch (status) {
         case 'CREATED':
             return {
-                backgroundColor: '#3aa3d0',
-                color: '#e6f6fc',
+                backgroundColor: BRAND_UI.greenTint,
+                color: BRAND_COLORS.green,
                 fontWeight: 'bold'
             };
 
         case 'DRAFT':
             return {
-                backgroundColor: '#f3f4f6',
-                color: '#4b5563',
+                backgroundColor: BRAND_UI.sandTint,
+                color: BRAND_COLORS.charcoal,
                 fontWeight: 'bold'
             };
 
         case 'COMPLETED':
             return {
-                backgroundColor: '#fff6df',
-                color: '#fbab24',
+                backgroundColor: BRAND_UI.greenTint,
+                color: BRAND_COLORS.green,
                 fontWeight: 'bold'
             };
 
         case 'CONFIRMED':
             return {
-                backgroundColor: '#dbeafe',
-                color: '#1e40af',
+                backgroundColor: BRAND_UI.greenSelected,
+                color: BRAND_COLORS.green,
                 fontWeight: 'bold'
             };
 
         case 'PAID':
             return {
-                backgroundColor: '#16a34a',
-                color: '#ffffff',
+                backgroundColor: BRAND_COLORS.green,
+                color: BRAND_COLORS.ivory,
                 fontWeight: 'bold'
             };
 
         case 'CANCELLED':
             return {
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
+                backgroundColor: SEMANTIC_COLORS.error,
+                color: BRAND_COLORS.ivory,
                 fontWeight: 'bold'
             };
 
         default:
             return {
-                backgroundColor: '#e5e7eb',
-                color: '#374151',
+                backgroundColor: BRAND_COLORS.sand,
+                color: BRAND_COLORS.charcoal,
                 fontWeight: 'bold'
             };
     }

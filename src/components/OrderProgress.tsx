@@ -94,6 +94,7 @@ function TrackingStepIcon({
   cancelled,
   delivered
 }: TrackingStepIconProps): ReactElement {
+  const theme = useTheme();
   const highlighted = active || completed;
   const color = cancelled ? 'error.main' : 'success.main';
 
@@ -112,7 +113,7 @@ function TrackingStepIcon({
         border: '2px solid',
         borderColor: highlighted ? color : 'divider',
         borderRadius: '50%',
-        boxShadow: active ? `0 0 0 5px ${cancelled ? '#ffebee' : '#e8f5e9'}` : 'none',
+        boxShadow: active ? `0 0 0 5px ${alpha(cancelled ? theme.palette.error.main : theme.palette.primary.main, 0.12)}` : 'none',
         transition: 'all 180ms ease',
         '& svg': { fontSize: delivered || active ? 27 : 24 }
       }}>

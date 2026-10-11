@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { Add, ArrowBack, DeleteOutline, Replay, Save, Search } from "@mui/icons-material";
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, InputAdornment, ListItemIcon, MenuItem, Paper, Radio, RadioGroup, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, useMediaQuery } from "@mui/material";
 import { makeStyles } from "@mui/styles";
@@ -77,7 +78,7 @@ const recalculateQuotationItem = (item: CreateQuotationItem): CreateQuotationIte
 const fieldSx = {
     '& .MuiOutlinedInput-root': {
         borderRadius: '12px',
-        backgroundColor: '#fff',
+        backgroundColor: BRAND_COLORS.ivory,
         minHeight: 54
     },
     '& .MuiInputBase-input': {
@@ -168,10 +169,10 @@ function QuotationItemMobileCard({
         <Paper
             elevation={0}
             sx={{
-                border: '1px solid #D9DCE3',
+                border: `1px solid ${BRAND_COLORS.sand}`,
                 borderRadius: '20px',
                 p: 1.5,
-                backgroundColor: '#fff'
+                backgroundColor: BRAND_COLORS.ivory
             }}
         >
             <Stack spacing={1.5}>
@@ -350,7 +351,7 @@ function QuotationItemMobileCard({
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#fff'
+                                backgroundColor: BRAND_COLORS.ivory
                             },
                             '& .MuiInputBase-input': {
                                 fontSize: 16
@@ -375,7 +376,7 @@ function QuotationItemMobileCard({
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
                                     minHeight: 54,
-                                    backgroundColor: '#fff'
+                                    backgroundColor: BRAND_COLORS.ivory
                                 },
                                 '& .MuiInputBase-input': {
                                     fontSize: 16,
@@ -399,7 +400,7 @@ function QuotationItemMobileCard({
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
                                     minHeight: 54,
-                                    backgroundColor: '#fff'
+                                    backgroundColor: BRAND_COLORS.ivory
                                 },
                                 '& .MuiInputBase-input': {
                                     fontSize: 16,
@@ -658,7 +659,7 @@ export default function NewQuotation() {
             fontWeight: 'bold',
         },
         tableHeader: {
-            border: '2px solid #e0e0e0',
+            border: `2px solid ${BRAND_COLORS.sand}`,
             fontWeight: 'bold',
             paddingLeft: '10px',
             textAlign: 'center'
@@ -682,7 +683,7 @@ export default function NewQuotation() {
         fileInput: {
             width: '100%',
             padding: '11px',
-            border: '1px solid #ccc',
+            border: `1px solid ${BRAND_COLORS.sand}`,
             borderRadius: '4px',
             fontSize: '14px',
             '::file-selector-button': {
@@ -2267,10 +2268,10 @@ export default function NewQuotation() {
                     <Paper
                         elevation={0}
                         sx={{
-                            border: '1px solid #D9DCE3',
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: '24px',
                             overflowX: 'auto',
-                            backgroundColor: '#fff'
+                            backgroundColor: BRAND_COLORS.ivory
                         }}
                     >
                         <Table
@@ -2289,7 +2290,7 @@ export default function NewQuotation() {
                                         '& .MuiTableCell-root': {
                                             py: 2.25,
                                             fontSize: 16,
-                                            borderBottom: '1px solid #D9DCE3'
+                                            borderBottom: `1px solid ${BRAND_COLORS.sand}`
                                         }
                                     }}
                                 >
@@ -2341,7 +2342,7 @@ export default function NewQuotation() {
                                                     sx={{
                                                         '& .MuiTableCell-root': {
                                                             py: 2,
-                                                            backgroundColor: '#fff'
+                                                            backgroundColor: BRAND_COLORS.ivory
                                                         },
                                                         '&:hover .delete-btn': {
                                                             opacity: 1
@@ -2459,7 +2460,7 @@ export default function NewQuotation() {
                                                                 sx={{
                                                                     '& .MuiOutlinedInput-root': {
                                                                         borderRadius: '12px',
-                                                                        backgroundColor: '#fff'
+                                                                        backgroundColor: BRAND_COLORS.ivory
                                                                     },
                                                                     '& .MuiInputBase-input': {
                                                                         fontSize: 16
@@ -2546,7 +2547,7 @@ export default function NewQuotation() {
                                                                 '& .MuiOutlinedInput-root': {
                                                                     borderRadius: '12px',
                                                                     minHeight: 54,
-                                                                    backgroundColor: '#fff'
+                                                                    backgroundColor: BRAND_COLORS.ivory
                                                                 },
                                                                 '& .MuiInputBase-input': {
                                                                     fontSize: 16,
@@ -2575,7 +2576,7 @@ export default function NewQuotation() {
                                                                 '& .MuiOutlinedInput-root': {
                                                                     borderRadius: '12px',
                                                                     minHeight: 54,
-                                                                    backgroundColor: '#fff'
+                                                                    backgroundColor: BRAND_COLORS.ivory
                                                                 },
                                                                 '& .MuiInputBase-input': {
                                                                     fontSize: 16,
@@ -2727,7 +2728,7 @@ export default function NewQuotation() {
                                             maxWidth: 180,
                                             '& .MuiOutlinedInput-root': {
                                                 borderRadius: '12px',
-                                                backgroundColor: '#fff'
+                                                backgroundColor: BRAND_COLORS.ivory
                                             }
                                         }}
                                     />
@@ -2764,7 +2765,7 @@ export default function NewQuotation() {
                                             maxWidth: 180,
                                             '& .MuiOutlinedInput-root': {
                                                 borderRadius: '12px',
-                                                backgroundColor: '#fff'
+                                                backgroundColor: BRAND_COLORS.ivory
                                             }
                                         }}
                                     />

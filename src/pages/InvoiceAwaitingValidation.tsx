@@ -1,3 +1,4 @@
+import { BRAND_UI } from 'theme/brandTokens';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Alert, Box, Button, Chip, Container, Paper, Stack, Typography } from '@mui/material';
@@ -292,7 +293,7 @@ export default function InvoiceAwaitingValidationPage() {
                                 width: '100%',
                                 maxHeight: 560,
                                 objectFit: 'contain',
-                                bgcolor: '#f8fafc'
+                                bgcolor: BRAND_UI.sandTint
                               }}
                             />
                           ) : (

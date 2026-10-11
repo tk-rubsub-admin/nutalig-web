@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { Add, ArrowDropDown, AutoAwesome, ContentCopy, DeleteOutline, EmojiTransportation, Visibility } from '@mui/icons-material';
 import {
   Alert,
@@ -309,10 +310,10 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     <Box
       key={detail.id}
       sx={{
-        border: '1px solid #dce4ee',
+        border: `1px solid ${BRAND_COLORS.sand}`,
         borderRadius: 2,
         p: 2,
-        backgroundColor: '#f8fafc'
+        backgroundColor: BRAND_UI.sandTint
       }}>
       <Stack spacing={1.25}>
         <Stack spacing={0.25}>
@@ -425,10 +426,10 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     <Box
       key={detail.id}
       sx={{
-        border: '1px solid #dce4ee',
+        border: `1px solid ${BRAND_COLORS.sand}`,
         borderRadius: 2,
         p: 2,
-        backgroundColor: '#fff'
+        backgroundColor: BRAND_COLORS.ivory
       }}>
       <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
@@ -879,10 +880,10 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     <Box
       key={detail.id}
       sx={{
-        border: '1px solid #dce4ee',
+        border: `1px solid ${BRAND_COLORS.sand}`,
         borderRadius: 2,
         p: 2,
-        backgroundColor: '#fff'
+        backgroundColor: BRAND_COLORS.ivory
       }}>
       <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
@@ -1294,7 +1295,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
           {shouldShowOldPriceSection ? (
             <Box
               sx={{
-                border: '1px solid #cbd5e1',
+                border: `1px solid ${BRAND_COLORS.sand}`,
                 borderRadius: 2,
                 backgroundColor: '#fff7ed',
                 overflow: 'hidden'
@@ -1416,11 +1417,11 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
             {finalPriceDraft.packages.length ? (
               <Box
                 sx={{
-                  border: '1px solid #dce4ee',
+                  border: `1px solid ${BRAND_COLORS.sand}`,
                   borderRadius: 2,
                   px: 1.5,
                   py: 1,
-                  backgroundColor: '#f8fafc'
+                  backgroundColor: BRAND_UI.sandTint
                 }}>
                 <Stack spacing={0.75}>
                   <Typography variant="subtitle1" fontWeight={700}>
@@ -1445,10 +1446,10 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               {finalPriceQuote?.additionalCosts?.length ? (
                 <Box
                   sx={{
-                    border: '1px solid #dce4ee',
+                    border: `1px solid ${BRAND_COLORS.sand}`,
                     borderRadius: 2,
                     p: 2,
-                    backgroundColor: '#fff'
+                    backgroundColor: BRAND_COLORS.ivory
                   }}>
                   <Stack spacing={0.75}>
                     {finalPriceQuote.additionalCosts.map((additionalCost, index) => (
@@ -1541,10 +1542,10 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
 
             <Box
               sx={{
-                border: '1px solid #e2e8f0',
+                border: `1px solid ${BRAND_COLORS.sand}`,
                 borderRadius: 2,
                 p: 2,
-                backgroundColor: '#f8fafc'
+                backgroundColor: BRAND_UI.sandTint
               }}>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
                 หมายเหตุสำหรับจัดซื้อ
@@ -1554,7 +1555,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                   {procurementRemarks.map((procurementRemark, index) => (
                     <Box
                       key={`${procurementRemark.createdDate || 'remark'}-${index}`}
-                      sx={{ borderRadius: 1.5, p: 1.5, backgroundColor: '#fff' }}>
+                      sx={{ borderRadius: 1.5, p: 1.5, backgroundColor: BRAND_COLORS.ivory }}>
                       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                         {procurementRemark.remark}
                       </Typography>

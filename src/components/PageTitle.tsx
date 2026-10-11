@@ -23,7 +23,7 @@ const DividerCustom = styled(Divider)`
   margin: 10px 0;
 `;
 const StyledLink = styled(Link)`
-  color: #999999;
+  color: ${({ theme }) => theme.palette.text.secondary};
   &:visited,
   &:link,
   &:active {

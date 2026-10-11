@@ -1,8 +1,9 @@
 import merge from 'deepmerge';
 import { green, grey, indigo, red } from '@mui/material/colors';
 import { THEMES } from 'theme-constants';
+import { BRAND_COLORS, BRAND_UI, SEMANTIC_COLORS } from './brandTokens';
 
-const charcoal = '#30302F';
+const charcoal = BRAND_COLORS.charcoal;
 
 const customBlue = {
   50: '#e9f0fb',
@@ -17,83 +18,87 @@ const customBlue = {
   900: '#2052c2 '
 };
 
-const warmSand = '#D4C5BA';
-
 const defaultVariant = {
   name: THEMES.DEFAULT,
   palette: {
     mode: 'light',
     primary: {
-      main: '#4d8a3f',
-      contrastText: '#FFF'
+      main: BRAND_COLORS.green,
+      contrastText: BRAND_COLORS.ivory
     },
-    // secondary: {
-    //   main: customBlue[500],
-    //   contrastText: '#FFF'
-    // },
     secondary: {
-      main: '#00c3f5',
-      contrastText: '#FFF'
+      main: BRAND_COLORS.terracotta,
+      contrastText: BRAND_COLORS.ivory
     },
     error: {
-      main: '#dc1b0d',
-      contrastText: '#FFF'
+      main: SEMANTIC_COLORS.error,
+      contrastText: BRAND_COLORS.ivory
     },
     warning: {
-      main: '#ffa726',
-      contrastText: '#FFF'
+      main: SEMANTIC_COLORS.warning,
+      contrastText: BRAND_COLORS.ivory
     },
     info: {
-      main: '#2196f3',
-      contrastText: '#FFF'
+      main: SEMANTIC_COLORS.info,
+      contrastText: BRAND_COLORS.ivory
     },
     success: {
-      main: '#4caf50',
-      contrastText: '#FFF'
+      main: SEMANTIC_COLORS.success,
+      contrastText: BRAND_COLORS.ivory
     },
     text: {
       primary: charcoal,
-      secondary: charcoal
+      secondary: BRAND_UI.mutedText,
+      disabled: BRAND_UI.disabledText
     },
     background: {
-      default: '#F7F9FC',
-      paper: warmSand
+      default: BRAND_COLORS.ivory,
+      paper: BRAND_COLORS.ivory
+    },
+    divider: BRAND_COLORS.sand,
+    action: {
+      active: BRAND_COLORS.green,
+      hover: BRAND_UI.greenTint,
+      selected: BRAND_UI.greenSelected,
+      disabled: BRAND_UI.disabledText,
+      disabledBackground: BRAND_UI.sandTint,
+      focus: BRAND_UI.greenSelected
     }
   },
   header: {
-    color: grey[500],
-    background: '#FFF',
+    color: BRAND_COLORS.ivory,
+    background: BRAND_COLORS.green,
     search: {
-      color: grey[800]
+      color: BRAND_COLORS.ivory
     },
     indicator: {
-      background: customBlue[600]
+      background: BRAND_COLORS.terracotta
     }
   },
   footer: {
-    color: grey[500],
-    background: '#FFF'
+    color: BRAND_UI.mutedText,
+    background: BRAND_COLORS.ivory
   },
   sidebar: {
-    color: grey[200],
-    background: '#444243',
+    color: BRAND_COLORS.ivory,
+    background: BRAND_COLORS.green,
     header: {
-      color: grey[200],
-      background: '#444243',
+      color: BRAND_COLORS.ivory,
+      background: BRAND_COLORS.green,
       brand: {
-        color: customBlue[500]
+        color: BRAND_COLORS.ivory
       }
     },
     footer: {
-      color: grey[200],
-      background: '#444243',
+      color: BRAND_COLORS.ivory,
+      background: BRAND_COLORS.green,
       online: {
-        background: green[500]
+        background: BRAND_COLORS.sand
       }
     },
     badge: {
-      color: '#FFF',
-      background: customBlue[500]
+      color: BRAND_COLORS.ivory,
+      background: BRAND_COLORS.terracotta
     }
   }
 };

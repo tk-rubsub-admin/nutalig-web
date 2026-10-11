@@ -7,6 +7,7 @@ import {
   LocalShipping,
   MonetizationOn,
   ReceiptLong,
+  Search,
   TrendingUp
 } from '@mui/icons-material';
 import {
@@ -25,13 +26,14 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
+import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import { Wrapper } from 'components/Styled';
 import { useAuth } from 'auth/AuthContext';
 import { Page } from 'layout/LayoutRoute';
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from 'react-google-charts';
 import { useQuery } from 'react-query';
@@ -51,14 +53,47 @@ import { getEmployeesByPosition, getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import { DEFAULT_DATE_FORMAT_BFF } from 'utils';
 import 'rsuite/dist/rsuite.min.css';
+import { buildMonthlyBarData } from './chartData';
+import {
+  DASHBOARD_BRAND,
+  getDashboardCategoryColor,
+  getDashboardSeriesColor,
+  getDashboardSliceTextColor
+} from './chartColors';
+
+const MAX_MONTH_RANGE = 3;
+const BAR_CHART_HEIGHT = '320px';
+const BAR_CHART_HEADER_HEIGHT = 88;
+const BAR_CHART_AREA = {
+  left: 48,
+  top: 64,
+  right: 16,
+  bottom: 88,
+  width: '100%',
+  height: '53%'
+};
+const CHART_CARD_SX = { backgroundColor: DASHBOARD_BRAND.ivory, border: `1px solid ${DASHBOARD_BRAND.sand}` };
+const CHART_LEGEND = { position: 'top', maxLines: 3, textStyle: { color: DASHBOARD_BRAND.charcoal } };
+const CHART_V_AXIS = {
+  minValue: 0,
+  textStyle: { color: DASHBOARD_BRAND.charcoal },
+  gridlines: { color: DASHBOARD_BRAND.sand },
+  baselineColor: DASHBOARD_BRAND.sand
+};
 
 export default function Dashboard(): JSX.Element {
   const theme = useTheme();
   const { t } = useTranslation();
   const { getRole } = useAuth();
   const role = getRole();
-  const defaultSelectedMonth = useMemo(() => dayjs().format('YYYY-MM'), []);
-  const [selectedMonth, setSelectedMonth] = useState(defaultSelectedMonth);
+  const defaultSelectedMonths = useMemo(() => {
+    const endMonth = dayjs().startOf('month').subtract(1, 'month');
+    return {
+      from: endMonth.subtract(MAX_MONTH_RANGE - 1, 'month').format('YYYY-MM'),
+      to: endMonth.format('YYYY-MM')
+    };
+  }, []);
+  const [selectedMonths, setSelectedMonths] = useState(defaultSelectedMonths);
   const [dateRange, setDateRange] = useState<Pick<DashboardDateRange, 'salesId' | 'procurementId'>>({
     salesId: '',
     procurementId: ''
@@ -78,15 +113,22 @@ export default function Dashboard(): JSX.Element {
       };
     });
   }, []);
+  const earliestStartMonth = dayjs(`${selectedMonths.to}-01`)
+    .subtract(MAX_MONTH_RANGE - 1, 'month')
+    .format('YYYY-MM');
+  const latestEndMonth = dayjs(`${selectedMonths.from}-01`)
+    .add(MAX_MONTH_RANGE - 1, 'month')
+    .format('YYYY-MM');
   const selectedMonthRange = useMemo<DashboardDateRange>(
     () => ({
-      dateFrom: dayjs(`${selectedMonth}-01`).startOf('month').format(DEFAULT_DATE_FORMAT_BFF),
-      dateTo: dayjs(`${selectedMonth}-01`).endOf('month').format(DEFAULT_DATE_FORMAT_BFF),
+      dateFrom: dayjs(`${selectedMonths.from}-01`).startOf('month').format(DEFAULT_DATE_FORMAT_BFF),
+      dateTo: dayjs(`${selectedMonths.to}-01`).endOf('month').format(DEFAULT_DATE_FORMAT_BFF),
       salesId: dateRange.salesId,
       procurementId: dateRange.procurementId
     }),
-    [dateRange.procurementId, dateRange.salesId, selectedMonth]
+    [dateRange.procurementId, dateRange.salesId, selectedMonths.from, selectedMonths.to]
   );
+  const [appliedRange, setAppliedRange] = useState<DashboardDateRange>(selectedMonthRange);
 
   const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
     ['dashboard-sales-options'],
@@ -108,16 +150,24 @@ export default function Dashboard(): JSX.Element {
     [
       'dashboard',
       role,
-      selectedMonthRange.dateFrom,
-      selectedMonthRange.dateTo,
-      dateRange.salesId,
-      dateRange.procurementId
+      appliedRange.dateFrom,
+      appliedRange.dateTo,
+      appliedRange.salesId,
+      appliedRange.procurementId
     ],
-    () => getDashboard(selectedMonthRange),
+    () => getDashboard(appliedRange),
     {
-      refetchOnWindowFocus: false
+      enabled: false,
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchInterval: false
     }
   );
+
+  useEffect(() => {
+    refetch();
+  }, [appliedRange, refetch]);
 
   const canSee = (visibleTo?: string[]) => !visibleTo?.length || visibleTo.includes(role);
   const translateLabel = (value?: string) =>
@@ -128,7 +178,10 @@ export default function Dashboard(): JSX.Element {
     [data?.metrics, role]
   );
   const trendCharts = useMemo(
-    () => (data?.trendCharts || []).filter((item) => canSee(item.visibleTo)),
+    () => (data?.trendCharts || []).filter((item) =>
+      canSee(item.visibleTo) &&
+      !(item.id === 'rfq-stage-progress' && item.title === 'dashboard.rfq.charts.salesFlow.title')
+    ),
     [data?.trendCharts, role]
   );
   const selectedMonthVolumeChart = useMemo(
@@ -144,12 +197,14 @@ export default function Dashboard(): JSX.Element {
     }
 
     return [
-      ['Day', ...selectedMonthVolumeChart.series.map((series) => series.name), { role: 'annotation' }],
+      ['Month', ...selectedMonthVolumeChart.series.map((series) => series.name), { role: 'annotation' }],
       ...selectedMonthVolumeChart.labels.map((label, index) => {
         const values = selectedMonthVolumeChart.series.map((series) => series.data[index] || 0);
         const total = values.reduce((sum, value) => sum + value, 0);
+        const month = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(label);
+        const displayLabel = month ? `${month[1]}/${Number(month[2]) + 543}` : label;
 
-        return [label, ...values, total ? String(total) : null];
+        return [displayLabel, ...values, total ? String(total) : null];
       })
     ];
   }, [selectedMonthVolumeChart]);
@@ -167,6 +222,10 @@ export default function Dashboard(): JSX.Element {
   const salesCountChart = useMemo(
     () => (data?.salesCountChart && canSee(data.salesCountChart.visibleTo) ? data.salesCountChart : null),
     [data?.salesCountChart, role]
+  );
+  const procurementKpiChart = useMemo(
+    () => (data?.procurementKpiChart && canSee(data.procurementKpiChart.visibleTo) ? data.procurementKpiChart : null),
+    [data?.procurementKpiChart, role]
   );
   const customerTypeCountChart = useMemo(
     () =>
@@ -189,7 +248,7 @@ export default function Dashboard(): JSX.Element {
   );
 
   const toneColorMap: Record<DashboardMetric['tone'], string> = {
-    neutral: '#5b6472',
+    neutral: DASHBOARD_BRAND.charcoal,
     success: theme.palette.success.main,
     warning: theme.palette.warning.main,
     danger: theme.palette.error.main,
@@ -206,49 +265,6 @@ export default function Dashboard(): JSX.Element {
     receive: <LocalShipping fontSize="small" />,
     saleOrder: <TrendingUp fontSize="small" />
   };
-
-  const rfqVolumeFallbackColors = [
-    theme.palette.primary.main,
-    theme.palette.error.main,
-    theme.palette.warning.main,
-    theme.palette.info.main
-  ];
-
-  const getRfqVolumeSeriesColor = (series: DashboardTrendChart['series'][number], index: number) => {
-    if (series.color) {
-      return series.color;
-    }
-
-    const normalizedName = series.name.toLowerCase();
-
-    if (normalizedName.includes('urgent') || normalizedName.includes('เร่งด่วน')) {
-      return theme.palette.error.main;
-    }
-
-    if (
-      normalizedName.includes('special') ||
-      normalizedName.includes('พิเศษ') ||
-      normalizedName.includes('review')
-    ) {
-      return theme.palette.warning.main;
-    }
-
-    return rfqVolumeFallbackColors[index % rfqVolumeFallbackColors.length];
-  };
-
-  const acceptWorkDurationBucketColors = [
-    '#16a34a',
-    '#22c55e',
-    '#84cc16',
-    '#facc15',
-    '#fb923c',
-    '#f97316',
-    '#dc2626',
-    '#94a3b8'
-  ];
-
-  const getAcceptWorkDurationBucketColor = (index: number) =>
-    acceptWorkDurationBucketColors[index] || theme.palette.primary.main;
 
   const formatTimestamp = (value?: string) => {
     if (!value) {
@@ -268,18 +284,18 @@ export default function Dashboard(): JSX.Element {
   );
 
   const handleClear = () => {
-    setSelectedMonth(defaultSelectedMonth);
+    setSelectedMonths(defaultSelectedMonths);
     setDateRange({ salesId: '', procurementId: '' });
-    refetch();
   };
 
   return (
     <Page>
+      <LoadingDialog open={isFetching} />
       <PageTitle title={t('dashboard.rfq.title')} />
       <Wrapper
         sx={{
-          background: '#f8f4e8',
-          border: '1px solid #e7deca'
+          background: DASHBOARD_BRAND.ivory,
+          border: `1px solid ${DASHBOARD_BRAND.sand}`
         }}>
         <Stack spacing={2}>
           <Stack
@@ -296,24 +312,49 @@ export default function Dashboard(): JSX.Element {
             />
           </Stack>
           <Grid container spacing={1}>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 select
-                label={t('dashboard.filters.month')}
-                value={selectedMonth}
+                label={t('dashboard.filters.monthFrom')}
+                value={selectedMonths.from}
+                helperText={t('dashboard.filters.monthRangeLimit', { maxMonths: MAX_MONTH_RANGE })}
                 InputLabelProps={{ shrink: true }}
                 onChange={(event) => {
-                  setSelectedMonth(event.target.value);
+                  setSelectedMonths((prev) => ({ ...prev, from: event.target.value }));
                 }}>
                 {monthOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
+                  <MenuItem
+                    key={option.value}
+                    value={option.value}
+                    disabled={option.value > selectedMonths.to || option.value < earliestStartMonth}>
                     {option.label}
                   </MenuItem>
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                select
+                label={t('dashboard.filters.monthTo')}
+                value={selectedMonths.to}
+                helperText={t('dashboard.filters.monthRangeLimit', { maxMonths: MAX_MONTH_RANGE })}
+                InputLabelProps={{ shrink: true }}
+                onChange={(event) => {
+                  setSelectedMonths((prev) => ({ ...prev, to: event.target.value }));
+                }}>
+                {monthOptions.map((option) => (
+                  <MenuItem
+                    key={option.value}
+                    value={option.value}
+                    disabled={option.value < selectedMonths.from || option.value > latestEndMonth}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
               <Autocomplete
                 options={salesOptions}
                 loading={isSalesFetching}
@@ -347,7 +388,7 @@ export default function Dashboard(): JSX.Element {
                 )}
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Autocomplete
                 options={procurementOptions}
                 loading={isProcurementFetching}
@@ -390,6 +431,13 @@ export default function Dashboard(): JSX.Element {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <Button
                   variant="contained"
+                  startIcon={isFetching ? <CircularProgress size={18} color="inherit" /> : <Search />}
+                  disabled={isFetching}
+                  onClick={() => setAppliedRange({ ...selectedMonthRange })}>
+                  {t('dashboard.filters.viewData')}
+                </Button>
+                <Button
+                  variant="contained"
                   className="btn-amber-orange"
                   startIcon={<DisabledByDefault />}
                   onClick={handleClear}>
@@ -423,8 +471,8 @@ export default function Dashboard(): JSX.Element {
                     p: 2.5,
                     minHeight: 160,
                     borderRadius: 3,
-                    background: '#fff',
-                    border: '1px solid rgba(31,42,28,0.08)',
+                    background: DASHBOARD_BRAND.ivory,
+                    border: `1px solid ${DASHBOARD_BRAND.sand}`,
                     boxShadow: '0 10px 30px rgba(31, 42, 28, 0.06)',
                     textDecoration: 'none',
                     display: 'block',
@@ -442,10 +490,10 @@ export default function Dashboard(): JSX.Element {
                       sx={{ color: toneColorMap[metric.tone], fontWeight: 700 }}>
                       {translateLabel(metric.title)}
                     </Typography>
-                    <Typography variant="h2" sx={{ color: '#21301e', fontWeight: 700 }}>
+                    <Typography variant="h2" sx={{ color: DASHBOARD_BRAND.green, fontWeight: 700 }}>
                       {metric.value}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#5f695e' }}>
+                    <Typography variant="body2" sx={{ color: DASHBOARD_BRAND.charcoal }}>
                       {translateLabel(metric.subtitle)}
                     </Typography>
                     {metric.trend ? (
@@ -454,7 +502,7 @@ export default function Dashboard(): JSX.Element {
                         size="small"
                         sx={{
                           alignSelf: 'flex-start',
-                          backgroundColor: `${toneColorMap[metric.tone]}18`,
+                          backgroundColor: alpha(toneColorMap[metric.tone], 0.1),
                           color: toneColorMap[metric.tone]
                         }}
                       />
@@ -472,15 +520,15 @@ export default function Dashboard(): JSX.Element {
           .filter((chart) => chart.id !== 'rfq-volume')
           .map((chart) => (
             <Grid item xs={12} lg={6} key={chart.id}>
-              <Wrapper>
-                <Typography variant="h6">{translateLabel(chart.title)}</Typography>
+              <Wrapper sx={CHART_CARD_SX}>
+                <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(chart.title)}</Typography>
                 <Chart
                   chartType="LineChart"
                   width="100%"
                   height="280px"
                   loader={chartLoader}
                   data={[
-                    ['Day', ...chart.series.map((series) => series.name)],
+                    ['Month', ...chart.series.map((series) => series.name)],
                     ...chart.labels.map((label, index) => [
                       label,
                       ...chart.series.map((series) => series.data[index] || 0)
@@ -488,8 +536,8 @@ export default function Dashboard(): JSX.Element {
                   ]}
                   options={{
                     backgroundColor: 'transparent',
-                    colors: chart.series.map((series) => series.color || theme.palette.primary.main),
-                    legend: { position: 'top' },
+                    colors: chart.series.map(getDashboardSeriesColor),
+                    legend: CHART_LEGEND,
                     chartArea: {
                       left: 40,
                       top: 32,
@@ -498,29 +546,29 @@ export default function Dashboard(): JSX.Element {
                       width: '100%',
                       height: '70%'
                     },
-                    hAxis: { textStyle: { color: '#5f695e' } },
-                    vAxis: { minValue: 0, textStyle: { color: '#5f695e' } }
+                    hAxis: { textStyle: { color: DASHBOARD_BRAND.charcoal } },
+                    vAxis: CHART_V_AXIS
                   }}
                 />
               </Wrapper>
             </Grid>
           ))}
         {selectedMonthVolumeChart ? (
-          <Grid item xs={12} lg={12} key={selectedMonthVolumeChart.id}>
-            <Wrapper>
-              <Typography variant="h6">{translateLabel(selectedMonthVolumeChart.title)}</Typography>
+          <Grid item xs={12} lg={6} key={selectedMonthVolumeChart.id}>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Box sx={{ height: BAR_CHART_HEADER_HEIGHT }}>
+                <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(selectedMonthVolumeChart.title)}</Typography>
+              </Box>
               <Chart
                 chartType="ColumnChart"
                 width="100%"
-                height="280px"
+                height={BAR_CHART_HEIGHT}
                 loader={chartLoader}
                 data={selectedMonthVolumeChartData || []}
                 options={{
                   backgroundColor: 'transparent',
-                  colors: selectedMonthVolumeChart.series.map(
-                    (series, index) => getRfqVolumeSeriesColor(series, index)
-                  ),
-                  legend: { position: 'top' },
+                  colors: selectedMonthVolumeChart.series.map(getDashboardSeriesColor),
+                  legend: CHART_LEGEND,
                   focusTarget: 'category',
                   tooltip: { isHtml: true, trigger: 'focus' },
                   isStacked: true,
@@ -530,26 +578,23 @@ export default function Dashboard(): JSX.Element {
                       color: 'transparent'
                     },
                     textStyle: {
-                      color: '#21301e',
+                      color: DASHBOARD_BRAND.charcoal,
                       fontSize: 12,
                       bold: true
                     }
                   },
-                  chartArea: {
-                    left: 48,
-                    top: 32,
-                    right: 20,
-                    bottom: 48,
-                    width: '100%',
-                    height: '68%'
-                  },
+                  chartArea: BAR_CHART_AREA,
                   hAxis: {
-                    textStyle: { color: '#5f695e' },
+                    textStyle: { color: DASHBOARD_BRAND.charcoal },
                     slantedText: true,
                     slantedTextAngle: 45
                   },
-                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } },
-                  bar: { groupWidth: '70%' }
+                  vAxis: {
+                    ...CHART_V_AXIS,
+                    maxValue: 400,
+                    format: '0'
+                  },
+                  bar: { groupWidth: 48 }
                 }}
               />
             </Wrapper>
@@ -557,40 +602,28 @@ export default function Dashboard(): JSX.Element {
         ) : null}
         {acceptWorkDurationChart ? (
           <Grid item xs={12} lg={6} key={acceptWorkDurationChart.id}>
-            <Wrapper>
-              <Typography variant="h6">{translateLabel(acceptWorkDurationChart.title)}</Typography>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Box sx={{ height: BAR_CHART_HEADER_HEIGHT }}>
+                <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(acceptWorkDurationChart.title)}</Typography>
+              </Box>
               <Chart
                 chartType="ColumnChart"
                 width="100%"
-                height="280px"
+                height={BAR_CHART_HEIGHT}
                 loader={chartLoader}
-                data={[
-                  [
-                    'Bucket',
-                    ...acceptWorkDurationChart.series.map((series) => series.name),
-                    { role: 'annotation' },
-                    { role: 'style' }
-                  ],
-                  ...acceptWorkDurationChart.labels.map((label, index) => [
-                    translateLabel(label),
-                    ...acceptWorkDurationChart.series.map((series) => series.data[index] || 0),
-                    String(acceptWorkDurationChart.series[0]?.data[index] || 0),
-                    getAcceptWorkDurationBucketColor(index)
-                  ])
-                ]}
+                data={buildMonthlyBarData(
+                  acceptWorkDurationChart.labels,
+                  acceptWorkDurationChart.series,
+                  translateLabel
+                )}
                 options={{
                   backgroundColor: 'transparent',
-                  legend: { position: 'none' },
-                  chartArea: {
-                    left: 48,
-                    top: 32,
-                    right: 16,
-                    bottom: 72,
-                    width: '100%',
-                    height: '66%'
-                  },
+                  legend: CHART_LEGEND,
+                  colors: acceptWorkDurationChart.series.map(getDashboardSeriesColor),
+                  isStacked: false,
+                  chartArea: BAR_CHART_AREA,
                   hAxis: {
-                    textStyle: { color: '#5f695e' },
+                    textStyle: { color: DASHBOARD_BRAND.charcoal },
                     slantedText: true,
                     slantedTextAngle: 30
                   },
@@ -600,12 +633,12 @@ export default function Dashboard(): JSX.Element {
                       color: 'transparent'
                     },
                     textStyle: {
-                      color: '#21301e',
+                      color: DASHBOARD_BRAND.charcoal,
                       fontSize: 12,
                       bold: true
                     }
                   },
-                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } }
+                  vAxis: CHART_V_AXIS
                 }}
               />
             </Wrapper>
@@ -613,40 +646,28 @@ export default function Dashboard(): JSX.Element {
         ) : null}
         {supplierQuoteDurationChart ? (
           <Grid item xs={12} lg={6} key={supplierQuoteDurationChart.id}>
-            <Wrapper>
-              <Typography variant="h6">{translateLabel(supplierQuoteDurationChart.title)}</Typography>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Box sx={{ height: BAR_CHART_HEADER_HEIGHT }}>
+                <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(supplierQuoteDurationChart.title)}</Typography>
+              </Box>
               <Chart
                 chartType="ColumnChart"
                 width="100%"
-                height="280px"
+                height={BAR_CHART_HEIGHT}
                 loader={chartLoader}
-                data={[
-                  [
-                    'Bucket',
-                    ...supplierQuoteDurationChart.series.map((series) => series.name),
-                    { role: 'annotation' },
-                    { role: 'style' }
-                  ],
-                  ...supplierQuoteDurationChart.labels.map((label, index) => [
-                    translateLabel(label),
-                    ...supplierQuoteDurationChart.series.map((series) => series.data[index] || 0),
-                    String(supplierQuoteDurationChart.series[0]?.data[index] || 0),
-                    getAcceptWorkDurationBucketColor(index)
-                  ])
-                ]}
+                data={buildMonthlyBarData(
+                  supplierQuoteDurationChart.labels,
+                  supplierQuoteDurationChart.series,
+                  translateLabel
+                )}
                 options={{
                   backgroundColor: 'transparent',
-                  legend: { position: 'none' },
-                  chartArea: {
-                    left: 48,
-                    top: 32,
-                    right: 16,
-                    bottom: 72,
-                    width: '100%',
-                    height: '66%'
-                  },
+                  legend: CHART_LEGEND,
+                  colors: supplierQuoteDurationChart.series.map(getDashboardSeriesColor),
+                  isStacked: false,
+                  chartArea: BAR_CHART_AREA,
                   hAxis: {
-                    textStyle: { color: '#5f695e' },
+                    textStyle: { color: DASHBOARD_BRAND.charcoal },
                     slantedText: true,
                     slantedTextAngle: 30
                   },
@@ -656,12 +677,59 @@ export default function Dashboard(): JSX.Element {
                       color: 'transparent'
                     },
                     textStyle: {
-                      color: '#21301e',
+                      color: DASHBOARD_BRAND.charcoal,
                       fontSize: 12,
                       bold: true
                     }
                   },
-                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } }
+                  vAxis: CHART_V_AXIS
+                }}
+              />
+            </Wrapper>
+          </Grid>
+        ) : null}
+        {procurementKpiChart ? (
+          <Grid item xs={12} lg={6} key={procurementKpiChart.id}>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Box sx={{ height: BAR_CHART_HEADER_HEIGHT }}>
+                <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(procurementKpiChart.title)}</Typography>
+                <Typography
+                  variant="body2"
+                  title={translateLabel(procurementKpiChart.subtitle)}
+                  sx={{
+                    color: DASHBOARD_BRAND.charcoal,
+                    mt: 0.5,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}>
+                  {translateLabel(procurementKpiChart.subtitle)}
+                </Typography>
+              </Box>
+              <Chart
+                chartType="ColumnChart"
+                width="100%"
+                height={BAR_CHART_HEIGHT}
+                loader={chartLoader}
+                data={buildMonthlyBarData(
+                  procurementKpiChart.labels,
+                  procurementKpiChart.series,
+                  translateLabel
+                )}
+                options={{
+                  backgroundColor: 'transparent',
+                  legend: CHART_LEGEND,
+                  colors: procurementKpiChart.series.map(getDashboardSeriesColor),
+                  isStacked: false,
+                  chartArea: BAR_CHART_AREA,
+                  hAxis: {
+                    textStyle: { color: DASHBOARD_BRAND.charcoal, fontSize: 11 },
+                    slantedText: true,
+                    slantedTextAngle: 45
+                  },
+                  vAxis: { ...CHART_V_AXIS, format: '0' },
+                  annotations: { alwaysOutside: true, textStyle: { color: DASHBOARD_BRAND.charcoal } }
                 }}
               />
             </Wrapper>
@@ -669,35 +737,32 @@ export default function Dashboard(): JSX.Element {
         ) : null}
         {salesCountChart ? (
           <Grid item xs={12} lg={6} key={salesCountChart.id}>
-            <Wrapper>
-              <Typography variant="h6">{translateLabel(salesCountChart.title)}</Typography>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(salesCountChart.title)}</Typography>
               <Chart
                 chartType="ColumnChart"
                 width="100%"
                 height="320px"
                 loader={chartLoader}
-                data={[
-                  ['Sales', 'Count', { role: 'annotation' }, { role: 'style' }],
-                  ...salesCountChart.items.map((item, index) => [
-                    item.label,
-                    item.value,
-                    String(item.value),
-                    item.color || rfqVolumeFallbackColors[index % rfqVolumeFallbackColors.length]
-                  ])
-                ]}
+                data={buildMonthlyBarData(
+                  salesCountChart.items.map((item) => item.label),
+                  salesCountChart.series || [{ name: 'Count', data: salesCountChart.items.map((item) => item.value) }]
+                )}
                 options={{
                   backgroundColor: 'transparent',
-                  legend: { position: 'none' },
+                  legend: CHART_LEGEND,
+                  colors: (salesCountChart.series || [{ name: 'Count', data: [] }]).map(getDashboardSeriesColor),
+                  isStacked: false,
                   chartArea: {
                     left: 48,
-                    top: 32,
+                    top: 64,
                     right: 16,
                     bottom: 72,
                     width: '100%',
-                    height: '66%'
+                    height: '58%'
                   },
                   hAxis: {
-                    textStyle: { color: '#5f695e' },
+                    textStyle: { color: DASHBOARD_BRAND.charcoal },
                     slantedText: true,
                     slantedTextAngle: 30
                   },
@@ -707,12 +772,12 @@ export default function Dashboard(): JSX.Element {
                       color: 'transparent'
                     },
                     textStyle: {
-                      color: '#21301e',
+                      color: DASHBOARD_BRAND.charcoal,
                       fontSize: 12,
                       bold: true
                     }
                   },
-                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } },
+                  vAxis: CHART_V_AXIS,
                   bar: { groupWidth: '72%' }
                 }}
               />
@@ -721,35 +786,32 @@ export default function Dashboard(): JSX.Element {
         ) : null}
         {customerTypeCountChart ? (
           <Grid item xs={12} lg={6} key={customerTypeCountChart.id}>
-            <Wrapper>
-              <Typography variant="h6">{translateLabel(customerTypeCountChart.title)}</Typography>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(customerTypeCountChart.title)}</Typography>
               <Chart
                 chartType="ColumnChart"
                 width="100%"
                 height="320px"
                 loader={chartLoader}
-                data={[
-                  ['Customer Type', 'Count', { role: 'annotation' }, { role: 'style' }],
-                  ...customerTypeCountChart.items.map((item, index) => [
-                    item.label,
-                    item.value,
-                    String(item.value),
-                    item.color || rfqVolumeFallbackColors[index % rfqVolumeFallbackColors.length]
-                  ])
-                ]}
+                data={buildMonthlyBarData(
+                  customerTypeCountChart.items.map((item) => item.label),
+                  customerTypeCountChart.series || [{ name: 'Count', data: customerTypeCountChart.items.map((item) => item.value) }]
+                )}
                 options={{
                   backgroundColor: 'transparent',
-                  legend: { position: 'none' },
+                  legend: CHART_LEGEND,
+                  colors: (customerTypeCountChart.series || [{ name: 'Count', data: [] }]).map(getDashboardSeriesColor),
+                  isStacked: false,
                   chartArea: {
                     left: 48,
-                    top: 32,
+                    top: 64,
                     right: 16,
                     bottom: 72,
                     width: '100%',
-                    height: '66%'
+                    height: '58%'
                   },
                   hAxis: {
-                    textStyle: { color: '#5f695e' },
+                    textStyle: { color: DASHBOARD_BRAND.charcoal },
                     slantedText: true,
                     slantedTextAngle: 30
                   },
@@ -759,12 +821,12 @@ export default function Dashboard(): JSX.Element {
                       color: 'transparent'
                     },
                     textStyle: {
-                      color: '#21301e',
+                      color: DASHBOARD_BRAND.charcoal,
                       fontSize: 12,
                       bold: true
                     }
                   },
-                  vAxis: { minValue: 0, textStyle: { color: '#5f695e' } },
+                  vAxis: CHART_V_AXIS,
                   bar: { groupWidth: '72%' }
                 }}
               />
@@ -773,19 +835,24 @@ export default function Dashboard(): JSX.Element {
         ) : null}
         {distributionCharts.map((chart) => (
           <Grid item xs={12} lg={6} key={chart.id}>
-            <Wrapper>
-              <Typography variant="h6">{translateLabel(chart.title)}</Typography>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>{translateLabel(chart.title)}</Typography>
               <Chart
                 chartType="PieChart"
                 width="100%"
                 height="280px"
                 loader={chartLoader}
-                data={[['Status', 'Count'], ...chart.items.map((item) => [item.label, item.value])]}
+                data={[['Category', 'Count'], ...chart.items.map((item) => [translateLabel(item.label), item.value])]}
                 options={{
                   backgroundColor: 'transparent',
                   pieHole: 0.58,
-                  legend: { position: 'right', textStyle: { color: '#5f695e' } },
-                  colors: chart.items.map((item) => item.color || theme.palette.primary.main),
+                  legend: { position: 'right', textStyle: { color: DASHBOARD_BRAND.charcoal } },
+                  colors: chart.items.map((item, index) => getDashboardCategoryColor(item.color, index)),
+                  pieSliceBorderColor: DASHBOARD_BRAND.ivory,
+                  pieResidueSliceColor: DASHBOARD_BRAND.sand,
+                  slices: chart.items.map((item, index) => ({
+                    textStyle: { color: getDashboardSliceTextColor(getDashboardCategoryColor(item.color, index)) }
+                  })),
                   chartArea: {
                     left: 16,
                     top: 24,
@@ -819,8 +886,8 @@ export default function Dashboard(): JSX.Element {
                     px: 2,
                     py: 1.5,
                     borderRadius: 3,
-                    color: '#21301e',
-                    borderColor: 'rgba(31,42,28,0.12)'
+                    color: DASHBOARD_BRAND.green,
+                    borderColor: DASHBOARD_BRAND.sand
                   }}>
                   <Stack direction="row" spacing={1.5} alignItems="center" width="100%">
                     <Box
@@ -830,8 +897,8 @@ export default function Dashboard(): JSX.Element {
                         borderRadius: 2,
                         display: 'grid',
                         placeItems: 'center',
-                        backgroundColor: '#efe6d2',
-                        color: '#8b6f47'
+                        backgroundColor: DASHBOARD_BRAND.sand,
+                        color: DASHBOARD_BRAND.green
                       }}>
                       {quickLinkIconMap[item.icon]}
                     </Box>
@@ -839,7 +906,7 @@ export default function Dashboard(): JSX.Element {
                       <Typography variant="body1" sx={{ fontWeight: 600 }}>
                         {translateLabel(item.title)}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#677268' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         {translateLabel(item.description)}
                       </Typography>
                     </Box>

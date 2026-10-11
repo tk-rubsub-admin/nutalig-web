@@ -316,7 +316,7 @@
       },
       "charts": {
         "volume": {
-          "title": "จำนวน RFQ ตามวันที่ขอราคา",
+          "title": "จำนวน RFQ ตามเดือนที่ขอราคา",
           "subtitle": "เปรียบเทียบจำนวนรายการใหม่ งานเร่งด่วน และรายการทบทวนราคาพิเศษ"
         },
         "procurementFlow": {
@@ -334,6 +334,11 @@
         "family": {
           "title": "สัดส่วนตาม Product Family",
           "subtitle": "กลุ่มสินค้าที่ถูกสอบถามบ่อยที่สุด"
+        },
+        "rfqType": {
+          "title": "สัดส่วนตามประเภท RFQ",
+          "subtitle": "จำนวน RFQ แยกตามประเภทในช่วงเดือนที่เลือก",
+          "unspecified": "ไม่ระบุประเภท"
         },
         "subtype1": {
           "title": "สัดส่วนตาม Product Subtype 1",
@@ -390,6 +395,18 @@
         "acceptWorkDurationPercentile": {
           "title": "Median / P90 เวลาในการรับงาน",
           "subtitle": "ใช้ดู outlier ของเวลาในการรับงานในแต่ละวัน"
+        },
+        "procurementKpi": {
+          "title": "สัดส่วน KPI จัดซื้อ",
+          "subtitle": "เวลาจาก NEW ถึง SUPPLIER_QUOTED ไม่นับเสาร์–อาทิตย์และวันหยุด",
+          "buckets": {
+            "lt1d": "น้อยกว่า 1 วัน",
+            "lt2d": "น้อยกว่า 2 วัน",
+            "lt3d": "น้อยกว่า 3 วัน",
+            "gte3d": "3 วันขึ้นไป",
+            "pending": "กำลังดำเนินการ",
+            "missingData": "ไม่มีข้อมูลเวลา"
+          }
         }
       },
       "queues": {
@@ -443,6 +460,10 @@
     },
     "filters": {
       "month": "เดือน",
+      "monthFrom": "เดือนเริ่มต้น",
+      "monthTo": "เดือนสิ้นสุด",
+      "monthRangeLimit": "เลือกได้สูงสุด {{maxMonths}} เดือน รวมเดือนเริ่มต้นและเดือนสิ้นสุด",
+      "viewData": "ดูข้อมูล",
       "dateFrom": "วันที่เริ่มต้น",
       "dateTo": "วันที่สิ้นสุด",
       "sales": "เซลล์ผู้ดูแล",

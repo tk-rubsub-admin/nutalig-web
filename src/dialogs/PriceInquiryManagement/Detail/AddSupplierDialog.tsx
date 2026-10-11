@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import { ReactElement } from 'react';
 import { Supplier } from 'services/Supplier/supplier-type';
@@ -69,10 +70,10 @@ export function AddSupplierDialog(props: AddSupplierDialogProps): ReactElement {
                   <Box
                     key={supplier.supplierId || supplier.id}
                     sx={{
-                      border: '1px solid #dce4ee',
+                      border: `1px solid ${BRAND_COLORS.sand}`,
                       borderRadius: 2,
                       p: 1.5,
-                      backgroundColor: '#fff'
+                      backgroundColor: BRAND_COLORS.ivory
                     }}>
                     <Stack
                       direction={{ xs: 'column', sm: 'row' }}
@@ -102,12 +103,12 @@ export function AddSupplierDialog(props: AddSupplierDialogProps): ReactElement {
           ) : (
             <Box
               sx={{
-                border: '1px dashed #cbd5e1',
+                border: `1px dashed ${BRAND_COLORS.sand}`,
                 borderRadius: 2,
                 py: 3,
                 px: 2,
                 textAlign: 'center',
-                backgroundColor: '#f8fafc'
+                backgroundColor: BRAND_UI.sandTint
               }}>
               <Typography variant="body2" color="text.secondary">
                 ไม่พบคู่ค้าที่ใช้งานอยู่

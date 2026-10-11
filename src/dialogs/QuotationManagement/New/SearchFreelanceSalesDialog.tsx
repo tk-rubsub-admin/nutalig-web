@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { Add, Close } from '@mui/icons-material';
 import { Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -40,7 +41,7 @@ export default function SearchFreelanceSalesDialog(props: SearchFreelanceSalesDi
       fontWeight: 'bold',
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'

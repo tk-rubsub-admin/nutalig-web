@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Dialog, DialogContent, Typography } from '@mui/material';
+import { Box, Dialog, DialogContent, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
 interface LoadingDialogProps {
@@ -9,7 +9,10 @@ export default function LoadingDialog(props: LoadingDialogProps): JSX.Element {
   const { t } = useTranslation();
   const { open } = props;
   return (
-    <Dialog open={open} aria-labelledby="form-dialog-title">
+    <Dialog
+      open={open}
+      aria-labelledby="loading-dialog-title"
+      PaperProps={{ sx: { backgroundColor: '#FFFFFF' } }}>
       <DialogContent>
         <Box
           sx={{
@@ -17,10 +20,15 @@ export default function LoadingDialog(props: LoadingDialogProps): JSX.Element {
             justifyContent: 'center',
             alignItems: 'center'
           }}>
-          <CircularProgress />
+          <Box
+            component="img"
+            src="/nutalig-loading.svg"
+            alt=""
+            sx={{ width: 280, maxWidth: '100%', height: 'auto', display: 'block' }}
+          />
         </Box>
         <br />
-        <Typography sx={{ display: 'flex' }}>{t('toast.loading')}</Typography>
+        <Typography id="loading-dialog-title" align="center">{t('toast.loading')}</Typography>
       </DialogContent>
     </Dialog>
   );

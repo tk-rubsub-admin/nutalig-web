@@ -1,13 +1,15 @@
 import React from 'react';
 import styled from 'styled-components';
 import { NavLink } from 'react-router-dom';
-import { Drawer as MuiDrawer, ListItemButton, IconButton, Box, Divider, Typography } from '@mui/material';
+import { Drawer as MuiDrawer, ListItemButton, IconButton, Box, Typography } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { useTranslation } from 'react-i18next';
 import { SidebarItemsType } from './types';
 import SidebarNav from './SidebarNav';
 import Footer from './SidebarFooter';
 import { isMobileOnly } from 'react-device-detect';
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS } from 'theme/brandTokens';
 
 /* =========================
    Styled Components
@@ -16,10 +18,10 @@ import { isMobileOnly } from 'react-device-detect';
 const Drawer = styled(MuiDrawer)`
   & .MuiDrawer-paper {
     width: 258px;
-    background: linear-gradient(180deg, #1f2d1f 0%, #2b2b2b 100%);
-    color: #e0e0e0;
+    background: ${({ theme }) => theme.sidebar.background};
+    color: ${({ theme }) => theme.sidebar.color};
     border-right: none;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.25);
+    box-shadow: 4px 0 12px ${alpha(BRAND_COLORS.charcoal, 0.15)};
   }
 `;
 
@@ -29,7 +31,7 @@ const Brand = styled(ListItemButton)`
   justify-content: center !important;
   align-items: center !important;
   background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid ${alpha(BRAND_COLORS.ivory, 0.12)};
 
   img {
     height: 65px;
@@ -46,7 +48,7 @@ const CollapseSection = styled.div`
 const DividerLine = styled.div`
   height: 1px;
   margin: 8px 0;
-  background: rgba(255, 255, 255, 0.08);
+  background: ${alpha(BRAND_COLORS.ivory, 0.12)};
 `;
 
 /* =========================
@@ -82,8 +84,8 @@ function Sidebar({ items, onClose, ...rest }: SidebarProps): JSX.Element {
       PaperProps={{
         sx: {
           width: 280,
-          background: '#ffffffff',
-          color: '#fff',
+          background: BRAND_COLORS.green,
+          color: BRAND_COLORS.ivory,
           borderRight: 'none'
         }
       }}>
@@ -94,7 +96,7 @@ function Sidebar({ items, onClose, ...rest }: SidebarProps): JSX.Element {
           px: 3,
           pt: 4,
           pb: 3,
-          background: 'linear-gradient(180deg, #0f2a17 0%, #1a3a22 100%)'
+          background: BRAND_COLORS.green
         }}>
         {/* Collapse Button */}
         <IconButton
@@ -103,9 +105,9 @@ function Sidebar({ items, onClose, ...rest }: SidebarProps): JSX.Element {
             position: 'absolute',
             top: 12,
             right: 12,
-            color: 'rgba(255,255,255,0.75)',
+            color: alpha(BRAND_COLORS.ivory, 0.75),
             '&:hover': {
-              backgroundColor: 'rgba(255,255,255,0.08)'
+              backgroundColor: alpha(BRAND_COLORS.ivory, 0.12)
             }
           }}>
           <ChevronLeftIcon />
@@ -126,7 +128,7 @@ function Sidebar({ items, onClose, ...rest }: SidebarProps): JSX.Element {
               width: 78,
               height: 78,
               borderRadius: 2,
-              backgroundColor: '#fff',
+              backgroundColor: BRAND_COLORS.ivory,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -147,12 +149,6 @@ function Sidebar({ items, onClose, ...rest }: SidebarProps): JSX.Element {
 
         </Box>
       </Box>
-
-      <Divider
-        sx={{
-          borderColor: 'rgba(255,255,255,0.08)'
-        }}
-      />
 
       {/* Menu Section */}
       <SidebarNav items={items} onClick={onClose} />

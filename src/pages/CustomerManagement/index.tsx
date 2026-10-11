@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS } from 'theme/brandTokens';
 import {
   PersonAddAlt1,
   Search,
@@ -36,6 +37,7 @@ import { makeStyles } from '@mui/styles';
 import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 import ConfirmDialog from 'components/ConfirmDialog';
+import CustomerTierChip, { getCustomerChipSx } from 'components/CustomerTierChip';
 import PageTitle from 'components/PageTitle';
 import Paginate from 'components/Paginate';
 import { Wrapper, GridSearchSection, TextLineClamp } from 'components/Styled';
@@ -64,55 +66,20 @@ export default function CustomerManagement(): JSX.Element {
     return numericValue === 0 ? '' : formatNumber(numericValue);
   };
 
-  const getChipSx = (code?: string | null) => {
-    const normalizedCode = code?.toUpperCase();
-    const chipStyleMap: Record<string, { bgcolor: string; color: string; borderColor: string }> = {
-      COMPANY: { bgcolor: '#E8F5E9', color: '#2E7D32', borderColor: '#A5D6A7' },
-      INDIVIDUAL: { bgcolor: '#E3F2FD', color: '#1565C0', borderColor: '#90CAF9' },
-      VIP: { bgcolor: '#F3E5F5', color: '#6A1B9A', borderColor: '#CE93D8' },
-      TIER_2: { bgcolor: '#FFF3E0', color: '#EF6C00', borderColor: '#FFB74D' },
-      TIER_3: { bgcolor: '#E0F7FA', color: '#00838F', borderColor: '#80DEEA' },
-      TIER_4: { bgcolor: '#FCE4EC', color: '#C2185B', borderColor: '#F48FB1' },
-      BRAND_OWNER: { bgcolor: '#EDE7F6', color: '#5E35B1', borderColor: '#B39DDB' },
-      DISTRIBUTOR: { bgcolor: '#E8EAF6', color: '#3949AB', borderColor: '#9FA8DA' },
-      MANUFACTURING: { bgcolor: '#FFF8E1', color: '#F9A825', borderColor: '#FFE082' },
-      OEM: { bgcolor: '#E0F2F1', color: '#00897B', borderColor: '#80CBC4' },
-      RETAIL: { bgcolor: '#F1F8E9', color: '#689F38', borderColor: '#C5E1A5' },
-      TRADER: { bgcolor: '#FFF0F0', color: '#D32F2F', borderColor: '#EF9A9A' }
-    };
-    const style = chipStyleMap[normalizedCode || ''];
-    if (!style) {
-      return {};
-    }
-    return {
-      bgcolor: style.bgcolor,
-      color: style.color,
-      borderColor: style.borderColor,
-      '& .MuiChip-label': {
-        fontWeight: 700
-      }
-    };
-  };
-
   const renderCustomerChips = (cust: Customer) => (
     <>
       <Chip
         size="small"
         variant="outlined"
         label={cust.customerType?.nameTh || '-'}
-        sx={getChipSx(cust.customerType?.code)}
+        sx={getCustomerChipSx(cust.customerType?.code)}
       />
-      <Chip
-        size="small"
-        variant="outlined"
-        label={cust.customerTier?.nameEn || '-'}
-        sx={getChipSx(cust.customerTier?.code)}
-      />
+      <CustomerTierChip tier={cust.customerTier} />
       <Chip
         size="small"
         variant="outlined"
         label={cust.customerSegment?.nameTh || '-'}
-        sx={getChipSx(cust.customerSegment?.code)}
+        sx={getCustomerChipSx(cust.customerSegment?.code)}
       />
     </>
   );
@@ -130,7 +97,7 @@ export default function CustomerManagement(): JSX.Element {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'

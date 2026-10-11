@@ -1,3 +1,5 @@
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS, BRAND_UI, SEMANTIC_COLORS } from 'theme/brandTokens';
 import { DocumentStatusProfile } from 'services/document-status-type';
 
 type StatusColor = {
@@ -56,31 +58,31 @@ export function getDocumentStatusChipSx(
 
   switch (key) {
     case 'DRAFT':
-      return { backgroundColor: '#f3f4f6', color: '#4b5563', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_UI.sandTint, color: BRAND_COLORS.charcoal, fontWeight: 'bold' };
     case 'CREATED':
-      return { backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'ISSUED':
-      return { backgroundColor: '#dbeafe', color: '#1d4ed8', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'SENT':
-      return { backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 'bold' };
+      return { backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.1), color: SEMANTIC_COLORS.warning, fontWeight: 'bold' };
     case 'AWAITING_VALIDATION':
-      return { backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 'bold' };
+      return { backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.1), color: SEMANTIC_COLORS.warning, fontWeight: 'bold' };
     case 'PARTIALLY_PAID':
-      return { backgroundColor: '#fde68a', color: '#92400e', fontWeight: 'bold' };
+      return { backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.18), color: SEMANTIC_COLORS.warning, fontWeight: 'bold' };
     case 'PAID':
     case 'ACCEPTED':
     case 'FINALIZED':
-      return { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'PRODUCTION_RUNNING':
-      return { backgroundColor: '#dbeafe', color: '#1d4ed8', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'REJECTED':
     case 'CANCELLED':
     case 'VOID':
-      return { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' };
+      return { backgroundColor: alpha(SEMANTIC_COLORS.error, 0.1), color: SEMANTIC_COLORS.error, fontWeight: 'bold' };
     case 'CLOSED':
-      return { backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_COLORS.sand, color: BRAND_COLORS.charcoal, fontWeight: 'bold' };
     default:
-      return { backgroundColor: '#e5e7eb', color: '#374151', fontWeight: 'bold' };
+      return { backgroundColor: BRAND_UI.sandTint, color: BRAND_COLORS.charcoal, fontWeight: 'bold' };
   }
 }
 

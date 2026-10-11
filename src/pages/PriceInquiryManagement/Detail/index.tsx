@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   AddComment,
   ArrowBackIos,
@@ -483,9 +484,7 @@ function getProductSubtype2DisplayName(productSubtype2: ProductSubtype2): string
 
 function getRFQProductSubtype1Value(rfq?: RFQRecord): string {
   if (rfq?.productSubtype1) {
-    return (
-      rfq.productSubtype1.nameTh || rfq.productSubtype1.nameEn || rfq.productSubtype1.code || ''
-    );
+    return rfq.productSubtype1.code || rfq.productUsage || '';
   }
 
   return rfq?.productUsage || '';
@@ -493,9 +492,7 @@ function getRFQProductSubtype1Value(rfq?: RFQRecord): string {
 
 function getRFQProductSubtype2Value(rfq?: RFQRecord): string {
   if (rfq?.productSubType2) {
-    return (
-      rfq.productSubType2.nameTh || rfq.productSubType2.nameEn || rfq.productSubType2.code || ''
-    );
+    return rfq.productSubType2.code || rfq.systemMechanic || '';
   }
 
   return rfq?.systemMechanic || '';
@@ -510,11 +507,7 @@ function getRFQMaterialValue(material?: RFQProductMaterial | string | null): str
     return material;
   }
 
-  if (material.nameTh && material.nameEn) {
-    return `${material.nameTh} (${material.nameEn})`;
-  }
-
-  return material.nameTh || material.nameEn || material.code || '';
+  return material.code || '';
 }
 
 function getEmployeeLabel(employee?: RFQEmployee | null): string {
@@ -745,7 +738,7 @@ function getSLAStatusPresentation(
       label: '-',
       caption: 'SLA ไม่ถูกนำมาคิดในสถานะนี้',
       accentColor: '#475569',
-      backgroundColor: '#f8fafc'
+      backgroundColor: BRAND_UI.sandTint
     };
   }
 
@@ -754,7 +747,7 @@ function getSLAStatusPresentation(
       label: '-',
       caption: 'ยังไม่มีข้อมูล SLA',
       accentColor: '#475569',
-      backgroundColor: '#f8fafc'
+      backgroundColor: BRAND_UI.sandTint
     };
   }
 
@@ -790,7 +783,7 @@ function getSLAStatusPresentation(
     label: dayLeft.toString(),
     caption: `เหลือ ${dayLeft} ${dayTypeLabel}`,
     accentColor: '#2e7d32',
-    backgroundColor: '#e8f5e9'
+    backgroundColor: BRAND_UI.greenTint
   };
 }
 
@@ -835,21 +828,21 @@ const outlinedActionButtonSx = {
 
 const blueActionButtonSx = {
   ...actionButtonSx,
-  backgroundColor: '#1976d2',
-  color: '#fff',
+  backgroundColor: BRAND_COLORS.green,
+  color: BRAND_COLORS.ivory,
   '&:hover': {
-    backgroundColor: '#1565c0',
+    backgroundColor: BRAND_COLORS.green,
     boxShadow: 'none'
   }
 };
 
 const outlinedBlueActionButtonSx = {
   ...outlinedActionButtonSx,
-  borderColor: '#1976d2',
-  color: '#1976d2',
+  borderColor: BRAND_COLORS.green,
+  color: BRAND_COLORS.green,
   '&:hover': {
-    borderColor: '#1565c0',
-    backgroundColor: '#e3f2fd',
+    borderColor: BRAND_COLORS.green,
+    backgroundColor: BRAND_UI.greenTint,
     boxShadow: 'none'
   }
 };
@@ -2186,21 +2179,37 @@ export default function RFQDetail(): ReactElement {
       productFamily: Yup.string().required(t('rfqManagement.validation.productFamily')),
       productUsage: Yup.string().max(255).required(t('rfqManagement.validation.productUsage')),
       systemMechanic: Yup.string().max(255),
-      material: Yup.string().max(255),
+      material: Yup.string().trim().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
       description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
     }),
     onSubmit: async (values, actions) => {
-      if (!params.id) {
+      if (!params.id || !rfq) {
         return;
       }
 
       try {
-        await toast.promise(updateRFQ(params.id, values), {
-          loading: t('toast.loading'),
-          success: t('toast.success'),
-          error: t('toast.failed')
-        });
+        await toast.promise(
+          updateRFQ(params.id, {
+            ...values,
+            contactName: rfq.contactName,
+            contactPhone: rfq.contactPhone,
+            contactChannel: rfq.contactChannel || undefined,
+            salesId: rfq.sales?.employeeId || rfq.sales?.salesId || '',
+            procurementId: rfq.procurement?.employeeId || rfq.procurement?.salesId || undefined,
+            referenceRfqId: rfq.referenceRfqId || rfq.referenceRfq?.id || undefined,
+            rfqTypeCode: rfq.rfqType?.code || undefined,
+            shippingMethod: rfq.shippingMethod || 'ALL',
+            requestedMoqs: rfq.requestedMoqs || [],
+            requestSample: rfq.requestSample ?? undefined,
+            requestSampleProduction: rfq.requestSampleProduction ?? undefined
+          }),
+          {
+            loading: t('toast.loading'),
+            success: t('toast.success'),
+            error: t('toast.failed')
+          }
+        );
 
         await refetchPriceInquiryData();
         setIsBasicInfoEditing(false);
@@ -2234,6 +2243,14 @@ export default function RFQDetail(): ReactElement {
   );
 
   const systemMechanicOptions = selectedProductUsage?.subtype2List || [];
+  const materialOptions =
+    selectedProductFamily?.materialList || selectedProductFamily?.productMaterialList || [];
+  const hasMaterialOption = materialOptions.some((item) => item.code === formik.values.material);
+  const materialLabel =
+    getNamedCodeValueLabel(materialOptions.find((item) => item.code === formik.values.material)) ||
+    (formik.values.material === getRFQMaterialValue(rfq?.material)
+      ? getNamedCodeValueLabel(rfq?.material)
+      : formik.values.material);
 
   const productFamilyLabel = useMemo(() => {
     return selectedProductFamily ? getProductFamilyDisplayName(selectedProductFamily) : undefined;
@@ -2261,6 +2278,7 @@ export default function RFQDetail(): ReactElement {
     formik.handleChange(event);
     formik.setFieldValue('productUsage', '');
     formik.setFieldValue('systemMechanic', '');
+    formik.setFieldValue('material', '');
   };
 
   const handleProductUsageChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -4732,8 +4750,8 @@ export default function RFQDetail(): ReactElement {
                 size="small"
                 sx={{
                   height: 28,
-                  backgroundColor: '#e8f5e9',
-                  color: '#2e7d32',
+                  backgroundColor: BRAND_UI.greenTint,
+                  color: BRAND_COLORS.green,
                   border: '1px solid #2e7d3233',
                   fontWeight: 700,
                   alignSelf: 'center',
@@ -4750,10 +4768,10 @@ export default function RFQDetail(): ReactElement {
                     width: 28,
                     height: 28,
                     border: '1px solid #94a3b833',
-                    color: '#475569',
-                    backgroundColor: '#ffffff',
+                    color: BRAND_UI.mutedText,
+                    backgroundColor: BRAND_COLORS.ivory,
                     '&:hover': {
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }
                   }}>
                   <CommentOutlined fontSize="small" />
@@ -4966,8 +4984,8 @@ export default function RFQDetail(): ReactElement {
           </Stack>
           <Box
             sx={{
-              backgroundColor: '#fff',
-              border: '1px solid #e6ebf1',
+              backgroundColor: BRAND_COLORS.ivory,
+              border: `1px solid ${BRAND_COLORS.sand}`,
               borderRadius: 3,
               overflow: 'hidden',
               boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -5235,14 +5253,38 @@ export default function RFQDetail(): ReactElement {
                       fullWidth
                       label="Material"
                       name="material"
+                      select
+                      required
                       value={formik.values.material}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       error={Boolean(formik.touched.material && formik.errors.material)}
                       helperText={formik.touched.material && formik.errors.material}
                       InputLabelProps={{ shrink: true }}
-                      InputProps={{ readOnly: isReadOnly }}
-                    />
+                      disabled={
+                        isReadOnly || !formik.values.productFamily || isProductFamilyFetching
+                      }>
+                      {!formik.values.productFamily ? (
+                        <MenuItem disabled value="">
+                          กรุณาเลือก Product Family ก่อน
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.material && !hasMaterialOption ? (
+                        <MenuItem value={formik.values.material}>
+                          {materialLabel || formik.values.material}
+                        </MenuItem>
+                      ) : null}
+                      {formik.values.productFamily && materialOptions.length === 0 ? (
+                        <MenuItem disabled value="">
+                          ไม่พบข้อมูลวัสดุ
+                        </MenuItem>
+                      ) : null}
+                      {materialOptions.map((material) => (
+                        <MenuItem key={material.code} value={material.code}>
+                          {getNamedCodeValueLabel(material)}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </GridTextField>
 
                   <GridTextField item xs={12} sm={6}>
@@ -5437,9 +5479,9 @@ export default function RFQDetail(): ReactElement {
                             sx={{
                               px: 1.5,
                               py: 1.25,
-                              border: '1px solid #dce4ee',
+                              border: `1px solid ${BRAND_COLORS.sand}`,
                               borderRadius: 2,
-                              backgroundColor: '#fff'
+                              backgroundColor: BRAND_COLORS.ivory
                             }}>
                             <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                               <Typography fontWeight={600} noWrap>
@@ -5466,12 +5508,12 @@ export default function RFQDetail(): ReactElement {
                     ) : (
                       <Box
                         sx={{
-                          border: '1px dashed #cbd5e1',
+                          border: `1px dashed ${BRAND_COLORS.sand}`,
                           borderRadius: 3,
                           py: 3,
                           px: 2,
                           textAlign: 'center',
-                          backgroundColor: '#f8fafc'
+                          backgroundColor: BRAND_UI.sandTint
                         }}>
                         <Typography variant="body2" color="text.secondary">
                           ยังไม่มีไฟล์แนบ
@@ -5501,7 +5543,7 @@ export default function RFQDetail(): ReactElement {
                             <Box
                               key={detail.id}
                               sx={{
-                                border: '1px solid #dce4ee',
+                                border: `1px solid ${BRAND_COLORS.sand}`,
                                 borderRadius: 3,
                                 overflow: 'hidden',
                                 background:
@@ -5571,7 +5613,7 @@ export default function RFQDetail(): ReactElement {
                                           sx={{
                                             '& th': {
                                               fontWeight: 700,
-                                              backgroundColor: '#f8fafc',
+                                              backgroundColor: BRAND_UI.sandTint,
                                               whiteSpace: 'nowrap'
                                             }
                                           }}>
@@ -5607,7 +5649,7 @@ export default function RFQDetail(): ReactElement {
                                             </TableCell>
                                             <TableCell
                                               align="right"
-                                              sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                              sx={{ fontWeight: 700, color: BRAND_COLORS.green }}>
                                               {formatPrice(tier.totalPrice, tier.currency)}
                                             </TableCell>
                                             <TableCell align="right">
@@ -5620,7 +5662,7 @@ export default function RFQDetail(): ReactElement {
                                                   handleOpenTierEditDialog(detail, tier)
                                                 }
                                                 sx={{
-                                                  border: '1px solid #cbd5e1',
+                                                  border: `1px solid ${BRAND_COLORS.sand}`,
                                                   borderRadius: 2
                                                 }}>
                                                 <EditOutlined fontSize="small" />
@@ -5639,7 +5681,7 @@ export default function RFQDetail(): ReactElement {
                                           sx={{
                                             '& th': {
                                               fontWeight: 700,
-                                              backgroundColor: '#f8fafc',
+                                              backgroundColor: BRAND_UI.sandTint,
                                               whiteSpace: 'nowrap'
                                             }
                                           }}>
@@ -5678,7 +5720,7 @@ export default function RFQDetail(): ReactElement {
                                             </TableCell>
                                             <TableCell
                                               align="right"
-                                              sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                              sx={{ fontWeight: 700, color: BRAND_COLORS.green }}>
                                               {formatPrice(tierSplit.totalPrice, tierSplit.currency)}
                                             </TableCell>
                                             <TableCell align="right">
@@ -5691,7 +5733,7 @@ export default function RFQDetail(): ReactElement {
                                                   handleOpenTierSplitEditDialog(detail, tierSplit)
                                                 }
                                                 sx={{
-                                                  border: '1px solid #cbd5e1',
+                                                  border: `1px solid ${BRAND_COLORS.sand}`,
                                                   borderRadius: 2
                                                 }}>
                                                 <EditOutlined fontSize="small" />
@@ -5705,12 +5747,12 @@ export default function RFQDetail(): ReactElement {
                                 ) : (
                                   <Box
                                     sx={{
-                                      border: '1px dashed #cbd5e1',
+                                      border: `1px dashed ${BRAND_COLORS.sand}`,
                                       borderRadius: 3,
                                       py: 3,
                                       px: 2,
                                       textAlign: 'center',
-                                      backgroundColor: '#f8fafc'
+                                      backgroundColor: BRAND_UI.sandTint
                                     }}>
                                     <Typography variant="body2" color="text.secondary">
                                       ยังไม่มีช่วงราคาในตัวเลือกนี้
@@ -5724,12 +5766,12 @@ export default function RFQDetail(): ReactElement {
                       ) : (
                         <Box
                           sx={{
-                            border: '1px dashed #cbd5e1',
+                            border: `1px dashed ${BRAND_COLORS.sand}`,
                             borderRadius: 3,
                             py: 4,
                             px: 2,
                             textAlign: 'center',
-                            backgroundColor: '#f8fafc'
+                            backgroundColor: BRAND_UI.sandTint
                           }}>
                           <Typography variant="body1" fontWeight={600}>
                             ยังไม่มีข้อมูลตัวเลือกราคา
@@ -5742,10 +5784,10 @@ export default function RFQDetail(): ReactElement {
                     {additionalCosts.length ? (
                       <Box
                         sx={{
-                          border: '1px solid #dce4ee',
+                          border: `1px solid ${BRAND_COLORS.sand}`,
                           borderRadius: 3,
                           overflow: 'hidden',
-                          backgroundColor: '#fff'
+                          backgroundColor: BRAND_COLORS.ivory
                         }}>
                         <Table size="small">
                           <TableHead>
@@ -5753,7 +5795,7 @@ export default function RFQDetail(): ReactElement {
                               sx={{
                                 '& th': {
                                   fontWeight: 700,
-                                  backgroundColor: '#f8fafc',
+                                  backgroundColor: BRAND_UI.sandTint,
                                   whiteSpace: 'nowrap'
                                 }
                               }}>
@@ -5787,12 +5829,12 @@ export default function RFQDetail(): ReactElement {
                     ) : (
                       <Box
                         sx={{
-                          border: '1px dashed #cbd5e1',
+                          border: `1px dashed ${BRAND_COLORS.sand}`,
                           borderRadius: 3,
                           py: 3,
                           px: 2,
                           textAlign: 'center',
-                          backgroundColor: '#f8fafc'
+                          backgroundColor: BRAND_UI.sandTint
                         }}>
                         <Typography variant="body2" color="text.secondary">
                           ยังไม่มีรายละเอียดเพิ่มเติม
@@ -5849,10 +5891,10 @@ export default function RFQDetail(): ReactElement {
                       <Box
                         key={`${procurementRemark.createdDate || 'remark'}-${index}`}
                         sx={{
-                          border: '1px solid #e2e8f0',
+                          border: `1px solid ${BRAND_COLORS.sand}`,
                           borderRadius: 2,
                           p: 2,
-                          backgroundColor: '#fff'
+                          backgroundColor: BRAND_COLORS.ivory
                         }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                           {procurementRemark.remark}
@@ -5875,12 +5917,12 @@ export default function RFQDetail(): ReactElement {
                 ) : (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       ยังไม่มีหมายเหตุสำหรับจัดซื้อ
@@ -5892,12 +5934,12 @@ export default function RFQDetail(): ReactElement {
                 {isDetailHistoryFetching ? (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       กำลังโหลดประวัติชุดตัวเลือกราคา
@@ -5909,10 +5951,10 @@ export default function RFQDetail(): ReactElement {
                       <Box
                         key={group.detailSetNo}
                         sx={{
-                          border: '1px solid #dce4ee',
+                          border: `1px solid ${BRAND_COLORS.sand}`,
                           borderRadius: 3,
                           overflow: 'hidden',
-                          backgroundColor: '#fff'
+                          backgroundColor: BRAND_COLORS.ivory
                         }}>
                         <Box
                           sx={{
@@ -5922,8 +5964,8 @@ export default function RFQDetail(): ReactElement {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             gap: 2,
-                            backgroundColor: '#f8fafc',
-                            borderBottom: '1px solid #e2e8f0'
+                            backgroundColor: BRAND_UI.sandTint,
+                            borderBottom: `1px solid ${BRAND_COLORS.sand}`
                           }}>
                           <Box>
                             <Typography variant="subtitle2" fontWeight={700}>
@@ -5961,10 +6003,10 @@ export default function RFQDetail(): ReactElement {
                                 <Box
                                   key={record.id}
                                   sx={{
-                                    border: '1px solid #e2e8f0',
+                                    border: `1px solid ${BRAND_COLORS.sand}`,
                                     borderRadius: 2,
                                     p: 2,
-                                    backgroundColor: '#fff'
+                                    backgroundColor: BRAND_COLORS.ivory
                                   }}>
                                   <Stack spacing={1.5}>
                                     <Stack
@@ -6007,7 +6049,7 @@ export default function RFQDetail(): ReactElement {
                                             sx={{
                                               '& th': {
                                                 fontWeight: 700,
-                                                backgroundColor: '#f8fafc',
+                                                backgroundColor: BRAND_UI.sandTint,
                                                 whiteSpace: 'nowrap'
                                               }
                                             }}>
@@ -6038,7 +6080,7 @@ export default function RFQDetail(): ReactElement {
                                             sx={{
                                               '& th': {
                                                 fontWeight: 700,
-                                                backgroundColor: '#f8fafc',
+                                                backgroundColor: BRAND_UI.sandTint,
                                                 whiteSpace: 'nowrap'
                                               }
                                             }}>
@@ -6083,12 +6125,12 @@ export default function RFQDetail(): ReactElement {
                 ) : (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 3,
                       py: 4,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body1" fontWeight={600}>
                       ยังไม่มีประวัติชุดตัวเลือกราคา

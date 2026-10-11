@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LaptopMacIcon from '@mui/icons-material/LaptopMac';
@@ -103,17 +104,17 @@ function renderCompareSections(
     <Box
       sx={{
         mt: 0.5,
-        border: '1px solid #e6ebf1',
+        border: `1px solid ${BRAND_COLORS.sand}`,
         borderRadius: 2,
         overflow: 'hidden',
-        backgroundColor: '#fcfdff'
+        backgroundColor: BRAND_COLORS.ivory
       }}>
       <Box
         sx={{
           px: 2,
           py: 1,
-          borderBottom: '1px solid #e6ebf1',
-          backgroundColor: '#f8fafc'
+          borderBottom: `1px solid ${BRAND_COLORS.sand}`,
+          backgroundColor: BRAND_UI.sandTint
         }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
           <Typography variant="subtitle2" fontWeight={700}>
@@ -130,19 +131,19 @@ function renderCompareSections(
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr 1fr' },
-            borderBottom: '1px solid #d9e2ec'
+            borderBottom: `1px solid ${BRAND_COLORS.sand}`
           }}>
-          <Box sx={{ px: 2, py: 1.25, backgroundColor: '#f8fafc', borderRight: { md: '1px solid #d9e2ec' } }}>
+          <Box sx={{ px: 2, py: 1.25, backgroundColor: BRAND_UI.sandTint, borderRight: { md: `1px solid ${BRAND_COLORS.sand}` } }}>
             <Typography variant="subtitle2" fontWeight={700}>
               Field
             </Typography>
           </Box>
-          <Box sx={{ px: 2, py: 1.25, backgroundColor: '#f8fafc', borderRight: { md: '1px solid #d9e2ec' } }}>
+          <Box sx={{ px: 2, py: 1.25, backgroundColor: BRAND_UI.sandTint, borderRight: { md: `1px solid ${BRAND_COLORS.sand}` } }}>
             <Typography variant="subtitle2" fontWeight={700}>
               Before
             </Typography>
           </Box>
-          <Box sx={{ px: 2, py: 1.25, backgroundColor: '#f8fafc' }}>
+          <Box sx={{ px: 2, py: 1.25, backgroundColor: BRAND_UI.sandTint }}>
             <Typography variant="subtitle2" fontWeight={700}>
               After
             </Typography>
@@ -161,16 +162,16 @@ function renderCompareSections(
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr 1fr' },
-                border: '1px solid #d9e2ec',
-                borderTop: index === 0 ? '1px solid #d9e2ec' : 'none',
-                backgroundColor: '#fff'
+                border: `1px solid ${BRAND_COLORS.sand}`,
+                borderTop: index === 0 ? `1px solid ${BRAND_COLORS.sand}` : 'none',
+                backgroundColor: BRAND_COLORS.ivory
               }}>
               <Box
                 sx={{
                   px: 2,
                   py: 1.5,
-                  borderRight: { md: '1px solid #d9e2ec' },
-                  borderBottom: { xs: '1px solid #d9e2ec', md: 'none' }
+                  borderRight: { md: `1px solid ${BRAND_COLORS.sand}` },
+                  borderBottom: { xs: `1px solid ${BRAND_COLORS.sand}`, md: 'none' }
                 }}>
                 <Typography variant="body2" fontWeight={700}>
                   {formatFieldLabel(field)}
@@ -180,8 +181,8 @@ function renderCompareSections(
                 sx={{
                   px: 2,
                   py: 1.5,
-                  borderRight: { md: '1px solid #d9e2ec' },
-                  borderBottom: { xs: '1px solid #d9e2ec', md: 'none' }
+                  borderRight: { md: `1px solid ${BRAND_COLORS.sand}` },
+                  borderBottom: { xs: `1px solid ${BRAND_COLORS.sand}`, md: 'none' }
                 }}>
                 <Typography
                   variant="body2"
@@ -243,8 +244,8 @@ export default function ActivityHistoryTimeline({
           p: 4,
           textAlign: 'center',
           borderRadius: 3,
-          border: '1px dashed #d7dce2',
-          backgroundColor: '#fff'
+          border: `1px dashed ${BRAND_COLORS.sand}`,
+          backgroundColor: BRAND_COLORS.ivory
         }}>
         <Typography variant="body1" color="text.secondary">
           {emptyMessage}
@@ -270,7 +271,7 @@ export default function ActivityHistoryTimeline({
               <LaptopMacIcon />
             </TimelineDot>
             {index < records.length - 1 ? (
-              <TimelineConnector sx={{ backgroundColor: '#d7e3ff' }} />
+              <TimelineConnector sx={{ backgroundColor: BRAND_COLORS.sand }} />
             ) : null}
           </TimelineSeparator>
           <TimelineContent sx={{ pb: 3, pt: 0.25 }}>
@@ -278,8 +279,8 @@ export default function ActivityHistoryTimeline({
               sx={{
                 p: 2.5,
                 borderRadius: 3,
-                border: '1px solid #e6ebf1',
-                backgroundColor: '#fff',
+                border: `1px solid ${BRAND_COLORS.sand}`,
+                backgroundColor: BRAND_COLORS.ivory,
                 boxShadow: '0 8px 24px rgba(15, 23, 42, 0.04)'
               }}>
               <Stack spacing={1.5}>

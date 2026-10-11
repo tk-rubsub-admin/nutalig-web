@@ -12,7 +12,7 @@ export interface TableHeaderProps {
 }
 
 const TableHeaderColumn = styled.div`
-  border-left: 2px solid #e0e0e0;
+  border-left: 2px solid ${({ theme }) => theme.palette.divider};
   font-weight: bold;
   padding-left: 10px;
 `;

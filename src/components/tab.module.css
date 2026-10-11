@@ -4,8 +4,8 @@
 }
 
 .title[class~='active'] button {
-  color: #003cf8;
-  border-bottom: 2px solid #003cf8;
+  color: var(--nutalig-green, #1F3F37);
+  border-bottom: 2px solid var(--nutalig-green, #1F3F37);
 }
 
 ul {

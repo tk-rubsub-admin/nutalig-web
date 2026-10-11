@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import {
   Box,
   Button,
@@ -120,7 +121,7 @@ export default function UrgentApprovalManagement(): ReactElement {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -412,7 +413,7 @@ export default function UrgentApprovalManagement(): ReactElement {
               size="small"
               sx={{
                 backgroundColor: '#f1f5f9',
-                color: '#334155',
+                color: BRAND_COLORS.charcoal,
                 fontWeight: 700
               }}
             />
@@ -453,7 +454,7 @@ export default function UrgentApprovalManagement(): ReactElement {
                   size="small"
                   sx={{
                     backgroundColor: '#f1f5f9',
-                    color: '#334155',
+                    color: BRAND_COLORS.charcoal,
                     fontWeight: 700
                   }}
                 />

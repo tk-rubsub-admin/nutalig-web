@@ -1,3 +1,5 @@
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -149,7 +151,7 @@ export default function LineRegister(): JSX.Element {
           px: 2.5,
           m: 0,
           background:
-            'radial-gradient(circle at top, rgba(140, 162, 129, 0.14), transparent 30%), linear-gradient(180deg, #fcfcf8 0%, #f3f4ee 100%)'
+            BRAND_COLORS.ivory
         }}>
         <CssBaseline />
         <Paper
@@ -158,10 +160,10 @@ export default function LineRegister(): JSX.Element {
             width: '100%',
             maxWidth: 480,
             borderRadius: '28px',
-            border: '1px solid rgba(38, 52, 33, 0.08)',
-            boxShadow: '0 28px 70px rgba(30, 40, 24, 0.10), 0 10px 28px rgba(30, 40, 24, 0.05)',
+            border: `1px solid ${BRAND_COLORS.sand}`,
+            boxShadow: `0 28px 70px ${alpha(BRAND_COLORS.charcoal, 0.1)}, 0 10px 28px ${alpha(BRAND_COLORS.charcoal, 0.05)}`,
             background:
-              'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 251, 246, 0.98) 100%)',
+              BRAND_COLORS.ivory,
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -171,7 +173,7 @@ export default function LineRegister(): JSX.Element {
               left: 0,
               right: 0,
               height: '6px',
-              background: 'linear-gradient(90deg, #27411f 0%, #8aa281 100%)'
+              background: BRAND_COLORS.green
             }
           }}>
           <Box
@@ -186,7 +188,7 @@ export default function LineRegister(): JSX.Element {
             <Typography
               sx={{
                 mb: 2.5,
-                color: '#6a7464',
+                color: 'text.secondary',
                 fontSize: '0.74rem',
                 fontWeight: 700,
                 letterSpacing: '0.22em',
@@ -202,17 +204,17 @@ export default function LineRegister(): JSX.Element {
                 width: 120,
                 height: 120,
                 bgcolor: 'transparent',
-                border: '1px solid rgba(38, 52, 33, 0.08)',
-                boxShadow: '0 14px 34px rgba(31, 56, 24, 0.08)'
+                border: `1px solid ${BRAND_COLORS.sand}`,
+                boxShadow: `0 14px 34px ${alpha(BRAND_COLORS.charcoal, 0.08)}`
               }}
             />
             {validationState === 'loading' ? (
               <>
-                <CircularProgress sx={{ color: '#4d8a3f' }} />
-                <Typography variant="h6" sx={{ mt: 3, fontWeight: 700, color: '#1f2a1c' }}>
+                <CircularProgress sx={{ color: 'primary.main' }} />
+                <Typography variant="h6" sx={{ mt: 3, fontWeight: 700, color: 'primary.main' }}>
                   กำลังตรวจสอบลิงก์ลงทะเบียน
                 </Typography>
-                <Typography sx={{ mt: 1.5, color: '#6b7468', textAlign: 'center' }}>
+                <Typography sx={{ mt: 1.5, color: 'text.secondary', textAlign: 'center' }}>
                   กรุณารอสักครู่ ระบบกำลังตรวจสอบสิทธิ์การลงทะเบียนของคุณ
                 </Typography>
               </>
@@ -220,10 +222,10 @@ export default function LineRegister(): JSX.Element {
               <>
                 <Typography
                   variant="h5"
-                  sx={{ fontWeight: 700, mb: 1, color: '#8b1e3f', letterSpacing: '-0.02em' }}>
+                  sx={{ fontWeight: 700, mb: 1, color: 'error.main', letterSpacing: '-0.02em' }}>
                   ไม่สามารถลงทะเบียนได้
                 </Typography>
-                <Typography sx={{ textAlign: 'center', color: '#6b7468', lineHeight: 1.8 }}>
+                <Typography sx={{ textAlign: 'center', color: 'text.secondary', lineHeight: 1.8 }}>
                   {message}
                 </Typography>
               </>
@@ -234,7 +236,7 @@ export default function LineRegister(): JSX.Element {
                   sx={{
                     fontWeight: 700,
                     mb: 1,
-                    color: '#1f2a1c',
+                    color: 'primary.main',
                     letterSpacing: '-0.02em',
                     textAlign: 'center'
                   }}>
@@ -247,7 +249,7 @@ export default function LineRegister(): JSX.Element {
                     textAlign: 'center',
                     maxWidth: 320,
                     lineHeight: 1.7,
-                    color: '#6b7468'
+                    color: 'text.secondary'
                   }}>
                   บัญชีนี้ถูกเตรียมไว้สำหรับ {displayName} กรุณายืนยันตัวตนผ่าน LINE เพื่อผูกบัญชีและเริ่มใช้งานระบบ
                 </Typography>
@@ -257,23 +259,23 @@ export default function LineRegister(): JSX.Element {
                     mb: 3,
                     p: 2.25,
                     borderRadius: 3,
-                    border: '1px solid rgba(38, 52, 33, 0.10)',
+                    border: `1px solid ${BRAND_COLORS.sand}`,
                     background:
-                      'linear-gradient(180deg, rgba(248, 251, 245, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%)'
+                      BRAND_UI.sandTint
                   }}>
-                  <Typography sx={{ fontWeight: 700, color: '#1f2a1c', mb: 1 }}>
+                  <Typography sx={{ fontWeight: 700, color: 'primary.main', mb: 1 }}>
                     การขอใช้อีเมลจากบัญชี LINE
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75, mb: 0.75 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.75, mb: 0.75 }}>
                     ระบบจะเก็บอีเมล, LINE user ID, display name และรูปโปรไฟล์ของคุณ เพื่อใช้สำหรับลงทะเบียนและผูกบัญชีเข้าใช้งาน Nutalig Portal
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.75 }}>
                     1. ใช้ยืนยันตัวตนผู้ใช้งานตามสิทธิ์ที่ผู้ดูแลระบบกำหนดไว้
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.75 }}>
                     2. ใช้เชื่อมบัญชี LINE กับบัญชีผู้ใช้งานในระบบ
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#5f6c5a', lineHeight: 1.75 }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.75 }}>
                     3. ใช้สำหรับการเข้าสู่ระบบและการติดต่อในภายหลัง
                   </Typography>
                 </Box>
@@ -284,7 +286,7 @@ export default function LineRegister(): JSX.Element {
                     mx: 0,
                     '& .MuiFormControlLabel-label': {
                       fontSize: '0.92rem',
-                      color: '#42503e',
+                      color: 'text.primary',
                       lineHeight: 1.6
                     }
                   }}
@@ -293,9 +295,9 @@ export default function LineRegister(): JSX.Element {
                       checked={isEmailConsentChecked}
                       onChange={(event) => setIsEmailConsentChecked(event.target.checked)}
                       sx={{
-                        color: '#8aa281',
+                        color: 'primary.main',
                         '&.Mui-checked': {
-                          color: '#4d6b41'
+                          color: 'primary.main'
                         }
                       }}
                     />
@@ -307,7 +309,13 @@ export default function LineRegister(): JSX.Element {
                   variant="contained"
                   disabled={!isEmailConsentChecked || isRedirecting}
                   sx={{
-                    backgroundColor: '#06c755 !important',
+                    backgroundColor: '#06c755',
+                    color: BRAND_COLORS.ivory,
+                    '&.Mui-disabled': {
+                      backgroundColor: BRAND_UI.sandTint,
+                      color: BRAND_UI.disabledText,
+                      boxShadow: 'none'
+                    },
                     borderRadius: '999px',
                     px: 5,
                     py: 1.55,
@@ -317,6 +325,7 @@ export default function LineRegister(): JSX.Element {
                     letterSpacing: '0.01em',
                     boxShadow: '0 12px 28px rgba(6, 199, 85, 0.22)',
                     '&:hover': {
+                      backgroundColor: '#06b34c',
                       boxShadow: '0 16px 32px rgba(6, 199, 85, 0.28)'
                     }
                   }}>

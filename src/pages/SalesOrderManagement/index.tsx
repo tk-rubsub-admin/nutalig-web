@@ -1,4 +1,5 @@
-import { Description, DisabledByDefault, OpenInNew, Search } from '@mui/icons-material';
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
+import { Description, DisabledByDefault, Download, OpenInNew, Search } from '@mui/icons-material';
 import {
   Button,
   Chip,
@@ -28,19 +29,22 @@ import { GridSearchSection, GridTextField, Wrapper } from 'components/Styled';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
 import { ReactElement, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import dayjs from 'dayjs';
-import { searchSalesOrdersV1 } from 'services/SaleOrder/sale-order-api';
+import { exportSalesOrdersV1, searchSalesOrdersV1 } from 'services/SaleOrder/sale-order-api';
 import { SearchSalesOrderRequestV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import { getMySearchFields } from 'services/SearchField/search-field-api';
 import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
+import { PERMISSIONS } from 'auth/permissions';
+import Can from 'auth/Can';
 
 function getCustomerLabel(salesOrder: SalesOrderV1): string {
   return salesOrder.customer?.customerName || '-';
@@ -119,7 +123,7 @@ export default function SalesOrderManagement(): ReactElement {
       padding: '48px 0'
     },
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
@@ -145,6 +149,7 @@ export default function SalesOrderManagement(): ReactElement {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filter, setFilter] = useState<SearchSalesOrderRequestV1>(roleDefaultFilter);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: visibleSearchFields = [] } = useQuery(
     ['my-search-fields', SCREEN_CODE],
@@ -271,6 +276,31 @@ export default function SalesOrderManagement(): ReactElement {
     setFilter(nextDefaultFilter);
   };
 
+  const handleExport = async () => {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    try {
+      const response = await exportSalesOrdersV1(filter);
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'sales-order-export.xlsx';
+      document.body.appendChild(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      }
+      toast.success(t('toast.success'));
+    } catch {
+      toast.error(t('toast.failed'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const rows = salesOrderList?.data?.records || [];
 
   const salesOrderRows = useMemo(() => {
@@ -309,8 +339,8 @@ export default function SalesOrderManagement(): ReactElement {
                 label={`(${getCustomerTagLabel(salesOrder)})`}
                 size="small"
                 sx={{
-                  backgroundColor: '#eff6ff',
-                  color: '#1d4ed8',
+                  backgroundColor: BRAND_UI.greenTint,
+                  color: BRAND_COLORS.green,
                   fontWeight: 700
                 }}
               />
@@ -433,6 +463,17 @@ export default function SalesOrderManagement(): ReactElement {
             onClick={handleClear}>
             {t('button.clear')}
           </Button>
+          <Can permission={PERMISSIONS.SALES_ORDER_EXPORT}>
+            <Button
+              fullWidth={isDownSm}
+              variant="contained"
+              className="btn-emerald-green"
+              startIcon={isExporting ? <CircularProgress size={18} color="inherit" /> : <Download />}
+              disabled={isExporting}
+              onClick={handleExport}>
+              {t('button.export')}
+            </Button>
+          </Can>
         </Stack>
 
         <GridSearchSection container spacing={1}>

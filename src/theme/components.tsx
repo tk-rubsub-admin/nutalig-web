@@ -1,45 +1,48 @@
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS, BRAND_CSS_VARIABLES, BRAND_UI } from './brandTokens';
+
 const components = {
   MuiCssBaseline: {
     styleOverrides: {
+      ':root': BRAND_CSS_VARIABLES,
       body: {
-        color: '#30302F'
-      }
-    }
-  },
-  MuiTypography: {
-    styleOverrides: {
-      root: {
-        color: 'inherit'
+        color: BRAND_COLORS.charcoal,
+        backgroundColor: BRAND_COLORS.ivory
       }
     }
   },
   MuiInputBase: {
     styleOverrides: {
       root: {
-        color: '#30302F'
+        color: BRAND_COLORS.charcoal
       },
       input: {
-        color: '#30302F'
+        color: BRAND_COLORS.charcoal
       }
     }
   },
   MuiFormLabel: {
     styleOverrides: {
       root: {
-        color: '#30302F'
+        color: BRAND_COLORS.charcoal
       }
     }
   },
   MuiTableCell: {
     styleOverrides: {
       root: {
-        color: '#30302F'
+        color: BRAND_COLORS.charcoal,
+        borderBottomColor: BRAND_COLORS.sand
+      },
+      head: {
+        color: BRAND_COLORS.green,
+        backgroundColor: BRAND_UI.sandTint
       }
     }
   },
   MuiButton: {
     defaultProps: {
-      variant: 'contained',
+      variant: 'contained' as const,
       disableElevation: true
     },
     styleOverrides: {
@@ -48,7 +51,7 @@ const components = {
         paddingLeft: 18,
         paddingRight: 18,
         borderRadius: 6,
-        textTransform: 'none',
+        textTransform: 'none' as const,
         fontWeight: 700,
         boxShadow: 'none',
         '&:hover': {
@@ -69,9 +72,10 @@ const components = {
         }
       },
       text: {
-        backgroundColor: 'rgba(25, 118, 210, 0.12)',
+        backgroundColor: 'transparent',
         '&:hover': {
-          boxShadow: 'none'
+          boxShadow: 'none',
+          backgroundColor: BRAND_UI.greenTint
         }
       }
     }
@@ -83,7 +87,7 @@ const components = {
   },
   MuiLink: {
     defaultProps: {
-      underline: 'hover'
+      underline: 'hover' as const
     }
   },
   MuiCardHeader: {
@@ -103,9 +107,10 @@ const components = {
     styleOverrides: {
       root: {
         borderRadius: '6px',
-        boxShadow: 'rgba(50, 50, 93, 0.025) 0px 2px 5px -1px, rgba(0, 0, 0, 0.05) 0px 1px 3px -1px',
+        boxShadow: `0px 2px 5px -1px ${alpha(BRAND_COLORS.charcoal, 0.04)}, 0px 1px 3px -1px ${alpha(BRAND_COLORS.charcoal, 0.06)}`,
         backgroundImage: 'none',
-        backgroundColor: '#D4C5BA'
+        backgroundColor: BRAND_COLORS.ivory,
+        border: `1px solid ${BRAND_COLORS.sand}`
       }
     }
   },
@@ -113,7 +118,7 @@ const components = {
     styleOverrides: {
       root: {
         backgroundImage: 'none',
-        backgroundColor: '#D4C5BA'
+        backgroundColor: BRAND_COLORS.ivory
       }
     }
   },
@@ -208,6 +213,39 @@ const components = {
     styleOverrides: {
       root: {
         borderRadius: '6px'
+      },
+      outlined: {
+        borderColor: BRAND_COLORS.sand
+      }
+    }
+  },
+  MuiOutlinedInput: {
+    styleOverrides: {
+      notchedOutline: {
+        borderColor: BRAND_COLORS.sand
+      }
+    }
+  },
+  MuiCheckbox: {
+    defaultProps: { color: 'primary' as const }
+  },
+  MuiRadio: {
+    defaultProps: { color: 'primary' as const }
+  },
+  MuiSwitch: {
+    defaultProps: { color: 'primary' as const }
+  },
+  MuiTabs: {
+    defaultProps: { textColor: 'primary' as const, indicatorColor: 'primary' as const }
+  },
+  MuiTooltip: {
+    styleOverrides: {
+      tooltip: {
+        backgroundColor: BRAND_COLORS.charcoal,
+        color: BRAND_COLORS.ivory
+      },
+      arrow: {
+        color: BRAND_COLORS.charcoal
       }
     }
   }

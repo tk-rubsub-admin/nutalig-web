@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { Search, DisabledByDefault } from '@mui/icons-material';
 import {
   Button,
@@ -49,7 +50,7 @@ const statuses = [
 
 export default function MyPurchaseOrderManagement(): JSX.Element {
   const classes = makeStyles({
-    header: { border: '2px solid #e0e0e0', fontWeight: 'bold', textAlign: 'center' },
+    header: { border: `2px solid ${BRAND_COLORS.sand}`, fontWeight: 'bold', textAlign: 'center' },
     empty: { textAlign: 'center', fontSize: '1.1em', fontWeight: 'bold', padding: '48px 0' }
   })();
   const theme = useTheme();

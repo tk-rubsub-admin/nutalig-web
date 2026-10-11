@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BRAND_UI } from 'theme/brandTokens';
 import React, { useState } from 'react';
 
 export interface Picture {
@@ -60,7 +61,7 @@ const styles: Record<string, React.CSSProperties> = {
         overflow: 'hidden',
         border: '1px solid #e5e7eb',
         cursor: 'pointer',
-        backgroundColor: '#fafafa'
+        backgroundColor: BRAND_UI.sandTint
     },
     thumbnail: {
         width: '100%',

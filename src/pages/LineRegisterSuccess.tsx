@@ -1,3 +1,4 @@
+import { BRAND_COLORS } from 'theme/brandTokens';
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import { useHistory, useLocation } from 'react-router-dom';
@@ -74,7 +75,7 @@ export default function LineRegisterSuccess(): JSX.Element {
         display="flex"
         alignItems="center"
         justifyContent="center"
-        bgcolor="#f4f7f1">
+        bgcolor={BRAND_COLORS.ivory}>
         <Paper
           elevation={0}
           sx={{
@@ -85,7 +86,7 @@ export default function LineRegisterSuccess(): JSX.Element {
             textAlign: 'center',
             borderRadius: 3
           }}>
-          <CircularProgress sx={{ color: '#4d8a3f' }} />
+          <CircularProgress sx={{ color: BRAND_COLORS.green }} />
           <Typography variant="h6" sx={{ mt: 3, fontWeight: 700 }}>
             กำลังลงทะเบียนผ่าน LINE
           </Typography>
@@ -104,7 +105,7 @@ export default function LineRegisterSuccess(): JSX.Element {
       display="flex"
       alignItems="center"
       justifyContent="center"
-      bgcolor="#f4f7f1"
+      bgcolor={BRAND_COLORS.ivory}
       px={2}>
       <Paper
         elevation={0}
@@ -124,7 +125,7 @@ export default function LineRegisterSuccess(): JSX.Element {
         </Typography>
         <Button
           variant="contained"
-          sx={{ mt: 4, backgroundColor: '#4d8a3f !important' }}
+          sx={{ mt: 4, backgroundColor: BRAND_COLORS.green }}
           onClick={() => history.replace(ROUTE_PATHS.LOGIN)}>
           กลับไปหน้าเข้าสู่ระบบ
         </Button>

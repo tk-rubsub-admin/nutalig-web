@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   ArrowBackIos,
   ArrowDropDown,
@@ -346,14 +347,14 @@ export default function SalesOrderDetail(): ReactElement {
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const useStyles = makeStyles({
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
     },
     section: {
-      backgroundColor: '#fff',
-      border: '1px solid #e6ebf1',
+      backgroundColor: BRAND_COLORS.ivory,
+      border: `1px solid ${BRAND_COLORS.sand}`,
       borderRadius: 12,
       padding: 16,
       boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -369,8 +370,8 @@ export default function SalesOrderDetail(): ReactElement {
       height: 64,
       objectFit: 'cover',
       borderRadius: 8,
-      border: '1px solid #e6ebf1',
-      backgroundColor: '#f8fafc'
+      border: `1px solid ${BRAND_COLORS.sand}`,
+      backgroundColor: BRAND_UI.sandTint
     },
     fitContentCell: {
       width: 1,
@@ -380,7 +381,7 @@ export default function SalesOrderDetail(): ReactElement {
       border: '1px solid #e5e7eb',
       borderRadius: 12,
       padding: 14,
-      backgroundColor: '#ffffff'
+      backgroundColor: BRAND_COLORS.ivory
     },
     mobileItemHeader: {
       paddingBottom: 10,
@@ -1243,7 +1244,7 @@ export default function SalesOrderDetail(): ReactElement {
               {productionTimelines.map((timeline) => (
                 <Box
                   key={timeline.purchaseOrderNo}
-                  sx={{ p: { xs: 1.5, sm: 2 }, border: '1px solid #e6ebf1', borderRadius: 2 }}>
+                  sx={{ p: { xs: 1.5, sm: 2 }, border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}>
                   <PurchaseOrderProductionSteps
                     timeline={timeline}
                     purchaseOrderStatus={timeline.purchaseOrderStatus}
@@ -1262,8 +1263,8 @@ export default function SalesOrderDetail(): ReactElement {
 
         <Box
           sx={{
-            backgroundColor: '#fff',
-            border: '1px solid #e6ebf1',
+            backgroundColor: BRAND_COLORS.ivory,
+            border: `1px solid ${BRAND_COLORS.sand}`,
             borderRadius: 3,
             overflow: 'hidden',
             boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -1632,7 +1633,7 @@ export default function SalesOrderDetail(): ReactElement {
                         <Typography
                           variant="body2"
                           fontWeight={700}
-                          sx={{ backgroundColor: '#eff6ff', px: 1.5, py: 1, borderRadius: 1 }}>
+                          sx={{ backgroundColor: BRAND_UI.greenTint, px: 1.5, py: 1, borderRadius: 1 }}>
                           {rfqId ? `RFQ: ${rfqId}` : 'รายการเพิ่มเติม'}
                         </Typography>
                         {items.map(({ item, index }) => (
@@ -1657,7 +1658,7 @@ export default function SalesOrderDetail(): ReactElement {
                                   justifyContent="center"
                                   alignItems="center"
                                   className={classes.productImage}
-                                  sx={{ color: '#94a3b8', fontSize: 11, textAlign: 'center', px: 1 }}>
+                                  sx={{ color: BRAND_UI.mutedText, fontSize: 11, textAlign: 'center', px: 1 }}>
                                   ไม่มีรูป
                                 </Stack>
                               )}
@@ -1792,8 +1793,8 @@ export default function SalesOrderDetail(): ReactElement {
                                       px: 1.25,
                                       py: 1,
                                       borderRadius: 2,
-                                      backgroundColor: '#f8fafc',
-                                      border: '1px solid #e2e8f0'
+                                      backgroundColor: BRAND_UI.sandTint,
+                                      border: `1px solid ${BRAND_COLORS.sand}`
                                     }}>
                                     <Typography
                                       variant="caption"
@@ -1863,7 +1864,7 @@ export default function SalesOrderDetail(): ReactElement {
                                 colSpan={7}
                                 component="th"
                                 scope="rowgroup"
-                                sx={{ backgroundColor: '#eff6ff', py: 1 }}>
+                                sx={{ backgroundColor: BRAND_UI.greenTint, py: 1 }}>
                                 <Typography variant="body2" fontWeight={700}>
                                   {rfqId ? `RFQ: ${rfqId}` : 'รายการเพิ่มเติม'}
                                 </Typography>
@@ -2019,7 +2020,7 @@ export default function SalesOrderDetail(): ReactElement {
                       justifyContent="space-between"
                       alignItems="center"
                       spacing={2}>
-                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                         ค่าสินค้า
                       </Typography>
                       <TextField
@@ -2045,7 +2046,7 @@ export default function SalesOrderDetail(): ReactElement {
                       justifyContent="space-between"
                       alignItems="center"
                       spacing={2}>
-                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                         {t('documentManagement.quotation.summarySection.freight')}
                       </Typography>
                       <TextField
@@ -2074,7 +2075,7 @@ export default function SalesOrderDetail(): ReactElement {
                       justifyContent="space-between"
                       alignItems="center"
                       spacing={2}>
-                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                         ค่าคอมมิชชั่น
                       </Typography>
                       <TextField
@@ -2110,7 +2111,7 @@ export default function SalesOrderDetail(): ReactElement {
                       justifyContent="space-between"
                       alignItems="center"
                       spacing={2}>
-                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                         {'ค่าคอมมิชชั่น'}
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2125,7 +2126,7 @@ export default function SalesOrderDetail(): ReactElement {
                         justifyContent="space-between"
                         alignItems="center"
                         spacing={2}>
-                        <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                        <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                           ค่าคอมเซลล์นอก
                         </Typography>
                         <TextField
@@ -2151,7 +2152,7 @@ export default function SalesOrderDetail(): ReactElement {
                         justifyContent="space-between"
                         alignItems="center"
                         spacing={2}>
-                        <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                        <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                           ค่าคอมเซลล์นอก
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2175,7 +2176,7 @@ export default function SalesOrderDetail(): ReactElement {
                       justifyContent="space-between"
                       alignItems="center"
                       spacing={2}>
-                      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+                      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
                         {t('documentManagement.quotation.summarySection.discount')}
                       </Typography>
                       <TextField
@@ -2246,9 +2247,9 @@ export default function SalesOrderDetail(): ReactElement {
                           sx={{
                             px: 1.5,
                             py: 1.25,
-                            border: '1px solid #dce4ee',
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: 2,
-                            backgroundColor: '#fff'
+                            backgroundColor: BRAND_COLORS.ivory
                           }}>
                           <Stack spacing={0.25}>
                             <Typography sx={{ fontWeight: 600 }}>
@@ -2669,7 +2670,7 @@ export default function SalesOrderDetail(): ReactElement {
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography variant="body2" sx={{ fontWeight: 500 }}>
         {value || '-'}
       </Typography>
@@ -2688,7 +2689,7 @@ function Summary({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography variant="body2" sx={{ fontWeight: strong ? 700 : 500 }}>
         {formatNumber(value || 0)}
       </Typography>

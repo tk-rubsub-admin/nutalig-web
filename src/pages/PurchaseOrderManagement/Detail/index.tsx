@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   ArrowBackIos,
   ArrowDropDown,
@@ -10,6 +11,7 @@ import {
   FilePresent,
   Menu as MenuIcon,
   PlayArrow,
+  PrecisionManufacturing,
   Save,
   Settings,
   TaskAlt
@@ -173,7 +175,7 @@ function TabPanel({
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -194,7 +196,7 @@ function Summary({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
       <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {formatNumber(value || 0)} {suffix || ''}
       </Typography>
@@ -204,7 +206,8 @@ function Summary({
 
 function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
   return {
-    docDate: purchaseOrder?.docDate || '',
+    docDate:
+      purchaseOrder?.docDate?.replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$2-$1') || '',
     productionLeadTimeDay:
       purchaseOrder?.productionLeadTimeDay !== null &&
         purchaseOrder?.productionLeadTimeDay !== undefined
@@ -271,14 +274,14 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const useStyles = makeStyles({
     tableHeader: {
-      border: '2px solid #e0e0e0',
+      border: `2px solid ${BRAND_COLORS.sand}`,
       fontWeight: 'bold',
       paddingLeft: '10px',
       textAlign: 'center'
     },
     section: {
-      backgroundColor: '#fff',
-      border: '1px solid #e6ebf1',
+      backgroundColor: BRAND_COLORS.ivory,
+      border: `1px solid ${BRAND_COLORS.sand}`,
       borderRadius: 12,
       padding: 16,
       boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)'
@@ -315,8 +318,8 @@ export default function PurchaseOrderDetail(): ReactElement {
       height: 64,
       borderRadius: 8,
       objectFit: 'cover',
-      border: '1px solid #e2e8f0',
-      backgroundColor: '#f8fafc',
+      border: `1px solid ${BRAND_COLORS.sand}`,
+      backgroundColor: BRAND_UI.sandTint,
       display: 'block',
       cursor: 'pointer'
     },
@@ -390,6 +393,10 @@ export default function PurchaseOrderDetail(): ReactElement {
   const displayItems = isEditing ? draft.items : purchaseOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const isOperationMenuOpen = Boolean(operationMenuAnchorEl);
+  const canEditPurchaseOrder =
+    Boolean(purchaseOrder) &&
+    purchaseOrder?.status !== 'CANCELLED' &&
+    purchaseOrder?.status !== 'CLOSED';
   const canManagePurchaseOrder =
     purchaseOrder?.status === 'CREATED' ||
     purchaseOrder?.status === 'AWAITING_PAYMENT' ||
@@ -411,6 +418,15 @@ export default function PurchaseOrderDetail(): ReactElement {
     canManageTimeline &&
     purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
     !purchaseOrder.productionCompletedDate;
+  const productionStartedMilestone = productionTimeline?.events.find(
+    (event) => event.type === 'PRODUCTION_STARTED'
+  );
+  const canStartProduction =
+    canManageTimeline &&
+    purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
+    !purchaseOrder.productionStartedDate &&
+    !purchaseOrder.productionCompletedDate &&
+    Boolean(productionStartedMilestone?.canComplete);
   const missingStartRunDocuments = [
     ...(purchaseOrder?.attachments?.some(
       (attachment) => resolveAttachmentDocumentType(attachment.documentType) === 'FACTORY_CONTRACT'
@@ -684,7 +700,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   };
 
   const handleMilestoneAction = async () => {
-    if (!purchaseOrder?.purchaseOrderNo || !milestoneDialog) return;
+    if (!purchaseOrder?.purchaseOrderNo || !milestoneDialog || isSubmitting) return;
     if (milestoneDialog.mode === 'skip' && !milestoneNote.trim()) {
       toast.error('กรุณาระบุเหตุผลที่ข้ามขั้นตอน');
       return;
@@ -1001,6 +1017,28 @@ export default function PurchaseOrderDetail(): ReactElement {
           </MenuItem>
           <MenuItem
             onClick={() => {
+              if (!canStartProduction || !productionStartedMilestone) return;
+              handleCloseOperationMenu();
+              openMilestoneDialog(productionStartedMilestone, 'complete');
+            }}
+            disabled={!canStartProduction || isSubmitting || isProductionTimelineFetching}
+            sx={{ width: '100%' }}>
+            <ListItemIcon>
+              <PrecisionManufacturing fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="เริ่มผลิต"
+              secondary={
+                purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
+                !purchaseOrder.productionStartedDate &&
+                !productionStartedMilestone?.canComplete
+                  ? 'ต้องอนุมัติหรือข้ามพรูฟทั้งสองขั้นตอนก่อน'
+                  : undefined
+              }
+            />
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
               handleCloseOperationMenu();
               setNewExpectedEndDate('');
               setIsExpectedEndDateDialogOpen(true);
@@ -1058,7 +1096,7 @@ export default function PurchaseOrderDetail(): ReactElement {
               </MenuItem>
               <MenuItem
                 onClick={handleSelectEdit}
-                disabled={!canManagePurchaseOrder}
+                disabled={!canEditPurchaseOrder}
                 sx={{ width: '100%' }}>
                 <ListItemIcon>
                   <Edit fontSize="small" />
@@ -1244,10 +1282,13 @@ export default function PurchaseOrderDetail(): ReactElement {
               : milestoneActionLabel(milestoneDialog?.event)
           }
           confirmText={milestoneDialog?.mode === 'skip' ? 'ยืนยันข้ามขั้นตอน' : 'ยืนยัน'}
+          confirmDisabled={isSubmitting}
           cancelText="ยกเลิก"
           isShowCancelButton
           isShowConfirmButton
-          onCancel={() => setMilestoneDialog(null)}
+          onCancel={() => {
+            if (!isSubmitting) setMilestoneDialog(null);
+          }}
           onConfirm={() => void handleMilestoneAction()}>
           <Stack spacing={2}>
             <Typography>
@@ -1256,12 +1297,18 @@ export default function PurchaseOrderDetail(): ReactElement {
                 : `ยืนยันการบันทึกขั้นตอน ${milestoneDialog?.event.label || ''}`}
             </Typography>
             {milestoneDialog?.event.type === 'PRODUCTION_STARTED' ? (
+              <Typography color="text.secondary">
+                ระบบจะบันทึกวันที่เริ่มผลิตเป็นวันนี้ และเปลี่ยนขั้นตอนจากรอเริ่มผลิตเป็นเริ่มผลิต
+              </Typography>
+            ) : null}
+            {milestoneDialog?.event.type === 'PRODUCTION_STARTED' ? (
               <TextField
                 type="date"
                 label="กำหนดผลิตเสร็จ"
                 value={milestonePlannedDate}
                 onChange={(event) => setMilestonePlannedDate(event.target.value)}
-                helperText="หากไม่ระบุ ระบบจะคำนวณจาก Production Lead Time"
+                helperText="ระบบใช้กำหนดผลิตเสร็จเดิม หากยังไม่มีและไม่ระบุ จะคำนวณจากวันนี้บวก Production Lead Time"
+                disabled={isSubmitting}
                 InputLabelProps={{ shrink: true }}
                 fullWidth
               />
@@ -1270,6 +1317,7 @@ export default function PurchaseOrderDetail(): ReactElement {
               label={milestoneDialog?.mode === 'skip' ? 'เหตุผลที่ข้ามขั้นตอน' : 'หมายเหตุ'}
               value={milestoneNote}
               onChange={(event) => setMilestoneNote(event.target.value)}
+              disabled={isSubmitting}
               required={milestoneDialog?.mode === 'skip'}
               multiline
               minRows={3}
@@ -1807,13 +1855,13 @@ export default function PurchaseOrderDetail(): ReactElement {
                             ) : null}
                             {item.packages?.length ? (
                               <TableRow>
-                                <TableCell colSpan={6} sx={{ backgroundColor: '#f8fafc', p: 1.5 }}>
+                                <TableCell colSpan={6} sx={{ backgroundColor: BRAND_UI.sandTint, p: 1.5 }}>
                                   <Stack spacing={1}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                       ข้อมูล Package และ CBM
                                     </Typography>
                                     <TableContainer
-                                      sx={{ border: '1px solid #dce4ee', borderRadius: 2 }}>
+                                      sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}>
                                       <Table size="small" sx={{ minWidth: 920 }}>
                                         <TableHead>
                                           <TableRow sx={{ backgroundColor: '#eef4fa' }}>
@@ -1955,9 +2003,9 @@ export default function PurchaseOrderDetail(): ReactElement {
                           sx={{
                             height: '100%',
                             p: 2,
-                            border: '1px solid #dce4ee',
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: 2,
-                            backgroundColor: '#f8fafc'
+                            backgroundColor: BRAND_UI.sandTint
                           }}>
                           <Stack
                             direction={{ xs: 'column', sm: 'row' }}
@@ -2003,9 +2051,9 @@ export default function PurchaseOrderDetail(): ReactElement {
                                   sx={{
                                     px: 1.5,
                                     py: 1.25,
-                                    border: '1px solid #dce4ee',
+                                    border: `1px solid ${BRAND_COLORS.sand}`,
                                     borderRadius: 2,
-                                    backgroundColor: '#fff'
+                                    backgroundColor: BRAND_COLORS.ivory
                                   }}>
                                   <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                                     <Typography sx={{ fontWeight: 600, wordBreak: 'break-word' }}>

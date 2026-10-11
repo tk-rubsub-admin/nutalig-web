@@ -1,3 +1,4 @@
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { Add, ContentCopy, DeleteOutline } from '@mui/icons-material';
 import {
   Autocomplete,
@@ -330,13 +331,13 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     open,
     supplier,
     quote,
-  quoteSupplierSearchInput,
-  onQuoteSupplierSearchInputChange,
-  onQuoteSupplierSearchEnter,
-  onQuoteSupplierSearch,
-  isQuoteSupplierSearchFetching,
-  quoteSupplierSearchResult,
-  quoteSupplierSearchPagination,
+    quoteSupplierSearchInput,
+    onQuoteSupplierSearchInputChange,
+    onQuoteSupplierSearchEnter,
+    onQuoteSupplierSearch,
+    isQuoteSupplierSearchFetching,
+    quoteSupplierSearchResult,
+    quoteSupplierSearchPagination,
     quoteSupplierSearchPage,
     quoteSupplierSearchPageSize,
     onQuoteSupplierSearchPageChange,
@@ -459,10 +460,10 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         <Box
                           key={item.supplierId || item.id}
                           sx={{
-                            border: '1px solid #dce4ee',
+                            border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: 2,
                             p: 1.5,
-                            backgroundColor: '#fff'
+                            backgroundColor: BRAND_COLORS.ivory
                           }}>
                           <Stack
                             direction={{ xs: 'column', sm: 'row' }}
@@ -509,12 +510,12 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                 ) : (
                   <Box
                     sx={{
-                      border: '1px dashed #cbd5e1',
+                      border: `1px dashed ${BRAND_COLORS.sand}`,
                       borderRadius: 2,
                       py: 3,
                       px: 2,
                       textAlign: 'center',
-                      backgroundColor: '#f8fafc'
+                      backgroundColor: BRAND_UI.sandTint
                     }}>
                     <Typography variant="body2" color="text.secondary">
                       ไม่พบคู่ค้าที่ใช้งานอยู่
@@ -530,10 +531,10 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
               <Stack spacing={2}>
                 <Box
                   sx={{
-                    border: '1px solid #dce4ee',
+                    border: `1px solid ${BRAND_COLORS.sand}`,
                     borderRadius: 2,
                     p: 1.5,
-                    backgroundColor: '#f8fafc'
+                    backgroundColor: BRAND_UI.sandTint
                   }}>
                   <Stack
                     direction="row"
@@ -566,7 +567,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                     procurementRemarks.map((entry, index) => (
                       <Box
                         key={`${entry.createdDate || 'legacy'}-${index}`}
-                        sx={{ border: '1px solid #dce4ee', borderRadius: 2, p: 1.25 }}>
+                        sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2, p: 1.25 }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                           {entry.remark}
                         </Typography>
@@ -621,10 +622,10 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                     <Box
                       key={detail.id}
                       sx={{
-                        border: '1px solid #dce4ee',
+                        border: `1px solid ${BRAND_COLORS.sand}`,
                         borderRadius: 3,
                         p: 2,
-                        backgroundColor: '#fff'
+                        backgroundColor: BRAND_COLORS.ivory
                       }}>
                       <Stack spacing={2}>
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -635,7 +636,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                             <IconButton
                               size="small"
                               onClick={() => onCopyDetail(detail.id)}
-                              sx={{ color: '#1565c0' }}>
+                              sx={{ color: BRAND_COLORS.green }}>
                               <ContentCopy fontSize="small" />
                             </IconButton>
                             {quoteDraftDetails.length > 1 ? (
@@ -899,8 +900,8 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                       <TableCell>กว้าง</TableCell>
                       <TableCell>ยาว</TableCell>
                       <TableCell>สูง</TableCell>
-                      <TableCell>1 กล่อง ขนาดกี่ kg</TableCell>
                       <TableCell>1 กล่องบรรจุจำนวนกี่ชิ้น</TableCell>
+                      <TableCell>1 กล่อง ขนาดกี่ kg</TableCell>
                       <TableCell align="center">จัดการ</TableCell>
                     </TableRow>
                   </TableHead>
@@ -1100,10 +1101,10 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                     <Box
                       key={leadTime.id}
                       sx={{
-                        border: '1px solid #dce4ee',
+                        border: `1px solid ${BRAND_COLORS.sand}`,
                         borderRadius: 2,
                         p: 1.5,
-                        backgroundColor: '#fff'
+                        backgroundColor: BRAND_COLORS.ivory
                       }}>
                       <Grid container spacing={1}>
                         <Grid item xs={12} md={3}>

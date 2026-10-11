@@ -11,10 +11,12 @@ import ConfirmDialog from 'components/ConfirmDialog';
 import { useState } from 'react';
 import { getUserProfile } from 'services/general-api';
 import { Role } from 'services/User/user-type';
+import { alpha } from '@mui/material/styles';
+import { BRAND_COLORS } from 'theme/brandTokens';
 
 const MenuLink = styled(Link)`
   text-decoration: none;
-  color: #333;
+  color: ${({ theme }) => theme.palette.text.primary};
 `;
 
 const Footer = styled.div`
@@ -22,7 +24,7 @@ const Footer = styled.div`
   background: transparent;
 
   .MuiIconButton-root {
-    color: rgba(255, 255, 255, 0.88);
+    color: ${({ theme }) => alpha(theme.header.color, 0.88)};
   }
 `;
 
@@ -30,7 +32,7 @@ const FooterBadge = styled(Badge)`
   margin-right: ${(props) => props.theme.spacing(1)};
   span {
     background-color: ${(props) => props.theme.sidebar.footer.online.background};
-    border: 1.5px solid ${(props) => props.theme.palette.common.white};
+    border: 1.5px solid ${BRAND_COLORS.ivory};
     height: 12px;
     width: 12px;
     border-radius: 50%;
@@ -42,7 +44,7 @@ const ProfileInfo = styled.div`
 `;
 
 const DisplayNameText = styled(Typography)`
-  color: #fff;
+  color: ${({ theme }) => theme.header.color};
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.2;
@@ -57,8 +59,8 @@ const RoleNameText = styled(Typography)`
   margin-top: 4px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  color: #d1fae5;
+  background: ${alpha(BRAND_COLORS.ivory, 0.14)};
+  color: ${BRAND_COLORS.ivory};
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.3;
@@ -120,9 +122,9 @@ function NavbarMenu({ ...rest }): JSX.Element {
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               variant="dot">
               {hasPicture ? (
-                <Avatar sx={{ bgcolor: '#376fd0' }} src={picture} />
+                <Avatar sx={{ bgcolor: BRAND_COLORS.sand, color: BRAND_COLORS.green }} src={picture} />
               ) : (
-                <Avatar sx={{ bgcolor: '#376fd0' }}>
+                <Avatar sx={{ bgcolor: BRAND_COLORS.sand, color: BRAND_COLORS.green }}>
                   <Person />
                 </Avatar>
               )}

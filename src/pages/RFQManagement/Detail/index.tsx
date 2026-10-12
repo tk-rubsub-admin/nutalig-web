@@ -5269,7 +5269,7 @@ export default function RFQDetail(): ReactElement {
                   </Box>
                 )}
               </CollapsibleWrapper>
-              {/* <CollapsibleWrapper title="Detail History" defaultExpanded={false} action={null}>
+              <CollapsibleWrapper title="Detail History" defaultExpanded={false} action={null}>
                 {isDetailHistoryFetching ? (
                   <Box
                     sx={{
@@ -5355,11 +5355,11 @@ export default function RFQDetail(): ReactElement {
                                       flexWrap="wrap">
                                       <Box>
                                         <Typography variant="body1" fontWeight={700}>
-                                        {formatOptionNameWithPlan(
-                                          snapshot?.optionName || record.optionName || '-',
-                                          snapshot?.plan || record.plan
-                                        )}
-                                      </Typography>
+                                          {formatOptionNameWithPlan(
+                                            snapshot?.optionName || record.optionName || '-',
+                                            snapshot?.plan || record.plan
+                                          )}
+                                        </Typography>
                                         <Typography variant="caption" color="text.secondary">
                                           {snapshot?.archivedBy || record.archivedBy || '-'}{' '}
                                           {snapshot?.archivedAt || record.archivedAt
@@ -5373,9 +5373,16 @@ export default function RFQDetail(): ReactElement {
                                         Spec ล่าสุด: {snapshot?.spec || record.spec || '-'}
                                       </Typography>
                                     </Stack>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {snapshot?.remark || record.remark || '-'}
-                                    </Typography>
+                                    {(snapshot?.remark || record.remark) && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        {snapshot?.remark || record.remark}
+                                      </Typography>
+                                    )}
+                                    {(snapshot?.internalRemark || record.internalRemark) && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Internal Remark: {snapshot?.internalRemark || record.internalRemark}
+                                      </Typography>
+                                    )}
                                     {tiers.length ? (
                                       <Table size="small">
                                         <TableHead>
@@ -5464,7 +5471,7 @@ export default function RFQDetail(): ReactElement {
                     </Typography>
                   </Box>
                 )}
-              </CollapsibleWrapper> */}
+              </CollapsibleWrapper>
             </>
           </TabPanel>
 

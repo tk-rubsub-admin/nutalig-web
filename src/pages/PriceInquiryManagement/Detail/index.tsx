@@ -2679,7 +2679,7 @@ export default function RFQDetail(): ReactElement {
       toast.error('ไม่พบ tier ใน option นี้');
       return;
     }
-
+    console.log('selectedDetailForEdit', selectedDetailForEdit)
     setVisibleDetailEditConfirmDialog(true);
   };
 
@@ -2726,20 +2726,20 @@ export default function RFQDetail(): ReactElement {
         commission: parsePriceInput(detailEditDraft.commission),
         packageDimension: detailEditDraft.packageDimension.trim() || null,
         packageWeight: detailEditDraft.packageWeight.trim() || null,
-        packageCapacity: detailEditDraft.packageCapacity.trim() || null,
-        tiers: selectedDetailForEdit.tiers.map((tier) => ({
-          quantity: tier.quantity,
-          productPrice: tier.productPrice,
-          commission: tier.commission ?? null,
-          currency: tier.currency ?? null,
-          landFreightCost: tier.landFreightCost,
-          seaFreightCost: tier.seaFreightCost,
-          isFcl: tier.isFcl ?? null,
-          landTotalPrice: tier.landTotalPrice,
-          seaTotalPrice: tier.seaTotalPrice,
-          supplierQuoteTierId: tier.supplierQuoteTierId ?? null,
-          sortOrder: tier.sortOrder
-        }))
+        packageCapacity: detailEditDraft.packageCapacity.trim() || null
+        // tiers: selectedDetailForEdit.tiers.map((tier) => ({
+        //   quantity: tier.quantity,
+        //   productPrice: tier.productPrice,
+        //   commission: tier.commission ?? null,
+        //   currency: tier.currency ?? null,
+        //   landFreightCost: tier.landFreightCost,
+        //   seaFreightCost: tier.seaFreightCost,
+        //   isFcl: tier.isFcl ?? null,
+        //   landTotalPrice: tier.landTotalPrice,
+        //   seaTotalPrice: tier.seaTotalPrice,
+        //   supplierQuoteTierId: tier.supplierQuoteTierId ?? null,
+        //   sortOrder: tier.sortOrder
+        // }))
       };
 
       await toast.promise(updateRFQDetail(params.id, selectedDetailForEdit.id, payload), {

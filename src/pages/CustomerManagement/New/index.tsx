@@ -38,6 +38,7 @@ import {
 import { createNewCustomer } from 'services/Customer/customer-api';
 import { getSales } from 'services/Sales/sales-api';
 import toast from 'react-hot-toast';
+import { isValidPhoneNumber } from 'utils/phoneNumber';
 
 export default function NewCustomer(): JSX.Element {
   const useStyles = makeStyles({
@@ -155,7 +156,12 @@ export default function NewCustomer(): JSX.Element {
     validationSchema: Yup.object().shape({
       customerName: Yup.string().max(255).required(t('customerManagement.message.validateCustomerName')),
       type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
-      taxId: Yup.string().required(t('customerManagement.message.validateTaxId')),
+      taxId: Yup.string().when('country', {
+        is: 'TH',
+        then: Yup.string().required(t('customerManagement.message.validateTaxId')),
+        otherwise: Yup.string().nullable().notRequired()
+      })
+      ,
       companyName: Yup.string().when('type', {
         is: 'COMPANY',
         then: Yup.string().required(t('customerManagement.message.validateCompanyName')),
@@ -215,7 +221,6 @@ export default function NewCustomer(): JSX.Element {
             contactName: Yup.string()
               .required(t('customerManagement.message.validateContactName')),
             contactNumber: Yup.string()
-              .matches(/^[0-9]{9,10}$/, t('customerManagement.message.invalidPhoneNumberFormat'))
               .required(t('customerManagement.message.validateContactNumber'))
           })
         )

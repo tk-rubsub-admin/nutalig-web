@@ -162,8 +162,7 @@ export default function LineRegister(): JSX.Element {
             borderRadius: '28px',
             border: `1px solid ${BRAND_COLORS.sand}`,
             boxShadow: `0 28px 70px ${alpha(BRAND_COLORS.charcoal, 0.1)}, 0 10px 28px ${alpha(BRAND_COLORS.charcoal, 0.05)}`,
-            background:
-              BRAND_COLORS.ivory,
+            background: BRAND_UI.surface,
             overflow: 'hidden',
             position: 'relative',
             '&::before': {

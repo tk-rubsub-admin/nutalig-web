@@ -2377,7 +2377,7 @@ export default function SalesOrderRFQ(): JSX.Element {
             border: `1px solid ${BRAND_COLORS.sand}`,
             borderRadius: '24px',
             overflow: 'hidden',
-            backgroundColor: BRAND_COLORS.ivory
+            backgroundColor: BRAND_UI.surface
           }}>
           <Table
             sx={{

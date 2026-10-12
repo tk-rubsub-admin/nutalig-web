@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BRAND_COLORS } from 'theme/brandTokens';
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import { Add, ArrowBack, DeleteOutline, Replay, Save, Search } from "@mui/icons-material";
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, InputAdornment, ListItemIcon, MenuItem, Paper, Radio, RadioGroup, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography, useMediaQuery } from "@mui/material";
 import { makeStyles } from "@mui/styles";
@@ -172,7 +172,7 @@ function QuotationItemMobileCard({
                 border: `1px solid ${BRAND_COLORS.sand}`,
                 borderRadius: '20px',
                 p: 1.5,
-                backgroundColor: BRAND_COLORS.ivory
+                backgroundColor: BRAND_UI.surface
             }}
         >
             <Stack spacing={1.5}>
@@ -2271,7 +2271,7 @@ export default function NewQuotation() {
                             border: `1px solid ${BRAND_COLORS.sand}`,
                             borderRadius: '24px',
                             overflowX: 'auto',
-                            backgroundColor: BRAND_COLORS.ivory
+                            backgroundColor: BRAND_UI.surface
                         }}
                     >
                         <Table

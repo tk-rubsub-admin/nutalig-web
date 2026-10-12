@@ -18,6 +18,7 @@ export const SEMANTIC_COLORS = {
 };
 
 export const BRAND_UI = {
+  surface: '#FFFFFF',
   greenTint: alpha(BRAND_COLORS.green, 0.08),
   greenSelected: alpha(BRAND_COLORS.green, 0.14),
   terracottaTint: alpha(BRAND_COLORS.terracotta, 0.1),

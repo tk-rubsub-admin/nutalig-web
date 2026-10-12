@@ -7,7 +7,7 @@ const components = {
       ':root': BRAND_CSS_VARIABLES,
       body: {
         color: BRAND_COLORS.charcoal,
-        backgroundColor: BRAND_COLORS.ivory
+        backgroundColor: BRAND_UI.surface
       }
     }
   },
@@ -109,7 +109,7 @@ const components = {
         borderRadius: '6px',
         boxShadow: `0px 2px 5px -1px ${alpha(BRAND_COLORS.charcoal, 0.04)}, 0px 1px 3px -1px ${alpha(BRAND_COLORS.charcoal, 0.06)}`,
         backgroundImage: 'none',
-        backgroundColor: BRAND_COLORS.ivory,
+        backgroundColor: BRAND_UI.surface,
         border: `1px solid ${BRAND_COLORS.sand}`
       }
     }
@@ -118,7 +118,7 @@ const components = {
     styleOverrides: {
       root: {
         backgroundImage: 'none',
-        backgroundColor: BRAND_COLORS.ivory
+        backgroundColor: BRAND_UI.surface
       }
     }
   },

@@ -52,8 +52,8 @@ const defaultVariant = {
       disabled: BRAND_UI.disabledText
     },
     background: {
-      default: BRAND_COLORS.ivory,
-      paper: BRAND_COLORS.ivory
+      default: BRAND_UI.surface,
+      paper: BRAND_UI.surface
     },
     divider: BRAND_COLORS.sand,
     action: {

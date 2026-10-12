@@ -69,7 +69,7 @@ describe('Application brand theme integration', () => {
       Array(3).fill({
         primary: '#1F3F37',
         secondary: '#925944',
-        background: '#F7F3EE',
+        background: '#FFFFFF',
         text: '#30302F',
         divider: '#D4C5BA'
       })
@@ -120,9 +120,9 @@ describe('Application brand theme integration', () => {
         </Dialog>
       </AppThemeProvider>
     );
-    expect(getComputedStyle(screen.getByTestId('card')).backgroundColor).toBe('rgb(247, 243, 238)');
+    expect(getComputedStyle(screen.getByTestId('card')).backgroundColor).toBe('rgb(255, 255, 255)');
     expect(getComputedStyle(screen.getByTestId('card')).borderColor).toBe('#d4c5ba');
-    expect(getComputedStyle(screen.getByRole('dialog')).backgroundColor).toBe('rgb(247, 243, 238)');
+    expect(getComputedStyle(screen.getByRole('dialog')).backgroundColor).toBe('rgb(255, 255, 255)');
     expect(getComputedStyle(document.querySelector('fieldset')!).borderColor).toBe('#d4c5ba');
     expect(getComputedStyle(document.documentElement).getPropertyValue('--nutalig-green')).toBe(
       '#1F3F37'
@@ -130,7 +130,7 @@ describe('Application brand theme integration', () => {
     expect(
       getComputedStyle(document.documentElement).getPropertyValue('--nutalig-terracotta')
     ).toBe('#925944');
-    expect(getComputedStyle(document.body).backgroundColor).toBe('rgb(247, 243, 238)');
+    expect(getComputedStyle(document.body).backgroundColor).toBe('rgb(255, 255, 255)');
     expect(getComputedStyle(screen.getByTestId('primary-text')).color).toBe('rgb(31, 63, 55)');
   });
 });

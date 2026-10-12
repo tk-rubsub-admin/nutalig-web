@@ -6,7 +6,8 @@ legacy button CSS and Dashboard charts.
 
 | Token | HEX | Role |
 | --- | --- | --- |
-| ivory | #F7F3EE | Main background and paper surfaces |
+| white | #FFFFFF | Main background and paper surfaces |
+| ivory | #F7F3EE | Brand contrast and secondary surfaces |
 | green | #1F3F37 | Primary actions and navigation |
 | sand | #D4C5BA | Dividers, borders and supporting surfaces |
 | terracotta | #925944 | Secondary actions and accents |

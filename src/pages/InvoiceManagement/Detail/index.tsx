@@ -100,6 +100,8 @@ interface InvoiceDraft {
   deliveryDate: string;
   paymentTerm: string;
   customerSnapshot: CustomerSnapshot;
+  remark: string;
+  items: Array<{ id: number; unitPrice: string; quantity: string }>;
 }
 
 const getTodayDateInputValue = () => new Date().toISOString().slice(0, 10);
@@ -144,7 +146,13 @@ const createDraft = (invoice?: InvoiceRecord | null): InvoiceDraft => {
         invoice?.customerPhoneSnapshot ||
         invoice?.customerContact?.contactNumber ||
         ''
-    }
+    },
+    remark: invoice?.remark || '',
+    items: (invoice?.items || []).map((item) => ({
+      id: item.id,
+      unitPrice: String(item.unitPrice ?? 0),
+      quantity: String(item.quantity ?? 0)
+    }))
   };
 };
 
@@ -370,6 +378,24 @@ export default function InvoiceDetail(): ReactElement {
   );
 
   const summary = useMemo(() => {
+    if (isEditing && invoice) {
+      const subTotal = draft.items.reduce(
+        (total, item) => total + Number(item.unitPrice || 0) * Number(item.quantity || 0),
+        0
+      );
+      const taxableAmount = Math.max(subTotal - Number(invoice.discount || 0), 0);
+      const vat = Number((taxableAmount * Number(invoice.vatRate || 0)).toFixed(2));
+      const grandTotal = Number((taxableAmount + vat + Number(invoice.freight || 0)).toFixed(2));
+      return {
+        subTotal,
+        discount: Number(invoice.discount || 0),
+        amount: subTotal - Number(invoice.freight || 0),
+        vat,
+        grandTotal,
+        paidTotal: Number(invoice.paidTotal || 0),
+        outstandingTotal: grandTotal - Number(invoice.paidTotal || 0)
+      };
+    }
     return {
       subTotal: Number(invoice?.subTotal || 0),
       discount: Number(invoice?.discount || 0),
@@ -379,7 +405,7 @@ export default function InvoiceDetail(): ReactElement {
       paidTotal: Number(invoice?.paidTotal || 0),
       outstandingTotal: Number(invoice?.outstandingTotal || 0)
     };
-  }, [invoice]);
+  }, [invoice, draft.items, isEditing]);
 
   const isReceivePaymentEnabled = Boolean(
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
@@ -442,8 +468,19 @@ export default function InvoiceDetail(): ReactElement {
     const payload: UpdateInvoiceRequest = {
       deliveryDate: draft.deliveryDate || null,
       customerPaymentTerm: draft.paymentTerm || null,
-      customerSnapshot: draft.customerSnapshot
+      customerSnapshot: draft.customerSnapshot,
+      remark: draft.remark,
+      items: draft.items.map((item) => ({
+        id: item.id,
+        unitPrice: Number(item.unitPrice),
+        quantity: Number(item.quantity)
+      }))
     };
+
+    if (draft.items.some((item) => !item.quantity || Number(item.quantity) <= 0 || item.unitPrice === '' || Number(item.unitPrice) < 0)) {
+      toast.error('กรุณาระบุจำนวนมากกว่า 0 และราคาต่อหน่วยไม่ติดลบ');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -1082,11 +1119,23 @@ export default function InvoiceDetail(): ReactElement {
               <Grid item xs={12}>
                 <Stack spacing={1.25} className={classes.section}>
                   <Typography variant="h6">{t('documentManagement.invoice.remark')}</Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {invoice?.remark || '-'}
-                  </Typography>
+                  {isEditing ? (
+                    <TextField
+                      multiline
+                      minRows={2}
+                      label={t('documentManagement.invoice.remark')}
+                      value={draft.remark}
+                      onChange={(event) =>
+                        setDraft((previous) => ({ ...previous, remark: event.target.value }))
+                      }
+                    />
+                  ) : (
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {invoice?.remark || '-'}
+                    </Typography>
+                  )}
                 </Stack>
               </Grid>
             </Grid>
@@ -1118,16 +1167,36 @@ export default function InvoiceDetail(): ReactElement {
                           />
                           <Grid container spacing={1.25}>
                             <Grid item xs={6}>
-                              <Info
-                                label={t('documentManagement.invoice.itemSection.unitPrice')}
-                                value={formatNumber(item.unitPrice || 0)}
-                              />
+                              {isEditing ? (
+                                <TextField
+                                  fullWidth
+                                  type="number"
+                                  label={t('documentManagement.invoice.itemSection.unitPrice')}
+                                  value={draft.items[index]?.unitPrice ?? ''}
+                                  inputProps={{ min: 0, step: 'any' }}
+                                  onChange={(event) => setDraft((previous) => ({
+                                    ...previous,
+                                    items: previous.items.map((line, lineIndex) => lineIndex === index
+                                      ? { ...line, unitPrice: event.target.value } : line)
+                                  }))}
+                                />
+                              ) : <Info label={t('documentManagement.invoice.itemSection.unitPrice')} value={formatNumber(item.unitPrice || 0)} />}
                             </Grid>
                             <Grid item xs={6}>
-                              <Info
-                                label={t('documentManagement.invoice.itemSection.quantity')}
-                                value={formatNumber(item.quantity || 0)}
-                              />
+                              {isEditing ? (
+                                <TextField
+                                  fullWidth
+                                  type="number"
+                                  label={t('documentManagement.invoice.itemSection.quantity')}
+                                  value={draft.items[index]?.quantity ?? ''}
+                                  inputProps={{ min: 0, step: 'any' }}
+                                  onChange={(event) => setDraft((previous) => ({
+                                    ...previous,
+                                    items: previous.items.map((line, lineIndex) => lineIndex === index
+                                      ? { ...line, quantity: event.target.value } : line)
+                                  }))}
+                                />
+                              ) : <Info label={t('documentManagement.invoice.itemSection.quantity')} value={formatNumber(item.quantity || 0)} />}
                             </Grid>
                             <Grid item xs={12}>
                               <Stack
@@ -1148,7 +1217,9 @@ export default function InvoiceDetail(): ReactElement {
                                   {t('documentManagement.invoice.itemSection.totalAmount')}
                                 </Typography>
                                 <Typography variant="body2" fontWeight={700}>
-                                  {formatNumber(item.amount || 0)}
+                                  {formatNumber(isEditing
+                                    ? Number(draft.items[index]?.unitPrice || 0) * Number(draft.items[index]?.quantity || 0)
+                                    : item.amount || 0)}
                                 </Typography>
                               </Stack>
                             </Grid>
@@ -1205,13 +1276,15 @@ export default function InvoiceDetail(): ReactElement {
                             </TableCell>
                             <TableCell className={classes.specCell}>{item.spec || '-'}</TableCell>
                             <TableCell align="right" className={classes.fitContentCell}>
-                              {formatNumber(item.unitPrice || 0)}
+                              {isEditing ? <TextField size="small" type="number" value={draft.items[index]?.unitPrice ?? ''} inputProps={{ min: 0, step: 'any' }} onChange={(event) => setDraft((previous) => ({ ...previous, items: previous.items.map((line, lineIndex) => lineIndex === index ? { ...line, unitPrice: event.target.value } : line) }))} /> : formatNumber(item.unitPrice || 0)}
                             </TableCell>
                             <TableCell align="right" className={classes.fitContentCell}>
-                              {formatNumber(item.quantity || 0)}
+                              {isEditing ? <TextField size="small" type="number" value={draft.items[index]?.quantity ?? ''} inputProps={{ min: 0, step: 'any' }} onChange={(event) => setDraft((previous) => ({ ...previous, items: previous.items.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: event.target.value } : line) }))} /> : formatNumber(item.quantity || 0)}
                             </TableCell>
                             <TableCell align="right" className={classes.fitContentCell}>
-                              {formatNumber(item.amount || 0)}
+                              {formatNumber(isEditing
+                                ? Number(draft.items[index]?.unitPrice || 0) * Number(draft.items[index]?.quantity || 0)
+                                : item.amount || 0)}
                             </TableCell>
                           </TableRow>
                         ))

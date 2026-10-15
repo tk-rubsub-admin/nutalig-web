@@ -24,6 +24,12 @@ export interface UpdateInvoiceRequest {
   deliveryDate?: string | null;
   customerPaymentTerm?: string | null;
   customerSnapshot?: CustomerSnapshot;
+  remark?: string | null;
+  items?: Array<{
+    id: number;
+    unitPrice: number;
+    quantity: number;
+  }>;
 }
 
 export interface CreateInvoiceResponse {

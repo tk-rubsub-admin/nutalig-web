@@ -305,11 +305,36 @@ export interface PurchaseOrderRecord {
 
 export interface PurchaseOrderDeliveryRecord {
   id: number;
+  deliveryNo?: string;
+  purchaseOrderNo?: string;
+  shippedAt?: string | null;
+  expectedWarehouseDate?: string | null;
+  receivedAt?: string | null;
+  shippingMethod?: string | null;
+  shippingLocationId?: number | null;
+  shippingLocationName?: string | null;
   status: 'DRAFT' | 'HANDED_OVER_TO_CARRIER' | 'RECEIVED_AT_WAREHOUSE' | 'CANCELLED';
+  remark?: string | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
   details: Array<{
+    id?: number;
     purchaseOrderDetailId: number;
     purchaseOrderDetailComponentId: number | null;
+    productName?: string | null;
+    componentName?: string | null;
     quantity: number;
+    cartonCount?: number | null;
+    piecesPerCarton?: number | null;
+    netWeightKg?: number | null;
+    grossWeightKg?: number | null;
+    lengthCm?: number | null;
+    widthCm?: number | null;
+    heightCm?: number | null;
+    cbmM3?: number | null;
+    sortOrder?: number | null;
   }>;
 }
 

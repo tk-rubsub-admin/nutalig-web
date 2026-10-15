@@ -109,6 +109,7 @@ import { getShippingMethodLabel } from 'utils/shipping';
 import { getPurchaseOrderStartRunWarnings } from 'utils/purchaseOrderStartRun';
 import { formatNumber } from 'utils/utils';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
+import PurchaseOrderDeliverySection from './PurchaseOrderDeliverySection';
 import PurchaseOrderProofSection from './PurchaseOrderProofSection';
 import App from 'App';
 
@@ -375,7 +376,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   const { has } = usePermissions();
   const canViewProof = has(PERMISSIONS.PO_PROOF_VIEW);
   const canManageTimeline = has(PERMISSIONS.PURCHASE_ORDER_START_RUN);
-  const [tab, setTab] = useState<'detail' | 'proof' | 'history'>('detail');
+  const [tab, setTab] = useState<'detail' | 'proof' | 'delivery' | 'history'>('detail');
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft());
@@ -1861,11 +1862,12 @@ export default function PurchaseOrderDetail(): ReactElement {
 
         <Tabs
           value={tab}
-          onChange={(_event: SyntheticEvent, value: 'detail' | 'proof' | 'history') =>
+          onChange={(_event: SyntheticEvent, value: 'detail' | 'proof' | 'delivery' | 'history') =>
             setTab(value)
           }>
           <Tab value="detail" label="รายละเอียด" />
           {canViewProof ? <Tab value="proof" label="งานพรูฟ" /> : null}
+          <Tab value="delivery" label="ขนส่งสินค้า" />
           <Tab value="history" label="ประวัติ" />
         </Tabs>
 
@@ -2663,6 +2665,10 @@ export default function PurchaseOrderDetail(): ReactElement {
             />
           </TabPanel>
         ) : null}
+
+        <TabPanel value="delivery" currentTab={tab}>
+          <PurchaseOrderDeliverySection deliveries={purchaseOrder?.deliveries} />
+        </TabPanel>
 
         <TabPanel value="history" currentTab={tab}>
           <ActivityHistoryTimeline records={activityHistory} />

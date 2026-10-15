@@ -227,14 +227,14 @@
     }
   },
   "login": {
-    "title": "DPK Flower",
+    "title": "Nutalig",
     "email": "Email Address",
     "username": "Username",
     "password": "Password",
     "rememberMe": "Remember Me"
   },
   "home": {
-    "title": "Welcome to DPK Flower",
+    "title": "Welcome to Nutalig",
     "todo": {
       "title": "To-Do List",
       "pageTitle": "To-Do List",

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import {
   completePurchaseOrderMilestone,
+  completePurchaseOrderProduction,
   getPurchaseOrder,
   getPurchaseOrderPayments,
   getPurchaseOrderPaymentSchedules,
@@ -22,6 +23,7 @@ import PurchaseOrderDetail from './index';
 
 vi.mock('services/PurchaseOrder/purchase-order-api', () => ({
   completePurchaseOrderMilestone: vi.fn(),
+  completePurchaseOrderProduction: vi.fn(),
   getPurchaseOrder: vi.fn(),
   getPurchaseOrderPayments: vi.fn(),
   getPurchaseOrderPaymentSchedules: vi.fn(),
@@ -79,6 +81,15 @@ beforeEach(() => {
         completed: false,
         date: null,
         actualAt: null
+      },
+      {
+        type: 'PRODUCTION_COMPLETED',
+        label: 'ผลิตเสร็จ',
+        status: 'PENDING',
+        canComplete: false,
+        completed: false,
+        date: null,
+        actualAt: null
       }
     ]
   } as PurchaseOrderTimeline;
@@ -88,6 +99,7 @@ beforeEach(() => {
   vi.mocked(getPurchaseOrderPaymentSchedules).mockResolvedValue([]);
   vi.mocked(getActivityHistory).mockResolvedValue([]);
   vi.mocked(completePurchaseOrderMilestone).mockResolvedValue(purchaseOrder);
+  vi.mocked(completePurchaseOrderProduction).mockResolvedValue(purchaseOrder);
 });
 
 afterEach(() => {
@@ -234,5 +246,114 @@ describe('Start PO production', () => {
     );
     expect(screen.getByRole('dialog', { name: 'เริ่มผลิต' })).toBeTruthy();
     expect(getPurchaseOrderProductionTimeline).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Complete PO production', () => {
+  it('collects delivery data and saves it with the production-complete milestone', async () => {
+    purchaseOrder.productionStartedDate = '2026-10-09';
+    purchaseOrder.shippingMethodSnapshot = 'LAND';
+    purchaseOrder.supplierShipping = {
+      shippingMethod: 'LAND',
+      destinations: [{ id: 15, destinationName: 'คลังหลัก', fullAddress: 'กรุงเทพฯ' }]
+    } as any;
+    purchaseOrder.items = [
+      {
+        id: 321,
+        name: 'กล่องสินค้า',
+        quantity: 45000,
+        components: [
+          { id: 555, componentName: 'ฝาครอบ', quantityPerItem: 1, totalQuantity: 45000 }
+        ]
+      },
+      { id: 322, name: 'Delivery', quantity: 1, components: [] }
+    ] as any;
+    purchaseOrder.deliveries = [
+      {
+        id: 1,
+        status: 'HANDED_OVER_TO_CARRIER',
+        details: [
+          { purchaseOrderDetailId: 321, purchaseOrderDetailComponentId: 555, quantity: 10000 }
+        ]
+      }
+    ];
+    timeline.events[0] = {
+      ...timeline.events[0],
+      status: 'COMPLETED',
+      completed: true,
+      canComplete: false,
+      date: '2026-10-09',
+      actualAt: '2026-10-09T10:00:00+07:00'
+    };
+    timeline.events[1].canComplete = true;
+    vi.mocked(completePurchaseOrderProduction).mockImplementation(async () => {
+      purchaseOrder.productionCompletedDate = '2026-10-12';
+      return purchaseOrder;
+    });
+
+    await openPage();
+    fireEvent.click(screen.getByRole('button', { name: 'ดำเนินการ' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^ผลิตเสร็จ/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'บันทึกผลิตเสร็จ' });
+    expect(within(dialog).queryByText('Delivery')).toBeNull();
+    expect(within(dialog).queryByText('กล่องสินค้า')).toBeNull();
+    expect(within(dialog).getByText('ฝาครอบ — Option 1')).toBeTruthy();
+    expect(within(dialog).getByText('อะไหล่/ชิ้นส่วนที่ยังเหลือรับรวม 35,000 ชิ้น')).toBeTruthy();
+    expect((within(dialog).getAllByLabelText(/^จำนวนชิ้น/)[0] as HTMLInputElement).value).toBe('');
+    fireEvent.change(within(dialog).getByLabelText(/วันที่ส่งออก/), {
+      target: { value: '2026-10-10' }
+    });
+    fireEvent.change(within(dialog).getByLabelText(/วันที่คาดว่าจะถึงคลัง/), {
+      target: { value: '2026-10-15' }
+    });
+    fireEvent.change(within(dialog).getAllByLabelText(/^จำนวนชิ้น/)[0], {
+      target: { value: '15000' }
+    });
+    const firstOptionFields = within(dialog).getAllByRole('spinbutton');
+    fireEvent.change(firstOptionFields[1], { target: { value: '5' } });
+    fireEvent.change(firstOptionFields[3], { target: { value: '2.5' } });
+    fireEvent.change(firstOptionFields[5], { target: { value: '40' } });
+    fireEvent.change(firstOptionFields[6], { target: { value: '30' } });
+    fireEvent.change(firstOptionFields[7], { target: { value: '20' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'คำนวณ CBM' }));
+    expect((within(dialog).getAllByRole('spinbutton')[8] as HTMLInputElement).value).toBe('0.120000');
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'เพิ่ม option' })[0]);
+    const quantityFields = within(dialog).getAllByRole('spinbutton');
+    expect((quantityFields[9] as HTMLInputElement).value).toBe('');
+    expect((quantityFields[10] as HTMLInputElement).value).toBe('5');
+    expect((quantityFields[12] as HTMLInputElement).value).toBe('2.5');
+    expect((quantityFields[17] as HTMLInputElement).value).toBe('0.120000');
+    fireEvent.change(quantityFields[9], { target: { value: '5000' } });
+    fireEvent.change(within(dialog).getByLabelText('หมายเหตุ'), {
+      target: { value: 'ผลิตครบตามจำนวนแล้ว' }
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยันผลิตเสร็จ' }));
+
+    await waitFor(() =>
+      expect(completePurchaseOrderProduction).toHaveBeenCalledWith(
+        'NTL-PO2026090009',
+        {
+          note: 'ผลิตครบตามจำนวนแล้ว',
+          delivery: expect.objectContaining({
+            shippedDate: '2026-10-10',
+            expectedWarehouseDate: '2026-10-15',
+            shippingMethod: 'LAND',
+            shippingLocationId: 15,
+            details: expect.arrayContaining([
+              expect.objectContaining({
+                purchaseOrderDetailId: 321,
+                purchaseOrderDetailComponentId: 555,
+                quantity: 15000
+              }),
+              expect.objectContaining({
+                purchaseOrderDetailId: 321,
+                purchaseOrderDetailComponentId: 555,
+                quantity: 5000
+              })
+            ])
+          })
+        }
+      )
+    );
   });
 });

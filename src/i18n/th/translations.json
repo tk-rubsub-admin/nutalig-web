@@ -626,7 +626,7 @@
       "validateProvince": "กรุณาเลือกจังหวัด",
       "validateDistrict": "กรุณาเลือกเขต/อำเภอ",
       "validateSubdistrict": "กรุณาเลือกแขวง/ตำบล",
-      "invalidPhoneNumberFormat": "กรุณาระบุเบอร์ติดต่อในรูปแบบ 0812345678",
+      "invalidPhoneNumberFormat": "กรุณาระบุเบอร์ติดต่อ 7–15 หลัก โดยใส่รหัสประเทศ + เว้นวรรค วงเล็บ หรือขีดคั่นได้",
       "validateAtLeastOneContact": "ต้องระบุข้อมูลติดต่ออย่างน้อย 1 รายการ",
       "createNewCustomerSuccess": "สร้างลูกค้าใหม่สำเร็จ",
       "createNewCustomerFailed": "สร้างลูกค้าใหม่ไม่สำเร็จ เนื่องจาก {{err}}"

@@ -511,8 +511,7 @@ export default function NewRFQ(): JSX.Element {
     ['rfq-parent-options', formik.values.rfqTypeCode, formik.values.customerId],
     () =>
       getRFQList(1, 100, {
-        customerId: formik.values.customerId || undefined,
-        isCreatedPurchaseOrder: formik.values.rfqTypeCode === 'REORDER' ? true : null
+        customerId: formik.values.customerId || undefined
       }).then((response) => response.records || []),
     {
       refetchOnWindowFocus: false

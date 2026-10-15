@@ -1,5 +1,5 @@
 import { BRAND_COLORS } from 'theme/brandTokens';
-import { CloudUpload, SkipNext, Visibility } from '@mui/icons-material';
+import { CloudUpload, NotificationsActive, SkipNext, Visibility } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -24,6 +24,7 @@ import { getSystemConfig } from 'services/Config/config-api';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import {
   getPurchaseOrderProofs,
+  resendPurchaseOrderProofNotification,
   resubmitPurchaseOrderProof,
   skipPurchaseOrderMilestone,
   submitPurchaseOrderProof
@@ -81,6 +82,9 @@ export default function PurchaseOrderProofSection({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [skipDialogOpen, setSkipDialogOpen] = useState(false);
   const [skipReason, setSkipReason] = useState('');
+  const [skipProofType, setSkipProofType] = useState<'DIGITAL_PROOF' | 'ON_PRESS_COLOR_CHECK'>(
+    'DIGITAL_PROOF'
+  );
   const [selectedProof, setSelectedProof] = useState<PurchaseOrderProof | null>(null);
   const [proofType, setProofType] = useState('');
   const [title, setTitle] = useState('');
@@ -88,6 +92,7 @@ export default function PurchaseOrderProofSection({
   const [dueDate, setDueDate] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [resendingProofId, setResendingProofId] = useState<number | null>(null);
 
   const {
     data: proofs = [],
@@ -113,13 +118,21 @@ export default function PurchaseOrderProofSection({
   );
   const digitalProofMilestone = timelineEvents.find((event) => event.type === 'DIGITAL_PROOF');
   const digitalProofSkipped = digitalProofMilestone?.status === 'SKIPPED';
-  const canSkipDigitalProof =
+  const onPressColorMilestone = timelineEvents.find(
+    (event) => event.type === 'ON_PRESS_COLOR_CHECK'
+  );
+  const onPressColorSkipped = onPressColorMilestone?.status === 'SKIPPED';
+  const canSkipProof = (proofTypeCode: string) =>
     canManageTimeline &&
     purchaseOrderStatus === 'PRODUCTION_RUNNING' &&
-    Boolean(digitalProofMilestone?.canSkip);
+    Boolean(timelineEvents.find((event) => event.type === proofTypeCode)?.canSkip);
 
   const openSubmitDialog = (type: SystemConfig, proof?: PurchaseOrderProof) => {
-    if (type.code === 'DIGITAL_PROOF' && digitalProofSkipped) return;
+    if (
+      (type.code === 'DIGITAL_PROOF' && digitalProofSkipped) ||
+      (type.code === 'ON_PRESS_COLOR_CHECK' && onPressColorSkipped)
+    )
+      return;
     const currentRevision = proof?.revisions?.find(
       (revision) => revision.revisionNo === proof.currentRevision
     );
@@ -142,8 +155,11 @@ export default function PurchaseOrderProofSection({
   };
 
   const handleSubmit = async () => {
-    if (proofType === 'DIGITAL_PROOF' && digitalProofSkipped) {
-      toast.error('ไม่สามารถส่งงานพรูฟดิจิตอลปริ้นท์ได้ เนื่องจากข้ามขั้นตอนนี้แล้ว');
+    if (
+      (proofType === 'DIGITAL_PROOF' && digitalProofSkipped) ||
+      (proofType === 'ON_PRESS_COLOR_CHECK' && onPressColorSkipped)
+    ) {
+      toast.error('ไม่สามารถส่งงานพรูฟได้ เนื่องจากข้ามขั้นตอนนี้แล้ว');
       setDialogOpen(false);
       return;
     }
@@ -180,15 +196,16 @@ export default function PurchaseOrderProofSection({
     }
   };
 
-  const handleSkipDigitalProof = async () => {
+  const handleSkipProof = async () => {
+    const proofLabel = skipProofType === 'DIGITAL_PROOF' ? 'ดิจิตอลปริ้นท์' : 'สีหน้าเครื่อง';
     if (!skipReason.trim()) {
-      toast.error('กรุณาระบุเหตุผลที่ข้ามการพรูฟดิจิตอลปริ้นท์');
+      toast.error(`กรุณาระบุเหตุผลที่ข้ามการพรูฟ${proofLabel}`);
       return;
     }
     setSubmitting(true);
     try {
-      await skipPurchaseOrderMilestone(purchaseOrderNo, 'DIGITAL_PROOF', skipReason.trim());
-      toast.success('ข้ามการพรูฟดิจิตอลปริ้นท์แล้ว');
+      await skipPurchaseOrderMilestone(purchaseOrderNo, skipProofType, skipReason.trim());
+      toast.success(`ข้ามการพรูฟ${proofLabel}แล้ว`);
       setSkipDialogOpen(false);
       setSkipReason('');
       await refetch();
@@ -197,6 +214,19 @@ export default function PurchaseOrderProofSection({
       toast.error(errorMessage(error));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendNotification = async (proof: PurchaseOrderProof) => {
+    setResendingProofId(proof.id);
+    try {
+      await resendPurchaseOrderProofNotification(proof.id);
+      toast.success('ส่งแจ้งเตือนให้เซลล์อีกครั้งแล้ว');
+      await refetch();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setResendingProofId(null);
     }
   };
 
@@ -216,7 +246,9 @@ export default function PurchaseOrderProofSection({
       <Grid container spacing={2}>
         {proofTypes.map((definition) => {
           const proof = proofsByType.get(definition.code);
-          const isSkipped = definition.code === 'DIGITAL_PROOF' && digitalProofSkipped;
+          const isSkipped =
+            (definition.code === 'DIGITAL_PROOF' && digitalProofSkipped) ||
+            (definition.code === 'ON_PRESS_COLOR_CHECK' && onPressColorSkipped);
           const prerequisiteReady =
             definition.code !== 'ON_PRESS_COLOR_CHECK' || digitalProofResolved;
           const currentRevision = proof?.revisions?.find(
@@ -236,7 +268,9 @@ export default function PurchaseOrderProofSection({
                 }}>
                 {isSkipped ? (
                   <Box
-                    aria-label="ข้ามการพรูฟดิจิตอลปริ้นท์แล้ว"
+                    aria-label={`ข้ามการพรูฟ${
+                      definition.nameTh || definition.nameEn || definition.code
+                    }แล้ว`}
                     sx={{
                       position: 'absolute',
                       inset: 0,
@@ -304,7 +338,7 @@ export default function PurchaseOrderProofSection({
                 ) : (
                   <Typography variant="body2" color="text.secondary">
                     {isSkipped
-                      ? 'ข้ามขั้นตอนการพรูฟดิจิตอลปริ้นท์แล้ว'
+                      ? 'ข้ามขั้นตอนการพรูฟนี้แล้ว'
                       : prerequisiteReady
                       ? 'ยังไม่มีงานประเภทนี้'
                       : 'ต้องอนุมัติหรือข้ามพรูฟดิจิตอลปริ้นท์ก่อน'}
@@ -316,17 +350,30 @@ export default function PurchaseOrderProofSection({
                   spacing={1}
                   sx={{ mt: 'auto !important' }}>
                   {proof ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Visibility />}
-                      onClick={() =>
-                        history.push(
-                          ROUTE_PATHS.PURCHASE_ORDER_PROOF_DETAIL.replace(':id', String(proof.id))
-                        )
-                      }>
-                      ดูรายละเอียด
-                    </Button>
+                    <>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Visibility />}
+                        onClick={() =>
+                          history.push(
+                            ROUTE_PATHS.PURCHASE_ORDER_PROOF_DETAIL.replace(':id', String(proof.id))
+                          )
+                        }>
+                        ดูรายละเอียด
+                      </Button>
+                      {canRequest && proof.status === 'PENDING_APPROVAL' ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                          startIcon={<NotificationsActive />}
+                          disabled={resendingProofId !== null}
+                          onClick={() => void handleResendNotification(proof)}>
+                          {resendingProofId === proof.id ? 'กำลังส่ง...' : 'แจ้งเซลล์อีกครั้ง'}
+                        </Button>
+                      ) : null}
+                    </>
                   ) : null}
                   {canRequest &&
                   purchaseOrderStatus === 'PRODUCTION_RUNNING' &&
@@ -354,13 +401,16 @@ export default function PurchaseOrderProofSection({
                       ส่ง Revision ใหม่
                     </Button>
                   ) : null}
-                  {definition.code === 'DIGITAL_PROOF' && canSkipDigitalProof ? (
+                  {canSkipProof(definition.code) ? (
                     <Button
                       size="small"
                       variant="outlined"
                       className="btn-amber-orange"
                       startIcon={<SkipNext />}
                       onClick={() => {
+                        setSkipProofType(
+                          definition.code as 'DIGITAL_PROOF' | 'ON_PRESS_COLOR_CHECK'
+                        );
                         setSkipReason('');
                         setSkipDialogOpen(true);
                       }}>
@@ -385,11 +435,13 @@ export default function PurchaseOrderProofSection({
         onClose={() => !submitting && setSkipDialogOpen(false)}
         fullWidth
         maxWidth="sm">
-        <DialogTitle>ข้ามการพรูฟดิจิตอลปริ้นท์</DialogTitle>
+        <DialogTitle>
+          ข้ามการพรูฟ{skipProofType === 'DIGITAL_PROOF' ? 'ดิจิตอลปริ้นท์' : 'สีหน้าเครื่อง'}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              ขั้นตอนนี้จะถูกบันทึกเป็น “ข้าม” ใน Timeline และสามารถดำเนินการพรูฟสีหน้าเครื่องต่อได้
+              ขั้นตอนนี้จะถูกบันทึกเป็น “ข้าม” ใน Timeline พร้อมเหตุผลที่ระบุ
             </Typography>
             <TextField
               label="เหตุผลที่ข้าม"
@@ -409,7 +461,7 @@ export default function PurchaseOrderProofSection({
           </Button>
           <Button
             variant="contained"
-            onClick={() => void handleSkipDigitalProof()}
+            onClick={() => void handleSkipProof()}
             disabled={submitting || !skipReason.trim()}>
             {submitting ? 'กำลังบันทึก...' : 'ยืนยันข้ามการพรูฟ'}
           </Button>

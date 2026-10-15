@@ -27,6 +27,7 @@ import { createNewCustomer } from 'services/Customer/customer-api';
 import { CreateCustomerRequest, CreateCustomerResponse } from 'services/Customer/customer-type';
 import { RFQRecord } from 'services/RFQ/rfq-type';
 import { getSales } from 'services/Sales/sales-api';
+import { isValidPhoneNumber } from 'utils/phoneNumber';
 
 interface CreateRFQCustomerDialogProps {
   open: boolean;
@@ -34,8 +35,6 @@ interface CreateRFQCustomerDialogProps {
   onClose: () => void;
   onCreated?: (customerId: string) => void;
 }
-
-const digitsOnly = (value?: string | null): string => (value || '').replace(/\D/g, '');
 
 export default function CreateRFQCustomerDialog({
   open,
@@ -125,7 +124,7 @@ export default function CreateRFQCustomerDialog({
       contacts: [
         {
           contactName: rfq?.contactName || '',
-          contactNumber: digitsOnly(rfq?.contactPhone)
+          contactNumber: rfq?.contactPhone || ''
         }
       ]
     },
@@ -181,7 +180,9 @@ export default function CreateRFQCustomerDialog({
           Yup.object().shape({
             contactName: Yup.string().required(t('customerManagement.message.validateContactName')),
             contactNumber: Yup.string()
-              .matches(/^[0-9]{9,10}$/, t('customerManagement.message.invalidPhoneNumberFormat'))
+              .test('valid-phone-number', t('customerManagement.message.invalidPhoneNumberFormat'), (value) =>
+                !value || isValidPhoneNumber(value)
+              )
               .required(t('customerManagement.message.validateContactNumber'))
           })
         )
@@ -632,7 +633,7 @@ export default function CreateRFQCustomerDialog({
                           required
                           label={t('customerManagement.column.contactNumber')}
                           value={contact.contactNumber}
-                          onChange={({ target }) => formik.setFieldValue(`contacts.${index}.contactNumber`, digitsOnly(target.value))}
+                          onChange={({ target }) => formik.setFieldValue(`contacts.${index}.contactNumber`, target.value)}
                           error={Boolean(formik.touched.contacts?.[index]?.contactNumber && contactErrors?.[index]?.contactNumber)}
                           helperText={formik.touched.contacts?.[index]?.contactNumber && contactErrors?.[index]?.contactNumber}
                           InputLabelProps={{ shrink: true }}

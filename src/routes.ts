@@ -8,6 +8,7 @@ export const ROUTE_PATHS = Object.freeze({
   ROOT: '/',
   VIEW_ORDER: '/view-order',
   DASHBOARD: '/dashboard',
+  SALES_DASHBOARD: '/sales-dashboard',
   LOGIN: '/login',
   LINE_REGISTER: '/line-register',
   LOGIN_SUCCESS: '/login-success',
@@ -123,14 +124,14 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     component: lazy(() => import('./pages/Dashboard' /* webpackChunkName: "app" */))
   },
   {
+    path: ROUTE_PATHS.SALES_DASHBOARD,
+    component: lazy(() => import('./pages/SalesDashboard' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.SALES_DASHBOARD]
+  },
+  {
     path: ROUTE_PATHS.FORBIDDEN,
     isPublic: true,
     component: lazy(() => import('./pages/Error/Forbidden' /* webpackChunkName: "app" */))
-  },
-  {
-    path: ROUTE_PATHS.VIEW_ORDER,
-    isPublic: true,
-    component: lazy(() => import('./pages/ViewOrder' /* webpackChunkName: "app" */))
   },
   {
     path: ROUTE_PATHS.NOT_FOUND,

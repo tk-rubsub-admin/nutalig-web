@@ -2,14 +2,17 @@ import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   ArrowBackIos,
   ArrowDropDown,
+  Add,
   CalendarMonth,
   Cancel,
   CancelPresentation,
+  Calculate,
   DeleteOutline,
   Description,
   Edit,
   FilePresent,
   Menu as MenuIcon,
+  OpenInNew,
   PlayArrow,
   PrecisionManufacturing,
   Save,
@@ -25,6 +28,7 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
+  IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -51,7 +55,7 @@ import ConfirmDialog from 'components/ConfirmDialog';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import PurchaseOrderProductionSteps from 'components/PurchaseOrderProductionSteps';
-import { Wrapper } from 'components/Styled';
+import { GridTextField, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
   ChangeEvent,
@@ -64,6 +68,7 @@ import {
   useState
 } from 'react';
 import toast from 'react-hot-toast';
+import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
@@ -78,6 +83,7 @@ import {
   getPurchaseOrderPaymentSchedules,
   getPurchaseOrderProductionTimeline,
   completePurchaseOrderMilestone,
+  completePurchaseOrderProduction,
   skipPurchaseOrderMilestone,
   deletePurchaseOrderAttachment,
   getPurchaseOrder,
@@ -94,6 +100,7 @@ import {
   PurchaseOrderMilestoneCode,
   PurchaseOrderTimelineEvent,
   PurchaseOrderRecord,
+  CompletePurchaseOrderProductionRequest,
   UpdatePurchaseOrderRequest
 } from 'services/PurchaseOrder/purchase-order-type';
 import { base64ToBlob } from 'utils';
@@ -121,6 +128,118 @@ interface PurchaseOrderAttachmentCategory {
   documentType: PurchaseOrderAttachmentDocumentType;
   title: string;
   description: string;
+}
+
+interface ProductionDeliveryDetailDraft {
+  optionNo: number;
+  purchaseOrderDetailId: number;
+  purchaseOrderDetailComponentId: number | null;
+  label: string;
+  quantity: string;
+  remainingQuantity: string;
+  cartonCount: string;
+  piecesPerCarton: string;
+  netWeightKg: string;
+  grossWeightKg: string;
+  lengthCm: string;
+  widthCm: string;
+  heightCm: string;
+  cbmM3: string;
+}
+
+interface ProductionDeliveryDraft {
+  shippedDate: string;
+  expectedWarehouseDate: string;
+  receivedDate: string;
+  shippingMethod: string;
+  shippingLocationId: string;
+  details: ProductionDeliveryDetailDraft[];
+}
+
+function createProductionDeliveryDraft(
+  purchaseOrder?: PurchaseOrderRecord | null
+): ProductionDeliveryDraft {
+  const today = dayjs();
+  const expectedDate = today.add(Number(purchaseOrder?.shippingLeadTimeDay || 0), 'day');
+  const activeDestinations = purchaseOrder?.supplierShipping?.destinations || [];
+  const deliveredQuantityFor = (purchaseOrderDetailId: number, componentId: number | null) =>
+    (purchaseOrder?.deliveries || [])
+      .filter((delivery) => delivery.status !== 'CANCELLED')
+      .flatMap((delivery) => delivery.details || [])
+      .filter(
+        (detail) =>
+          detail.purchaseOrderDetailId === purchaseOrderDetailId &&
+          (detail.purchaseOrderDetailComponentId ?? null) === componentId
+      )
+      .reduce((total, detail) => total + Number(detail.quantity || 0), 0);
+  const details = (purchaseOrder?.items || [])
+    .filter((item) => item.name?.trim().toLowerCase() !== 'delivery')
+    .flatMap((item) => {
+      const packageRows = (item.packages || []).filter(
+        (itemPackage) => itemPackage.selectedForCalculation
+      );
+      const primaryPackage = packageRows[0] || item.packages?.[0];
+      const cartons = packageRows.reduce(
+        (sum, itemPackage) => sum + Number(itemPackage.cartonCount || 0),
+        0
+      );
+      const cbm = packageRows.reduce(
+        (sum, itemPackage) => sum + Number(itemPackage.totalCbm || 0),
+        0
+      );
+      const base = {
+        purchaseOrderDetailId: item.id,
+        label: item.name,
+        cartonCount: cartons ? String(cartons) : '',
+        piecesPerCarton: primaryPackage?.capacityQty ? String(primaryPackage.capacityQty) : '',
+        netWeightKg: '',
+        grossWeightKg: '',
+        lengthCm: primaryPackage?.lengthCm ? String(primaryPackage.lengthCm) : '',
+        widthCm: primaryPackage?.widthCm ? String(primaryPackage.widthCm) : '',
+        heightCm: primaryPackage?.heightCm ? String(primaryPackage.heightCm) : '',
+        cbmM3: cbm ? String(cbm) : ''
+      };
+      return [
+        ...(item.components || [])
+          .map((component) => ({
+            ...base,
+            optionNo: 1,
+            purchaseOrderDetailComponentId: component.id || null,
+            label: component.componentName || 'อะไหล่/ชิ้นส่วน',
+            quantity: '',
+            remainingQuantity: String(
+              Math.max(
+                Number(
+                  component.totalQuantity ??
+                    Number(item.quantity || 0) * Number(component.quantityPerItem || 0)
+                ) - deliveredQuantityFor(item.id, component.id || null),
+                0
+              )
+            ),
+            cartonCount: '',
+            piecesPerCarton: '',
+            lengthCm: '',
+            widthCm: '',
+            heightCm: '',
+            cbmM3: ''
+          }))
+          .filter(
+            (detail) =>
+              detail.purchaseOrderDetailComponentId !== null && Number(detail.remainingQuantity) > 0
+          )
+      ];
+    });
+  return {
+    shippedDate: today.format('YYYY-MM-DD'),
+    expectedWarehouseDate: expectedDate.format('YYYY-MM-DD'),
+    receivedDate: '',
+    shippingMethod:
+      purchaseOrder?.shippingMethodSnapshot ||
+      purchaseOrder?.supplierShipping?.shippingMethod ||
+      '',
+    shippingLocationId: activeDestinations.length === 1 ? String(activeDestinations[0].id) : '',
+    details
+  };
 }
 
 const PURCHASE_ORDER_ATTACHMENT_CATEGORIES: PurchaseOrderAttachmentCategory[] = [
@@ -175,7 +294,9 @@ function TabPanel({
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -196,7 +317,9 @@ function Summary({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {formatNumber(value || 0)} {suffix || ''}
       </Typography>
@@ -206,16 +329,15 @@ function Summary({
 
 function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
   return {
-    docDate:
-      purchaseOrder?.docDate?.replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$2-$1') || '',
+    docDate: purchaseOrder?.docDate?.replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$2-$1') || '',
     productionLeadTimeDay:
       purchaseOrder?.productionLeadTimeDay !== null &&
-        purchaseOrder?.productionLeadTimeDay !== undefined
+      purchaseOrder?.productionLeadTimeDay !== undefined
         ? String(purchaseOrder.productionLeadTimeDay)
         : '',
     shippingLeadTimeDay:
       purchaseOrder?.shippingLeadTimeDay !== null &&
-        purchaseOrder?.shippingLeadTimeDay !== undefined
+      purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
     remark: purchaseOrder?.remark || '',
@@ -229,14 +351,17 @@ function milestoneErrorMessage(error: any): string {
   );
 }
 
+function optionalNumber(value: string): number | null {
+  if (!value.trim()) return null;
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
 function milestoneActionLabel(event?: PurchaseOrderTimelineEvent): string {
   if (!event) return '';
   const labels: Record<string, string> = {
     PRODUCTION_STARTED: 'เริ่มผลิต',
-    PRODUCTION_COMPLETED: 'บันทึกผลิตเสร็จ',
-    ARRIVED_AT_CARRIER: 'บันทึกสินค้าถึงขนส่ง',
-    IN_TRANSIT: 'บันทึกอยู่ระหว่างขนส่ง',
-    WAREHOUSE_RECEIVED: 'บันทึกถึงคลังสินค้า'
+    PRODUCTION_COMPLETED: 'บันทึกผลิตเสร็จ'
   };
   return labels[event.type] || `บันทึก ${event.label}`;
 }
@@ -271,6 +396,9 @@ export default function PurchaseOrderDetail(): ReactElement {
   } | null>(null);
   const [milestonePlannedDate, setMilestonePlannedDate] = useState('');
   const [milestoneNote, setMilestoneNote] = useState('');
+  const [productionDeliveryDraft, setProductionDeliveryDraft] = useState<ProductionDeliveryDraft>(
+    () => createProductionDeliveryDraft()
+  );
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const useStyles = makeStyles({
     tableHeader: {
@@ -427,6 +555,15 @@ export default function PurchaseOrderDetail(): ReactElement {
     !purchaseOrder.productionStartedDate &&
     !purchaseOrder.productionCompletedDate &&
     Boolean(productionStartedMilestone?.canComplete);
+  const productionCompletedMilestone = productionTimeline?.events.find(
+    (event) => event.type === 'PRODUCTION_COMPLETED'
+  );
+  const canCompleteProduction =
+    canManageTimeline &&
+    purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
+    Boolean(purchaseOrder.productionStartedDate) &&
+    !purchaseOrder.productionCompletedDate &&
+    Boolean(productionCompletedMilestone?.canComplete);
   const missingStartRunDocuments = [
     ...(purchaseOrder?.attachments?.some(
       (attachment) => resolveAttachmentDocumentType(attachment.documentType) === 'FACTORY_CONTRACT'
@@ -452,6 +589,84 @@ export default function PurchaseOrderDetail(): ReactElement {
       event.type === 'PRODUCTION_STARTED' ? productionTimeline?.productionExpectedEndDate || '' : ''
     );
     setMilestoneNote('');
+    if (event.type === 'PRODUCTION_COMPLETED') {
+      setProductionDeliveryDraft(createProductionDeliveryDraft(purchaseOrder));
+    }
+  };
+
+  const updateProductionDeliveryHeader = (
+    field: keyof Omit<ProductionDeliveryDraft, 'details'>,
+    value: string
+  ) => {
+    setProductionDeliveryDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateProductionDeliveryDetail = (
+    index: number,
+    field:
+      | 'quantity'
+      | 'cartonCount'
+      | 'piecesPerCarton'
+      | 'netWeightKg'
+      | 'grossWeightKg'
+      | 'lengthCm'
+      | 'widthCm'
+      | 'heightCm'
+      | 'cbmM3',
+    value: string
+  ) => {
+    setProductionDeliveryDraft((current) => ({
+      ...current,
+      details: current.details.map((detail, detailIndex) =>
+        detailIndex === index ? { ...detail, [field]: value } : detail
+      )
+    }));
+  };
+
+  const addProductionDeliveryOption = (index: number) => {
+    setProductionDeliveryDraft((current) => {
+      const source = current.details[index];
+      if (!source) return current;
+      const matchingOptions = current.details.filter(
+        (detail) =>
+          detail.purchaseOrderDetailId === source.purchaseOrderDetailId &&
+          detail.purchaseOrderDetailComponentId === source.purchaseOrderDetailComponentId
+      );
+      const optionNo = Math.max(...matchingOptions.map((detail) => detail.optionNo)) + 1;
+      const option = { ...source, optionNo, quantity: '' };
+      return {
+        ...current,
+        details: [
+          ...current.details.slice(0, index + 1),
+          option,
+          ...current.details.slice(index + 1)
+        ]
+      };
+    });
+  };
+
+  const calculateProductionDeliveryCbm = (index: number) => {
+    const detail = productionDeliveryDraft.details[index];
+    const cartonCount = Number(detail?.cartonCount);
+    const lengthCm = Number(detail?.lengthCm);
+    const widthCm = Number(detail?.widthCm);
+    const heightCm = Number(detail?.heightCm);
+    if (
+      !detail ||
+      !Number.isFinite(cartonCount) ||
+      cartonCount <= 0 ||
+      !Number.isFinite(lengthCm) ||
+      lengthCm <= 0 ||
+      !Number.isFinite(widthCm) ||
+      widthCm <= 0 ||
+      !Number.isFinite(heightCm) ||
+      heightCm <= 0
+    ) {
+      toast.error('กรุณากรอกจำนวนกล่องและขนาดยาว กว้าง สูง ให้ครบก่อนคำนวณ CBM');
+      return;
+    }
+    const cbm = (cartonCount * lengthCm * widthCm * heightCm) / 1_000_000;
+    updateProductionDeliveryDetail(index, 'cbmM3', cbm.toFixed(6));
   };
 
   const summary = useMemo(() => {
@@ -552,17 +767,17 @@ export default function PurchaseOrderDetail(): ReactElement {
       items: previous.items.map((item, index) =>
         index === itemIndex
           ? {
-            ...item,
-            components: [
-              ...(item.components || []),
-              {
-                componentName: '',
-                quantityPerItem: 1,
-                unit: 'pcs',
-                sortOrder: item.components?.length || 0
-              }
-            ]
-          }
+              ...item,
+              components: [
+                ...(item.components || []),
+                {
+                  componentName: '',
+                  quantityPerItem: 1,
+                  unit: 'pcs',
+                  sortOrder: item.components?.length || 0
+                }
+              ]
+            }
           : item
       )
     }));
@@ -707,6 +922,10 @@ export default function PurchaseOrderDetail(): ReactElement {
     }
     setIsSubmitting(true);
     try {
+      let successMessage =
+        milestoneDialog.mode === 'skip'
+          ? `ข้ามขั้นตอน ${milestoneDialog.event.label} แล้ว`
+          : `บันทึก ${milestoneDialog.event.label} แล้ว`;
       const milestoneCode = milestoneDialog.event.type as PurchaseOrderMilestoneCode;
       if (milestoneDialog.mode === 'skip') {
         await skipPurchaseOrderMilestone(
@@ -714,6 +933,69 @@ export default function PurchaseOrderDetail(): ReactElement {
           milestoneCode,
           milestoneNote.trim()
         );
+      } else if (milestoneCode === 'PRODUCTION_COMPLETED') {
+        if (
+          !productionDeliveryDraft.shippedDate ||
+          !productionDeliveryDraft.expectedWarehouseDate ||
+          !productionDeliveryDraft.shippingMethod ||
+          !productionDeliveryDraft.shippingLocationId ||
+          productionDeliveryDraft.details.length === 0 ||
+          productionDeliveryDraft.details.some(
+            (detail) => !detail.quantity.trim() || Number(detail.quantity) <= 0
+          )
+        ) {
+          toast.error(
+            'กรุณาระบุวันที่ส่งออก วันที่คาดว่าจะถึงคลัง วิธีขนส่ง สถานที่ขนส่ง และจำนวนสินค้าให้ครบถ้วน'
+          );
+          setIsSubmitting(false);
+          return;
+        }
+        if (productionDeliveryDraft.expectedWarehouseDate < productionDeliveryDraft.shippedDate) {
+          toast.error('วันที่คาดว่าจะถึงคลังต้องไม่ก่อนวันที่ส่งออก');
+          setIsSubmitting(false);
+          return;
+        }
+        const deliveryRequest: CompletePurchaseOrderProductionRequest['delivery'] = {
+          shippedDate: productionDeliveryDraft.shippedDate,
+          expectedWarehouseDate: productionDeliveryDraft.expectedWarehouseDate,
+          receivedDate: productionDeliveryDraft.receivedDate || null,
+          shippingMethod: productionDeliveryDraft.shippingMethod,
+          shippingLocationId: Number(productionDeliveryDraft.shippingLocationId),
+          details: productionDeliveryDraft.details.map((detail, sortOrder) => {
+            const cartonCount = optionalNumber(detail.cartonCount);
+            const lengthCm = optionalNumber(detail.lengthCm);
+            const widthCm = optionalNumber(detail.widthCm);
+            const heightCm = optionalNumber(detail.heightCm);
+            const calculatedCbm =
+              cartonCount && lengthCm && widthCm && heightCm
+                ? (cartonCount * lengthCm * widthCm * heightCm) / 1000000
+                : null;
+            return {
+              purchaseOrderDetailId: detail.purchaseOrderDetailId,
+              purchaseOrderDetailComponentId: detail.purchaseOrderDetailComponentId,
+              quantity: Number(detail.quantity),
+              cartonCount,
+              piecesPerCarton: optionalNumber(detail.piecesPerCarton),
+              netWeightKg: optionalNumber(detail.netWeightKg),
+              grossWeightKg: optionalNumber(detail.grossWeightKg),
+              lengthCm,
+              widthCm,
+              heightCm,
+              cbmM3: optionalNumber(detail.cbmM3) ?? calculatedCbm,
+              sortOrder
+            };
+          })
+        };
+        const updatedPurchaseOrder = await completePurchaseOrderProduction(
+          purchaseOrder.purchaseOrderNo,
+          {
+            note: milestoneNote.trim() || null,
+            delivery: deliveryRequest
+          }
+        );
+        if (!updatedPurchaseOrder.productionCompletedDate) {
+          successMessage = 'บันทึกเที่ยวส่งแล้ว แต่ยังมียอดคงเหลือ จึงคงสถานะกำลังผลิต';
+        }
       } else {
         await completePurchaseOrderMilestone(purchaseOrder.purchaseOrderNo, milestoneCode, {
           plannedDate:
@@ -723,11 +1005,7 @@ export default function PurchaseOrderDetail(): ReactElement {
           note: milestoneNote.trim() || null
         });
       }
-      toast.success(
-        milestoneDialog.mode === 'skip'
-          ? `ข้ามขั้นตอน ${milestoneDialog.event.label} แล้ว`
-          : `บันทึก ${milestoneDialog.event.label} แล้ว`
-      );
+      toast.success(successMessage);
       setMilestoneDialog(null);
       await Promise.all([refetch(), refetchHistory(), refetchProductionTimeline()]);
     } catch (error) {
@@ -1039,6 +1317,29 @@ export default function PurchaseOrderDetail(): ReactElement {
           </MenuItem>
           <MenuItem
             onClick={() => {
+              //if (!canCompleteProduction || !productionCompletedMilestone) return;
+              handleCloseOperationMenu();
+              openMilestoneDialog(productionCompletedMilestone, 'complete');
+            }}
+            //disabled={!canCompleteProduction || isSubmitting || isProductionTimelineFetching}
+            sx={{ width: '100%' }}>
+            <ListItemIcon>
+              <PrecisionManufacturing fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="ผลิตเสร็จ"
+              secondary={
+                purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
+                !purchaseOrder.productionStartedDate &&
+                !purchaseOrder.productionCompletedDate &&
+                !productionCompletedMilestone?.canComplete
+                  ? 'ต้องบันทึกเริ่มผลิตก่อน'
+                  : undefined
+              }
+            />
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
               handleCloseOperationMenu();
               setNewExpectedEndDate('');
               setIsExpectedEndDateDialogOpen(true);
@@ -1275,7 +1576,7 @@ export default function PurchaseOrderDetail(): ReactElement {
         </ConfirmDialog>
 
         <ConfirmDialog
-          open={Boolean(milestoneDialog)}
+          open={Boolean(milestoneDialog && milestoneDialog.event.type !== 'PRODUCTION_COMPLETED')}
           title={
             milestoneDialog?.mode === 'skip'
               ? `ข้ามขั้นตอน ${milestoneDialog.event.label}`
@@ -1326,6 +1627,194 @@ export default function PurchaseOrderDetail(): ReactElement {
           </Stack>
         </ConfirmDialog>
 
+        <Dialog
+          open={
+            milestoneDialog?.event.type === 'PRODUCTION_COMPLETED' &&
+            milestoneDialog.mode === 'complete'
+          }
+          onClose={() => {
+            if (!isSubmitting) setMilestoneDialog(null);
+          }}
+          maxWidth="md"
+          fullWidth
+          scroll="paper">
+          <DialogTitle>บันทึกผลิตเสร็จ</DialogTitle>
+          <DialogContent dividers>
+            {/* <Stack spacing={2} sx={{ pt: 1 }}> */}
+            <Grid container spacing={2}>
+              <GridTextField item xs={12} sm={12}>
+                <Typography color="text.secondary">
+                  ระบุข้อมูลเที่ยวส่งจากโรงงาน ระบบจะบันทึกข้อมูล delivery พร้อมกับ milestone
+                  ผลิตเสร็จ
+                </Typography>
+              </GridTextField>
+              <GridTextField item xs={12} sm={6}>
+                <TextField
+                  type="date"
+                  label="วันที่ส่งออก"
+                  value={productionDeliveryDraft.shippedDate}
+                  onChange={(event) =>
+                    updateProductionDeliveryHeader('shippedDate', event.target.value)
+                  }
+                  disabled={isSubmitting}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={6}>
+                <TextField
+                  type="date"
+                  label="วันที่คาดว่าจะถึงคลัง"
+                  value={productionDeliveryDraft.expectedWarehouseDate}
+                  onChange={(event) =>
+                    updateProductionDeliveryHeader('expectedWarehouseDate', event.target.value)
+                  }
+                  disabled={isSubmitting}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </GridTextField>
+              <GridTextField item xs={12} sm={6}>
+                <TextField
+                  label="วิธีขนส่ง"
+                  value={productionDeliveryDraft.shippingMethod}
+                  disabled
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </GridTextField>
+              <GridTextField item xs={12}>
+                <TextField
+                  select
+                  label="สถานที่ขนส่ง"
+                  value={productionDeliveryDraft.shippingLocationId}
+                  onChange={(event) =>
+                    updateProductionDeliveryHeader('shippingLocationId', event.target.value)
+                  }
+                  disabled={isSubmitting}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth>
+                  {(purchaseOrder?.supplierShipping?.destinations || []).map((destination) => (
+                    <MenuItem key={destination.id} value={String(destination.id)}>
+                      {destination.destinationName}
+                      {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  รายการอะไหล่/ชิ้นส่วนในเที่ยวส่ง
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                {productionDeliveryDraft.details.map((detail, index) => (
+                  <Box
+                    key={`${detail.purchaseOrderDetailId}-${
+                      detail.purchaseOrderDetailComponentId ?? 'product'
+                    }-${detail.optionNo}`}
+                    sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2, p: 2 }}>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ mb: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700}>
+                        {detail.label}
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="small"
+                          startIcon={<Calculate fontSize="small" />}
+                          onClick={() => calculateProductionDeliveryCbm(index)}
+                          disabled={isSubmitting}>
+                          คำนวณ CBM
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<Add fontSize="small" />}
+                          onClick={() => addProductionDeliveryOption(index)}
+                          disabled={isSubmitting}>
+                          เพิ่ม option
+                        </Button>
+                      </Stack>
+                    </Stack>
+                    <Chip
+                      label={`เหลือรับอีก ${Number(
+                        detail.remainingQuantity || 0
+                      ).toLocaleString()} ชิ้น`}
+                      color="warning"
+                      variant="filled"
+                      sx={{ fontWeight: 700, mb: 1.5 }}
+                    />
+                    <Grid container spacing={1.5}>
+                      {(
+                        [
+                          ['quantity', 'จำนวนชิ้น', true],
+                          ['cartonCount', 'จำนวนกล่อง', false],
+                          ['piecesPerCarton', 'จำนวนชิ้นต่อกล่อง', false],
+                          ['netWeightKg', 'Net Weight (KGS)', false],
+                          ['grossWeightKg', 'Gross Weight (KGS)', false],
+                          ['cbmM3', 'CBM (M³)', false],
+                          ['lengthCm', 'ยาว (CM)', false],
+                          ['widthCm', 'กว้าง (CM)', false],
+                          ['heightCm', 'สูง (CM)', false]
+                        ] as const
+                      ).map(([field, label, required]) => (
+                        <Grid item xs={12} sm={6} md={4} key={field}>
+                          <TextField
+                            type="number"
+                            label={label}
+                            value={detail[field]}
+                            onChange={(event) =>
+                              updateProductionDeliveryDetail(index, field, event.target.value)
+                            }
+                            disabled={isSubmitting}
+                            required={required}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ min: 0, step: 'any' }}
+                            fullWidth
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                ))}
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="หมายเหตุ"
+                  value={milestoneNote}
+                  onChange={(event) => setMilestoneNote(event.target.value)}
+                  disabled={isSubmitting}
+                  InputLabelProps={{ shrink: true }}
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+            {/* </Stack> */}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setMilestoneDialog(null)} disabled={isSubmitting}>
+              ยกเลิก
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => void handleMilestoneAction()}
+              disabled={isSubmitting}>
+              ยืนยันผลิตเสร็จ
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <Stack className={classes.section} spacing={2} sx={{ mb: 2 }}>
           {isProductionTimelineFetching ? (
             <Typography color="text.secondary">กำลังโหลด Timeline การผลิต...</Typography>
@@ -1334,36 +1823,36 @@ export default function PurchaseOrderDetail(): ReactElement {
               timeline={productionTimeline}
               purchaseOrderStatus={purchaseOrder?.status}
               actions={null}
-            //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
-            //     <Stack
-            //       direction={{ xs: 'column', sm: 'row' }}
-            //       spacing={1}
-            //       justifyContent="flex-end">
-            //       {nextProofMilestone && canViewProof ? (
-            //         <Button variant="outlined" onClick={() => setTab('proof')}>
-            //           {nextProofMilestone.status === 'IN_PROGRESS'
-            //             ? `ดู ${nextProofMilestone.label}`
-            //             : `ดำเนินการ ${nextProofMilestone.label}`}
-            //         </Button>
-            //       ) : null}
-            //       {nextProofMilestone?.canSkip && canManageTimeline ? (
-            //         <Button
-            //           variant="outlined"
-            //           color="inherit"
-            //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
-            //           ข้าม {nextProofMilestone.label}
-            //         </Button>
-            //       ) : null}
-            //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
-            //         <Button
-            //           variant="contained"
-            //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
-            //           {milestoneActionLabel(nextCompletableMilestone)}
-            //         </Button>
-            //       ) : null}
-            //     </Stack>
-            //   ) : null
-            // }
+              //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
+              //     <Stack
+              //       direction={{ xs: 'column', sm: 'row' }}
+              //       spacing={1}
+              //       justifyContent="flex-end">
+              //       {nextProofMilestone && canViewProof ? (
+              //         <Button variant="outlined" onClick={() => setTab('proof')}>
+              //           {nextProofMilestone.status === 'IN_PROGRESS'
+              //             ? `ดู ${nextProofMilestone.label}`
+              //             : `ดำเนินการ ${nextProofMilestone.label}`}
+              //         </Button>
+              //       ) : null}
+              //       {nextProofMilestone?.canSkip && canManageTimeline ? (
+              //         <Button
+              //           variant="outlined"
+              //           color="inherit"
+              //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
+              //           ข้าม {nextProofMilestone.label}
+              //         </Button>
+              //       ) : null}
+              //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
+              //         <Button
+              //           variant="contained"
+              //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
+              //           {milestoneActionLabel(nextCompletableMilestone)}
+              //         </Button>
+              //       ) : null}
+              //     </Stack>
+              //   ) : null
+              // }
             />
           ) : (
             <Typography color="text.secondary">ยังไม่มีข้อมูล Timeline การผลิต</Typography>
@@ -1390,7 +1879,33 @@ export default function PurchaseOrderDetail(): ReactElement {
                     <Info label="เลขที่ใบสั่งซื้อ" value={purchaseOrder?.purchaseOrderNo} />
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Info label="อ้างอิงใบยืนยันสั่งซื้อ" value={purchaseOrder?.salesOrderNo} />
+                    <Stack spacing={0.25}>
+                      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
+                        อ้างอิงใบยืนยันสั่งซื้อ
+                      </Typography>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                          {purchaseOrder?.salesOrderNo || '-'}
+                        </Typography>
+                        {purchaseOrder?.salesOrderNo ? (
+                          <IconButton
+                            onClick={() =>
+                              window.open(
+                                ROUTE_PATHS.SALE_ORDER_DETAIL.replace(
+                                  ':id',
+                                  encodeURIComponent(purchaseOrder.salesOrderNo as string)
+                                ),
+                                '_blank',
+                                'noopener,noreferrer'
+                              )
+                            }>
+                            <OpenInNew fontSize="small" />
+                          </IconButton>
+                        ) : null}
+                      </Stack>
+                    </Stack>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     {isEditing ? (
@@ -1463,12 +1978,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA'
-                            ? 'ทางเรือ'
-                            : 'ทางรถ'
-                          } | ${purchaseOrder.supplierShipping.shippingName ||
-                          `Shipping #${purchaseOrder.supplierShipping.id}`
-                          }`
+                          ? `${
+                              purchaseOrder.supplierShipping.shippingMethod === 'SEA'
+                                ? 'ทางเรือ'
+                                : 'ทางรถ'
+                            } | ${
+                              purchaseOrder.supplierShipping.shippingName ||
+                              `Shipping #${purchaseOrder.supplierShipping.id}`
+                            }`
                           : '-'
                       }
                     />
@@ -1484,7 +2001,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Shipping Method"
                       value={getShippingMethodLabel(
                         purchaseOrder?.shippingMethodSnapshot ||
-                        purchaseOrder?.supplierShipping?.shippingMethod
+                          purchaseOrder?.supplierShipping?.shippingMethod
                       )}
                     />
                   </Grid>
@@ -1541,8 +2058,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       value={
                         purchaseOrder?.supplierShipping?.destinations?.length
                           ? purchaseOrder.supplierShipping.destinations
-                            .map((item) => item.destinationName || item.fullAddress || '-')
-                            .join(', ')
+                              .map((item) => item.destinationName || item.fullAddress || '-')
+                              .join(', ')
                           : '-'
                       }
                     />
@@ -1678,7 +2195,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                                     }
                                   />
                                 ) : (
-                                  `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
+                                  `${formatNumber(item.supplierUnitPrice || 0)} ${
+                                    item.supplierCurrency || ''
                                   }`
                                 )}
                               </TableCell>
@@ -1803,7 +2321,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 <TableCell align="right">
                                                   {formatNumber(
                                                     Number(item.quantity || 0) *
-                                                    Number(component.quantityPerItem || 0)
+                                                      Number(component.quantityPerItem || 0)
                                                   )}
                                                 </TableCell>
                                                 <TableCell>
@@ -1855,13 +2373,18 @@ export default function PurchaseOrderDetail(): ReactElement {
                             ) : null}
                             {item.packages?.length ? (
                               <TableRow>
-                                <TableCell colSpan={6} sx={{ backgroundColor: BRAND_UI.sandTint, p: 1.5 }}>
+                                <TableCell
+                                  colSpan={6}
+                                  sx={{ backgroundColor: BRAND_UI.sandTint, p: 1.5 }}>
                                   <Stack spacing={1}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                       ข้อมูล Package และ CBM
                                     </Typography>
                                     <TableContainer
-                                      sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}>
+                                      sx={{
+                                        border: `1px solid ${BRAND_COLORS.sand}`,
+                                        borderRadius: 2
+                                      }}>
                                       <Table size="small" sx={{ minWidth: 920 }}>
                                         <TableHead>
                                           <TableRow sx={{ backgroundColor: '#eef4fa' }}>
@@ -1896,8 +2419,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 {packageItem.packageCapacity ||
                                                   (packageItem.capacityQty != null
                                                     ? `${formatNumber(
-                                                      packageItem.capacityQty
-                                                    )} pcs.`
+                                                        packageItem.capacityQty
+                                                      )} pcs.`
                                                     : '-')}
                                               </TableCell>
                                               <TableCell align="right">

@@ -70,12 +70,19 @@ export function useMenuItems() {
       title: 'ฝ่ายขาย',
       icon: CurrencyExchange,
       allowedPermission: [
+        PERMISSIONS.SALES_DASHBOARD,
         PERMISSIONS.RFQ_VIEW,
         PERMISSIONS.QUOTATION_VIEW,
         PERMISSIONS.SALE_ORDER_VIEW,
         PERMISSIONS.INVOICE_VIEW
       ],
       children: [
+        {
+          id: 'left_menu__sales_dashboard',
+          title: 'แดชบอร์ดฝ่ายขาย',
+          href: ROUTE_PATHS.SALES_DASHBOARD,
+          allowedPermission: [PERMISSIONS.SALES_DASHBOARD]
+        },
         {
           id: 'left_menu__rfq_management',
           title: t('sidebar.rfqManagement.title'),

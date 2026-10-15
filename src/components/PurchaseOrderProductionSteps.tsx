@@ -1,17 +1,15 @@
 import {
   ColorLens,
-  Commute,
-  Event as EventIcon,
   FactCheck,
-  Inventory,
-  LocalShipping,
   NoteAdd,
+  NotificationsActive,
   PlayArrow,
   PrecisionManufacturing,
   TaskAlt
 } from '@mui/icons-material';
 import {
   Box,
+  IconButton,
   Chip,
   ChipProps,
   Stack,
@@ -20,6 +18,7 @@ import {
   StepIconProps,
   StepLabel,
   Stepper,
+  Tooltip,
   Typography,
   alpha,
   stepConnectorClasses,
@@ -27,7 +26,11 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { ReactElement, ReactNode } from 'react';
+import { ReactElement, ReactNode, useState } from 'react';
+import toast from 'react-hot-toast';
+import { PERMISSIONS } from 'auth/permissions';
+import { usePermissions } from 'auth/PermissionContext';
+import { notifySalesProductionStarted } from 'services/PurchaseOrder/purchase-order-api';
 import {
   PurchaseOrderTimeline,
   PurchaseOrderTimelineEvent
@@ -80,34 +83,16 @@ const PRODUCTION_STEPS: ProductionStepDefinition[] = [
     icon: <PrecisionManufacturing />
   },
   {
-    type: 'PRODUCTION_EXPECTED_END',
-    label: 'กำหนดผลิตเสร็จ',
-    emptyDateLabel: 'ยังไม่มีกำหนด',
-    icon: <EventIcon />
+    type: 'PRODUCTION_IN_PROGRESS',
+    label: 'กำลังผลิต',
+    emptyDateLabel: 'รอเริ่มผลิต',
+    icon: <PrecisionManufacturing />
   },
   {
     type: 'PRODUCTION_COMPLETED',
     label: 'ผลิตเสร็จ',
     emptyDateLabel: 'รอผลิตเสร็จ',
     icon: <TaskAlt />
-  },
-  {
-    type: 'ARRIVED_AT_CARRIER',
-    label: 'สินค้าถึงขนส่ง',
-    emptyDateLabel: 'รอส่งเข้าขนส่ง',
-    icon: <LocalShipping />
-  },
-  {
-    type: 'IN_TRANSIT',
-    label: 'อยู่ระหว่างขนส่ง',
-    emptyDateLabel: 'รอออกเดินทาง',
-    icon: <Commute />
-  },
-  {
-    type: 'WAREHOUSE_RECEIVED',
-    label: 'ถึงคลังสินค้า',
-    emptyDateLabel: 'รอรับเข้าคลัง',
-    icon: <Inventory />
   }
 ];
 
@@ -167,7 +152,12 @@ function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps
         borderColor: color,
         borderRadius: '50%',
         opacity: cancelled ? 0.65 : 1,
-        boxShadow: active ? `0 0 0 5px ${alpha(warning ? theme.palette.error.main : theme.palette.primary.main, 0.12)}` : 'none',
+        boxShadow: active
+          ? `0 0 0 5px ${alpha(
+              warning ? theme.palette.error.main : theme.palette.primary.main,
+              0.12
+            )}`
+          : 'none',
         '& svg': { fontSize: active ? 25 : 22 }
       }}>
       {iconNode}
@@ -220,6 +210,9 @@ export default function PurchaseOrderProductionSteps({
 }: PurchaseOrderProductionStepsProps): ReactElement {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { has } = usePermissions();
+  const canNotifySales = has(PERMISSIONS.PURCHASE_ORDER_START_RUN);
+  const [isNotifyingSales, setIsNotifyingSales] = useState(false);
   const eventsByType = new Map(timeline.events.map((event) => [event.type, event]));
   const orderedEvents = PRODUCTION_STEPS.map((step) => eventsByType.get(step.type));
   const isCancelled = purchaseOrderStatus === 'CANCELLED';
@@ -231,12 +224,9 @@ export default function PurchaseOrderProductionSteps({
     : firstPendingIndex >= 0
     ? firstPendingIndex
     : PRODUCTION_STEPS.length;
-  const warehouseReceived = eventsByType.get('WAREHOUSE_RECEIVED')?.status === 'COMPLETED';
   const activeEvent = firstPendingIndex >= 0 ? orderedEvents[firstPendingIndex] : undefined;
   const currentStatus = isCancelled
     ? 'ยกเลิกใบสั่งซื้อแล้ว'
-    : warehouseReceived
-    ? 'รับสินค้าเข้าคลังแล้ว'
     : timeline.overdue
     ? 'การผลิตเลยกำหนด'
     : activeEvent?.status === 'CHANGES_REQUESTED'
@@ -251,9 +241,23 @@ export default function PurchaseOrderProductionSteps({
   const currentColor: ChipProps['color'] =
     isCancelled || timeline.overdue || activeEvent?.status === 'CHANGES_REQUESTED'
       ? 'error'
-      : warehouseReceived
-      ? 'success'
       : 'info';
+
+  const handleNotifySales = async () => {
+    setIsNotifyingSales(true);
+    try {
+      await notifySalesProductionStarted(timeline.purchaseOrderNo);
+      toast.success('ส่งการแจ้งเตือนให้เซลล์แล้ว');
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          'ไม่สามารถส่งการแจ้งเตือนให้เซลล์ได้'
+      );
+    } finally {
+      setIsNotifyingSales(false);
+    }
+  };
 
   return (
     <Stack spacing={2.5}>
@@ -303,41 +307,68 @@ export default function PurchaseOrderProductionSteps({
                     py: isMobile ? 0.5 : 0,
                     '& .MuiStepLabel-labelContainer': { ml: isMobile ? 1 : 0 }
                   }}>
-                  <Typography
-                    variant="body2"
-                    fontWeight={active || completed || warning ? 700 : 400}
-                    color={
-                      warning
-                        ? 'error.main'
-                        : event?.status === 'SKIPPED'
-                        ? 'text.secondary'
-                        : active
-                        ? 'info.dark'
-                        : completed
-                        ? 'success.dark'
-                        : 'text.secondary'
-                    }>
-                    {step.label}
-                  </Typography>
-                  <Typography variant="caption" color={warning ? 'error.main' : 'text.secondary'}>
-                    {statusCaption(event, step.emptyDateLabel)}
-                  </Typography>
-                  {step.type === 'PRODUCTION_EXPECTED_END' && event?.plannedDate ? (
-                    <Typography
-                      variant="caption"
-                      color={event.overdue ? 'error.main' : 'text.secondary'}
-                      sx={{ display: 'block' }}>
-                      กำหนดเสร็จ {formatProductionDate(event.plannedDate)}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isMobile ? 'flex-start' : 'center'
+                    }}>
+                    <Stack direction="row" spacing={0.25} alignItems="center">
+                      <Typography
+                        variant="body2"
+                        fontWeight={active || completed || warning ? 700 : 400}
+                        color={
+                          warning
+                            ? 'error.main'
+                            : event?.status === 'SKIPPED'
+                            ? 'text.secondary'
+                            : active
+                            ? 'info.dark'
+                            : completed
+                            ? 'success.dark'
+                            : 'text.secondary'
+                        }>
+                        {step.label}
+                      </Typography>
+                      {step.type === 'PRODUCTION_STARTED' &&
+                      event?.status === 'COMPLETED' &&
+                      timeline.productionStartedDate &&
+                      canNotifySales ? (
+                        <Tooltip title="ส่งการแจ้งเตือนเริ่มผลิตให้เซลล์">
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              aria-label="ส่งการแจ้งเตือนเริ่มผลิตให้เซลล์"
+                              onClick={() => void handleNotifySales()}
+                              disabled={isNotifyingSales}
+                              sx={{ p: 0.25 }}>
+                              <NotificationsActive fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                    </Stack>
+                    <Typography variant="caption" color={warning ? 'error.main' : 'text.secondary'}>
+                      {statusCaption(event, step.emptyDateLabel)}
                     </Typography>
-                  ) : null}
-                  {event?.note && event.status !== 'SKIPPED' ? (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: 'block', maxWidth: 150, mx: isMobile ? 0 : 'auto' }}>
-                      {event.note}
-                    </Typography>
-                  ) : null}
+                    {step.type === 'PRODUCTION_IN_PROGRESS' && event?.plannedDate ? (
+                      <Typography
+                        variant="caption"
+                        color={event.overdue ? 'error.main' : 'text.secondary'}
+                        sx={{ display: 'block' }}>
+                        กำหนดเสร็จ {formatProductionDate(event.plannedDate)}
+                      </Typography>
+                    ) : null}
+                    {event?.note && event.status !== 'SKIPPED' ? (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: 'block', maxWidth: 150, mx: isMobile ? 0 : 'auto' }}>
+                        {event.note}
+                      </Typography>
+                    ) : null}
+                  </Box>
                 </StepLabel>
               </Step>
             );

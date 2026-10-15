@@ -212,9 +212,13 @@ function getRFQRowSx(rfq: RFQRecord) {
   if (rfq.status === 'QUOTED') {
     return {
       cursor: 'pointer',
-      backgroundColor: BRAND_UI.greenTint,
-      '&:hover': {
-        backgroundColor: BRAND_UI.greenSelected
+      backgroundColor: '#047857',
+      color: '#fff',
+      '& .MuiTableCell-root, & .MuiTypography-root': {
+        color: '#fff'
+      },
+      '&&:hover': {
+        backgroundColor: '#065f46'
       }
     };
   }

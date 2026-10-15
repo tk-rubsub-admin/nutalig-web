@@ -13,6 +13,7 @@ import {
   PurchaseOrderTimeline,
   PurchaseOrderProof,
   PurchaseOrderMilestoneCode,
+  CompletePurchaseOrderProductionRequest,
   UpdatePurchaseOrderMilestoneRequest,
   SubmitPurchaseOrderProofRequest,
   SearchPurchaseOrderRequest,
@@ -180,6 +181,10 @@ export const getPurchaseOrderProductionTimeline = async (
   return response.data;
 };
 
+export const notifySalesProductionStarted = async (purchaseOrderNo: string): Promise<void> => {
+  await api.post(`/v1/purchase-orders/${purchaseOrderNo}/notify-sales-production-started`);
+};
+
 export const completePurchaseOrderMilestone = async (
   id: string,
   milestoneCode: PurchaseOrderMilestoneCode,
@@ -187,6 +192,16 @@ export const completePurchaseOrderMilestone = async (
 ): Promise<PurchaseOrderRecord> => {
   const response = await api
     .patch(`/v1/purchase-orders/${id}/milestones/${milestoneCode}/complete`, data)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const completePurchaseOrderProduction = async (
+  purchaseOrderNo: string,
+  data: CompletePurchaseOrderProductionRequest
+): Promise<PurchaseOrderRecord> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${purchaseOrderNo}/production-complete`, data)
     .then((result) => result.data);
   return response.data;
 };
@@ -224,6 +239,15 @@ export const getPurchaseOrderProofs = async (
 export const getPurchaseOrderProof = async (proofId: number): Promise<PurchaseOrderProof> => {
   const response = await api
     .get(`/v1/purchase-order-proofs/${proofId}`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const resendPurchaseOrderProofNotification = async (
+  proofId: number
+): Promise<PurchaseOrderProof> => {
+  const response = await api
+    .post(`/v1/purchase-order-proofs/${proofId}/resend-notification`)
     .then((result) => result.data);
   return response.data;
 };

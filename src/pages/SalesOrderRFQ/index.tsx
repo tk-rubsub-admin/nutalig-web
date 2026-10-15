@@ -77,6 +77,7 @@ import {
 } from 'services/SaleOrder/sale-order-type';
 import { DEFAULT_DATE_FORMAT, DEFAULT_DATE_FORMAT_BFF } from 'utils';
 import { getShippingMethodLabel } from 'utils/shipping';
+import { isValidPhoneNumber } from 'utils/phoneNumber';
 import { formatCurrency, formatNumber } from 'utils/utils';
 import * as Yup from 'yup';
 import { addCustomerAddress, addCustomerContact, updateCustomer } from 'services/Customer/customer-api';
@@ -1084,7 +1085,9 @@ export default function SalesOrderRFQ(): JSX.Element {
         .max(255)
         .required(t('customerManagement.message.validateContactName')),
       contactNumber: Yup.string()
-        .matches(/^[0-9]{9,10}$/, t('customerManagement.message.invalidPhoneNumberFormat'))
+        .test('valid-phone-number', t('customerManagement.message.invalidPhoneNumberFormat'), (value) =>
+          !value || isValidPhoneNumber(value)
+        )
         .required(t('customerManagement.message.validateContactNumber'))
     }),
     onSubmit: () => undefined

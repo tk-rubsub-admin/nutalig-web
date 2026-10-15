@@ -300,6 +300,17 @@ export interface PurchaseOrderRecord {
   containerSizeSnapshot: string | null;
   attachments: PurchaseOrderAttachment[];
   items: PurchaseOrderItem[];
+  deliveries?: PurchaseOrderDeliveryRecord[];
+}
+
+export interface PurchaseOrderDeliveryRecord {
+  id: number;
+  status: 'DRAFT' | 'HANDED_OVER_TO_CARRIER' | 'RECEIVED_AT_WAREHOUSE' | 'CANCELLED';
+  details: Array<{
+    purchaseOrderDetailId: number;
+    purchaseOrderDetailComponentId: number | null;
+    quantity: number;
+  }>;
 }
 
 export interface PurchaseOrderProductionCalendarRecord {
@@ -336,7 +347,7 @@ export type PurchaseOrderMilestoneCode =
   | 'DIGITAL_PROOF'
   | 'ON_PRESS_COLOR_CHECK'
   | 'PRODUCTION_STARTED'
-  | 'PRODUCTION_EXPECTED_END'
+  | 'PRODUCTION_IN_PROGRESS'
   | 'PRODUCTION_COMPLETED'
   | 'ARRIVED_AT_CARRIER'
   | 'IN_TRANSIT'
@@ -345,6 +356,31 @@ export type PurchaseOrderMilestoneCode =
 export interface UpdatePurchaseOrderMilestoneRequest {
   plannedDate?: string | null;
   note?: string | null;
+}
+
+export interface CompletePurchaseOrderProductionRequest {
+  note?: string | null;
+  delivery: {
+    shippedDate: string;
+    expectedWarehouseDate: string;
+    receivedDate?: string | null;
+    shippingMethod: string;
+    shippingLocationId: number;
+    details: Array<{
+      purchaseOrderDetailId: number;
+      purchaseOrderDetailComponentId?: number | null;
+      quantity: number;
+      cartonCount?: number | null;
+      piecesPerCarton?: number | null;
+      netWeightKg?: number | null;
+      grossWeightKg?: number | null;
+      lengthCm?: number | null;
+      widthCm?: number | null;
+      heightCm?: number | null;
+      cbmM3?: number | null;
+      sortOrder?: number | null;
+    }>;
+  };
 }
 
 export interface PurchaseOrderTimeline {

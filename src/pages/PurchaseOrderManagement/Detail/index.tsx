@@ -2667,7 +2667,10 @@ export default function PurchaseOrderDetail(): ReactElement {
         ) : null}
 
         <TabPanel value="delivery" currentTab={tab}>
-          <PurchaseOrderDeliverySection deliveries={purchaseOrder?.deliveries} />
+          <PurchaseOrderDeliverySection
+            deliveries={purchaseOrder?.deliveries}
+            onDeliveryUpdated={() => refetch()}
+          />
         </TabPanel>
 
         <TabPanel value="history" currentTab={tab}>

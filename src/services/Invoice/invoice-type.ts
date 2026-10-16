@@ -17,6 +17,8 @@ export interface CreateInvoiceRequest {
   vat?: number;
   grandTotal?: number;
   customerPaymentTerm?: string;
+  installmentNo?: number;
+  installmentCount?: number;
   customerSnapshot?: CustomerSnapshot;
 }
 
@@ -98,6 +100,8 @@ export interface InvoiceRecord {
   docDate: string | null;
   dueDate: string | null;
   deliveryDate: string | null;
+  installmentNo?: number | null;
+  installmentCount?: number | null;
   status: string;
   statusProfile?: DocumentStatusProfile;
   currency: string | null;

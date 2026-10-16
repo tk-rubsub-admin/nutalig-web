@@ -206,6 +206,21 @@ export const completePurchaseOrderProduction = async (
   return response.data;
 };
 
+export const markPurchaseOrderDeliveryInTransit = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  trackingNumber: string,
+  inTransitDate: string
+): Promise<PurchaseOrderRecord> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/in-transit`, {
+      trackingNumber,
+      inTransitDate
+    })
+    .then((result) => result.data);
+  return response.data;
+};
+
 export const updatePurchaseOrderProductionExpectedEndDate = async (
   id: string,
   plannedDate: string

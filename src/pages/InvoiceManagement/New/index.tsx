@@ -352,6 +352,8 @@ export default function NewInvoice(): ReactElement {
           vat: Number(summary.vat || 0),
           grandTotal: Number(summary.grandTotal || 0),
           customerPaymentTerm: draft.paymentTerm || undefined,
+          installmentNo: openedInvoiceCount + 1,
+          installmentCount: PAYMENT_TERM_INSTALLMENTS[draft.paymentTerm]?.length || 2,
           customerSnapshot: draft.customerSnapshot
         }),
         {

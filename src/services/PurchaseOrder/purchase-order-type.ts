@@ -311,9 +311,11 @@ export interface PurchaseOrderDeliveryRecord {
   expectedWarehouseDate?: string | null;
   receivedAt?: string | null;
   shippingMethod?: string | null;
+  trackingNumber?: string | null;
+  inTransitDate?: string | null;
   shippingLocationId?: number | null;
   shippingLocationName?: string | null;
-  status: 'DRAFT' | 'HANDED_OVER_TO_CARRIER' | 'RECEIVED_AT_WAREHOUSE' | 'CANCELLED';
+  status: 'DRAFT' | 'HANDED_OVER_TO_CARRIER' | 'IN_TRANSIT' | 'RECEIVED_AT_WAREHOUSE' | 'CANCELLED';
   remark?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;

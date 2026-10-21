@@ -50,7 +50,8 @@ export function useMenuItems() {
       icon: FactCheck,
       allowedPermission: [
         PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW,
-        PERMISSIONS.AWAITING_APPROVE_VIEW
+        PERMISSIONS.AWAITING_APPROVE_VIEW,
+        PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW
       ],
       children: [
         {
@@ -63,6 +64,11 @@ export function useMenuItems() {
           title: 'รายการรออนุมัติ',
           href: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
           allowedPermission: [PERMISSIONS.AWAITING_APPROVE_VIEW]
+        }, {
+          id: 'left_menu__pending_supplier_payments',
+          title: 'รายการรอชำระเงิน',
+          href: ROUTE_PATHS.PENDING_SUPPLIER_PAYMENTS,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
         }]
     },
     {

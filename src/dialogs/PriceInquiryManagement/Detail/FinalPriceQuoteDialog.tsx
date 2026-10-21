@@ -320,6 +320,11 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
           <Typography variant="subtitle2" fontWeight={700}>
             {formatOptionNameWithPlan(detail.optionName, detail.plan)}
           </Typography>
+          {detail.createdDate && dayjs(detail.createdDate).isValid() ? (
+            <Typography variant="subtitle2" color="text.secondary">
+              วันที่ได้ราคา {dayjs(detail.createdDate).format('DD/MM/YYYY')}
+            </Typography>
+          ) : null}
           {detail.spec ? (
             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
               {detail.spec}

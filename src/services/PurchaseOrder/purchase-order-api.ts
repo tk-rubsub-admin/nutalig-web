@@ -8,6 +8,8 @@ import {
   PurchaseOrderPayment,
   PurchaseOrderPaymentRequest,
   PurchaseOrderPaymentSchedule,
+  PurchaseOrderPaymentInstruction,
+  PurchaseOrderPaymentInstructionRequest,
   PurchaseOrderRecord,
   PurchaseOrderProductionCalendarRecord,
   PurchaseOrderTimeline,
@@ -18,6 +20,9 @@ import {
   SubmitPurchaseOrderProofRequest,
   SearchPurchaseOrderRequest,
   SearchPurchaseOrderResponse,
+  SearchPendingSupplierPaymentRequest,
+  SearchPendingSupplierPaymentResponse,
+  ExchangeRateResponse,
   UpdatePurchaseOrderRequest
 } from './purchase-order-type';
 
@@ -42,12 +47,18 @@ function buildPurchaseOrderPaymentFormData(
   if (data.scheduleId !== undefined && data.scheduleId !== null) {
     formData.append('scheduleId', String(data.scheduleId));
   }
+  if (data.instructionId !== undefined && data.instructionId !== null) {
+    formData.append('instructionId', String(data.instructionId));
+  }
   formData.append('paymentType', data.paymentType);
   if (data.installmentNo !== undefined && data.installmentNo !== null) {
     formData.append('installmentNo', String(data.installmentNo));
   }
   formData.append('paymentDate', data.paymentDate);
   formData.append('amount', String(data.amount));
+  if (data.amountThb !== undefined && data.amountThb !== null) {
+    formData.append('amountThb', String(data.amountThb));
+  }
   if (data.exchangeRate !== undefined && data.exchangeRate !== null) {
     formData.append('exchangeRate', String(data.exchangeRate));
   }
@@ -446,6 +457,70 @@ export const getPurchaseOrderPaymentSchedules = async (
   return response.data;
 };
 
+export const getPurchaseOrderPaymentInstructions = async (
+  id: string
+): Promise<PurchaseOrderPaymentInstruction[]> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${id}/payment-instructions`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const createPurchaseOrderPaymentInstruction = async (
+  id: string,
+  data: PurchaseOrderPaymentInstructionRequest
+): Promise<PurchaseOrderPaymentInstruction> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/payment-instructions`, data)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const createPurchaseOrderPaymentInstructionDraft = async (
+  id: string, data: PurchaseOrderPaymentInstructionRequest
+): Promise<PurchaseOrderPaymentInstruction> => {
+  const response = await api.post(`/v1/purchase-orders/${id}/payment-instructions/drafts`, data).then((r) => r.data);
+  return response.data;
+};
+
+export const submitPurchaseOrderPaymentInstructionDraft = async (
+  id: string, instructionId: number, data: PurchaseOrderPaymentInstructionRequest
+): Promise<PurchaseOrderPaymentInstruction> => {
+  const response = await api.post(`/v1/purchase-orders/${id}/payment-instructions/${instructionId}/submit`, data).then((r) => r.data);
+  return response.data;
+};
+
+export const updatePurchaseOrderPaymentInstruction = async (
+  id: string,
+  instructionId: number,
+  data: PurchaseOrderPaymentInstructionRequest
+): Promise<PurchaseOrderPaymentInstruction> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${id}/payment-instructions/${instructionId}`, data)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const cancelPurchaseOrderPaymentInstruction = async (
+  id: string,
+  instructionId: number
+): Promise<PurchaseOrderPaymentInstruction> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/payment-instructions/${instructionId}/cancel`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const confirmPurchaseOrderPaymentInstructionPaid = async (
+  id: string,
+  instructionId: number
+): Promise<PurchaseOrderPaymentInstruction> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${id}/payment-instructions/${instructionId}/confirm-paid`)
+    .then((result) => result.data);
+  return response.data;
+};
+
 export const updatePurchaseOrderPayment = async (
   id: string,
   paymentId: number,
@@ -509,4 +584,61 @@ export const searchPurchaseOrders = async (
     .then((result) => result.data);
 
   return response;
+};
+
+export const searchPendingSupplierPayments = async (
+  data: SearchPendingSupplierPaymentRequest,
+  page: number,
+  size: number
+): Promise<SearchPendingSupplierPaymentResponse> => {
+  const response = await api
+    .post('/v1/purchase-orders/pending-payments/search', data, { params: { page, size } })
+    .then((result) => result.data);
+  return response;
+};
+
+export const getExchangeRate = async (
+  baseCurrency: string,
+  quoteCurrency: string
+): Promise<ExchangeRateResponse> => {
+  const response = await api
+    .get(`/v1/exchange-rates/${baseCurrency}/${quoteCurrency}`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const notifySuperAdminsOfPaymentSchedule = async (
+  purchaseOrderNo: string,
+  scheduleId: number
+): Promise<string> => {
+  const response = await api
+    .post(
+      `/v1/purchase-orders/${purchaseOrderNo}/payment-schedules/${scheduleId}/notify-super-admins`
+    )
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const notifyAccountingAdminsOfPaymentSchedule = async (
+  purchaseOrderNo: string,
+  scheduleId: number
+): Promise<string> => {
+  const response = await api
+    .post(
+      `/v1/purchase-orders/${purchaseOrderNo}/payment-schedules/${scheduleId}/notify-accounting-admins`
+    )
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const notifyAccountingAdminsForSavePayment = async (
+  purchaseOrderNo: string,
+  scheduleId: number
+): Promise<string> => {
+  const response = await api
+    .post(
+      `/v1/purchase-orders/${purchaseOrderNo}/payment-schedules/${scheduleId}/notify-save-payment`
+    )
+    .then((result) => result.data);
+  return response.data;
 };

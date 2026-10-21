@@ -129,6 +129,52 @@ export interface SearchPurchaseOrderRequest {
   keyword?: string;
 }
 
+export interface SearchPendingSupplierPaymentRequest {
+  supplierId?: string;
+  docDateStart?: string;
+  docDateEnd?: string;
+  keyword?: string;
+}
+
+export interface PendingSupplierPaymentRecord {
+  purchaseOrderNo: string;
+  salesOrderNo: string;
+  supplierId: string;
+  supplierName: string;
+  docDate: string | null;
+  currency: string;
+  scheduleId: number;
+  installmentNo: number;
+  paymentType: PurchaseOrderPaymentType;
+  percentage: number;
+  expectedAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  outstandingAmount: number;
+  payableAmount: number;
+  expectedAmountThb: number;
+  paidAmountThb: number;
+  pendingAmountThb: number;
+  outstandingAmountThb: number;
+  payableAmountThb: number;
+  dueDate: string | null;
+}
+
+export interface SearchPendingSupplierPaymentResponse {
+  status: string;
+  data: {
+    records: PendingSupplierPaymentRecord[];
+    pagination: Pagination;
+  };
+}
+
+export interface ExchangeRateResponse {
+  date: string;
+  base: string;
+  quote: string;
+  rate: number;
+}
+
 export interface PurchaseOrderItem {
   id: number;
   salesOrderDetailId: number | null;
@@ -186,7 +232,12 @@ export type PurchaseOrderPaymentType = 'DEPOSIT' | 'BALANCE' | 'INSTALLMENT' | '
 export type PurchaseOrderPaymentMethod = 'TRANSFER' | 'CHEQUE' | 'CASH';
 export type PurchaseOrderPaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'VOIDED';
 export type PurchaseOrderPaymentLifecycleStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
-export type PurchaseOrderPaymentScheduleStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+export type PurchaseOrderPaymentScheduleStatus =
+  | 'UNPAID'
+  | 'AWAITING_PAYMENT_SETUP'
+  | 'AWAITING_PAYMENT'
+  | 'PARTIALLY_PAID'
+  | 'PAID';
 
 export interface PurchaseOrderPaymentSchedule {
   id: number;
@@ -205,12 +256,47 @@ export interface PurchaseOrderPaymentSchedule {
   dueDate: string | null;
 }
 
+export type PurchaseOrderPaymentInstructionStatus =
+  | 'DRAFT'
+  | 'AWAITING_PAYMENT'
+  | 'PARTIALLY_PAID'
+  | 'PAID'
+  | 'CANCELLED';
+
+export interface PurchaseOrderPaymentInstruction {
+  id: number;
+  scheduleId: number;
+  installmentNo: number;
+  amount: number;
+  amountThb: number | null;
+  currency: string;
+  exchangeRate: number | null;
+  plannedPaymentDate: string;
+  paidAmount: number;
+  paidAmountThb: number;
+  confirmedPaidDate?: string | null;
+  status: PurchaseOrderPaymentInstructionStatus;
+  remark: string | null;
+  createdDate: string | null;
+}
+
+export interface PurchaseOrderPaymentInstructionRequest {
+  scheduleId: number;
+  amount?: number;
+  amountThb?: number | null;
+  exchangeRate?: number | null;
+  plannedPaymentDate: string;
+  remark?: string | null;
+}
+
 export interface PurchaseOrderPaymentRequest {
   scheduleId?: number | null;
+  instructionId?: number | null;
   paymentType: PurchaseOrderPaymentType;
   installmentNo?: number | null;
   paymentDate: string;
   amount: number;
+  amountThb?: number | null;
   exchangeRate?: number | null;
   paymentMethod: PurchaseOrderPaymentMethod;
   transferReference?: string | null;
@@ -235,6 +321,7 @@ export interface PurchaseOrderPaymentAttachment {
 export interface PurchaseOrderPayment {
   id: number;
   scheduleId: number | null;
+  instructionId?: number | null;
   paymentType: PurchaseOrderPaymentType;
   installmentNo: number | null;
   paymentDate: string;

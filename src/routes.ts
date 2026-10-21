@@ -41,6 +41,7 @@ export const ROUTE_PATHS = Object.freeze({
   PRICE_INQUIRY: '/price-inquiry/:id',
   PRICE_INQUIRY_MANAGEMENT: '/price-inquiry-management',
   AWAITING_APPROVE_MANAGEMENT: '/awaiting-approve-management',
+  PENDING_SUPPLIER_PAYMENTS: '/pending-supplier-payments',
   FINAL_PRICE_INQUIRY_MANAGEMENT: '/final-price-inquiry-management',
   RFQ_CREATE: '/rfq-create',
   RFQ_DETAIL: '/rfq/:id',
@@ -252,6 +253,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
     component: lazy(() => import('./pages/UrgentApprovalManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.AWAITING_APPROVE_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PENDING_SUPPLIER_PAYMENTS,
+    component: lazy(() => import('./pages/PendingSupplierPayments' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
   },
   {
     path: ROUTE_PATHS.PRICE_INQUIRY,

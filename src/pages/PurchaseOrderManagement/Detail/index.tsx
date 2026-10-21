@@ -20,6 +20,7 @@ import {
   TaskAlt
 } from '@mui/icons-material';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -81,6 +82,7 @@ import {
   closePurchaseOrder,
   getPurchaseOrderPayments,
   getPurchaseOrderPaymentSchedules,
+  getPurchaseOrderPaymentInstructions,
   getPurchaseOrderProductionTimeline,
   completePurchaseOrderMilestone,
   completePurchaseOrderProduction,
@@ -100,6 +102,7 @@ import {
   PurchaseOrderMilestoneCode,
   PurchaseOrderTimelineEvent,
   PurchaseOrderRecord,
+  PurchaseOrderPaymentInstruction,
   CompletePurchaseOrderProductionRequest,
   UpdatePurchaseOrderRequest
 } from 'services/PurchaseOrder/purchase-order-type';
@@ -212,7 +215,7 @@ function createProductionDeliveryDraft(
               Math.max(
                 Number(
                   component.totalQuantity ??
-                    Number(item.quantity || 0) * Number(component.quantityPerItem || 0)
+                  Number(item.quantity || 0) * Number(component.quantityPerItem || 0)
                 ) - deliveredQuantityFor(item.id, component.id || null),
                 0
               )
@@ -276,17 +279,19 @@ const resolveAttachmentDocumentType = (
 function TabPanel({
   value,
   currentTab,
-  children
+  children,
+  keepMounted = false
 }: {
   value: string;
   currentTab: string;
   children: ReactElement;
+  keepMounted?: boolean;
 }): ReactElement | null {
-  if (value !== currentTab) {
+  if (value !== currentTab && !keepMounted) {
     return null;
   }
   return (
-    <Box role="tabpanel" sx={{ pt: 3 }}>
+    <Box role="tabpanel" hidden={value !== currentTab} sx={{ pt: 3 }}>
       {children}
     </Box>
   );
@@ -333,12 +338,12 @@ function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
     docDate: purchaseOrder?.docDate?.replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$2-$1') || '',
     productionLeadTimeDay:
       purchaseOrder?.productionLeadTimeDay !== null &&
-      purchaseOrder?.productionLeadTimeDay !== undefined
+        purchaseOrder?.productionLeadTimeDay !== undefined
         ? String(purchaseOrder.productionLeadTimeDay)
         : '',
     shippingLeadTimeDay:
       purchaseOrder?.shippingLeadTimeDay !== null &&
-      purchaseOrder?.shippingLeadTimeDay !== undefined
+        purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
     remark: purchaseOrder?.remark || '',
@@ -375,8 +380,61 @@ export default function PurchaseOrderDetail(): ReactElement {
   const { t } = useTranslation();
   const { has } = usePermissions();
   const canViewProof = has(PERMISSIONS.PO_PROOF_VIEW);
+  const canViewSupplierPayment = has(PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW);
   const canManageTimeline = has(PERMISSIONS.PURCHASE_ORDER_START_RUN);
-  const [tab, setTab] = useState<'detail' | 'proof' | 'delivery' | 'history'>('detail');
+  const availableTabs: Array<'detail' | 'payment' | 'proof' | 'delivery' | 'history'> = [
+    'detail',
+    ...(canViewSupplierPayment ? ['payment' as const] : []),
+    ...(canViewProof ? ['proof' as const] : []),
+    'delivery',
+    'history'
+  ];
+  const [tab, setTab] = useState<'detail' | 'payment' | 'proof' | 'delivery' | 'history'>(() => {
+    const searchParams = new URLSearchParams(history.location.search);
+    const requestedTab = searchParams.get('tab') as
+      | 'detail'
+      | 'payment'
+      | 'proof'
+      | 'delivery'
+      | 'history'
+      | null;
+    if (requestedTab && availableTabs.includes(requestedTab)) return requestedTab;
+
+    const requestedIndex = Number(searchParams.get('tabIndex'));
+    if (
+      searchParams.has('tabIndex') &&
+      Number.isInteger(requestedIndex) &&
+      requestedIndex >= 0 &&
+      requestedIndex < availableTabs.length
+    ) {
+      return availableTabs[requestedIndex];
+    }
+    return 'detail';
+  });
+  useEffect(() => {
+    const searchParams = new URLSearchParams(history.location.search);
+    const requestedTab = searchParams.get('tab') as
+      | 'detail'
+      | 'payment'
+      | 'proof'
+      | 'delivery'
+      | 'history'
+      | null;
+    if (requestedTab && availableTabs.includes(requestedTab)) {
+      setTab(requestedTab);
+      return;
+    }
+
+    const requestedIndex = Number(searchParams.get('tabIndex'));
+    if (
+      searchParams.has('tabIndex') &&
+      Number.isInteger(requestedIndex) &&
+      requestedIndex >= 0 &&
+      requestedIndex < availableTabs.length
+    ) {
+      setTab(availableTabs[requestedIndex]);
+    }
+  }, [history.location.search, canViewSupplierPayment, canViewProof]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft());
@@ -385,6 +443,11 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isStartRunConfirmOpen, setIsStartRunConfirmOpen] = useState(false);
+  const [isProductionPaymentSummaryOpen, setIsProductionPaymentSummaryOpen] = useState(false);
+  const [selectedProductionScheduleId, setSelectedProductionScheduleId] = useState<number | ''>('');
+  const [openPaymentDraftRequest, setOpenPaymentDraftRequest] = useState(0);
+  const [paymentDraftScheduleId, setPaymentDraftScheduleId] = useState<number | ''>('');
+  const [productionPaymentWarning, setProductionPaymentWarning] = useState('');
   const [isExpectedEndDateDialogOpen, setIsExpectedEndDateDialogOpen] = useState(false);
   const [newExpectedEndDate, setNewExpectedEndDate] = useState('');
   const [isLateStart, setIsLateStart] = useState(false);
@@ -494,12 +557,28 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const {
     data: purchaseOrderPaymentSchedules = [],
-    isFetching: isStartRunPaymentSchedulesFetching
+    isFetching: isStartRunPaymentSchedulesFetching,
+    isError: isPaymentSchedulesError,
+    refetch: refetchPaymentSchedules
   } = useQuery(
     ['purchase-order-payment-schedules', id],
     () => getPurchaseOrderPaymentSchedules(id),
     {
       enabled: Boolean(id),
+      refetchOnWindowFocus: true
+    }
+  );
+
+  const {
+    data: purchaseOrderPaymentInstructions = [],
+    isFetching: isPaymentInstructionsFetching,
+    isError: isPaymentInstructionsError,
+    refetch: refetchPaymentInstructions
+  } = useQuery<PurchaseOrderPaymentInstruction[]>(
+    ['purchase-order-payment-instructions', id],
+    () => getPurchaseOrderPaymentInstructions(id),
+    {
+      enabled: Boolean(id) && canViewSupplierPayment,
       refetchOnWindowFocus: true
     }
   );
@@ -583,6 +662,24 @@ export default function PurchaseOrderDetail(): ReactElement {
       !['COMPLETED', 'SKIPPED'].includes(event.status)
   );
   const nextCompletableMilestone = productionTimeline?.events.find((event) => event.canComplete);
+  const unpaidPaymentSchedules = purchaseOrderPaymentSchedules.filter(
+    (schedule) =>
+      Number(schedule.outstandingAmount || 0) - Number(schedule.pendingAmount || 0) > 0
+  );
+  const selectedProductionSchedule = unpaidPaymentSchedules.find(
+    (schedule) => schedule.id === selectedProductionScheduleId
+  );
+  const selectedProductionInstruction = selectedProductionSchedule
+    ? purchaseOrderPaymentInstructions
+      .filter(
+        (instruction) =>
+          instruction.scheduleId === selectedProductionSchedule.id &&
+          instruction.status !== 'CANCELLED'
+      )
+      .sort((left, right) =>
+        (right.createdDate || '').localeCompare(left.createdDate || '')
+      )[0]
+    : undefined;
 
   const openMilestoneDialog = (event: PurchaseOrderTimelineEvent, mode: 'complete' | 'skip') => {
     setMilestoneDialog({ event, mode });
@@ -593,6 +690,45 @@ export default function PurchaseOrderDetail(): ReactElement {
     if (event.type === 'PRODUCTION_COMPLETED') {
       setProductionDeliveryDraft(createProductionDeliveryDraft(purchaseOrder));
     }
+  };
+
+  const handleOpenProductionCompletion = () => {
+    if (!productionCompletedMilestone) return;
+    if (isStartRunPaymentSchedulesFetching || (canViewSupplierPayment && isPaymentInstructionsFetching)) {
+      toast.error('กำลังตรวจสอบแผนการชำระเงิน กรุณาลองอีกครั้ง');
+      return;
+    }
+    if (isPaymentSchedulesError || (canViewSupplierPayment && isPaymentInstructionsError)) {
+      toast.error('ไม่สามารถตรวจสอบรายการตั้งจ่ายได้ กรุณาลองอีกครั้ง');
+      return;
+    }
+
+    const remainingSchedule = unpaidPaymentSchedules[0];
+    if (!remainingSchedule) {
+      setProductionPaymentWarning('');
+      openMilestoneDialog(productionCompletedMilestone, 'complete');
+      return;
+    }
+
+    const existingInstruction = purchaseOrderPaymentInstructions
+      .filter((instruction) =>
+        instruction.scheduleId === remainingSchedule.id && instruction.status !== 'CANCELLED'
+      )
+      .sort((left, right) => (right.createdDate || '').localeCompare(left.createdDate || ''))[0];
+
+    if (!existingInstruction) {
+      setPaymentDraftScheduleId(remainingSchedule.id);
+      setTab('payment');
+      setOpenPaymentDraftRequest((request) => request + 1);
+      return;
+    }
+
+    setProductionPaymentWarning(
+      existingInstruction.status === 'PAID'
+        ? ''
+        : `มีรายการตั้งจ่ายของงวดที่ ${remainingSchedule.installmentNo} แล้ว แต่ยังไม่ได้ชำระ กรุณาตรวจสอบก่อนบันทึกผลิตเสร็จ`
+    );
+    openMilestoneDialog(productionCompletedMilestone, 'complete');
   };
 
   const updateProductionDeliveryHeader = (
@@ -745,6 +881,49 @@ export default function PurchaseOrderDetail(): ReactElement {
     }));
   };
 
+  const addDraftItem = () => {
+    setDraft((previous) => ({
+      ...previous,
+      items: [
+        ...previous.items,
+        {
+          id: -Date.now(),
+          salesOrderDetailId: null,
+          lineNo: previous.items.length + 1,
+          name: '',
+          type: null,
+          capacity: null,
+          size: null,
+          spec: null,
+          quantity: 1,
+          supplierCurrency: purchaseOrder?.currency || null,
+          supplierUnitPrice: 0,
+          exchangeRate: purchaseOrder?.exchangeRate || 0,
+          supplierShippingCost: 0,
+          supplierTotalUnitCost: 0,
+          amountSupplierCurrency: 0,
+          amountThb: 0,
+          imageUrl: null,
+          rfqDetailId: null,
+          rfqTierId: null,
+          rfqTierSplitId: null,
+          quotationDetailId: null,
+          shippingMethod: purchaseOrder?.shippingMethodSnapshot || null,
+          supplierQuoteTierId: null,
+          packages: [],
+          components: []
+        }
+      ]
+    }));
+  };
+
+  const removeDraftItem = (index: number) => {
+    setDraft((previous) => ({
+      ...previous,
+      items: previous.items.filter((_item, itemIndex) => itemIndex !== index)
+    }));
+  };
+
   const updateDraftComponent = (
     itemIndex: number,
     componentIndex: number,
@@ -768,17 +947,17 @@ export default function PurchaseOrderDetail(): ReactElement {
       items: previous.items.map((item, index) =>
         index === itemIndex
           ? {
-              ...item,
-              components: [
-                ...(item.components || []),
-                {
-                  componentName: '',
-                  quantityPerItem: 1,
-                  unit: 'pcs',
-                  sortOrder: item.components?.length || 0
-                }
-              ]
-            }
+            ...item,
+            components: [
+              ...(item.components || []),
+              {
+                componentName: '',
+                quantityPerItem: 1,
+                unit: 'pcs',
+                sortOrder: item.components?.length || 0
+              }
+            ]
+          }
           : item
       )
     }));
@@ -861,6 +1040,14 @@ export default function PurchaseOrderDetail(): ReactElement {
       return;
     }
 
+    const invalidNewItem = draft.items.find(
+      (item) => item.id < 0 && (!item.name.trim() || Number(item.quantity) <= 0)
+    );
+    if (invalidNewItem) {
+      toast.error('กรุณาระบุชื่อสินค้าและจำนวนของรายการสินค้าใหม่ให้ครบถ้วน');
+      return;
+    }
+
     const payload: UpdatePurchaseOrderRequest = {
       docDate: draft.docDate || null,
       productionLeadTimeDay: draft.productionLeadTimeDay
@@ -869,7 +1056,7 @@ export default function PurchaseOrderDetail(): ReactElement {
       shippingLeadTimeDay: draft.shippingLeadTimeDay ? Number(draft.shippingLeadTimeDay) : null,
       remark: draft.remark || null,
       items: draft.items.map((item) => ({
-        id: item.id,
+        id: item.id > 0 ? item.id : null,
         salesOrderDetailId: item.salesOrderDetailId ?? null,
         name: item.name || null,
         type: item.type || null,
@@ -1309,8 +1496,8 @@ export default function PurchaseOrderDetail(): ReactElement {
               primary="เริ่มผลิต"
               secondary={
                 purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
-                !purchaseOrder.productionStartedDate &&
-                !productionStartedMilestone?.canComplete
+                  !purchaseOrder.productionStartedDate &&
+                  !productionStartedMilestone?.canComplete
                   ? 'ต้องอนุมัติหรือข้ามพรูฟทั้งสองขั้นตอนก่อน'
                   : undefined
               }
@@ -1318,11 +1505,10 @@ export default function PurchaseOrderDetail(): ReactElement {
           </MenuItem>
           <MenuItem
             onClick={() => {
-              //if (!canCompleteProduction || !productionCompletedMilestone) return;
               handleCloseOperationMenu();
-              openMilestoneDialog(productionCompletedMilestone, 'complete');
+              handleOpenProductionCompletion();
             }}
-            //disabled={!canCompleteProduction || isSubmitting || isProductionTimelineFetching}
+            disabled={!canCompleteProduction || isSubmitting || isProductionTimelineFetching}
             sx={{ width: '100%' }}>
             <ListItemIcon>
               <PrecisionManufacturing fontSize="small" />
@@ -1331,9 +1517,9 @@ export default function PurchaseOrderDetail(): ReactElement {
               primary="ผลิตเสร็จ"
               secondary={
                 purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
-                !purchaseOrder.productionStartedDate &&
-                !purchaseOrder.productionCompletedDate &&
-                !productionCompletedMilestone?.canComplete
+                  !purchaseOrder.productionStartedDate &&
+                  !purchaseOrder.productionCompletedDate &&
+                  !productionCompletedMilestone?.canComplete
                   ? 'ต้องบันทึกเริ่มผลิตก่อน'
                   : undefined
               }
@@ -1576,6 +1762,102 @@ export default function PurchaseOrderDetail(): ReactElement {
           </Stack>
         </ConfirmDialog>
 
+        <Dialog
+          open={isProductionPaymentSummaryOpen}
+          onClose={() => setIsProductionPaymentSummaryOpen(false)}
+          fullWidth
+          maxWidth="sm">
+          <DialogTitle>ยอดผลิตและงวดที่รอตั้งจ่าย</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={1.5}>
+              <Typography>
+                {!canViewSupplierPayment || isPaymentSchedulesError
+                  ? 'ไม่มีสิทธิ์หรือไม่สามารถโหลดข้อมูลแผนการชำระเงินได้'
+                  : unpaidPaymentSchedules.length > 0
+                    ? 'ตรวจสอบยอดคงเหลือและวันที่วางแผนจ่ายของงวดก่อนบันทึกผลิตเสร็จ'
+                    : 'ไม่มีงวดชำระเงินคงค้าง สามารถดำเนินการบันทึกผลิตเสร็จต่อได้'}
+              </Typography>
+              {canViewSupplierPayment &&
+                !isPaymentSchedulesError &&
+                unpaidPaymentSchedules.length > 0 ? (
+                <TextField
+                  select
+                  fullWidth
+                  label="งวดการชำระเงิน"
+                  value={selectedProductionScheduleId}
+                  onChange={(event) =>
+                    setSelectedProductionScheduleId(
+                      event.target.value ? Number(event.target.value) : ''
+                    )
+                  }
+                  InputLabelProps={{ shrink: true }}>
+                  {unpaidPaymentSchedules.map((schedule) => (
+                    <MenuItem key={schedule.id} value={schedule.id}>
+                      งวดที่ {schedule.installmentNo}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : null}
+              {canViewSupplierPayment &&
+                !isPaymentSchedulesError &&
+                unpaidPaymentSchedules.length > 0 &&
+                selectedProductionSchedule ? (
+                <>
+                  <TextField
+                    fullWidth
+                    label="วันที่วางแผนจ่าย"
+                    value={
+                      selectedProductionInstruction?.plannedPaymentDate
+                        ? dayjs(selectedProductionInstruction.plannedPaymentDate).format(
+                          'DD/MM/YYYY'
+                        )
+                        : ''
+                    }
+                    placeholder="ยังไม่กำหนด"
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{ readOnly: true }}
+                    helperText={
+                      isPaymentInstructionsError
+                        ? 'ไม่สามารถโหลดวันที่วางแผนจ่ายได้'
+                        : selectedProductionInstruction?.plannedPaymentDate
+                          ? ''
+                          : 'ยังไม่กำหนด'
+                    }
+                  />
+                  <TextField
+                    fullWidth
+                    label={`ยอดที่โรงงานแจ้ง (CNY)`}
+                    value={formatNumber(
+                      Number(selectedProductionSchedule.outstandingAmount || 0) -
+                      Number(selectedProductionSchedule.pendingAmount || 0)
+                    )}
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{ readOnly: true }}
+                  />
+                </>
+              ) : null}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setIsProductionPaymentSummaryOpen(false);
+              }}>
+              ยกเลิก
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setIsProductionPaymentSummaryOpen(false);
+                if (productionCompletedMilestone) {
+                  openMilestoneDialog(productionCompletedMilestone, 'complete');
+                }
+              }}>
+              ดำเนินการต่อ
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <ConfirmDialog
           open={Boolean(milestoneDialog && milestoneDialog.event.type !== 'PRODUCTION_COMPLETED')}
           title={
@@ -1644,6 +1926,11 @@ export default function PurchaseOrderDetail(): ReactElement {
             {/* <Stack spacing={2} sx={{ pt: 1 }}> */}
             <Grid container spacing={2}>
               <GridTextField item xs={12} sm={12}>
+                {productionPaymentWarning ? (
+                  <Alert severity="warning" sx={{ mb: 1 }}>
+                    {productionPaymentWarning}
+                  </Alert>
+                ) : null}
                 <Typography color="text.secondary">
                   ระบุข้อมูลเที่ยวส่งจากโรงงาน ระบบจะบันทึกข้อมูล delivery พร้อมกับ milestone
                   ผลิตเสร็จ
@@ -1716,9 +2003,8 @@ export default function PurchaseOrderDetail(): ReactElement {
               <Grid item xs={12}>
                 {productionDeliveryDraft.details.map((detail, index) => (
                   <Box
-                    key={`${detail.purchaseOrderDetailId}-${
-                      detail.purchaseOrderDetailComponentId ?? 'product'
-                    }-${detail.optionNo}`}
+                    key={`${detail.purchaseOrderDetailId}-${detail.purchaseOrderDetailComponentId ?? 'product'
+                      }-${detail.optionNo}`}
                     sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2, p: 2 }}>
                     <Stack
                       direction="row"
@@ -1824,36 +2110,36 @@ export default function PurchaseOrderDetail(): ReactElement {
               timeline={productionTimeline}
               purchaseOrderStatus={purchaseOrder?.status}
               actions={null}
-              //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
-              //     <Stack
-              //       direction={{ xs: 'column', sm: 'row' }}
-              //       spacing={1}
-              //       justifyContent="flex-end">
-              //       {nextProofMilestone && canViewProof ? (
-              //         <Button variant="outlined" onClick={() => setTab('proof')}>
-              //           {nextProofMilestone.status === 'IN_PROGRESS'
-              //             ? `ดู ${nextProofMilestone.label}`
-              //             : `ดำเนินการ ${nextProofMilestone.label}`}
-              //         </Button>
-              //       ) : null}
-              //       {nextProofMilestone?.canSkip && canManageTimeline ? (
-              //         <Button
-              //           variant="outlined"
-              //           color="inherit"
-              //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
-              //           ข้าม {nextProofMilestone.label}
-              //         </Button>
-              //       ) : null}
-              //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
-              //         <Button
-              //           variant="contained"
-              //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
-              //           {milestoneActionLabel(nextCompletableMilestone)}
-              //         </Button>
-              //       ) : null}
-              //     </Stack>
-              //   ) : null
-              // }
+            //   purchaseOrder?.status === 'PRODUCTION_RUNNING' ? (
+            //     <Stack
+            //       direction={{ xs: 'column', sm: 'row' }}
+            //       spacing={1}
+            //       justifyContent="flex-end">
+            //       {nextProofMilestone && canViewProof ? (
+            //         <Button variant="outlined" onClick={() => setTab('proof')}>
+            //           {nextProofMilestone.status === 'IN_PROGRESS'
+            //             ? `ดู ${nextProofMilestone.label}`
+            //             : `ดำเนินการ ${nextProofMilestone.label}`}
+            //         </Button>
+            //       ) : null}
+            //       {nextProofMilestone?.canSkip && canManageTimeline ? (
+            //         <Button
+            //           variant="outlined"
+            //           color="inherit"
+            //           onClick={() => openMilestoneDialog(nextProofMilestone, 'skip')}>
+            //           ข้าม {nextProofMilestone.label}
+            //         </Button>
+            //       ) : null}
+            //       {!nextProofMilestone && nextCompletableMilestone && canManageTimeline ? (
+            //         <Button
+            //           variant="contained"
+            //           onClick={() => openMilestoneDialog(nextCompletableMilestone, 'complete')}>
+            //           {milestoneActionLabel(nextCompletableMilestone)}
+            //         </Button>
+            //       ) : null}
+            //     </Stack>
+            //   ) : null
+            // }
             />
           ) : (
             <Typography color="text.secondary">ยังไม่มีข้อมูล Timeline การผลิต</Typography>
@@ -1862,10 +2148,14 @@ export default function PurchaseOrderDetail(): ReactElement {
 
         <Tabs
           value={tab}
-          onChange={(_event: SyntheticEvent, value: 'detail' | 'proof' | 'delivery' | 'history') =>
+          onChange={(
+            _event: SyntheticEvent,
+            value: 'detail' | 'payment' | 'proof' | 'delivery' | 'history'
+          ) =>
             setTab(value)
           }>
           <Tab value="detail" label="รายละเอียด" />
+          {canViewSupplierPayment ? <Tab value="payment" label="ชำระเงิน" /> : null}
           {canViewProof ? <Tab value="proof" label="งานพรูฟ" /> : null}
           <Tab value="delivery" label="ขนส่งสินค้า" />
           <Tab value="history" label="ประวัติ" />
@@ -1980,14 +2270,12 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Supplier Shipping"
                       value={
                         purchaseOrder?.supplierShipping
-                          ? `${
-                              purchaseOrder.supplierShipping.shippingMethod === 'SEA'
-                                ? 'ทางเรือ'
-                                : 'ทางรถ'
-                            } | ${
-                              purchaseOrder.supplierShipping.shippingName ||
-                              `Shipping #${purchaseOrder.supplierShipping.id}`
-                            }`
+                          ? `${purchaseOrder.supplierShipping.shippingMethod === 'SEA'
+                            ? 'ทางเรือ'
+                            : 'ทางรถ'
+                          } | ${purchaseOrder.supplierShipping.shippingName ||
+                          `Shipping #${purchaseOrder.supplierShipping.id}`
+                          }`
                           : '-'
                       }
                     />
@@ -2003,7 +2291,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                       label="Shipping Method"
                       value={getShippingMethodLabel(
                         purchaseOrder?.shippingMethodSnapshot ||
-                          purchaseOrder?.supplierShipping?.shippingMethod
+                        purchaseOrder?.supplierShipping?.shippingMethod
                       )}
                     />
                   </Grid>
@@ -2060,8 +2348,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                       value={
                         purchaseOrder?.supplierShipping?.destinations?.length
                           ? purchaseOrder.supplierShipping.destinations
-                              .map((item) => item.destinationName || item.fullAddress || '-')
-                              .join(', ')
+                            .map((item) => item.destinationName || item.fullAddress || '-')
+                            .join(', ')
                           : '-'
                       }
                     />
@@ -2080,7 +2368,14 @@ export default function PurchaseOrderDetail(): ReactElement {
             </Grid>
             <Grid item xs={12}>
               <Stack className={classes.section} spacing={2}>
-                <Typography variant="h6">รายการสินค้า</Typography>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="h6">รายการสินค้า</Typography>
+                  {isEditing ? (
+                    <Button variant="outlined" startIcon={<Add />} onClick={addDraftItem}>
+                      เพิ่มรายการสินค้า
+                    </Button>
+                  ) : null}
+                </Stack>
                 <TableContainer>
                   <Table>
                     <TableHead>
@@ -2134,15 +2429,26 @@ export default function PurchaseOrderDetail(): ReactElement {
                               </TableCell>
                               <TableCell className={classes.productCell}>
                                 {isEditing ? (
-                                  <TextField
-                                    className={classes.itemTextField}
-                                    value={item.name || ''}
-                                    onChange={(event) =>
-                                      updateDraftItemText(index, 'name', event.target.value)
-                                    }
-                                    fullWidth
-                                    size="small"
-                                  />
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <TextField
+                                      className={classes.itemTextField}
+                                      value={item.name || ''}
+                                      onChange={(event) =>
+                                        updateDraftItemText(index, 'name', event.target.value)
+                                      }
+                                      fullWidth
+                                      size="small"
+                                    />
+                                    {item.id < 0 ? (
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        aria-label="ลบรายการสินค้าใหม่"
+                                        onClick={() => removeDraftItem(index)}>
+                                        <DeleteOutline fontSize="small" />
+                                      </IconButton>
+                                    ) : null}
+                                  </Stack>
                                 ) : (
                                   item.name || '-'
                                 )}
@@ -2197,8 +2503,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                     }
                                   />
                                 ) : (
-                                  `${formatNumber(item.supplierUnitPrice || 0)} ${
-                                    item.supplierCurrency || ''
+                                  `${formatNumber(item.supplierUnitPrice || 0)} ${item.supplierCurrency || ''
                                   }`
                                 )}
                               </TableCell>
@@ -2323,7 +2628,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 <TableCell align="right">
                                                   {formatNumber(
                                                     Number(item.quantity || 0) *
-                                                      Number(component.quantityPerItem || 0)
+                                                    Number(component.quantityPerItem || 0)
                                                   )}
                                                 </TableCell>
                                                 <TableCell>
@@ -2421,8 +2726,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                                                 {packageItem.packageCapacity ||
                                                   (packageItem.capacityQty != null
                                                     ? `${formatNumber(
-                                                        packageItem.capacityQty
-                                                      )} pcs.`
+                                                      packageItem.capacityQty
+                                                    )} pcs.`
                                                     : '-')}
                                               </TableCell>
                                               <TableCell align="right">
@@ -2502,14 +2807,6 @@ export default function PurchaseOrderDetail(): ReactElement {
                 </TableContainer>
               </Stack>
             </Grid>
-            {purchaseOrder ? (
-              <Grid item xs={12}>
-                <PurchaseOrderPaymentSection
-                  purchaseOrder={purchaseOrder}
-                  onChanged={() => Promise.all([refetch(), refetchHistory()])}
-                />
-              </Grid>
-            ) : null}
             <Grid item xs={8}>
               <Stack className={classes.section} spacing={2}>
                 <Typography variant="h6">ไฟล์แนบ</Typography>
@@ -2652,6 +2949,26 @@ export default function PurchaseOrderDetail(): ReactElement {
             </Grid>
           </Grid>
         </TabPanel>
+
+        {canViewSupplierPayment ? (
+          <TabPanel value="payment" currentTab={tab} keepMounted>
+            {purchaseOrder ? (
+              <PurchaseOrderPaymentSection
+                purchaseOrder={purchaseOrder}
+                openDraftRequest={openPaymentDraftRequest}
+                draftScheduleId={paymentDraftScheduleId}
+                onChanged={() =>
+                  Promise.all([
+                    refetch(),
+                    refetchHistory(),
+                    refetchPaymentSchedules(),
+                    refetchPaymentInstructions()
+                  ])
+                }
+              />
+            ) : null}
+          </TabPanel>
+        ) : null}
 
         {canViewProof ? (
           <TabPanel value="proof" currentTab={tab}>

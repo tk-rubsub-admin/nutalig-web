@@ -12,6 +12,7 @@ import {
   FilePresent,
   InfoOutlined,
   Menu as MenuIcon,
+  OpenInNew,
   Save
 } from '@mui/icons-material';
 import {
@@ -40,7 +41,8 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography
+  Typography,
+  InputAdornment
 } from '@mui/material';
 import { useFormik } from 'formik';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
@@ -5082,13 +5084,43 @@ export default function RFQDetail(): ReactElement {
                     />
                   </GridTextField>
 
-                  <GridTextField item xs={12} sm={6}>
+                  <GridTextField item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       label={t('rfqManagement.form.rfqTypeCode')}
                       value={getNamedCodeValueLabel(rfq?.rfqType)}
                       InputLabelProps={{ shrink: true }}
                       InputProps={{ readOnly: true }}
+                    />
+                  </GridTextField>
+
+                  <GridTextField item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label={t('rfqManagement.detail.fields.referenceRfqId')}
+                      name="referenceRfqId"
+                      value={rfq?.referenceRfqId || ''}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: rfq?.referenceRfqId ? (
+                          <InputAdornment position="end">
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              aria-label={t('rfqManagement.detail.actions.openReferenceRfq')}
+                              onClick={() =>
+                                window.open(
+                                  ROUTE_PATHS.RFQ_DETAIL.replace(':id', rfq.referenceRfqId || ''),
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )
+                              }>
+                              <OpenInNew fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ) : undefined
+                      }}
                     />
                   </GridTextField>
 

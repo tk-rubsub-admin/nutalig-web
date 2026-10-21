@@ -66,6 +66,7 @@ import {
   SyntheticEvent,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react';
 import toast from 'react-hot-toast';
@@ -438,6 +439,8 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft());
+  const [newDraftItemId, setNewDraftItemId] = useState<number | null>(null);
+  const newDraftItemRowRef = useRef<HTMLTableRowElement | null>(null);
   const [operationMenuAnchorEl, setOperationMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
@@ -499,6 +502,12 @@ export default function PurchaseOrderDetail(): ReactElement {
       '& .MuiTextField-root': {
         minWidth: 120
       }
+    },
+    actionCell: {
+      width: '1%',
+      whiteSpace: 'nowrap',
+      paddingLeft: 8,
+      paddingRight: 8
     },
     imageCell: {
       width: '1%',
@@ -597,6 +606,15 @@ export default function PurchaseOrderDetail(): ReactElement {
     setDraft(createDraft(purchaseOrder));
     setIsEditing(false);
   }, [purchaseOrder]);
+
+  useEffect(() => {
+    if (newDraftItemId === null || !newDraftItemRowRef.current) {
+      return;
+    }
+
+    newDraftItemRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setNewDraftItemId(null);
+  }, [draft.items, newDraftItemId]);
 
   const displayItems = isEditing ? draft.items : purchaseOrder?.items || [];
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
@@ -882,12 +900,13 @@ export default function PurchaseOrderDetail(): ReactElement {
   };
 
   const addDraftItem = () => {
+    const newItemId = -Date.now();
     setDraft((previous) => ({
       ...previous,
       items: [
         ...previous.items,
         {
-          id: -Date.now(),
+          id: newItemId,
           salesOrderDetailId: null,
           lineNo: previous.items.length + 1,
           name: '',
@@ -915,6 +934,8 @@ export default function PurchaseOrderDetail(): ReactElement {
         }
       ]
     }));
+    setNewDraftItemId(newItemId);
+    toast.success('เพิ่มแถวสินค้าแล้ว');
   };
 
   const removeDraftItem = (index: number) => {
@@ -2371,7 +2392,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="h6">รายการสินค้า</Typography>
                   {isEditing ? (
-                    <Button variant="outlined" startIcon={<Add />} onClick={addDraftItem}>
+                    <Button variant="contained" startIcon={<Add />} onClick={addDraftItem}>
                       เพิ่มรายการสินค้า
                     </Button>
                   ) : null}
@@ -2396,13 +2417,22 @@ export default function PurchaseOrderDetail(): ReactElement {
                         <TableCell className={`${classes.tableHeader} ${classes.numericCell}`}>
                           รวม
                         </TableCell>
+                        {isEditing ? (
+                          <TableCell
+                            className={`${classes.tableHeader} ${classes.actionCell}`}
+                            align="center">
+                            จัดการ
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {displayItems.length ? (
                         displayItems.map((item, index) => (
                           <Fragment key={item.id || item.lineNo || index}>
-                            <TableRow>
+                            <TableRow
+                              ref={item.id === newDraftItemId ? newDraftItemRowRef : undefined}
+                            >
                               <TableCell align="center" className={classes.imageCell}>
                                 {item.imageUrl ? (
                                   <Box
@@ -2439,15 +2469,6 @@ export default function PurchaseOrderDetail(): ReactElement {
                                       fullWidth
                                       size="small"
                                     />
-                                    {item.id < 0 ? (
-                                      <IconButton
-                                        size="small"
-                                        color="error"
-                                        aria-label="ลบรายการสินค้าใหม่"
-                                        onClick={() => removeDraftItem(index)}>
-                                        <DeleteOutline fontSize="small" />
-                                      </IconButton>
-                                    ) : null}
                                   </Stack>
                                 ) : (
                                   item.name || '-'
@@ -2511,293 +2532,25 @@ export default function PurchaseOrderDetail(): ReactElement {
                                 {formatNumber(item.amountSupplierCurrency || 0)}{' '}
                                 {item.supplierCurrency || ''}
                               </TableCell>
+                              {isEditing ? (
+                                <TableCell align="center" className={classes.actionCell}>
+                                  {item.id < 0 ? (
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      aria-label="ลบรายการสินค้าใหม่"
+                                      onClick={() => removeDraftItem(index)}>
+                                      <DeleteOutline fontSize="small" />
+                                    </IconButton>
+                                  ) : null}
+                                </TableCell>
+                              ) : null}
                             </TableRow>
-                            {item.components?.length || isEditing ? (
-                              <TableRow>
-                                <TableCell colSpan={6} sx={{ backgroundColor: '#fffaf0', p: 1.5 }}>
-                                  <Stack spacing={1}>
-                                    <Stack
-                                      direction="row"
-                                      justifyContent="space-between"
-                                      alignItems="center">
-                                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                        ชิ้นส่วน / อะไหล่
-                                      </Typography>
-                                      {isEditing ? (
-                                        <Button
-                                          size="small"
-                                          startIcon={<Edit />}
-                                          onClick={() => addDraftComponent(index)}>
-                                          เพิ่มชิ้นส่วน
-                                        </Button>
-                                      ) : null}
-                                    </Stack>
-                                    <TableContainer
-                                      sx={{ border: '1px solid #eadfca', borderRadius: 2 }}>
-                                      <Table size="small">
-                                        <TableHead>
-                                          <TableRow sx={{ backgroundColor: '#fff3d6' }}>
-                                            <TableCell>รหัส</TableCell>
-                                            <TableCell>ชื่อชิ้นส่วน</TableCell>
-                                            <TableCell>สเปก</TableCell>
-                                            <TableCell align="right">ต่อสินค้า</TableCell>
-                                            <TableCell align="right">รวม</TableCell>
-                                            <TableCell>หน่วย</TableCell>
-                                            {isEditing ? <TableCell /> : null}
-                                          </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                          {(item.components || []).map(
-                                            (component, componentIndex) => (
-                                              <TableRow key={component.id || componentIndex}>
-                                                <TableCell>
-                                                  {isEditing ? (
-                                                    <TextField
-                                                      size="small"
-                                                      value={component.componentCode || ''}
-                                                      onChange={(e) =>
-                                                        updateDraftComponent(
-                                                          index,
-                                                          componentIndex,
-                                                          'componentCode',
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    component.componentCode || '-'
-                                                  )}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {isEditing ? (
-                                                    <TextField
-                                                      required
-                                                      size="small"
-                                                      value={component.componentName || ''}
-                                                      onChange={(e) =>
-                                                        updateDraftComponent(
-                                                          index,
-                                                          componentIndex,
-                                                          'componentName',
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    component.componentName || '-'
-                                                  )}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {isEditing ? (
-                                                    <TextField
-                                                      size="small"
-                                                      value={component.specification || ''}
-                                                      onChange={(e) =>
-                                                        updateDraftComponent(
-                                                          index,
-                                                          componentIndex,
-                                                          'specification',
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    component.specification || '-'
-                                                  )}
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                  {isEditing ? (
-                                                    <TextField
-                                                      size="small"
-                                                      type="number"
-                                                      inputProps={{ min: 0.00001, step: 0.00001 }}
-                                                      value={component.quantityPerItem || 0}
-                                                      onChange={(e) =>
-                                                        updateDraftComponent(
-                                                          index,
-                                                          componentIndex,
-                                                          'quantityPerItem',
-                                                          Number(e.target.value || 0)
-                                                        )
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    formatNumber(component.quantityPerItem || 0)
-                                                  )}
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                  {formatNumber(
-                                                    Number(item.quantity || 0) *
-                                                    Number(component.quantityPerItem || 0)
-                                                  )}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {isEditing ? (
-                                                    <TextField
-                                                      size="small"
-                                                      value={component.unit || 'pcs'}
-                                                      onChange={(e) =>
-                                                        updateDraftComponent(
-                                                          index,
-                                                          componentIndex,
-                                                          'unit',
-                                                          e.target.value
-                                                        )
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    component.unit || 'pcs'
-                                                  )}
-                                                </TableCell>
-                                                {isEditing ? (
-                                                  <TableCell>
-                                                    <Button
-                                                      color="error"
-                                                      size="small"
-                                                      onClick={() =>
-                                                        removeDraftComponent(index, componentIndex)
-                                                      }>
-                                                      <DeleteOutline />
-                                                    </Button>
-                                                  </TableCell>
-                                                ) : null}
-                                              </TableRow>
-                                            )
-                                          )}
-                                          {!item.components?.length ? (
-                                            <TableRow>
-                                              <TableCell colSpan={isEditing ? 7 : 6} align="center">
-                                                ยังไม่มีรายการชิ้นส่วน
-                                              </TableCell>
-                                            </TableRow>
-                                          ) : null}
-                                        </TableBody>
-                                      </Table>
-                                    </TableContainer>
-                                  </Stack>
-                                </TableCell>
-                              </TableRow>
-                            ) : null}
-                            {item.packages?.length ? (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={6}
-                                  sx={{ backgroundColor: BRAND_UI.sandTint, p: 1.5 }}>
-                                  <Stack spacing={1}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                      ข้อมูล Package และ CBM
-                                    </Typography>
-                                    <TableContainer
-                                      sx={{
-                                        border: `1px solid ${BRAND_COLORS.sand}`,
-                                        borderRadius: 2
-                                      }}>
-                                      <Table size="small" sx={{ minWidth: 920 }}>
-                                        <TableHead>
-                                          <TableRow sx={{ backgroundColor: '#eef4fa' }}>
-                                            <TableCell>Package</TableCell>
-                                            <TableCell>ขนาดกล่อง</TableCell>
-                                            <TableCell>น้ำหนัก</TableCell>
-                                            <TableCell align="right">บรรจุ/ลัง</TableCell>
-                                            <TableCell align="right">จำนวนลัง</TableCell>
-                                            <TableCell align="right">CBM/ลัง</TableCell>
-                                            <TableCell align="right">CBM รวม</TableCell>
-                                            <TableCell align="center">สถานะ</TableCell>
-                                          </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                          {item.packages.map((packageItem, packageIndex) => (
-                                            <TableRow
-                                              key={
-                                                packageItem.id ||
-                                                packageItem.sourcePackageId ||
-                                                packageIndex
-                                              }>
-                                              <TableCell>
-                                                {packageItem.packageName || '-'}
-                                              </TableCell>
-                                              <TableCell>
-                                                {packageItem.packageDimension || '-'}
-                                              </TableCell>
-                                              <TableCell>
-                                                {packageItem.packageWeight || '-'}
-                                              </TableCell>
-                                              <TableCell align="right">
-                                                {packageItem.packageCapacity ||
-                                                  (packageItem.capacityQty != null
-                                                    ? `${formatNumber(
-                                                      packageItem.capacityQty
-                                                    )} pcs.`
-                                                    : '-')}
-                                              </TableCell>
-                                              <TableCell align="right">
-                                                {packageItem.cartonCount != null
-                                                  ? formatNumber(packageItem.cartonCount)
-                                                  : '-'}
-                                              </TableCell>
-                                              <TableCell align="right">
-                                                {packageItem.cbmPerCarton != null
-                                                  ? formatNumber(packageItem.cbmPerCarton)
-                                                  : '-'}
-                                              </TableCell>
-                                              <TableCell align="right">
-                                                {packageItem.totalCbm != null
-                                                  ? formatNumber(packageItem.totalCbm)
-                                                  : '-'}
-                                              </TableCell>
-                                              <TableCell align="center">
-                                                <Chip
-                                                  size="small"
-                                                  color={
-                                                    packageItem.selectedForCalculation
-                                                      ? 'success'
-                                                      : 'default'
-                                                  }
-                                                  label={
-                                                    packageItem.selectedForCalculation
-                                                      ? 'รวมใน CBM'
-                                                      : 'ไม่นำมาคำนวณ'
-                                                  }
-                                                />
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
-                                          <TableRow sx={{ backgroundColor: '#eef4fa' }}>
-                                            <TableCell colSpan={6} align="right">
-                                              <Typography
-                                                variant="subtitle2"
-                                                sx={{ fontWeight: 700 }}>
-                                                รวม CBM
-                                              </Typography>
-                                            </TableCell>
-                                            <TableCell align="right">
-                                              <Typography
-                                                variant="subtitle2"
-                                                sx={{ fontWeight: 700 }}>
-                                                {formatNumber(
-                                                  item.packages.reduce(
-                                                    (total, packageItem) =>
-                                                      total + Number(packageItem.totalCbm || 0),
-                                                    0
-                                                  )
-                                                )}{' '}
-                                                CBM
-                                              </Typography>
-                                            </TableCell>
-                                            <TableCell />
-                                          </TableRow>
-                                        </TableBody>
-                                      </Table>
-                                    </TableContainer>
-                                  </Stack>
-                                </TableCell>
-                              </TableRow>
-                            ) : null}
                           </Fragment>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} align="center">
+                          <TableCell colSpan={isEditing ? 7 : 6} align="center">
                             {t('warning.noResultList')}
                           </TableCell>
                         </TableRow>
@@ -2805,6 +2558,154 @@ export default function PurchaseOrderDetail(): ReactElement {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                {isEditing || displayItems.some((item) => item.components?.length) ? (
+                  <Stack spacing={1}>
+                    <Typography variant="h6">ชิ้นส่วน / อะไหล่</Typography>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell className={classes.tableHeader}>รหัส</TableCell>
+                            <TableCell className={classes.tableHeader}>ชื่อชิ้นส่วน</TableCell>
+                            <TableCell className={classes.tableHeader}>สเปก</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">ต่อสินค้า</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">รวม</TableCell>
+                            <TableCell className={classes.tableHeader}>หน่วย</TableCell>
+                            {isEditing ? <TableCell className={classes.tableHeader}>จัดการ</TableCell> : null}
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {displayItems.map((item, itemIndex) => (
+                            <Fragment key={`components-${item.id || itemIndex}`}>
+                              <TableRow sx={{ backgroundColor: '#fff3d6' }}>
+                                <TableCell colSpan={isEditing ? 7 : 6}>
+                                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                      {item.name || `สินค้า ${itemIndex + 1}`}
+                                    </Typography>
+                                    {isEditing ? (
+                                      <Button size="small" startIcon={<Add />} onClick={() => addDraftComponent(itemIndex)}>
+                                        เพิ่มชิ้นส่วน
+                                      </Button>
+                                    ) : null}
+                                  </Stack>
+                                </TableCell>
+                              </TableRow>
+                              {item.components?.length ? item.components.map((component, componentIndex) => (
+                                <TableRow key={`${item.id}-${component.id || componentIndex}`}>
+                                  <TableCell>
+                                    {isEditing ? <TextField size="small" value={component.componentCode || ''} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'componentCode', event.target.value)} /> : component.componentCode || '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {isEditing ? <TextField required size="small" value={component.componentName || ''} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'componentName', event.target.value)} /> : component.componentName || '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {isEditing ? <TextField size="small" value={component.specification || ''} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'specification', event.target.value)} /> : component.specification || '-'}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    {isEditing ? <TextField size="small" type="number" inputProps={{ min: 0.00001, step: 0.00001 }} value={component.quantityPerItem || 0} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'quantityPerItem', Number(event.target.value || 0))} /> : formatNumber(component.quantityPerItem || 0)}
+                                  </TableCell>
+                                  <TableCell align="right">{formatNumber(Number(item.quantity || 0) * Number(component.quantityPerItem || 0))}</TableCell>
+                                  <TableCell>
+                                    {isEditing ? <TextField size="small" value={component.unit || 'pcs'} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'unit', event.target.value)} /> : component.unit || 'pcs'}
+                                  </TableCell>
+                                  {isEditing ? (
+                                    <TableCell>
+                                      <IconButton color="error" size="small" aria-label="ลบชิ้นส่วน" onClick={() => removeDraftComponent(itemIndex, componentIndex)}>
+                                        <DeleteOutline />
+                                      </IconButton>
+                                    </TableCell>
+                                  ) : null}
+                                </TableRow>
+                              )) : (
+                                <TableRow>
+                                  <TableCell colSpan={isEditing ? 7 : 6}>
+                                    <Typography variant="body2" color="text.secondary">ยังไม่มีรายการชิ้นส่วน</Typography>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Stack>
+                ) : null}
+                {displayItems.some((item) => item.packages?.length) ? (
+                  <Stack spacing={1}>
+                    <Typography variant="h6">ข้อมูล Package และ CBM</Typography>
+                    <TableContainer>
+                      <Table size="small" sx={{ minWidth: 920 }}>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell className={classes.tableHeader}>Package</TableCell>
+                            <TableCell className={classes.tableHeader}>ขนาดกล่อง</TableCell>
+                            <TableCell className={classes.tableHeader}>น้ำหนัก</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">บรรจุ/ลัง</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">จำนวนลัง</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">CBM/ลัง</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">CBM รวม</TableCell>
+                            <TableCell className={classes.tableHeader} align="center">สถานะ</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {displayItems.flatMap((item, itemIndex) => {
+                            if (!item.packages?.length) return [];
+                            return [
+                              <TableRow key={`package-group-${item.id || itemIndex}`} sx={{ backgroundColor: '#eef4fa' }}>
+                                <TableCell colSpan={8}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                    {item.name || `สินค้า ${itemIndex + 1}`}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>,
+                              ...item.packages.map((packageItem, packageIndex) => (
+                                <TableRow key={`${item.id}-${packageItem.id || packageItem.sourcePackageId || packageIndex}`}>
+                                  <TableCell>{packageItem.packageName || '-'}</TableCell>
+                                  <TableCell>{packageItem.packageDimension || '-'}</TableCell>
+                                  <TableCell>{packageItem.packageWeight || '-'}</TableCell>
+                                  <TableCell align="right">
+                                    {packageItem.packageCapacity || (packageItem.capacityQty != null ? `${formatNumber(packageItem.capacityQty)} pcs.` : '-')}
+                                  </TableCell>
+                                  <TableCell align="right">{packageItem.cartonCount != null ? formatNumber(packageItem.cartonCount) : '-'}</TableCell>
+                                  <TableCell align="right">{packageItem.cbmPerCarton != null ? formatNumber(packageItem.cbmPerCarton) : '-'}</TableCell>
+                                  <TableCell align="right">{packageItem.totalCbm != null ? formatNumber(packageItem.totalCbm) : '-'}</TableCell>
+                                  <TableCell align="center">
+                                    <Chip size="small" color={packageItem.selectedForCalculation ? 'success' : 'default'} label={packageItem.selectedForCalculation ? 'รวมใน CBM' : 'ไม่นำมาคำนวณ'} />
+                                  </TableCell>
+                                </TableRow>
+                              )),
+                              <TableRow key={`package-subtotal-${item.id || itemIndex}`} sx={{ backgroundColor: '#f7f9fc' }}>
+                                <TableCell colSpan={6} align="right">
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                    รวม CBM ของ {item.name || `สินค้า ${itemIndex + 1}`}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                    {formatNumber(item.packages.reduce((total, packageItem) => total + Number(packageItem.totalCbm || 0), 0))} CBM
+                                  </Typography>
+                                </TableCell>
+                                <TableCell />
+                              </TableRow>
+                            ];
+                          })}
+                          <TableRow>
+                            <TableCell colSpan={6} align="right">
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>รวม CBM ทุกสินค้า</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                {formatNumber(displayItems.reduce((total, item) => total + (item.packages || []).reduce((packageTotal, packageItem) => packageTotal + Number(packageItem.totalCbm || 0), 0), 0))} CBM
+                              </Typography>
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Stack>
+                ) : null}
               </Stack>
             </Grid>
             <Grid item xs={8}>

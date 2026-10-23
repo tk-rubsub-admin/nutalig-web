@@ -1541,7 +1541,7 @@ export default function RFQDetail(): ReactElement {
           })
         )
         .min(1, t('rfqManagement.validation.requestedMoqsRequired')),
-      description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
+      description: Yup.string().required(t('rfqManagement.validation.description'))
     }),
     onSubmit: async (values, actions) => {
       if (!params.id) {

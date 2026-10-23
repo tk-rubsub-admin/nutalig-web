@@ -184,6 +184,7 @@ export interface RFQQuotationSummary {
 
 export interface RFQDetailTierSplit {
   id: number;
+  supplierQuoteTierId?: number | null;
   supplier?: Supplier | null;
   quantity: number;
   productPrice: number;

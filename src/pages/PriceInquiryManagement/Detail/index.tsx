@@ -2183,7 +2183,7 @@ export default function RFQDetail(): ReactElement {
       systemMechanic: Yup.string().max(255),
       material: Yup.string().trim().max(255).required(t('rfqManagement.validation.material')),
       capacity: Yup.string().max(255).required(t('rfqManagement.validation.capacity')),
-      description: Yup.string().max(1000).required(t('rfqManagement.validation.description'))
+      description: Yup.string().required(t('rfqManagement.validation.description'))
     }),
     onSubmit: async (values, actions) => {
       if (!params.id || !rfq) {

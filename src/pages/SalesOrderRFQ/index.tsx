@@ -61,12 +61,14 @@ import { getQuotation } from 'services/Document/document-api';
 import { Quotation } from 'services/Document/document-type';
 import { createFreelanceSale, getFreelanceSales } from 'services/FreelanceSale/freelance-sale-api';
 import { FreelanceSaleRecord } from 'services/FreelanceSale/freelance-sale-type';
-import { getRFQ, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
+import { getRFQ, getRFQSupplierQuotes, linkRFQSalesOrder } from 'services/RFQ/rfq-api';
 import {
   RFQDetailOption,
   RFQDetailTier,
   RFQDetailTierSplit,
-  RFQRecord
+  RFQRecord,
+  RFQSupplierQuote,
+  RFQSupplierQuoteTier
 } from 'services/RFQ/rfq-type';
 import { getCountry, getDistrict, getProvince, getSubDistrict } from 'services/Address/address-api';
 import { Country, District, Province, SubDistrict } from 'services/Address/address-type';
@@ -474,7 +476,10 @@ function buildPaymentTermRemark(customer?: Customer | null, grandTotal = 0): str
   return paymentTermLine;
 }
 
-function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
+function createSaleOrderItemsFromRFQ(
+  rfq: RFQRecord,
+  supplierQuoteTiersById: Map<number, RFQSupplierQuoteTier>
+): SaleOrderRFQItem[] {
   const material = getRFQProductLabel(rfq.material);
   const productFamily = getRFQProductLabel(rfq.productFamily);
   const productName = [getRFQProductLabel(rfq.productSubtype1), material].filter(Boolean).join(' ');
@@ -503,7 +508,15 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
         const quantity = Number(tierSplit.quantity || 1);
         const unitPrice = Number(tierSplit.sellPrice || 0);
         const shippingMethod = tierSplit.shippingMethod || 'LAND';
-        const shippingCost = Number(tierSplit.shippingCost || 0);
+        const supplierQuoteTier = tierSplit.supplierQuoteTierId
+          ? supplierQuoteTiersById.get(tierSplit.supplierQuoteTierId)
+          : undefined;
+        const supplierUnitPrice = Number(
+          supplierQuoteTier?.productPrice ?? tierSplit.productPrice ?? 0
+        );
+        const shippingCost = Number(
+          supplierQuoteTier?.shippingCost ?? tierSplit.shippingCost ?? 0
+        );
         const shippingDisplayLabel = getShippingDisplayLabel(
           shippingMethod,
           tierSplit.isFcl,
@@ -516,14 +529,16 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
           optionId: detail.id,
           tierSplitId: tierSplit.id,
           supplierId: getTierSplitSupplierId(tierSplit) || getRFQDetailSupplierId(detail),
+          supplierQuoteTierId: tierSplit.supplierQuoteTierId || undefined,
           shippingMethod,
           isFcl: Boolean(tierSplit.isFcl),
           isShareFCL: Boolean(tierSplit.isShareFCL),
-          supplierCurrency: tierSplit.currency || null,
-          supplierUnitPrice: Number(tierSplit.productPrice || 0),
+          supplierCurrency:
+            supplierQuoteTier?.productPriceCurrency || supplierQuoteTier?.currency || tierSplit.currency || null,
+          supplierUnitPrice,
           exchangeRate: 0,
           supplierShippingCost: shippingCost,
-          supplierTotalUnitCost: Number(tierSplit.productPrice || 0) + shippingCost,
+          supplierTotalUnitCost: supplierUnitPrice + shippingCost,
           name: productName || `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
             quantity
           )} - ${shippingDisplayLabel}`,
@@ -615,7 +630,8 @@ function createSaleOrderItemsFromRFQ(rfq: RFQRecord): SaleOrderRFQItem[] {
 function createSaleOrderItemsFromQuotation(
   rfq: RFQRecord,
   quotation: Quotation,
-  rfqsById: Map<string, RFQRecord>
+  rfqsById: Map<string, RFQRecord>,
+  supplierQuoteTiersById: Map<number, RFQSupplierQuoteTier>
 ): SaleOrderRFQItem[] {
   return (quotation.items || []).map((item, index) => {
     const sourceRfq = rfqsById.get(item.sourceRfqId || '') || rfq;
@@ -637,6 +653,9 @@ function createSaleOrderItemsFromQuotation(
     const mappedTierSplit = mappedDetail?.tierSplits?.find(
       (tierSplit) => tierSplit.id === rfqTierSplitId
     );
+    const mappedTierSplitSupplierQuoteTier = mappedTierSplit?.supplierQuoteTierId
+      ? supplierQuoteTiersById.get(mappedTierSplit.supplierQuoteTierId)
+      : undefined;
     const mappedPrice = mappedTierSplit || mappedTier;
     const isSampleProductionItem = (item.name || '').includes('ค่าตัวอย่าง');
     const mappedShippingMethod = isSampleProductionItem
@@ -661,17 +680,26 @@ function createSaleOrderItemsFromQuotation(
       supplierId:
         getTierSplitSupplierId(mappedTierSplit) || getRFQDetailSupplierId(mappedDetail),
       quotationDetailId: item.id,
-      supplierQuoteTierId: mappedTier?.supplierQuoteTierId || undefined,
+      supplierQuoteTierId:
+        mappedTierSplit?.supplierQuoteTierId || mappedTier?.supplierQuoteTierId || undefined,
       shippingMethod: mappedShippingMethod,
       isFcl: Boolean(mappedPrice?.isFcl),
       isShareFCL: Boolean(mappedPrice?.isShareFCL),
-      supplierCurrency: mappedPrice?.currency || null,
-      supplierUnitPrice: Number(mappedPrice?.productPrice || 0),
+      supplierCurrency:
+        mappedTierSplitSupplierQuoteTier?.productPriceCurrency ||
+        mappedTierSplitSupplierQuoteTier?.currency ||
+        mappedPrice?.currency ||
+        null,
+      supplierUnitPrice: Number(
+        mappedTierSplitSupplierQuoteTier?.productPrice ?? mappedPrice?.productPrice ?? 0
+      ),
       exchangeRate: Number(mappedTier?.exchangeRate || 0),
-      supplierShippingCost: Number(mappedPrice?.shippingCost || 0),
+      supplierShippingCost: Number(
+        mappedTierSplitSupplierQuoteTier?.shippingCost ?? mappedPrice?.shippingCost ?? 0
+      ),
       supplierTotalUnitCost:
-        Number(mappedPrice?.productPrice || 0) +
-        Number(mappedPrice?.shippingCost || 0),
+        Number(mappedTierSplitSupplierQuoteTier?.productPrice ?? mappedPrice?.productPrice ?? 0) +
+        Number(mappedTierSplitSupplierQuoteTier?.shippingCost ?? mappedPrice?.shippingCost ?? 0),
       name: rfqDetailId ? productName || item.name || productFamily || 'PRE-ORDER' : item.name,
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
@@ -870,6 +898,31 @@ export default function SalesOrderRFQ(): JSX.Element {
     });
     return rfqsById;
   }, [rfq, quotationSourceRfqs]);
+  const supplierQuoteRfqIds = useMemo(
+    () => Array.from(quotationRfqsById.keys()).sort(),
+    [quotationRfqsById]
+  );
+  const { data: supplierQuoteGroups = [], isFetching: isSupplierQuoteGroupsFetching } = useQuery(
+    ['sale-order-rfq-supplier-quotes', supplierQuoteRfqIds],
+    () => Promise.all(supplierQuoteRfqIds.map((sourceRfqId) => getRFQSupplierQuotes(sourceRfqId))),
+    {
+      enabled: supplierQuoteRfqIds.length > 0,
+      refetchOnWindowFocus: false
+    }
+  );
+  const supplierQuoteTiersById = useMemo(() => {
+    const tiersById = new Map<number, RFQSupplierQuoteTier>();
+    supplierQuoteGroups.flat().forEach((quote: RFQSupplierQuote) => {
+      quote.details?.forEach((detail) => {
+        detail.tiers?.forEach((tier) => {
+          if (tier.id !== null && tier.id !== undefined) {
+            tiersById.set(Number(tier.id), tier);
+          }
+        });
+      });
+    });
+    return tiersById;
+  }, [supplierQuoteGroups]);
   const shouldLoadFreelanceSales = coSaleMode === CO_SALE_MODE_FREELANCE;
   const { data: freelanceSales = [], isFetching: isFreelanceSalesFetching } = useQuery(
     'sale-order-rfq-freelance-sales',
@@ -1608,11 +1661,17 @@ export default function SalesOrderRFQ(): JSX.Element {
     if (!rfq) return;
     if (hasSelectedRFQParams && !quotation?.data) return;
     if (quotationSourceRfqIds.length > 0 && isQuotationSourceRfqsFetching) return;
+    if (supplierQuoteRfqIds.length > 0 && isSupplierQuoteGroupsFetching) return;
 
     const applyRFQ = async () => {
       const allItems = quotation
-        ? createSaleOrderItemsFromQuotation(rfq, quotation?.data, quotationRfqsById)
-        : createSaleOrderItemsFromRFQ(rfq);
+        ? createSaleOrderItemsFromQuotation(
+            rfq,
+            quotation?.data,
+            quotationRfqsById,
+            supplierQuoteTiersById
+          )
+        : createSaleOrderItemsFromRFQ(rfq, supplierQuoteTiersById);
       const selectedItemFromDialog = selectedRFQParams.flatMap((selectedItem) =>
         allItems
           .filter(
@@ -1702,7 +1761,10 @@ export default function SalesOrderRFQ(): JSX.Element {
     selectedRFQParams,
     quotationSourceRfqIds.length,
     isQuotationSourceRfqsFetching,
-    quotationRfqsById
+    quotationRfqsById,
+    supplierQuoteRfqIds.length,
+    isSupplierQuoteGroupsFetching,
+    supplierQuoteTiersById
   ]);
   const summaryShippingOptions = useMemo(() => {
     const shippingSummary = new Map<

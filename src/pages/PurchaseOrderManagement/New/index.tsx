@@ -277,11 +277,41 @@ export default function NewPurchaseOrder(): ReactElement {
   const [isUploadingSupplierAttachments, setIsUploadingSupplierAttachments] = useState(false);
   const classes = useStyles();
 
+  const {
+    data: purchaseOrderCreateVersionConfig = [],
+    isFetching: isPurchaseOrderCreateVersionFetching,
+    isError: isPurchaseOrderCreateVersionError
+  } = useQuery(
+    ['purchase-order-create-version-config'],
+    () => getSystemConfig(GROUP_CODE.PURCHASE_ORDER_CREATE_VERSION),
+    {
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: false
+    }
+  );
+  const shouldRedirectToV2 =
+    !isPurchaseOrderCreateVersionFetching &&
+    !isPurchaseOrderCreateVersionError &&
+    purchaseOrderCreateVersionConfig.some((config) => config.code === '2');
+
+  useEffect(() => {
+    if (shouldRedirectToV2 && salesOrderId) {
+      history.replace(
+        ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2.replace(
+          ':salesOrderId',
+          salesOrderId
+        )
+      );
+    }
+  }, [history, salesOrderId, shouldRedirectToV2]);
+
   const { data: salesOrder, isFetching } = useQuery(
     ['purchase-order-create-sales-order', salesOrderId],
     () => getSalesOrderV1(salesOrderId),
     {
-      enabled: Boolean(salesOrderId),
+      enabled: Boolean(salesOrderId) &&
+        !isPurchaseOrderCreateVersionFetching &&
+        !shouldRedirectToV2,
       refetchOnWindowFocus: false
     }
   );
@@ -821,6 +851,14 @@ export default function NewPurchaseOrder(): ReactElement {
       setIsUploadingSupplierAttachments(false);
     }
   };
+
+  if (isPurchaseOrderCreateVersionFetching || shouldRedirectToV2) {
+    return (
+      <Page>
+        <LoadingDialog open />
+      </Page>
+    );
+  }
 
   return (
     <Page>

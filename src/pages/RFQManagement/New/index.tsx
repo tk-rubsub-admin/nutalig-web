@@ -448,7 +448,7 @@ export default function NewRFQ(): JSX.Element {
             return values.every((value) => value?.moq && value.moq.trim().length > 0);
           }
         ),
-      description: Yup.string().max(1000).required(t('rfqManagement.validation.description')),
+      description: Yup.string().required(t('rfqManagement.validation.description')),
       project: Yup.string().max(255)
     }),
     onSubmit: submitCreateRFQ

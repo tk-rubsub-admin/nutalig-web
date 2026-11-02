@@ -23,6 +23,7 @@ export const ROUTE_PATHS = Object.freeze({
   APPROVAL_REJECT: '/approval-reject',
   INVOICE_AWAITING_VALIDATION: '/invoice-awaiting-validation',
   SUPPLIER_MANAGEMENT: '/supplier-management',
+  SUPPLIER_SHIPPING_MANAGEMENT: '/supplier-shipping-management',
   SUPPLIER_DETAIL: '/supplier/:id',
   SUPPLIER_NEW: '/supplier-create',
   STAFF_MANAGEMENT: '/staff-management',
@@ -58,6 +59,9 @@ export const ROUTE_PATHS = Object.freeze({
   INVOICE_DETAIL: '/invoice/:id',
   INVOICE_DOCUMENT: '/invoice/:id/document',
   PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
+  CONTAINER_MANAGEMENT: '/container-management',
+  CONTAINER_CREATE: '/container-create',
+  CONTAINER_DETAIL: '/container-management/:id',
   PURCHASE_ORDER_PRODUCTION_CALENDAR: '/purchase-order-production-calendar',
   MY_PURCHASE_ORDER_MANAGEMENT: '/my-purchase-order-management',
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER: '/purchase-order-create/:salesOrderId',
@@ -157,6 +161,13 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
     component: lazy(() => import('./pages/SupplierManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.SUPPLIER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.SUPPLIER_SHIPPING_MANAGEMENT,
+    component: lazy(
+      () => import('./pages/SupplierShippingManagement' /* webpackChunkName: "app" */)
+    ),
     requiredPermissions: [PERMISSIONS.SUPPLIER_VIEW]
   },
   {
@@ -340,6 +351,23 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.PURCHASE_ORDER_MANAGEMENT,
     component: lazy(() => import('./pages/PurchaseOrderManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.CONTAINER_CREATE,
+    exact: true,
+    component: lazy(() => import('./pages/ContainerManagement/ShippingContainerPage')),
+    requiredPermissions: [PERMISSIONS.CONTAINER_CREATE]
+  },
+  {
+    path: ROUTE_PATHS.CONTAINER_DETAIL,
+    exact: true,
+    component: lazy(() => import('./pages/ContainerManagement/ShippingContainerPage')),
+    requiredPermissions: [PERMISSIONS.CONTAINER_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.CONTAINER_MANAGEMENT,
+    component: lazy(() => import('./pages/ContainerManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.CONTAINER_VIEW]
   },
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_PRODUCTION_CALENDAR,

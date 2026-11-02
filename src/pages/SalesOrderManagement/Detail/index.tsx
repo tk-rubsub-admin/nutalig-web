@@ -101,6 +101,10 @@ import {
   rejectUrgentSalesOrder
 } from 'services/SaleOrder/sale-order-api';
 import {
+  getSalesOrderPaymentSchedules,
+  SalesOrderPaymentSchedule
+} from 'services/SaleOrder/sale-order-api';
+import {
   SalesOrderAttachment,
   CustomerSnapshot,
   SalesOrderDetailV1,
@@ -434,6 +438,12 @@ export default function SalesOrderDetail(): ReactElement {
       enabled: Boolean(salesOrder?.salesOrderNo),
       refetchOnWindowFocus: false
     }
+  );
+
+  const { data: paymentSchedules = [], refetch: refetchPaymentSchedules } = useQuery<SalesOrderPaymentSchedule[]>(
+    ['sales-order-payment-schedules', salesOrder?.salesOrderNo],
+    () => getSalesOrderPaymentSchedules(salesOrder!.salesOrderNo),
+    { enabled: Boolean(salesOrder?.salesOrderNo), refetchOnWindowFocus: false }
   );
 
   const { data: relatedReceiptsResponse, isFetching: isReceiptFlowFetching } = useQuery(
@@ -1011,7 +1021,7 @@ export default function SalesOrderDetail(): ReactElement {
       });
       setIsEditing(false);
       setQuotationNoError(false);
-      await Promise.all([refetch(), refetchHistory(), refetchInvoices()]);
+      await Promise.all([refetch(), refetchHistory(), refetchInvoices(), refetchPaymentSchedules()]);
     } finally {
       setIsSaving(false);
     }
@@ -2360,6 +2370,44 @@ export default function SalesOrderDetail(): ReactElement {
                     </Stack>
                   </Box>
                 </Stack>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1 }}>
+                  Payment Schedule
+                </Typography>
+                <TableContainer>
+                  <Table size="small" aria-label="sales order payment schedule">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>งวด</TableCell>
+                        <TableCell align="right">เปอร์เซ็นต์</TableCell>
+                        <TableCell align="right">ยอดตามงวด</TableCell>
+                        <TableCell align="right">ชำระแล้ว</TableCell>
+                        <TableCell align="right">คงเหลือ</TableCell>
+                        <TableCell>สถานะ</TableCell>
+                        <TableCell>Invoice</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paymentSchedules.map((schedule) => (
+                        <TableRow key={schedule.id}>
+                          <TableCell>{`${schedule.installmentNo}/${schedule.installmentCount}`}</TableCell>
+                          <TableCell align="right">{formatNumber(schedule.percentage)}%</TableCell>
+                          <TableCell align="right">{formatNumber(schedule.expectedAmount)}</TableCell>
+                          <TableCell align="right">{formatNumber(schedule.paidAmount)}</TableCell>
+                          <TableCell align="right">{formatNumber(schedule.outstandingAmount)}</TableCell>
+                          <TableCell>
+                            <Chip size="small" label={schedule.status} />
+                          </TableCell>
+                          <TableCell>{schedule.invoiceNo || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {!paymentSchedules.length ? (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center">ยังไม่มี Payment Schedule</TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
                 {relatedInvoices.some((invoice) => invoice.payments?.length) ? (
                   <TableContainer>
                     <Table size="small">

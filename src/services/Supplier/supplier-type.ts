@@ -1,4 +1,5 @@
 import { Pagination } from 'services/general-type';
+import { SystemConfig } from 'services/Config/config-type';
 
 export interface SearchSupplierRequest {
   idEqual?: string;
@@ -119,6 +120,51 @@ export interface SupplierShipping {
   remark: string | null;
   carCode: string | null;
   destinations: SupplierShippingDestination[];
+}
+
+export interface SupplierShippingRoute {
+  id: number;
+  supplierShippingId: number;
+  supplierShippingName: string | null;
+  shippingMethod: 'LAND' | 'SEA' | null;
+  shippingMode: 'STANDARD' | 'FCL' | null;
+  carCode: string | null;
+  shippingRouteId: number;
+  routeCode: string | null;
+  originLocationId: number;
+  originLocationName: string | null;
+  destinationLocationId: number;
+  destinationLocationName: string | null;
+  currency: string | null;
+  baseCost: number | null;
+  leadTimeDayMin: number | null;
+  leadTimeDayMax: number | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  remark: string | null;
+  active: boolean;
+}
+
+export interface ShippingLocation {
+  id: number;
+  code: string | null;
+  name: string;
+  locationType: SystemConfig | null;
+  countryCode: string | null;
+  province: string | null;
+  district: string | null;
+  address: string | null;
+  active: boolean;
+}
+
+export interface ShippingRoute {
+  id: number;
+  routeCode: string | null;
+  originLocationId: number;
+  originLocationName: string | null;
+  destinationLocationId: number;
+  destinationLocationName: string | null;
+  active: boolean;
 }
 
 export interface LeadTimeConfig {

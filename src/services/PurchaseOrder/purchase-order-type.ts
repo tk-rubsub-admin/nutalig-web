@@ -390,9 +390,24 @@ export interface PurchaseOrderRecord {
   deliveries?: PurchaseOrderDeliveryRecord[];
 }
 
+export interface PurchaseOrderDeliveryScrapBox {
+  id?: number;
+  netWeightKg?: number | null;
+  grossWeightKg?: number | null;
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  cbmM3?: number | null;
+  sortOrder?: number | null;
+}
+
+export type DeliveryContainerStatus = 'NOT_ASSIGNED' | 'PARTIALLY_ASSIGNED' | 'ASSIGNED';
+
 export interface PurchaseOrderDeliveryRecord {
   id: number;
   deliveryNo?: string;
+  containerStatus?: DeliveryContainerStatus | null;
+  containers?: Array<{ id: number; containerJobNo: string; containerNo?: string | null }>;
   purchaseOrderNo?: string;
   shippedAt?: string | null;
   expectedWarehouseDate?: string | null;
@@ -408,7 +423,9 @@ export interface PurchaseOrderDeliveryRecord {
   updatedBy?: string | null;
   createdDate?: string | null;
   updatedDate?: string | null;
+  scrapBoxes?: PurchaseOrderDeliveryScrapBox[];
   details: Array<{
+    scrapBoxId?: number | null;
     id?: number;
     purchaseOrderDetailId: number;
     purchaseOrderDetailComponentId: number | null;
@@ -480,7 +497,9 @@ export interface CompletePurchaseOrderProductionRequest {
     receivedDate?: string | null;
     shippingMethod: string;
     shippingLocationId: number;
+    scrapBoxes?: PurchaseOrderDeliveryScrapBox[];
     details: Array<{
+      scrapBoxIndex?: number | null;
       purchaseOrderDetailId: number;
       purchaseOrderDetailComponentId?: number | null;
       quantity: number;
@@ -577,6 +596,42 @@ export interface SearchPurchaseOrderResponse {
   status: string;
   data: {
     records: PurchaseOrderRecord[];
+    pagination: Pagination;
+  };
+}
+
+export interface SearchPurchaseOrderDeliveryRequest {
+  deliveryNo?: string;
+  containerStatus?: DeliveryContainerStatus | null;
+  containerStatuses?: DeliveryContainerStatus[];
+  purchaseOrderNo?: string;
+  salesOrderNo?: string;
+  supplierId?: string;
+  supplierShippingId?: number;
+  shippingLocationId?: number;
+  supplierName?: string;
+  keyword?: string;
+  shippingMethod?: string;
+  status?: PurchaseOrderDeliveryRecord['status'] | null;
+  shippedDateStart?: string;
+  shippedDateEnd?: string;
+  expectedWarehouseDateStart?: string;
+  expectedWarehouseDateEnd?: string;
+}
+
+export interface PurchaseOrderDeliverySearchRecord extends PurchaseOrderDeliveryRecord {
+  salesOrderNo?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  totalQuantity: number;
+  totalCartons: number | null;
+  totalCbm: number | null;
+}
+
+export interface PurchaseOrderDeliverySearchResponse {
+  status: string;
+  data: {
+    records: PurchaseOrderDeliverySearchRecord[];
     pagination: Pagination;
   };
 }

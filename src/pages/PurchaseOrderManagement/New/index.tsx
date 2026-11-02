@@ -54,7 +54,11 @@ import {
   uploadSupplierAttachments
 } from 'services/Supplier/supplier-api';
 import { SupplierShipping } from 'services/Supplier/supplier-type';
-import { getShippingMethodCategory, getShippingMethodLabel, matchesSupplierShipping } from 'utils/shipping';
+import {
+  getShippingMethodCategory,
+  getShippingMethodLabel,
+  matchesSupplierShipping
+} from 'utils/shipping';
 import {
   AUTOMATIC_DELIVERY_ITEM_ID,
   buildAutomaticDeliveryItem
@@ -202,13 +206,11 @@ function calculateItemTotal(item: {
 
 function getPaymentTermRate(paymentTerm?: string | null): number | null {
   const normalizedPaymentTerm = paymentTerm?.trim().toUpperCase();
-  if (normalizedPaymentTerm === 'DEP50') {
-    return 0.5;
-  }
-  if (normalizedPaymentTerm?.startsWith('DEP_30_')) {
-    return 0.3;
-  }
-  return null;
+  if (!normalizedPaymentTerm?.startsWith('DEP')) return null;
+  const match = normalizedPaymentTerm.match(/^DEP[_-]?(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const percentage = Number(match[1]);
+  return percentage > 0 && percentage <= 100 ? percentage / 100 : null;
 }
 
 function formatShippingAddress(
@@ -231,7 +233,9 @@ function formatShippingAddress(
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -297,10 +301,7 @@ export default function NewPurchaseOrder(): ReactElement {
   useEffect(() => {
     if (shouldRedirectToV2 && salesOrderId) {
       history.replace(
-        ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2.replace(
-          ':salesOrderId',
-          salesOrderId
-        )
+        ROUTE_PATHS.PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2.replace(':salesOrderId', salesOrderId)
       );
     }
   }, [history, salesOrderId, shouldRedirectToV2]);
@@ -309,9 +310,8 @@ export default function NewPurchaseOrder(): ReactElement {
     ['purchase-order-create-sales-order', salesOrderId],
     () => getSalesOrderV1(salesOrderId),
     {
-      enabled: Boolean(salesOrderId) &&
-        !isPurchaseOrderCreateVersionFetching &&
-        !shouldRedirectToV2,
+      enabled:
+        Boolean(salesOrderId) && !isPurchaseOrderCreateVersionFetching && !shouldRedirectToV2,
       refetchOnWindowFocus: false
     }
   );
@@ -397,7 +397,9 @@ export default function NewPurchaseOrder(): ReactElement {
   const availableSupplierShippings = useMemo(() => {
     const shippingCategory = getShippingMethodCategory(draft.shippingMethodSnapshot);
     return shippingCategory
-      ? supplierShippings.filter((item) => matchesSupplierShipping(draft.shippingMethodSnapshot, item))
+      ? supplierShippings.filter((item) =>
+          matchesSupplierShipping(draft.shippingMethodSnapshot, item)
+        )
       : supplierShippings.filter((item) => (item.shippingMode || 'STANDARD') === 'STANDARD');
   }, [draft.shippingMethodSnapshot, supplierShippings]);
 
@@ -1229,10 +1231,7 @@ export default function NewPurchaseOrder(): ReactElement {
                   </TextField>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <ReadonlyTextField
-                    label="Car Code"
-                    value={selectedShipping?.carCode || '-'}
-                  />
+                  <ReadonlyTextField label="Car Code" value={selectedShipping?.carCode || '-'} />
                 </Grid>
                 <Grid item xs={12} sm={12}>
                   <ReadonlyTextField

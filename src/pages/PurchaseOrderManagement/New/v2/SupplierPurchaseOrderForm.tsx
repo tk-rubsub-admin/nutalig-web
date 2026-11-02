@@ -9,6 +9,7 @@ import {
 import {
   Box,
   Button,
+  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -31,8 +32,11 @@ import { makeStyles } from '@mui/styles';
 import CollapsibleWrapper from 'components/CollapsibleWrapper';
 import LoadingDialog from 'components/LoadingDialog';
 import { GridSearchSection, Wrapper } from 'components/Styled';
+import { useAuth } from 'auth/AuthContext';
+import { ROLES } from 'auth/roles';
 import { ChangeEvent, ReactElement, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useFormik } from 'formik';
 import { useQuery } from 'react-query';
 import { Link } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
@@ -44,7 +48,8 @@ import { SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-
 import {
   getSupplierById,
   getSupplierShippings,
-  uploadSupplierAttachments
+  uploadSupplierAttachments,
+  updateSupplier
 } from 'services/Supplier/supplier-api';
 import { SupplierShipping } from 'services/Supplier/supplier-type';
 import { CreatePurchaseOrderRequest } from 'services/PurchaseOrder/purchase-order-type';
@@ -105,6 +110,13 @@ interface PurchaseOrderItemEdit {
   supplierShippingCost?: number;
 }
 
+type PricingSource =
+  | 'Supplier Quote Tier'
+  | 'Sales Order Item'
+  | 'Supplier Shipping'
+  | 'Manual Item'
+  | 'Calculated Shipping';
+
 interface ManualPurchaseOrderItem {
   id: number;
   imageUrl: null;
@@ -117,6 +129,7 @@ interface ManualPurchaseOrderItem {
   isAutomaticShipping?: boolean;
   rfqId?: string | null;
   exchangeRate?: number | null;
+  pricingSource?: PricingSource;
 }
 
 interface SupplierQuoteTierPricing {
@@ -213,13 +226,11 @@ function calculateItemTotal(item: {
 
 function getPaymentTermRate(paymentTerm?: string | null): number | null {
   const normalizedPaymentTerm = paymentTerm?.trim().toUpperCase();
-  if (normalizedPaymentTerm === 'DEP50') {
-    return 0.5;
-  }
-  if (normalizedPaymentTerm?.startsWith('DEP_30_')) {
-    return 0.3;
-  }
-  return null;
+  if (!normalizedPaymentTerm?.startsWith('DEP')) return null;
+  const match = normalizedPaymentTerm.match(/^DEP[_-]?(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const percentage = Number(match[1]);
+  return percentage > 0 && percentage <= 100 ? percentage / 100 : null;
 }
 
 function formatShippingAddress(
@@ -239,10 +250,21 @@ function formatShippingAddress(
     .join(' ');
 }
 
+function formatSupplierShippingOption(shipping: SupplierShipping): string {
+  const shippingName = shipping.shippingName || `Shipping #${shipping.id}`;
+  const destinationNames = (shipping.destinations || [])
+    .map((destination) => destination.destinationName)
+    .filter(Boolean)
+    .join(', ');
+  return destinationNames ? `${shippingName} | ${destinationNames}` : shippingName;
+}
+
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -292,6 +314,8 @@ export default function SupplierPurchaseOrderForm({
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isUploadingSupplierAttachments, setIsUploadingSupplierAttachments] = useState(false);
   const classes = useStyles();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole(ROLES.SUPER_ADMIN);
 
   const { data: rfq } = useQuery(
     ['purchase-order-create-rfq', salesOrder?.rfqId],
@@ -349,6 +373,35 @@ export default function SupplierPurchaseOrderForm({
     }
   );
 
+  const supplierFormik = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      supplierContactSnapshot: supplierDetail?.contactName || '',
+      supplierContactNoSnapshot: supplierDetail?.contactNumber || '',
+      supplierAddressSnapshot: supplierDetail?.fullAddress || ''
+    },
+    onSubmit: async (values) => {
+      if (!draft.supplierId) return;
+      await toast.promise(
+        updateSupplier(draft.supplierId, {
+          fullAddress: values.supplierAddressSnapshot,
+          contacts: [{
+            contactName: values.supplierContactSnapshot,
+            contactNumber: values.supplierContactNoSnapshot,
+            isDefault: true
+          }]
+        }),
+        {
+          loading: 'กำลังบันทึกข้อมูล Supplier',
+          success: 'บันทึกข้อมูล Supplier สำเร็จ',
+          error: (error) => error?.response?.data?.message || 'ไม่สามารถบันทึกข้อมูล Supplier ได้'
+        }
+      );
+      setDraft((previous) => ({ ...previous, ...values }));
+      await refetchSupplier();
+    }
+  });
+
   const { data: paymentTerms = [] } = useQuery(
     ['purchase-order-payment-terms', GROUP_CODE.SUPPLIER_PAYMENT_TERM],
     () => getSystemConfig(GROUP_CODE.SUPPLIER_PAYMENT_TERM),
@@ -375,8 +428,8 @@ export default function SupplierPurchaseOrderForm({
     const shippingCategory = getShippingMethodCategory(draft.shippingMethodSnapshot);
     return shippingCategory
       ? supplierShippings.filter((item) =>
-          matchesSupplierShipping(draft.shippingMethodSnapshot, item)
-        )
+        matchesSupplierShipping(draft.shippingMethodSnapshot, item)
+      )
       : supplierShippings.filter((item) => (item.shippingMode || 'STANDARD') === 'STANDARD');
   }, [draft.shippingMethodSnapshot, supplierShippings]);
 
@@ -496,8 +549,8 @@ export default function SupplierPurchaseOrderForm({
         ...filteredItems.map((item) => {
           const supplierQuoteTier =
             item.rfqTierSplitId ||
-            item.supplierQuoteTierId === null ||
-            item.supplierQuoteTierId === undefined
+              item.supplierQuoteTierId === null ||
+              item.supplierQuoteTierId === undefined
               ? undefined
               : supplierQuoteTierById.get(String(item.supplierQuoteTierId));
 
@@ -506,6 +559,11 @@ export default function SupplierPurchaseOrderForm({
             supplierUnitPrice: supplierQuoteTier?.productPrice ?? item.supplierUnitPrice,
             supplierShippingCost: supplierQuoteTier ? 0 : item.supplierShippingCost,
             supplierCurrency: supplierQuoteTier?.currency || item.supplierCurrency,
+            pricingSource: supplierQuoteTier
+              ? 'Supplier Quote Tier'
+              : item.supplierCurrency || item.supplierUnitPrice !== null
+                ? 'Sales Order Item'
+                : 'Supplier Shipping',
             isAutomaticShipping: false,
             ...(itemEdits[item.id] || {})
           };
@@ -692,7 +750,8 @@ export default function SupplierPurchaseOrderForm({
         quantity: 1,
         supplierCurrency: editableItems[0]?.supplierCurrency || selectedShipping?.currency || null,
         supplierUnitPrice: 0,
-        supplierShippingCost: 0
+        supplierShippingCost: 0,
+        pricingSource: 'Manual Item'
       }
     ]);
   };
@@ -761,6 +820,18 @@ export default function SupplierPurchaseOrderForm({
     }
     if (!draft.paymentTerm) {
       toast.error('กรุณาเลือกเงื่อนไขการชำระเงิน');
+      return;
+    }
+    if (!draft.productionLeadTimeDay.trim() || !draft.shippingLeadTimeDay.trim()) {
+      toast.error('กรุณาระบุระยะเวลาผลิตและระยะเวลาส่งของ');
+      return;
+    }
+    if (
+      [draft.productionLeadTimeDay, draft.shippingLeadTimeDay].some(
+        (value) => !Number.isInteger(Number(value)) || Number(value) < 0
+      )
+    ) {
+      toast.error('ระยะเวลาผลิตและระยะเวลาส่งของต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป');
       return;
     }
     if (!editableItems.length) {
@@ -863,47 +934,6 @@ export default function SupplierPurchaseOrderForm({
                       value={supplierQuoteRfqIds.join(', ') || salesOrder.rfqId}
                     />
                   </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                      หมายเหตุสำหรับจัดซื้อจาก RFQ
-                    </Typography>
-                    {rfq?.procurementRemarks?.length ? (
-                      <Stack spacing={1}>
-                        {rfq.procurementRemarks.map((procurementRemark, index) => (
-                          <Box
-                            key={`${procurementRemark.createdDate || 'remark'}-${index}`}
-                            sx={{
-                              border: `1px solid ${BRAND_COLORS.sand}`,
-                              borderRadius: 2,
-                              p: 1.5,
-                              backgroundColor: BRAND_UI.sandTint
-                            }}>
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                              {procurementRemark.remark}
-                            </Typography>
-                            {procurementRemark.createdBy || procurementRemark.createdDate ? (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                display="block"
-                                sx={{ mt: 0.75 }}>
-                                {[procurementRemark.createdBy, procurementRemark.createdDate]
-                                  .filter(Boolean)
-                                  .join(' • ')}
-                              </Typography>
-                            ) : null}
-                          </Box>
-                        ))}
-                      </Stack>
-                    ) : (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ whiteSpace: 'pre-wrap' }}>
-                        {rfq?.procurementRemark || 'ยังไม่มีหมายเหตุสำหรับจัดซื้อ'}
-                      </Typography>
-                    )}
-                  </Grid>
                   <Grid item xs={12} sm={12}>
                     <TextField
                       select
@@ -946,6 +976,13 @@ export default function SupplierPurchaseOrderForm({
                       fullWidth
                       type="number"
                       label="ระยะเวลาผลิต"
+                      required
+                      error={showValidationErrors && !draft.productionLeadTimeDay.trim()}
+                      helperText={
+                        showValidationErrors && !draft.productionLeadTimeDay.trim()
+                          ? 'กรุณาระบุระยะเวลาผลิต'
+                          : undefined
+                      }
                       value={draft.productionLeadTimeDay}
                       onChange={(event) =>
                         setDraft((previous) => ({
@@ -962,6 +999,13 @@ export default function SupplierPurchaseOrderForm({
                       fullWidth
                       type="number"
                       label="ระยะเวลาส่งของ"
+                      required
+                      error={showValidationErrors && !draft.shippingLeadTimeDay.trim()}
+                      helperText={
+                        showValidationErrors && !draft.shippingLeadTimeDay.trim()
+                          ? 'กรุณาระบุระยะเวลาส่งของ'
+                          : undefined
+                      }
                       value={draft.shippingLeadTimeDay}
                       onChange={(event) =>
                         setDraft((previous) => ({
@@ -974,8 +1018,52 @@ export default function SupplierPurchaseOrderForm({
                     />
                   </Grid>
                   <Grid item xs={12}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                      หมายเหตุสำหรับจัดซื้อจาก RFQ
+                    </Typography>
+                    {rfq?.procurementRemarks?.length ? (
+                      <Stack spacing={1}>
+                        {rfq.procurementRemarks.map((procurementRemark, index) => (
+                          <Box
+                            key={`${procurementRemark.createdDate || 'remark'}-${index}`}
+                            sx={{
+                              border: `1px solid ${BRAND_COLORS.sand}`,
+                              borderRadius: 2,
+                              p: 1.5,
+                              backgroundColor: BRAND_UI.sandTint
+                            }}>
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                              {procurementRemark.remark}
+                            </Typography>
+                            {procurementRemark.createdBy || procurementRemark.createdDate ? (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                sx={{ mt: 0.75 }}>
+                                {[procurementRemark.createdBy, procurementRemark.createdDate]
+                                  .filter(Boolean)
+                                  .join(' • ')}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ whiteSpace: 'pre-wrap' }}>
+                        {rfq?.procurementRemark || 'ยังไม่มีหมายเหตุสำหรับจัดซื้อ'}
+                      </Typography>
+                    )}
+                  </Grid>
+                  {/* <Grid item xs={12}>
                     <Typography variant="subtitle1" fontWeight={600}>
                       เอกสารแนบ
+                    </Typography>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      อัพโหลดเอกสารสัญญา, ไฟล์ Artwork หรือ รูปภาพที่เกี่ยวข้องกับ PO นี้
                     </Typography>
                     <Stack spacing={1.25} sx={{ mt: 1 }}>
                       <Box>
@@ -1021,12 +1109,14 @@ export default function SupplierPurchaseOrderForm({
                         </Stack>
                       ) : null}
                     </Stack>
-                  </Grid>
+                  </Grid> */}
+                </Grid>
+              </CollapsibleWrapper>
+            </Grid>
+            <Grid item xs={12}>
+              <CollapsibleWrapper title="Supplier" defaultExpanded>
+                <Grid container spacing={2}>
                   <Grid item xs={12}>
-                    <Typography variant="subtitle1" fontWeight={600}>
-                      Supplier
-                    </Typography>
-                    <br />
                     <ReadonlyTextField
                       label="Supplier"
                       value={supplierDetail?.supplierName || '-'}
@@ -1036,13 +1126,10 @@ export default function SupplierPurchaseOrderForm({
                     <TextField
                       fullWidth
                       label="ผู้ติดต่อ"
-                      value={draft.supplierContactSnapshot}
-                      onChange={(event) =>
-                        setDraft((previous) => ({
-                          ...previous,
-                          supplierContactSnapshot: event.target.value
-                        }))
-                      }
+                      value={supplierFormik.values.supplierContactSnapshot}
+                      onChange={supplierFormik.handleChange}
+                      onBlur={supplierFormik.handleBlur}
+                      name="supplierContactSnapshot"
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
@@ -1050,13 +1137,10 @@ export default function SupplierPurchaseOrderForm({
                     <TextField
                       fullWidth
                       label="เบอร์ติดต่อ"
-                      value={draft.supplierContactNoSnapshot}
-                      onChange={(event) =>
-                        setDraft((previous) => ({
-                          ...previous,
-                          supplierContactNoSnapshot: event.target.value
-                        }))
-                      }
+                      value={supplierFormik.values.supplierContactNoSnapshot}
+                      onChange={supplierFormik.handleChange}
+                      onBlur={supplierFormik.handleBlur}
+                      name="supplierContactNoSnapshot"
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
@@ -1066,21 +1150,110 @@ export default function SupplierPurchaseOrderForm({
                       multiline
                       minRows={2}
                       label="ที่อยู่"
-                      value={draft.supplierAddressSnapshot}
-                      onChange={(event) =>
-                        setDraft((previous) => ({
-                          ...previous,
-                          supplierAddressSnapshot: event.target.value
-                        }))
-                      }
+                      value={supplierFormik.values.supplierAddressSnapshot}
+                      onChange={supplierFormik.handleChange}
+                      onBlur={supplierFormik.handleBlur}
+                      name="supplierAddressSnapshot"
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      variant="contained"
+                      onClick={() => supplierFormik.handleSubmit()}
+                      disabled={
+                        !draft.supplierId ||
+                        !supplierFormik.dirty ||
+                        supplierFormik.isSubmitting ||
+                        isSupplierFetching
+                      }>
+                      บันทึกข้อมูล Supplier
+                    </Button>
+                  </Grid>
                   <Grid item sm={12}>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      ขนส่ง
+                      รูปภาพ
+                    </Typography>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      สามารถอัพโหลดรูปภาพ Wechat, QR Code ของโรงงาน
                     </Typography>
                   </Grid>
+                  <Grid item sm={12}>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Button
+                          variant="contained"
+                          component="label"
+                          startIcon={<FilePresent />}
+                          disabled={!draft.supplierId || isUploadingSupplierAttachments}>
+                          อัปโหลดรูปภาพ Supplier
+                          <input
+                            hidden
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleUploadSupplierAttachments}
+                          />
+                        </Button>
+                      </Box>
+
+                      {supplierDetail?.attachments?.length ? (
+                        <Grid container spacing={2}>
+                          {supplierDetail.attachments.map((attachment) => (
+                            <Grid item xs={12} sm={6} md={4} lg={3} key={attachment.id}>
+                              <Box
+                                sx={{
+                                  border: `1px solid ${BRAND_COLORS.sand}`,
+                                  borderRadius: 2,
+                                  p: 1,
+                                  backgroundColor: BRAND_COLORS.ivory
+                                }}>
+                                <Box
+                                  component="img"
+                                  src={attachment.fileUrl}
+                                  alt={attachment.originalFileName || attachment.fileName}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => setPreviewImageUrl(attachment.fileUrl)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      setPreviewImageUrl(attachment.fileUrl);
+                                    }
+                                  }}
+                                  sx={{
+                                    display: 'block',
+                                    width: '100%',
+                                    height: 160,
+                                    objectFit: 'cover',
+                                    borderRadius: 1.5,
+                                    cursor: 'zoom-in',
+                                    backgroundColor: BRAND_UI.sandTint
+                                  }}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  display="block"
+                                  sx={{ mt: 1, wordBreak: 'break-word' }}>
+                                  {attachment.originalFileName || attachment.fileName}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          ยังไม่มีรูปภาพ Supplier
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </CollapsibleWrapper>
+            </Grid>
+            <Grid item xs={12}>
+              <CollapsibleWrapper title="ขนส่ง" defaultExpanded>
+                <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       select
@@ -1151,16 +1324,15 @@ export default function SupplierPurchaseOrderForm({
                         showValidationErrors && !selectedShipping
                           ? 'กรุณาเลือก Supplier Shipping'
                           : !availableSupplierShippings.length
-                          ? 'ไม่มี Shipping ที่ตรงกับการขนส่งที่เลือก'
-                          : undefined
+                            ? 'ไม่มี Shipping ที่ตรงกับการขนส่งที่เลือก'
+                            : undefined
                       }>
                       {groupedSupplierShippings.land.length ? (
                         <ListSubheader disableSticky>ทางรถ</ListSubheader>
                       ) : null}
                       {groupedSupplierShippings.land.map((shipping) => (
                         <MenuItem key={shipping.id} value={String(shipping.id)}>
-                          {shipping.shippingName || `Shipping #${shipping.id}`}
-                          {shipping.carCode ? ` | ${shipping.carCode}` : ''}
+                          {formatSupplierShippingOption(shipping)}
                         </MenuItem>
                       ))}
                       {groupedSupplierShippings.sea.length ? (
@@ -1168,8 +1340,7 @@ export default function SupplierPurchaseOrderForm({
                       ) : null}
                       {groupedSupplierShippings.sea.map((shipping) => (
                         <MenuItem key={shipping.id} value={String(shipping.id)}>
-                          {shipping.shippingName || `Shipping #${shipping.id}`}
-                          {shipping.carCode ? ` | ${shipping.carCode}` : ''}
+                          {formatSupplierShippingOption(shipping)}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -1190,84 +1361,6 @@ export default function SupplierPurchaseOrderForm({
                       value={draft.supplierShipping?.remark || '-'}
                       multiline
                     />
-                  </Grid>
-                </Grid>
-                <Grid container spacing={1}>
-                  <Grid item sm={12}>
-                    <Typography variant="subtitle1" fontWeight={600}>
-                      รูปภาพ
-                    </Typography>
-                  </Grid>
-                  <Grid item sm={12}>
-                    <Stack spacing={2}>
-                      <Box>
-                        <Button
-                          variant="contained"
-                          className="btn-baby-blue"
-                          component="label"
-                          startIcon={<FilePresent />}
-                          disabled={!draft.supplierId || isUploadingSupplierAttachments}>
-                          อัปโหลดรูปภาพ Supplier
-                          <input
-                            hidden
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleUploadSupplierAttachments}
-                          />
-                        </Button>
-                      </Box>
-
-                      {supplierDetail?.attachments?.length ? (
-                        <Grid container spacing={2}>
-                          {supplierDetail.attachments.map((attachment) => (
-                            <Grid item xs={12} sm={6} md={4} lg={3} key={attachment.id}>
-                              <Box
-                                sx={{
-                                  border: `1px solid ${BRAND_COLORS.sand}`,
-                                  borderRadius: 2,
-                                  p: 1,
-                                  backgroundColor: BRAND_COLORS.ivory
-                                }}>
-                                <Box
-                                  component="img"
-                                  src={attachment.fileUrl}
-                                  alt={attachment.originalFileName || attachment.fileName}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => setPreviewImageUrl(attachment.fileUrl)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                      event.preventDefault();
-                                      setPreviewImageUrl(attachment.fileUrl);
-                                    }
-                                  }}
-                                  sx={{
-                                    display: 'block',
-                                    width: '100%',
-                                    height: 160,
-                                    objectFit: 'cover',
-                                    borderRadius: 1.5,
-                                    cursor: 'zoom-in',
-                                    backgroundColor: BRAND_UI.sandTint
-                                  }}
-                                />
-                                <Typography
-                                  variant="caption"
-                                  display="block"
-                                  sx={{ mt: 1, wordBreak: 'break-word' }}>
-                                  {attachment.originalFileName || attachment.fileName}
-                                </Typography>
-                              </Box>
-                            </Grid>
-                          ))}
-                        </Grid>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          ยังไม่มีรูปภาพ Supplier
-                        </Typography>
-                      )}
-                    </Stack>
                   </Grid>
                 </Grid>
               </CollapsibleWrapper>
@@ -1362,7 +1455,7 @@ export default function SupplierPurchaseOrderForm({
                       </Box>
                     ) : null}
                     {selectedSupplierQuote.packages?.length ||
-                    selectedSupplierQuote.details.some((detail) => detail.packages?.length) ? (
+                      selectedSupplierQuote.details.some((detail) => detail.packages?.length) ? (
                       <Box>
                         <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>
                           Supplier Package
@@ -1390,9 +1483,8 @@ export default function SupplierPurchaseOrderForm({
                               {selectedSupplierQuote.details.flatMap((detail) =>
                                 (detail.packages || []).map((packageItem, packageIndex) => (
                                   <TableRow
-                                    key={`detail-package-${detail.id || detail.sortOrder}-${
-                                      packageItem.id || packageIndex
-                                    }`}>
+                                    key={`detail-package-${detail.id || detail.sortOrder}-${packageItem.id || packageIndex
+                                      }`}>
                                     <TableCell>{detail.optionName || '-'}</TableCell>
                                     <TableCell>{packageItem.packageName || '-'}</TableCell>
                                     <TableCell>{packageItem.packageDimension || '-'}</TableCell>
@@ -1497,8 +1589,8 @@ export default function SupplierPurchaseOrderForm({
                         const itemCbmPreview =
                           item.id > 0
                             ? cbmPreview?.items.find(
-                                (preview) => preview.salesOrderDetailId === item.id
-                              )
+                              (preview) => preview.salesOrderDetailId === item.id
+                            )
                             : undefined;
                         const rfqId = item.rfqId || null;
                         const previousRfqId = displayItemsByRfq[index - 1]?.rfqId || null;
@@ -1521,14 +1613,14 @@ export default function SupplierPurchaseOrderForm({
                                     {rfqId ? `RFQ: ${rfqId}` : 'รายการเพิ่มเติม'}
                                   </Typography>
                                   {rfqId ? (
-                                    <Button
+                                    <IconButton
                                       component="a"
-                                      href={`/rfq/${rfqId}`}
+                                      href={`/price-inquiry/${rfqId}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      size="small"
-                                      endIcon={<OpenInNew fontSize="small" />}
-                                    />
+                                      size="small">
+                                      <OpenInNew fontSize="small" />
+                                    </IconButton>
                                   ) : null}
                                 </Stack>
                               </TableCell>
@@ -1583,6 +1675,25 @@ export default function SupplierPurchaseOrderForm({
                                   }
                                   InputProps={{ readOnly: item.isAutomaticShipping }}
                                 />
+
+                                {isSuperAdmin ? (
+                                  <Chip
+                                    size="small"
+                                    variant="contained"
+                                    label={
+                                      item.isAutomaticShipping
+                                        ? 'คำนวณจากค่าขนส่ง'
+                                        : item.pricingSource === 'Supplier Quote Tier'
+                                          ? 'ราคา/สกุลเงิน: Supplier Quote Tier'
+                                          : item.pricingSource === 'Sales Order Item'
+                                            ? 'ราคา/สกุลเงิน: Sales Order Item'
+                                            : item.pricingSource === 'Manual Item'
+                                              ? 'ราคา/สกุลเงิน: รายการเพิ่มเอง'
+                                              : 'ราคา/สกุลเงิน: Supplier Shipping'
+                                    }
+                                    sx={{ alignSelf: 'flex-start' }}
+                                  />
+                                ) : null}
                               </Stack>
                             </TableCell>
                             <TableCell align="right" sx={{ px: 1, verticalAlign: 'top' }}>
@@ -1610,11 +1721,10 @@ export default function SupplierPurchaseOrderForm({
                                 inputProps={{ min: 0, step: 0.0001, style: { textAlign: 'right' } }}
                                 helperText={
                                   Number(item.supplierShippingCost || 0) > 0
-                                    ? `${
-                                        item.supplierCurrency || ''
-                                      } • ค่าขนส่งต่อชิ้น ${formatNumber(
-                                        Number(item.supplierShippingCost)
-                                      )}`
+                                    ? `${item.supplierCurrency || ''
+                                    } • ค่าขนส่งต่อชิ้น ${formatNumber(
+                                      Number(item.supplierShippingCost)
+                                    )}`
                                     : item.supplierCurrency || undefined
                                 }
                               />

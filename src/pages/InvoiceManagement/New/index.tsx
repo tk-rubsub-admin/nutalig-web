@@ -32,7 +32,7 @@ import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { createInvoice, getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { getSystemConfig } from 'services/Config/config-api';
-import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
+import { getSalesOrderV1, getSalesOrderPaymentSchedules, SalesOrderPaymentSchedule } from 'services/SaleOrder/sale-order-api';
 import { CustomerSnapshot, SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
 import { formatNumber } from 'utils/utils';
 
@@ -57,6 +57,7 @@ const COUNTED_INVOICE_STATUSES = ['ISSUED', 'AWAITING_VALIDATION', 'PARTIALLY_PA
 
 const PAYMENT_TERM_INSTALLMENTS: Record<string, number[]> = {
   DEP50: [50, 50],
+  DEP_40_60: [40, 60],
   DEP30_BBS: [30, 70],
   DEP35_35_30_BBS: [35, 35, 30]
 };
@@ -263,6 +264,11 @@ export default function NewInvoice(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+  const { data: paymentSchedules = [] } = useQuery<SalesOrderPaymentSchedule[]>(
+    ['invoice-create-payment-schedules', salesOrder?.salesOrderNo],
+    () => getSalesOrderPaymentSchedules(salesOrder?.salesOrderNo || ''),
+    { enabled: Boolean(salesOrder?.salesOrderNo), refetchOnWindowFocus: false }
+  );
   const { data: invoiceExpireDayConfig = [] } = useQuery(
     ['invoice-expire-day', GROUP_CODE.INVOICE_EXPIRE_DAY],
     () => getSystemConfig(GROUP_CODE.INVOICE_EXPIRE_DAY),
@@ -326,6 +332,7 @@ export default function NewInvoice(): ReactElement {
       grandTotal: depositAmount + vat
     };
   }, [draft.discount, draft.isVat, draft.paymentTerm, draft.subTotal, openedInvoiceAmount, openedInvoiceCount]);
+  const selectedPaymentSchedule = paymentSchedules.find((schedule) => schedule.status === 'UNINVOICED');
 
   const handleSubmit = async () => {
     if (!salesOrder?.salesOrderNo) {
@@ -354,6 +361,7 @@ export default function NewInvoice(): ReactElement {
           customerPaymentTerm: draft.paymentTerm || undefined,
           installmentNo: openedInvoiceCount + 1,
           installmentCount: PAYMENT_TERM_INSTALLMENTS[draft.paymentTerm]?.length || 2,
+          paymentScheduleId: selectedPaymentSchedule?.id,
           customerSnapshot: draft.customerSnapshot
         }),
         {

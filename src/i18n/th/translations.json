@@ -683,7 +683,7 @@
     }
   },
   "supplierManagement": {
-    "title": "การจัดการข้อมูลคู่ค้า",
+    "title": "จัดการข้อมูลคู่ค้า",
     "supplier": "คู่ค้า",
     "searchPanel": "ค้นหาข้อมูลคู่ค้า",
     "contactCard": "ผู้ติดต่อคนที่ {{index}}",

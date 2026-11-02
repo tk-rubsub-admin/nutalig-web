@@ -127,6 +127,30 @@ export const getSalesOrderProductionTimelines = async (
     return response.data;
 };
 
+export interface SalesOrderPaymentSchedule {
+    id: number;
+    salesOrderNo: string;
+    installmentNo: number;
+    installmentCount: number;
+    paymentType: string;
+    percentage: number;
+    expectedAmount: number;
+    paidAmount: number;
+    outstandingAmount: number;
+    status: 'UNINVOICED' | 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+    dueDate: string | null;
+    invoiceNo: string | null;
+}
+
+export const getSalesOrderPaymentSchedules = async (
+    id: string
+): Promise<SalesOrderPaymentSchedule[]> => {
+    const response = await api
+        .get(`/v1/sales-orders/${id}/payment-schedules`)
+        .then((result) => result.data);
+    return response.data;
+};
+
 export const updateSalesOrderV1 = async (id: string, data: UpdateSalesOrderRequestV1) => {
     const response = await api
         .patch(`/v1/sales-orders/${id}`, data)

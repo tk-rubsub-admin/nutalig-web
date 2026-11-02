@@ -115,6 +115,12 @@ import { formatNumber } from 'utils/utils';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
 import PurchaseOrderDeliverySection from './PurchaseOrderDeliverySection';
 import PurchaseOrderProofSection from './PurchaseOrderProofSection';
+import ProductionDeliveryScrapBox, {
+  createScrapBoxDraft,
+  ProductionDeliveryScrapBoxDraft,
+  ScrapBoxComponentChoice,
+  serializeScrapBoxes
+} from './ProductionDeliveryScrapBox';
 import App from 'App';
 
 interface PurchaseOrderDetailParams {
@@ -159,6 +165,7 @@ interface ProductionDeliveryDraft {
   shippingMethod: string;
   shippingLocationId: string;
   details: ProductionDeliveryDetailDraft[];
+  scrapBoxes: ProductionDeliveryScrapBoxDraft[];
 }
 
 function createProductionDeliveryDraft(
@@ -243,7 +250,8 @@ function createProductionDeliveryDraft(
       purchaseOrder?.supplierShipping?.shippingMethod ||
       '',
     shippingLocationId: activeDestinations.length === 1 ? String(activeDestinations[0].id) : '',
-    details
+    details,
+    scrapBoxes: []
   };
 }
 
@@ -466,6 +474,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [productionDeliveryDraft, setProductionDeliveryDraft] = useState<ProductionDeliveryDraft>(
     () => createProductionDeliveryDraft()
   );
+  const nextScrapBoxId = useRef(1);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const useStyles = makeStyles({
     tableHeader: {
@@ -541,6 +550,17 @@ export default function PurchaseOrderDetail(): ReactElement {
     enabled: Boolean(id),
     refetchOnWindowFocus: false
   });
+
+  const scrapBoxComponentChoices = useMemo<ScrapBoxComponentChoice[]>(
+    () => createProductionDeliveryDraft(purchaseOrder).details.map((detail) => ({
+      key: `${detail.purchaseOrderDetailId}:${detail.purchaseOrderDetailComponentId}`,
+      purchaseOrderDetailId: detail.purchaseOrderDetailId,
+      purchaseOrderDetailComponentId: detail.purchaseOrderDetailComponentId!,
+      label: `${purchaseOrder?.items.find((item) => item.id === detail.purchaseOrderDetailId)?.name || ''} — ${detail.label}`,
+      remainingQuantity: Number(detail.remainingQuantity)
+    })),
+    [purchaseOrder]
+  );
 
   const {
     data: activityHistory = [],
@@ -750,7 +770,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   };
 
   const updateProductionDeliveryHeader = (
-    field: keyof Omit<ProductionDeliveryDraft, 'details'>,
+    field: keyof Omit<ProductionDeliveryDraft, 'details' | 'scrapBoxes'>,
     value: string
   ) => {
     setProductionDeliveryDraft((current) => ({ ...current, [field]: value }));
@@ -796,6 +816,15 @@ export default function PurchaseOrderDetail(): ReactElement {
           option,
           ...current.details.slice(index + 1)
         ]
+      };
+    });
+  };
+
+  const deleteProductionDeliveryOption = (index: number) => {
+    setProductionDeliveryDraft((current) => {
+      return {
+        ...current,
+        details: current.details.filter((_, detailIndex) => detailIndex !== index)
       };
     });
   };
@@ -1148,7 +1177,7 @@ export default function PurchaseOrderDetail(): ReactElement {
           !productionDeliveryDraft.expectedWarehouseDate ||
           !productionDeliveryDraft.shippingMethod ||
           !productionDeliveryDraft.shippingLocationId ||
-          productionDeliveryDraft.details.length === 0 ||
+          (productionDeliveryDraft.details.length === 0 && productionDeliveryDraft.scrapBoxes.length === 0) ||
           productionDeliveryDraft.details.some(
             (detail) => !detail.quantity.trim() || Number(detail.quantity) <= 0
           )
@@ -1164,13 +1193,35 @@ export default function PurchaseOrderDetail(): ReactElement {
           setIsSubmitting(false);
           return;
         }
+        let scrapBoxPayload: ReturnType<typeof serializeScrapBoxes>;
+        try {
+          scrapBoxPayload = serializeScrapBoxes(productionDeliveryDraft.scrapBoxes, scrapBoxComponentChoices);
+        } catch (error) {
+          toast.error((error as Error).message);
+          setIsSubmitting(false);
+          return;
+        }
+        const quantitiesByComponent = new Map<string, number>();
+        for (const detail of [...productionDeliveryDraft.details, ...scrapBoxPayload.details]) {
+          const key = `${detail.purchaseOrderDetailId}:${detail.purchaseOrderDetailComponentId}`;
+          quantitiesByComponent.set(key, (quantitiesByComponent.get(key) || 0) + Number(detail.quantity));
+        }
+        // const exceededChoice = scrapBoxComponentChoices.find(
+        //   (choice) => (quantitiesByComponent.get(choice.key) || 0) > choice.remainingQuantity
+        // );
+        // if (exceededChoice) {
+        //   toast.error(`จำนวนส่งรวมของ ${exceededChoice.label} เกินจำนวนคงเหลือ`);
+        //   setIsSubmitting(false);
+        //   return;
+        // }
         const deliveryRequest: CompletePurchaseOrderProductionRequest['delivery'] = {
           shippedDate: productionDeliveryDraft.shippedDate,
           expectedWarehouseDate: productionDeliveryDraft.expectedWarehouseDate,
           receivedDate: productionDeliveryDraft.receivedDate || null,
           shippingMethod: productionDeliveryDraft.shippingMethod,
           shippingLocationId: Number(productionDeliveryDraft.shippingLocationId),
-          details: productionDeliveryDraft.details.map((detail, sortOrder) => {
+          ...(scrapBoxPayload.scrapBoxes.length ? { scrapBoxes: scrapBoxPayload.scrapBoxes } : {}),
+          details: [...productionDeliveryDraft.details.map((detail, sortOrder) => {
             const cartonCount = optionalNumber(detail.cartonCount);
             const lengthCm = optionalNumber(detail.lengthCm);
             const widthCm = optionalNumber(detail.widthCm);
@@ -1193,7 +1244,7 @@ export default function PurchaseOrderDetail(): ReactElement {
               cbmM3: optionalNumber(detail.cbmM3) ?? calculatedCbm,
               sortOrder
             };
-          })
+          }), ...scrapBoxPayload.details]
         };
         const updatedPurchaseOrder = await completePurchaseOrderProduction(
           purchaseOrder.purchaseOrderNo,
@@ -2016,9 +2067,19 @@ export default function PurchaseOrderDetail(): ReactElement {
               </GridTextField>
 
               <Grid item xs={12}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  รายการอะไหล่/ชิ้นส่วนในเที่ยวส่ง
-                </Typography>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    รายการอะไหล่/ชิ้นส่วนในเที่ยวส่ง
+                  </Typography>
+                  <Button size="small" variant="contained" startIcon={<Add fontSize="small" />}
+                    disabled={isSubmitting || scrapBoxComponentChoices.length === 0}
+                    onClick={() => {
+                      const box = createScrapBoxDraft(nextScrapBoxId.current++);
+                      setProductionDeliveryDraft((current) => ({ ...current, scrapBoxes: [...current.scrapBoxes, box] }));
+                    }}>
+                    กล่องเศษ
+                  </Button>
+                </Stack>
               </Grid>
 
               <Grid item xs={12}>
@@ -2038,6 +2099,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                       <Stack direction="row" spacing={1}>
                         <Button
                           size="small"
+                          color="error"
+                          startIcon={<DeleteOutline fontSize="small" />}
+                          onClick={() => deleteProductionDeliveryOption(index)}
+                          disabled={isSubmitting}>
+                          ลบ option
+                        </Button>
+                        <Button
+                          size="small"
                           startIcon={<Calculate fontSize="small" />}
                           onClick={() => calculateProductionDeliveryCbm(index)}
                           disabled={isSubmitting}>
@@ -2052,14 +2121,16 @@ export default function PurchaseOrderDetail(): ReactElement {
                         </Button>
                       </Stack>
                     </Stack>
-                    <Chip
-                      label={`เหลือรับอีก ${Number(
-                        detail.remainingQuantity || 0
-                      ).toLocaleString()} ชิ้น`}
-                      color="warning"
-                      variant="filled"
-                      sx={{ fontWeight: 700, mb: 1.5 }}
-                    />
+                    {detail.purchaseOrderDetailComponentId !== null ? (
+                      <Chip
+                        label={`เหลือรับอีก ${Number(
+                          detail.remainingQuantity || 0
+                        ).toLocaleString()} ชิ้น`}
+                        color="warning"
+                        variant="filled"
+                        sx={{ fontWeight: 700, mb: 1.5 }}
+                      />
+                    ) : null}
                     <Grid container spacing={1.5}>
                       {(
                         [
@@ -2093,6 +2164,21 @@ export default function PurchaseOrderDetail(): ReactElement {
                     </Grid>
                   </Box>
                 ))}
+              </Grid>
+
+              <Grid item xs={12}>
+                <Stack spacing={2}>
+                  {productionDeliveryDraft.scrapBoxes.map((box) => (
+                    <ProductionDeliveryScrapBox key={box.id} value={box} choices={scrapBoxComponentChoices}
+                      disabled={isSubmitting}
+                      onChange={(updatedBox) => setProductionDeliveryDraft((current) => ({
+                        ...current, scrapBoxes: current.scrapBoxes.map((entry) => entry.id === box.id ? updatedBox : entry)
+                      }))}
+                      onRemove={() => setProductionDeliveryDraft((current) => ({
+                        ...current, scrapBoxes: current.scrapBoxes.filter((entry) => entry.id !== box.id)
+                      }))} />
+                  ))}
+                </Stack>
               </Grid>
 
               <Grid item xs={12}>

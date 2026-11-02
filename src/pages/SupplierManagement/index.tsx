@@ -1,7 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BRAND_COLORS } from 'theme/brandTokens';
 import {
-  AlternateEmail,
   Circle,
   DisabledByDefault,
   Person,
@@ -13,6 +11,7 @@ import {
   Button,
   CircularProgress,
   Grid,
+  Paper,
   Stack,
   Table,
   TableBody,
@@ -61,12 +60,6 @@ export default function SupplierManagement(): JSX.Element {
       fontWeight: 'bold',
       padding: '48px 0'
     },
-    tableHeader: {
-      border: `2px solid ${BRAND_COLORS.sand}`,
-      fontWeight: 'bold',
-      paddingLeft: '10px',
-      textAlign: 'center'
-    }
   });
   const classes = useStyles();
   const theme = useTheme();
@@ -153,10 +146,6 @@ export default function SupplierManagement(): JSX.Element {
                   {supplier.supplierCode || '-'}
                 </Typography>
 
-                <Typography variant="body2" color="text.secondary">
-                  {supplier.fullAddress || '-'}
-                </Typography>
-
                 <Typography variant="body2">
                   <Person sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
                   {defaultContact?.contactName || '-'}
@@ -170,10 +159,6 @@ export default function SupplierManagement(): JSX.Element {
                   )}
                 </Typography>
 
-                <Typography variant="body2">
-                  <AlternateEmail sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
-                  {supplier.supplierEmail || '-'}
-                </Typography>
               </Stack>
             </TableCell>
           </TableRow>
@@ -216,16 +201,10 @@ export default function SupplierManagement(): JSX.Element {
           <TableCell>
             <TextLineClamp>{renderContactText(supplier)}</TextLineClamp>
           </TableCell>
-          <TableCell>
-            <TextLineClamp>{supplier.supplierEmail || '-'}</TextLineClamp>
-          </TableCell>
-          <TableCell>
-            <TextLineClamp>{supplier.fullAddress || '-'}</TextLineClamp>
-          </TableCell>
         </TableRow>
       ))) || (
       <TableRow>
-        <TableCell colSpan={6}>
+        <TableCell colSpan={4}>
           <div className={classes.noResultMessage}>{t('warning.noResultList')}</div>
         </TableCell>
       </TableRow>
@@ -370,11 +349,11 @@ export default function SupplierManagement(): JSX.Element {
         </GridSearchSection>
         {isMobileOnly ? (
           <GridSearchSection container>
-            <TableContainer>
-              <Table id="supplier_list___table">
+            <TableContainer component={Paper}>
+              <Table id="supplier_list___table" size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell align="center" key="supplier" className={classes.tableHeader}>
+                    <TableCell align="center" key="supplier">
                       {t('supplierManagement.supplier')}
                     </TableCell>
                   </TableRow>
@@ -395,34 +374,28 @@ export default function SupplierManagement(): JSX.Element {
           </GridSearchSection>
         ) : (
           <GridSearchSection container>
-            <TableContainer>
-              <Table id="supplier_list___table">
+            <TableContainer component={Paper}>
+              <Table id="supplier_list___table" size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell align="center" key="id" className={classes.tableHeader}>
+                    <TableCell align="center" key="id">
                       {t('supplierManagement.column.id')}
                     </TableCell>
-                    <TableCell align="center" key="name" className={classes.tableHeader}>
+                    <TableCell align="center" key="name">
                       {t('supplierManagement.column.name')}
                     </TableCell>
-                    <TableCell align="center" key="code" className={classes.tableHeader}>
+                    <TableCell align="center" key="code">
                       {t('supplierManagement.column.code')}
                     </TableCell>
-                    <TableCell align="center" key="contact" className={classes.tableHeader}>
+                    <TableCell align="center" key="contact">
                       {t('supplierManagement.column.contactName')}
-                    </TableCell>
-                    <TableCell align="center" key="email" className={classes.tableHeader}>
-                      {t('supplierManagement.column.email')}
-                    </TableCell>
-                    <TableCell align="center" key="address" className={classes.tableHeader}>
-                      {t('supplierManagement.column.fullAddress')}
                     </TableCell>
                   </TableRow>
                 </TableHead>
                 {isSupplierFetching ? (
                   <TableBody>
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={4} align="center">
                         <CircularProgress />
                       </TableCell>
                     </TableRow>

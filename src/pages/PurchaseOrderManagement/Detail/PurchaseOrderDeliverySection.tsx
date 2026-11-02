@@ -1,5 +1,12 @@
+import DeliveryContainerAssignment from 'components/DeliveryContainerAssignment';
 import { BRAND_COLORS } from 'theme/brandTokens';
-import { CheckCircle, DirectionsBoat, ExpandMore, Inventory2, LocalShipping } from '@mui/icons-material';
+import {
+  CheckCircle,
+  DirectionsBoat,
+  ExpandMore,
+  Inventory2,
+  LocalShipping
+} from '@mui/icons-material';
 import {
   Accordion,
   AccordionDetails,
@@ -12,7 +19,6 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
-  Paper,
   CircularProgress,
   Stack,
   Step,
@@ -23,12 +29,6 @@ import {
   alpha,
   stepConnectorClasses,
   styled,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
   useMediaQuery,
@@ -42,6 +42,7 @@ import { PERMISSIONS } from 'auth/permissions';
 import { markPurchaseOrderDeliveryInTransit } from 'services/PurchaseOrder/purchase-order-api';
 import { PurchaseOrderDeliveryRecord } from 'services/PurchaseOrder/purchase-order-type';
 import { getShippingMethodLabel, isSeaShippingMethod } from 'utils/shipping';
+import PurchaseOrderDeliveryItemsTable from './PurchaseOrderDeliveryItemsTable';
 
 interface Props {
   deliveries?: PurchaseOrderDeliveryRecord[];
@@ -80,7 +81,8 @@ const DeliveryConnector = styled(StepConnector)(({ theme }) => ({
     borderLeftWidth: 3,
     borderRadius: 2
   },
-  [`&.${stepConnectorClasses.active} .${stepConnectorClasses.line}, &.${stepConnectorClasses.completed} .${stepConnectorClasses.line}`]: {
+  [`&.${stepConnectorClasses.active} .${stepConnectorClasses.line}, &.${stepConnectorClasses.completed} .${stepConnectorClasses.line}`]:
+  {
     borderColor: theme.palette.success.main
   }
 }));
@@ -126,23 +128,21 @@ function formatDate(value?: string | null): string {
   return value && dayjs(value).isValid() ? dayjs(value).format('DD/MM/YYYY') : '-';
 }
 
-function formatNumber(value?: number | null, suffix = ''): string {
-  if (value === undefined || value === null) return '-';
-  return `${Number(value).toLocaleString('th-TH', { maximumFractionDigits: 3 })}${suffix}`;
+function supportsInTransitStatus(shippingMethod?: string | null): boolean {
+  return shippingMethod === 'LAND' || shippingMethod === 'SEA';
 }
 
-function getDimension(detail: PurchaseOrderDeliveryRecord['details'][number]): string {
-  const values = [detail.lengthCm, detail.widthCm, detail.heightCm];
-  if (values.every((value) => value === undefined || value === null)) return '-';
-  return `${values.map((value) => (value == null ? '-' : formatNumber(value))).join(' × ')} cm`;
-}
-
-export default function PurchaseOrderDeliverySection({ deliveries = [], onDeliveryUpdated }: Props) {
+export default function PurchaseOrderDeliverySection({
+  deliveries = [],
+  onDeliveryUpdated
+}: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { has } = usePermissions();
   const canUpdateDelivery = has(PERMISSIONS.PURCHASE_ORDER_START_RUN);
-  const [selectedDelivery, setSelectedDelivery] = useState<PurchaseOrderDeliveryRecord | null>(null);
+  const [selectedDelivery, setSelectedDelivery] = useState<PurchaseOrderDeliveryRecord | null>(
+    null
+  );
   const [trackingNumberDraft, setTrackingNumberDraft] = useState('');
   const [inTransitDateDraft, setInTransitDateDraft] = useState('');
   const [isUpdatingDelivery, setIsUpdatingDelivery] = useState(false);
@@ -171,7 +171,13 @@ export default function PurchaseOrderDeliverySection({ deliveries = [], onDelive
   };
 
   const handleConfirmInTransit = async () => {
-    if (!selectedDelivery?.purchaseOrderNo || !selectedDelivery.id || !trackingNumberDraft.trim() || !inTransitDateDraft) return;
+    if (
+      !selectedDelivery?.purchaseOrderNo ||
+      !selectedDelivery.id ||
+      !trackingNumberDraft.trim() ||
+      !inTransitDateDraft
+    )
+      return;
     setIsUpdatingDelivery(true);
     try {
       await markPurchaseOrderDeliveryInTransit(
@@ -241,15 +247,23 @@ export default function PurchaseOrderDeliverySection({ deliveries = [], onDelive
                   }
                   label={DELIVERY_STATUS[delivery.status] || delivery.status}
                 />
+                <DeliveryContainerAssignment delivery={delivery} />
               </Stack>
               {canUpdateDelivery &&
                 delivery.status === 'HANDED_OVER_TO_CARRIER' &&
+                !delivery.containers?.length &&
                 !collapsedDeliveryIds.has(delivery.id) ? (
                 <Button
                   variant="contained"
                   color="success"
                   size="small"
                   startIcon={<LocalShipping />}
+                  disabled={!supportsInTransitStatus(delivery.shippingMethod)}
+                  title={
+                    !supportsInTransitStatus(delivery.shippingMethod)
+                      ? 'วิธีขนส่งนี้ไม่รองรับการเปลี่ยนเป็นอยู่ระหว่างขนส่ง'
+                      : undefined
+                  }
                   onClick={(event) => {
                     event.stopPropagation();
                     handleOpenTransitDialog(delivery);
@@ -282,9 +296,12 @@ export default function PurchaseOrderDeliverySection({ deliveries = [], onDelive
                         <DeliveryStepIcon
                           {...props}
                           iconNode={
-                            step.status === 'IN_TRANSIT' && isSeaShippingMethod(delivery.shippingMethod)
-                              ? <DirectionsBoat />
-                              : step.icon
+                            step.status === 'IN_TRANSIT' &&
+                              isSeaShippingMethod(delivery.shippingMethod) ? (
+                              <DirectionsBoat />
+                            ) : (
+                              step.icon
+                            )
                           }
                         />
                       )}
@@ -361,53 +378,7 @@ export default function PurchaseOrderDeliverySection({ deliveries = [], onDelive
                 ) : null}
               </Grid>
 
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small" sx={{ minWidth: 980 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>สินค้า / อะไหล่หรือชิ้นส่วน</TableCell>
-                      <TableCell align="right">จำนวนชิ้น</TableCell>
-                      <TableCell align="right">กล่อง</TableCell>
-                      <TableCell align="right">ชิ้น/กล่อง</TableCell>
-                      <TableCell align="right">Net (kg)</TableCell>
-                      <TableCell align="right">Gross (kg)</TableCell>
-                      <TableCell>Dimension</TableCell>
-                      <TableCell align="right">CBM (m³)</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {delivery.details?.length ? (
-                      delivery.details.map((detail, index) => (
-                        <TableRow key={detail.id ?? `${detail.purchaseOrderDetailId}-${index}`}>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>
-                              {detail.productName || 'สินค้า'}
-                            </Typography>
-                            {detail.componentName ? (
-                              <Typography variant="caption" color="text.secondary">
-                                {detail.componentName}
-                              </Typography>
-                            ) : null}
-                          </TableCell>
-                          <TableCell align="right">{formatNumber(detail.quantity)}</TableCell>
-                          <TableCell align="right">{formatNumber(detail.cartonCount)}</TableCell>
-                          <TableCell align="right">{formatNumber(detail.piecesPerCarton)}</TableCell>
-                          <TableCell align="right">{formatNumber(detail.netWeightKg)}</TableCell>
-                          <TableCell align="right">{formatNumber(detail.grossWeightKg)}</TableCell>
-                          <TableCell>{getDimension(detail)}</TableCell>
-                          <TableCell align="right">{formatNumber(detail.cbmM3)}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={8} align="center">
-                          ไม่มีรายการสินค้าในเที่ยวส่งนี้
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <PurchaseOrderDeliveryItemsTable delivery={delivery} />
 
               {delivery.remark ? (
                 <Typography variant="body2" color="text.secondary">
@@ -418,7 +389,11 @@ export default function PurchaseOrderDeliverySection({ deliveries = [], onDelive
           </AccordionDetails>
         </Accordion>
       ))}
-      <Dialog open={Boolean(selectedDelivery)} onClose={handleCloseTransitDialog} fullWidth maxWidth="xs">
+      <Dialog
+        open={Boolean(selectedDelivery)}
+        onClose={handleCloseTransitDialog}
+        fullWidth
+        maxWidth="xs">
         <DialogTitle>ยืนยันสถานะอยู่ระหว่างขนส่ง</DialogTitle>
         <DialogContent>
           <Stack spacing={1.5} sx={{ pt: 1 }}>
@@ -464,7 +439,9 @@ export default function PurchaseOrderDeliverySection({ deliveries = [], onDelive
             color="success"
             onClick={() => void handleConfirmInTransit()}
             disabled={!trackingNumberDraft.trim() || !inTransitDateDraft || isUpdatingDelivery}
-            startIcon={isUpdatingDelivery ? <CircularProgress size={16} color="inherit" /> : undefined}>
+            startIcon={
+              isUpdatingDelivery ? <CircularProgress size={16} color="inherit" /> : undefined
+            }>
             ยืนยัน
           </Button>
         </DialogActions>

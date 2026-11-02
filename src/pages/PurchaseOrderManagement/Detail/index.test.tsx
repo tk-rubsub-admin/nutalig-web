@@ -11,6 +11,7 @@ import {
   completePurchaseOrderProduction,
   getPurchaseOrder,
   getPurchaseOrderPayments,
+  getPurchaseOrderPaymentInstructions,
   getPurchaseOrderPaymentSchedules,
   getPurchaseOrderProductionTimeline,
   updatePurchaseOrder
@@ -26,6 +27,7 @@ vi.mock('services/PurchaseOrder/purchase-order-api', () => ({
   completePurchaseOrderProduction: vi.fn(),
   getPurchaseOrder: vi.fn(),
   getPurchaseOrderPayments: vi.fn(),
+  getPurchaseOrderPaymentInstructions: vi.fn(),
   getPurchaseOrderPaymentSchedules: vi.fn(),
   getPurchaseOrderProductionTimeline: vi.fn(),
   updatePurchaseOrder: vi.fn()
@@ -96,6 +98,7 @@ beforeEach(() => {
   vi.mocked(getPurchaseOrder).mockImplementation(async () => purchaseOrder);
   vi.mocked(getPurchaseOrderProductionTimeline).mockImplementation(async () => timeline);
   vi.mocked(getPurchaseOrderPayments).mockResolvedValue([]);
+  vi.mocked(getPurchaseOrderPaymentInstructions).mockResolvedValue([]);
   vi.mocked(getPurchaseOrderPaymentSchedules).mockResolvedValue([]);
   vi.mocked(getActivityHistory).mockResolvedValue([]);
   vi.mocked(completePurchaseOrderMilestone).mockResolvedValue(purchaseOrder);
@@ -297,33 +300,32 @@ describe('Complete PO production', () => {
     const dialog = await screen.findByRole('dialog', { name: 'บันทึกผลิตเสร็จ' });
     expect(within(dialog).queryByText('Delivery')).toBeNull();
     expect(within(dialog).queryByText('กล่องสินค้า')).toBeNull();
-    expect(within(dialog).getByText('ฝาครอบ — Option 1')).toBeTruthy();
-    expect(within(dialog).getByText('อะไหล่/ชิ้นส่วนที่ยังเหลือรับรวม 35,000 ชิ้น')).toBeTruthy();
-    expect((within(dialog).getAllByLabelText(/^จำนวนชิ้น/)[0] as HTMLInputElement).value).toBe('');
+    expect(within(dialog).getByText('ฝาครอบ')).toBeTruthy();
+    expect(within(dialog).getByText('เหลือรับอีก 35,000 ชิ้น')).toBeTruthy();
+    expect((within(dialog).getAllByLabelText(/^จำนวนชิ้น(?:\s*\*)?$/)[0] as HTMLInputElement).value).toBe('');
     fireEvent.change(within(dialog).getByLabelText(/วันที่ส่งออก/), {
       target: { value: '2026-10-10' }
     });
     fireEvent.change(within(dialog).getByLabelText(/วันที่คาดว่าจะถึงคลัง/), {
       target: { value: '2026-10-15' }
     });
-    fireEvent.change(within(dialog).getAllByLabelText(/^จำนวนชิ้น/)[0], {
+    fireEvent.change(within(dialog).getAllByLabelText(/^จำนวนชิ้น(?:\s*\*)?$/)[0], {
       target: { value: '15000' }
     });
-    const firstOptionFields = within(dialog).getAllByRole('spinbutton');
-    fireEvent.change(firstOptionFields[1], { target: { value: '5' } });
-    fireEvent.change(firstOptionFields[3], { target: { value: '2.5' } });
-    fireEvent.change(firstOptionFields[5], { target: { value: '40' } });
-    fireEvent.change(firstOptionFields[6], { target: { value: '30' } });
-    fireEvent.change(firstOptionFields[7], { target: { value: '20' } });
+    for (const [label, value] of [
+      ['จำนวนกล่อง', '5'], ['Net Weight (KGS)', '2.5'],
+      ['ยาว (CM)', '40'], ['กว้าง (CM)', '30'], ['สูง (CM)', '20']
+    ]) {
+      fireEvent.change(within(dialog).getByLabelText(label), { target: { value } });
+    }
     fireEvent.click(within(dialog).getByRole('button', { name: 'คำนวณ CBM' }));
-    expect((within(dialog).getAllByRole('spinbutton')[8] as HTMLInputElement).value).toBe('0.120000');
-    fireEvent.click(within(dialog).getAllByRole('button', { name: 'เพิ่ม option' })[0]);
-    const quantityFields = within(dialog).getAllByRole('spinbutton');
-    expect((quantityFields[9] as HTMLInputElement).value).toBe('');
-    expect((quantityFields[10] as HTMLInputElement).value).toBe('5');
-    expect((quantityFields[12] as HTMLInputElement).value).toBe('2.5');
-    expect((quantityFields[17] as HTMLInputElement).value).toBe('0.120000');
-    fireEvent.change(quantityFields[9], { target: { value: '5000' } });
+    expect((within(dialog).getByLabelText('CBM (M³)') as HTMLInputElement).value).toBe('0.120000');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'เพิ่ม option' }));
+    expect((within(dialog).getAllByLabelText(/^จำนวนชิ้น(?:\s*\*)?$/)[1] as HTMLInputElement).value).toBe('');
+    expect((within(dialog).getAllByLabelText('จำนวนกล่อง')[1] as HTMLInputElement).value).toBe('5');
+    expect((within(dialog).getAllByLabelText('Net Weight (KGS)')[1] as HTMLInputElement).value).toBe('2.5');
+    expect((within(dialog).getAllByLabelText('CBM (M³)')[1] as HTMLInputElement).value).toBe('0.120000');
+    fireEvent.change(within(dialog).getAllByLabelText(/^จำนวนชิ้น(?:\s*\*)?$/)[1], { target: { value: '5000' } });
     fireEvent.change(within(dialog).getByLabelText('หมายเหตุ'), {
       target: { value: 'ผลิตครบตามจำนวนแล้ว' }
     });
@@ -356,4 +358,45 @@ describe('Complete PO production', () => {
       )
     );
   });
+});
+
+it('saves a scrap box containing multiple components after removing normal options', async () => {
+  purchaseOrder.productionStartedDate = '2026-10-09';
+  purchaseOrder.shippingMethodSnapshot = 'LAND';
+  purchaseOrder.supplierShipping = {
+    shippingMethod: 'LAND', destinations: [{ id: 15, destinationName: 'คลังหลัก' }]
+  } as any;
+  purchaseOrder.items = [{ id: 321, name: 'สินค้า', quantity: 10, components: [
+    { id: 555, componentName: 'ฝา', quantityPerItem: 1, totalQuantity: 10 },
+    { id: 556, componentName: 'หลอด', quantityPerItem: 1, totalQuantity: 10 }
+  ] }] as any;
+  timeline.events[0].canComplete = false;
+  timeline.events[0].completed = true;
+  timeline.events[0].status = 'COMPLETED';
+  timeline.events[1].canComplete = true;
+  await openPage();
+  fireEvent.click(screen.getByRole('button', { name: 'ดำเนินการ' }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: /^ผลิตเสร็จ/ }));
+  const dialog = await screen.findByRole('dialog', { name: 'บันทึกผลิตเสร็จ' });
+  within(dialog).getAllByRole('button', { name: 'ลบ option' }).reverse().forEach((button) => fireEvent.click(button));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'กล่องเศษ' }));
+  const box = within(dialog).getByRole('group', { name: 'กล่องเศษ' });
+  fireEvent.mouseDown(within(box).getByLabelText(/^อะไหล่\/ชิ้นส่วน/));
+  fireEvent.click(await screen.findByRole('option', { name: 'สินค้า — ฝา' }));
+  fireEvent.change(within(box).getByLabelText(/^จำนวนชิ้น(?:\s*\*)?$/), { target: { value: '10' } });
+  fireEvent.click(within(box).getByRole('button', { name: 'เพิ่มอะไหล่' }));
+  fireEvent.mouseDown(within(box).getAllByLabelText(/^อะไหล่\/ชิ้นส่วน/)[1]);
+  fireEvent.click(await screen.findByRole('option', { name: 'สินค้า — หลอด' }));
+  fireEvent.change(within(box).getAllByLabelText(/^จำนวนชิ้น(?:\s*\*)?$/)[1], { target: { value: '10' } });
+  for (const [label, value] of [['ยาว (CM)', '40'], ['กว้าง (CM)', '30'], ['สูง (CM)', '20']]) {
+    fireEvent.change(within(box).getByLabelText(label), { target: { value } });
+  }
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยันผลิตเสร็จ' }));
+  await waitFor(() => expect(completePurchaseOrderProduction).toHaveBeenCalled());
+  const sent = vi.mocked(completePurchaseOrderProduction).mock.calls[0][1].delivery;
+  expect(sent.scrapBoxes).toHaveLength(1);
+  expect(sent.scrapBoxes?.[0].cbmM3).toBe(0.024);
+  expect(sent.details).toHaveLength(2);
+  expect(sent.details.map((detail) => detail.scrapBoxIndex)).toEqual([0, 0]);
+  expect(sent.details.map((detail) => detail.purchaseOrderDetailComponentId)).toEqual([555, 556]);
 });

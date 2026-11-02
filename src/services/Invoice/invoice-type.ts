@@ -19,6 +19,7 @@ export interface CreateInvoiceRequest {
   customerPaymentTerm?: string;
   installmentNo?: number;
   installmentCount?: number;
+  paymentScheduleId?: number;
   customerSnapshot?: CustomerSnapshot;
 }
 
@@ -102,6 +103,7 @@ export interface InvoiceRecord {
   deliveryDate: string | null;
   installmentNo?: number | null;
   installmentCount?: number | null;
+  paymentScheduleId?: number | null;
   status: string;
   statusProfile?: DocumentStatusProfile;
   currency: string | null;

@@ -15,6 +15,7 @@ import {
   Grading,
   DoneAll,
   FactCheck,
+  Storefront
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { PERMISSIONS } from 'auth/permissions';
@@ -43,7 +44,7 @@ export function useMenuItems() {
     //   href: ROUTE_PATHS.EMPLOYEE_MANAGEMENT,
     //   icon: Group,
     //   allowedRoles: [ROLES.SUPER_ADMIN]
-    // },, 
+    // },,
     {
       id: 'left_menu__approve_management',
       title: 'ผู้อนุมัติ',
@@ -59,17 +60,20 @@ export function useMenuItems() {
           title: 'รอสรุปราคา/ทบทวนราคาพิเศษ',
           href: ROUTE_PATHS.FINAL_PRICE_INQUIRY_MANAGEMENT,
           allowedPermission: [PERMISSIONS.FINAL_PRICE_INQUIRY_VIEW]
-        }, {
+        },
+        {
           id: 'left_menu__waiting_approve_rfq_management',
           title: 'รายการรออนุมัติ',
           href: ROUTE_PATHS.AWAITING_APPROVE_MANAGEMENT,
           allowedPermission: [PERMISSIONS.AWAITING_APPROVE_VIEW]
-        }, {
+        },
+        {
           id: 'left_menu__pending_supplier_payments',
           title: 'รายการรอชำระเงิน',
           href: ROUTE_PATHS.PENDING_SUPPLIER_PAYMENTS,
           allowedPermission: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
-        }]
+        }
+      ]
     },
     {
       id: 'left_menu__sales_management',
@@ -125,7 +129,11 @@ export function useMenuItems() {
       id: 'left_menu__procurement_management',
       title: 'ฝ่ายจัดซื้อ',
       icon: Assignment,
-      allowedPermission: [PERMISSIONS.PRICE_INQUIRY_VIEW, PERMISSIONS.PURCHASE_ORDER_VIEW],
+      allowedPermission: [
+        PERMISSIONS.PRICE_INQUIRY_VIEW,
+        PERMISSIONS.PURCHASE_ORDER_VIEW,
+        PERMISSIONS.CONTAINER_VIEW
+      ],
       children: [
         {
           id: 'left_menu__price_inquiry_management',
@@ -150,6 +158,12 @@ export function useMenuItems() {
           title: 'ติดตามสถานะออเดอร์',
           href: ROUTE_PATHS.PURCHASE_ORDER_PRODUCTION_CALENDAR,
           allowedPermission: [PERMISSIONS.PURCHASE_ORDER_TRACKING]
+        },
+        {
+          id: 'left_menu__container_management',
+          title: 'จัดการตู้คอนเทนเนอร์',
+          href: ROUTE_PATHS.CONTAINER_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.CONTAINER_VIEW]
         }
       ]
     },
@@ -176,13 +190,19 @@ export function useMenuItems() {
     {
       id: 'left_menu__supplier_management',
       title: 'Supplier',
-      icon: AccountCircle,
+      icon: Storefront,
       allowedPermission: [PERMISSIONS.SUPPLIER_VIEW],
       children: [
         {
           id: 'left_menu__supplier',
-          title: t('sidebar.supplierManagement.title'),
+          title: 'โรงงาน',
           href: ROUTE_PATHS.SUPPLIER_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.SUPPLIER_VIEW]
+        },
+        {
+          id: 'left_menu__supplier_shipping',
+          title: 'ขนส่ง',
+          href: ROUTE_PATHS.SUPPLIER_SHIPPING_MANAGEMENT,
           allowedPermission: [PERMISSIONS.SUPPLIER_VIEW]
         }
       ]
@@ -205,7 +225,11 @@ export function useMenuItems() {
       id: 'left_menu__document_management',
       title: 'เอกสาร',
       icon: Task,
-      allowedPermission: [PERMISSIONS.QUOTATION_VIEW, PERMISSIONS.SALES_ORDER_VIEW, PERMISSIONS.INVOICE_VIEW],
+      allowedPermission: [
+        PERMISSIONS.QUOTATION_VIEW,
+        PERMISSIONS.SALES_ORDER_VIEW,
+        PERMISSIONS.INVOICE_VIEW
+      ],
       children: [
         {
           id: 'left_menu__quotation',

@@ -878,6 +878,7 @@ export interface RFQSupplierQuote {
   revisionNo?: number | null;
   status: string;
   remark?: string | null;
+  sampleRefund?: string | null;
   details: RFQSupplierQuoteDetail[];
   additionalCosts: RFQSupplierQuoteAdditionalCost[];
   packages?: RFQSupplierQuotePackage[];
@@ -894,6 +895,7 @@ export interface UpsertRFQSupplierQuoteRequest {
   status?: string;
   remark?: string | null;
   recommend?: string | null;
+  sampleRefund?: string | null;
   details: UpsertRFQSupplierQuoteDetailRequest[];
   additionalCosts: UpsertRFQSupplierQuoteAdditionalCostRequest[];
   packages?: UpsertRFQSupplierQuotePackageRequest[];

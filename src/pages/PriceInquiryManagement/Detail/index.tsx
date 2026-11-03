@@ -8,6 +8,7 @@ import {
   CommentOutlined,
   ContentCopy,
   DoneAll,
+  DeleteOutline,
   EditOutlined,
   FilePresent,
   InfoOutlined,
@@ -1470,6 +1471,7 @@ function buildSupplierQuotePayload(
   packages: DraftSupplierQuotePackage[],
   additionalCosts: DraftAdditionalCost[],
   leadTimes: DraftSupplierQuoteLeadTime[],
+  sampleRefund: string,
   quote?: RFQSupplierQuote | null
 ): UpsertRFQSupplierQuoteRequest {
   return {
@@ -1477,6 +1479,7 @@ function buildSupplierQuotePayload(
     inquiryId: quote?.inquiryId || null,
     status: 'RESPONDED',
     remark: quote?.remark || null,
+    sampleRefund: sampleRefund.trim() || quote?.sampleRefund || null,
     details: details.map((detail, index) => ({
       rfqDetailId: detail.rfqDetailId || null,
       lineType: detail.lineType || 'PRODUCT',
@@ -1597,7 +1600,12 @@ function createDraftAdditionalCostFromExtractedPayload(
     id: -(Date.now() + index + 1),
     description: additionalCost.description || '',
     value: additionalCost.value || '',
-    unit: additionalCost.unit || ''
+    unit: additionalCost.unit || '',
+    lineType: additionalCost.lineType || 'ADDITIONAL_COST',
+    sampleRefundPolicy: additionalCost.sampleRefundPolicy || 'NONE',
+    sampleRefundPercent: additionalCost.sampleRefundPercent?.toString() || '0',
+    sampleRefundMinOrderQty: additionalCost.sampleRefundMinOrderQty?.toString() || '',
+    sampleRefundNote: additionalCost.sampleRefundNote || ''
   };
 }
 
@@ -1921,6 +1929,7 @@ export default function RFQDetail(): ReactElement {
     Record<number, DraftDetailValidationError>
   >({});
   const [draftAdditionalCosts, setDraftAdditionalCosts] = useState<DraftAdditionalCost[]>([]);
+  const [isAdditionalCostsEditing, setIsAdditionalCostsEditing] = useState(false);
   const [collapsedDetailOptionIds, setCollapsedDetailOptionIds] = useState<number[]>([]);
   const [selectedDetailToDelete, setSelectedDetailToDelete] = useState<RFQDetailOption | null>(
     null
@@ -1991,6 +2000,7 @@ export default function RFQDetail(): ReactElement {
     []
   );
   const [quoteDraftLeadTimes, setQuoteDraftLeadTimes] = useState<DraftSupplierQuoteLeadTime[]>([]);
+  const [quoteDraftSampleRefund, setQuoteDraftSampleRefund] = useState('');
   const [quoteDraftPackageError, setQuoteDraftPackageError] = useState<string | null>(null);
   const [quoteDraftErrors, setQuoteDraftErrors] = useState<
     Record<number, DraftDetailValidationError>
@@ -3007,13 +3017,14 @@ export default function RFQDetail(): ReactElement {
   ) => {
     setQuoteDialogSupplier(supplier);
     setQuoteDialogQuote(existingQuote || null);
+    setQuoteDraftSampleRefund(existingQuote?.sampleRefund || '');
     setQuoteDraftDetails(
       existingQuote?.details?.length
         ? existingQuote.details
           .filter((detail) => detail.lineType !== 'ADDITIONAL_COST')
           .map((detail) =>
-          createSupplierQuoteDetailFromQuote(detail, supplier)
-        )
+            createSupplierQuoteDetailFromQuote(detail, supplier)
+          )
         : [createDraftQuoteDetail(1, supplier)]
     );
     setQuoteDraftPackages(
@@ -3040,14 +3051,15 @@ export default function RFQDetail(): ReactElement {
   ) => {
     setQuoteDialogSupplier(supplier);
     setQuoteDialogQuote(null);
+    setQuoteDraftSampleRefund('');
     setProcurementRemark('');
     setQuoteDraftDetails(
       templateQuote?.details?.length
         ? templateQuote.details
           .filter((detail) => detail.lineType !== 'ADDITIONAL_COST')
           .map((detail) =>
-          createSupplierQuoteDetailFromQuote(detail, supplier)
-        )
+            createSupplierQuoteDetailFromQuote(detail, supplier)
+          )
         : [createDraftQuoteDetail(1, supplier)]
     );
     setQuoteDraftPackages(
@@ -3207,6 +3219,7 @@ export default function RFQDetail(): ReactElement {
         nextAdditionalCosts.length ? nextAdditionalCosts : [createDraftAdditionalCost()]
       );
       setQuoteDraftLeadTimes(nextLeadTimes.length ? nextLeadTimes : [createDraftLeadTime(1)]);
+      setQuoteDraftSampleRefund(extractedQuote.sampleRefund || '');
       setQuoteDraftErrors({});
       setQuoteDraftLeadTimeErrors({});
       setQuoteDraftPackageError(null);
@@ -3749,7 +3762,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleFinalPriceAdditionalCostChange = (
     additionalCostId: number,
-  field: 'description' | 'value' | 'unit' | 'lineType' | 'sampleRefundPolicy' | 'sampleRefundPercent' | 'sampleRefundMinOrderQty' | 'sampleRefundNote',
+    field: 'description' | 'value' | 'unit' | 'lineType' | 'sampleRefundPolicy' | 'sampleRefundPercent' | 'sampleRefundMinOrderQty' | 'sampleRefundNote',
     value: string
   ) => {
     setFinalPriceDraft((prev) => ({
@@ -3871,11 +3884,11 @@ export default function RFQDetail(): ReactElement {
       console.log('FinalPriceDraft: ', finalPriceDraft);
       const detailPayload: CreateRFQDetailRequest[] = finalPriceDraft.details.map(
         (detail, detailIndex) => ({
-        lineType: detail.lineType || 'PRODUCT',
-        sampleRefundPolicy: detail.sampleRefundPolicy || null,
-        sampleRefundPercent: detail.sampleRefundPercent ?? null,
-        sampleRefundMinOrderQty: detail.sampleRefundMinOrderQty ?? null,
-        sampleRefundNote: detail.sampleRefundNote || null,
+          lineType: detail.lineType || 'PRODUCT',
+          sampleRefundPolicy: detail.sampleRefundPolicy || null,
+          sampleRefundPercent: detail.sampleRefundPercent ?? null,
+          sampleRefundMinOrderQty: detail.sampleRefundMinOrderQty ?? null,
+          sampleRefundNote: detail.sampleRefundNote || null,
           optionName: detail.optionName,
           spec: detail.spec,
           sortOrder: detailIndex + 1,
@@ -4074,12 +4087,12 @@ export default function RFQDetail(): ReactElement {
         tiers: sourceDetail.tiers.map((tier, index) => ({
           ...tier,
           id: -(Date.now() + prev.length * 100 + index + 1),
-        sortOrder: index + 1,
-        lineType: additionalCost.lineType,
-        sampleRefundPolicy: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundPolicy : null,
-        sampleRefundPercent: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundPercent) : null,
-        sampleRefundMinOrderQty: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundMinOrderQty) : null,
-        sampleRefundNote: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundNote.trim() || null : null
+          sortOrder: index + 1,
+          lineType: additionalCost.lineType,
+          sampleRefundPolicy: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundPolicy : null,
+          sampleRefundPercent: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundPercent) : null,
+          sampleRefundMinOrderQty: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundMinOrderQty) : null,
+          sampleRefundNote: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundNote.trim() || null : null
         }))
       };
 
@@ -4453,6 +4466,7 @@ export default function RFQDetail(): ReactElement {
       quoteDraftPackages,
       quoteDraftAdditionalCosts,
       quoteDraftLeadTimes,
+      quoteDraftSampleRefund,
       quoteDialogQuote
     );
 
@@ -4491,7 +4505,21 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleAddAdditionalCost = () => {
+    setIsAdditionalCostsEditing(true);
     setDraftAdditionalCosts((prev) => [...prev, createDraftAdditionalCost()]);
+  };
+
+  const handleStartEditAdditionalCosts = () => {
+    setDraftAdditionalCosts(
+      additionalCosts.map((item) => ({
+        ...createDraftAdditionalCost(),
+        id: item.id,
+        description: item.description || '',
+        value: item.value || '',
+        unit: item.unit || ''
+      }))
+    );
+    setIsAdditionalCostsEditing(true);
   };
 
   const handleDraftAdditionalCostChange = (
@@ -4530,7 +4558,7 @@ export default function RFQDetail(): ReactElement {
   };
 
   const handleSaveAdditionalCosts = async () => {
-    if (!params.id || !draftAdditionalCosts.length) {
+    if (!params.id) {
       return;
     }
 
@@ -4541,22 +4569,23 @@ export default function RFQDetail(): ReactElement {
       return;
     }
 
-    const payload: CreateRFQAdditionalCostRequest[] = draftAdditionalCosts.map((item, index) => ({
-      costTypeCode: '',
+    const payload = draftAdditionalCosts.map((item, index) => ({
+      id: item.id > 0 ? item.id : undefined,
       description: item.description.trim(),
       unit: item.unit,
       value: item.value,
-      sortOrder: additionalCosts.length + index + 1
+      sortOrder: index + 1
     }));
 
     try {
       setIsPictureSubmitting(true);
-      await toast.promise(createRFQAdditionalCosts(params.id, payload), {
+      await toast.promise(syncRFQAdditionalCosts(params.id, payload), {
         loading: t('toast.loading'),
         success: t('toast.success'),
         error: t('toast.failed')
       });
       setDraftAdditionalCosts([]);
+      setIsAdditionalCostsEditing(false);
       await refetchPriceInquiryData();
     } finally {
       setIsPictureSubmitting(false);
@@ -5962,66 +5991,126 @@ export default function RFQDetail(): ReactElement {
                     </Stack>
                   </CollapsibleWrapper>
                   <CollapsibleWrapper title="รายละเอียดเพิ่มเติม" defaultExpanded action={null}>
-                    {additionalCosts.length ? (
-                      <Box
-                        sx={{
-                          border: `1px solid ${BRAND_COLORS.sand}`,
-                          borderRadius: 3,
-                          overflow: 'hidden',
-                          backgroundColor: BRAND_COLORS.ivory
-                        }}>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow
-                              sx={{
-                                '& th': {
-                                  fontWeight: 700,
-                                  backgroundColor: BRAND_UI.sandTint,
-                                  whiteSpace: 'nowrap'
-                                }
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                        {!isAdditionalCostsEditing ? (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<EditOutlined fontSize="small" />}
+                            onClick={handleStartEditAdditionalCosts}
+                            sx={outlinedBlueActionButtonSx}>
+                            แก้ไขรายละเอียด
+                          </Button>
+                        ) : (
+                          <>
+                            <Stack direction="row" spacing={1}>
+                              <Button size="small" startIcon={<AddComment />}
+                                onClick={handleAddAdditionalCost}>
+                                เพิ่มรายละเอียด
+                              </Button>
+                              <Button size="small" onClick={() => {
+                                setDraftAdditionalCosts([]);
+                                setIsAdditionalCostsEditing(false);
                               }}>
-                              <TableCell align="center" width="40%">
-                                Name
-                              </TableCell>
-                              <TableCell>Description</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {additionalCosts.map((additionalCost) => (
+                                ยกเลิก
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() => void handleSaveAdditionalCosts()}
+                                disabled={isPictureSubmitting}>
+                                บันทึก
+                              </Button>
+                            </Stack>
+                          </>
+                        )}
+                      </Stack>
+                      {isAdditionalCostsEditing ? (
+                        <Stack spacing={1}>
+                          {draftAdditionalCosts.map((item) => (
+                            <Grid container spacing={1} key={item.id} alignItems="center">
+                              <Grid item xs={12} md={5}>
+                                <TextField fullWidth size="small" label="Name" value={item.description}
+                                  onChange={(event) => handleDraftAdditionalCostChange(item.id, 'description', event.target.value)} />
+                              </Grid>
+                              <Grid item xs={12} md={3}>
+                                <TextField fullWidth size="small" label="Value" value={item.value}
+                                  onChange={(event) => handleDraftAdditionalCostChange(item.id, 'value', event.target.value)} />
+                              </Grid>
+                              <Grid item xs={12} md={3}>
+                                <TextField fullWidth size="small" label="Unit" value={item.unit}
+                                  onChange={(event) => handleDraftAdditionalCostChange(item.id, 'unit', event.target.value)} />
+                              </Grid>
+                              <Grid item xs={12} md={1}>
+                                <IconButton color="error" onClick={() => handleDeleteDraftAdditionalCost(item.id)}>
+                                  <DeleteOutline />
+                                </IconButton>
+                              </Grid>
+                            </Grid>
+                          ))}
+                        </Stack>
+                      ) : additionalCosts.length ? (
+                        <Box
+                          sx={{
+                            border: `1px solid ${BRAND_COLORS.sand}`,
+                            borderRadius: 3,
+                            overflow: 'hidden',
+                            backgroundColor: BRAND_COLORS.ivory
+                          }}>
+                          <Table size="small">
+                            <TableHead>
                               <TableRow
-                                key={additionalCost.id}
                                 sx={{
-                                  '&:last-child td': { borderBottom: 0 }
+                                  '& th': {
+                                    fontWeight: 700,
+                                    backgroundColor: BRAND_UI.sandTint,
+                                    whiteSpace: 'nowrap'
+                                  }
                                 }}>
-                                <TableCell sx={{ fontWeight: 600 }}>
-                                  {additionalCost.description || '-'}
+                                <TableCell align="center" width="40%">
+                                  Name
                                 </TableCell>
-                                <TableCell>
-                                  {formatAdditionalCostValue(
-                                    additionalCost.value,
-                                    additionalCost.unit
-                                  )}
-                                </TableCell>
+                                <TableCell>Description</TableCell>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          border: `1px dashed ${BRAND_COLORS.sand}`,
-                          borderRadius: 3,
-                          py: 3,
-                          px: 2,
-                          textAlign: 'center',
-                          backgroundColor: BRAND_UI.sandTint
-                        }}>
-                        <Typography variant="body2" color="text.secondary">
-                          ยังไม่มีรายละเอียดเพิ่มเติม
-                        </Typography>
-                      </Box>
-                    )}
+                            </TableHead>
+                            <TableBody>
+                              {additionalCosts.map((additionalCost) => (
+                                <TableRow
+                                  key={additionalCost.id}
+                                  sx={{
+                                    '&:last-child td': { borderBottom: 0 }
+                                  }}>
+                                  <TableCell sx={{ fontWeight: 600 }}>
+                                    {additionalCost.description || '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {formatAdditionalCostValue(
+                                      additionalCost.value,
+                                      additionalCost.unit
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            border: `1px dashed ${BRAND_COLORS.sand}`,
+                            borderRadius: 3,
+                            py: 3,
+                            px: 2,
+                            textAlign: 'center',
+                            backgroundColor: BRAND_UI.sandTint
+                          }}>
+                          <Typography variant="body2" color="text.secondary">
+                            ยังไม่มีรายละเอียดเพิ่มเติม
+                          </Typography>
+                        </Box>
+                      )}
+                    </Stack>
                   </CollapsibleWrapper>
                 </>
               ) : null}
@@ -6844,6 +6933,8 @@ export default function RFQDetail(): ReactElement {
         open={visibleSupplierQuoteDialog}
         supplier={quoteDialogSupplier}
         quote={quoteDialogQuote}
+        sampleRefund={quoteDraftSampleRefund}
+        onSampleRefundChange={setQuoteDraftSampleRefund}
         quoteSupplierSearchInput={quoteSupplierSearchInput}
         onQuoteSupplierSearchInputChange={setQuoteSupplierSearchInput}
         onQuoteSupplierSearchEnter={() => {

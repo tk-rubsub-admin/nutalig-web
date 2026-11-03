@@ -36,7 +36,9 @@ function getSupplierDisplayName(supplier?: Supplier | null): string {
     return '-';
   }
 
-  return supplier.supplierName || supplier.supplierCode || supplier.supplierId || supplier.id || '-';
+  return (
+    supplier.supplierName || supplier.supplierCode || supplier.supplierId || supplier.id || '-'
+  );
 }
 
 function getSupplierOptionLabel(supplier?: Supplier | null): string {
@@ -224,6 +226,8 @@ export interface SupplierQuoteDialogProps {
   open: boolean;
   supplier: Supplier | null;
   quote: RFQSupplierQuote | null;
+  sampleRefund?: string;
+  onSampleRefundChange: (value: string) => void;
   quoteSupplierSearchInput: string;
   onQuoteSupplierSearchInputChange: (value: string) => void;
   onQuoteSupplierSearchEnter: () => void;
@@ -314,7 +318,15 @@ export interface SupplierQuoteDialogProps {
   onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
-    field: 'description' | 'value' | 'unit' | 'lineType' | 'sampleRefundPolicy' | 'sampleRefundPercent' | 'sampleRefundMinOrderQty' | 'sampleRefundNote',
+    field:
+      | 'description'
+      | 'value'
+      | 'unit'
+      | 'lineType'
+      | 'sampleRefundPolicy'
+      | 'sampleRefundPercent'
+      | 'sampleRefundMinOrderQty'
+      | 'sampleRefundNote',
     value: string
   ) => void;
   onDeleteAdditionalCost: (additionalCostId: number) => void;
@@ -336,6 +348,8 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
     open,
     supplier,
     quote,
+    sampleRefund,
+    onSampleRefundChange,
     quoteSupplierSearchInput,
     onQuoteSupplierSearchInputChange,
     onQuoteSupplierSearchEnter,
@@ -577,7 +591,8 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                           {entry.remark}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {entry.createdBy || '-'} · {formatProcurementRemarkDate(entry.createdDate)}
+                          {entry.createdBy || '-'} ·{' '}
+                          {formatProcurementRemarkDate(entry.createdDate)}
                         </Typography>
                       </Box>
                     ))
@@ -991,7 +1006,11 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                                 endAdornment: <InputAdornment position="end">ชิ้น</InputAdornment>
                               }}
                               onChange={(event) =>
-                                onPackageChange(packageItem.id, 'packageCapacity', event.target.value)
+                                onPackageChange(
+                                  packageItem.id,
+                                  'packageCapacity',
+                                  event.target.value
+                                )
                               }
                             />
                           </TableCell>
@@ -1036,11 +1055,18 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                   <Grid container spacing={1} key={additionalCost.id} alignItems="center">
                     <Grid item xs={12} md={3}>
                       <TextField
-                        select fullWidth size="small" label="ประเภท" value={additionalCost.lineType}
-                        onChange={(event) => onAdditionalCostChange(additionalCost.id, 'lineType', event.target.value)}>
+                        select
+                        fullWidth
+                        size="small"
+                        label="ประเภท"
+                        value={additionalCost.lineType}
+                        onChange={(event) =>
+                          onAdditionalCostChange(additionalCost.id, 'lineType', event.target.value)
+                        }>
                         <MenuItem value="ADDITIONAL_COST">ค่าใช้จ่ายอื่น</MenuItem>
                         <MenuItem value="SAMPLE_COST">ค่าตัวอย่าง</MenuItem>
-                        <MenuItem value="SCREENING_COST">ค่าตรวจสอบ</MenuItem>
+                        <MenuItem value="SCREENING_COST">งานพิมพ์</MenuItem>
+                        <MenuItem value="MOLE_COST">ค่าโมล</MenuItem>
                       </TextField>
                     </Grid>
                     <Grid item xs={12} md={4}>
@@ -1059,7 +1085,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         }
                       />
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={2}>
                       <TextField
                         fullWidth
                         size="small"
@@ -1071,7 +1097,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         }
                       />
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid item xs={12} md={2}>
                       <TextField
                         fullWidth
                         size="small"
@@ -1083,7 +1109,7 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         }
                       />
                     </Grid>
-                    <Grid item xs={12} md="auto">
+                    <Grid item xs={12} md={1}>
                       <IconButton
                         color="error"
                         onClick={() => onDeleteAdditionalCost(additionalCost.id)}
@@ -1091,150 +1117,214 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         <DeleteOutline />
                       </IconButton>
                     </Grid>
-                    {additionalCost.lineType === 'SAMPLE_COST' && (
+                    {/* {additionalCost.lineType === 'SAMPLE_COST' && (
                       <Grid item xs={12}>
                         <Grid container spacing={1}>
                           <Grid item xs={12} md={3}>
-                            <TextField select fullWidth size="small" label="เงื่อนไขคืนเงิน"
+                            <TextField
+                              select
+                              fullWidth
+                              size="small"
+                              label="เงื่อนไขคืนเงิน"
                               value={additionalCost.sampleRefundPolicy}
-                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundPolicy', event.target.value)}>
+                              onChange={(event) =>
+                                onAdditionalCostChange(
+                                  additionalCost.id,
+                                  'sampleRefundPolicy',
+                                  event.target.value
+                                )
+                              }>
                               <MenuItem value="NONE">คืนเงินไม่ได้</MenuItem>
                               <MenuItem value="PARTIAL">คืนเงินบางส่วน</MenuItem>
                               <MenuItem value="FULL">คืนเงิน 100%</MenuItem>
                             </TextField>
                           </Grid>
                           <Grid item xs={12} md={2}>
-                            <TextField fullWidth size="small" type="number" label="คืนเงิน %"
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="คืนเงิน %"
                               value={additionalCost.sampleRefundPercent}
-                              disabled={additionalCost.sampleRefundPolicy === 'NONE' || additionalCost.sampleRefundPolicy === 'FULL'}
-                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundPercent', event.target.value)} />
+                              disabled={
+                                additionalCost.sampleRefundPolicy === 'NONE' ||
+                                additionalCost.sampleRefundPolicy === 'FULL'
+                              }
+                              onChange={(event) =>
+                                onAdditionalCostChange(
+                                  additionalCost.id,
+                                  'sampleRefundPercent',
+                                  event.target.value
+                                )
+                              }
+                            />
                           </Grid>
                           <Grid item xs={12} md={3}>
-                            <TextField fullWidth size="small" type="number" label="ขั้นต่ำ (ชิ้น)"
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="ขั้นต่ำ (ชิ้น)"
                               value={additionalCost.sampleRefundMinOrderQty}
-                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundMinOrderQty', event.target.value)} />
+                              onChange={(event) =>
+                                onAdditionalCostChange(
+                                  additionalCost.id,
+                                  'sampleRefundMinOrderQty',
+                                  event.target.value
+                                )
+                              }
+                            />
                           </Grid>
                           <Grid item xs={12} md={4}>
-                            <TextField fullWidth size="small" label="หมายเหตุเงื่อนไข"
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label="หมายเหตุเงื่อนไข"
                               value={additionalCost.sampleRefundNote}
-                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundNote', event.target.value)} />
+                              onChange={(event) =>
+                                onAdditionalCostChange(
+                                  additionalCost.id,
+                                  'sampleRefundNote',
+                                  event.target.value
+                                )
+                              }
+                            />
                           </Grid>
                         </Grid>
                       </Grid>
-                    )}
+                    )} */}
                   </Grid>
                 ))}
               </Stack>
 
-              <Stack spacing={2}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    Lead Time
-                  </Typography>
-                  <Button
-                    variant="contained"
+              <Typography variant="subtitle1" fontWeight={700}>
+                เงื่อนไขการตีตัวอย่าง
+              </Typography>
+              <Grid container spacing={1}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
                     size="small"
-                    startIcon={<Add />}
-                    sx={outlinedActionButtonSx}
-                    onClick={onAddLeadTime}>
-                    เพิ่ม Lead Time
-                  </Button>
-                </Stack>
-                {quoteDraftLeadTimes.map((leadTime) => {
-                  const leadTimeError = quoteDraftLeadTimeErrors[leadTime.id] || {};
-                  return (
-                    <Box
-                      key={leadTime.id}
-                      sx={{
-                        border: `1px solid ${BRAND_COLORS.sand}`,
-                        borderRadius: 2,
-                        p: 1.5,
-                        backgroundColor: BRAND_COLORS.ivory
-                      }}>
-                      <Grid container spacing={1}>
-                        <Grid item xs={12} md={3}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            select
-                            label="Lead Time Code"
-                            value={leadTime.leadTimeCode}
-                            error={Boolean(leadTimeError.leadTimeCode)}
-                            helperText={leadTimeError.leadTimeCode}
-                            InputLabelProps={{ shrink: true }}
-                            onChange={(event) =>
-                              onLeadTimeChange(leadTime.id, 'leadTimeCode', event.target.value)
-                            }>
-                            {leadTimeOptions.map((option) => (
-                              <MenuItem
-                                key={option.code}
-                                value={option.code}
-                                disabled={isLeadTimeOptionDisabled(option.code, leadTime.id)}>
-                                {getLeadTimeOptionLabel(option)}
-                              </MenuItem>
-                            ))}
-                          </TextField>
-                        </Grid>
-                        <Grid item xs={12} md={2}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            type="number"
-                            label="วันเริ่มต้น"
-                            value={leadTime.leadTimeDayMin}
-                            error={Boolean(leadTimeError.leadTimeDayMin)}
-                            helperText={leadTimeError.leadTimeDayMin}
-                            InputLabelProps={{ shrink: true }}
-                            onChange={(event) =>
-                              onLeadTimeChange(leadTime.id, 'leadTimeDayMin', event.target.value)
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={2}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            type="number"
-                            label="วันสิ้นสุด"
-                            value={leadTime.leadTimeDayMax}
-                            error={Boolean(leadTimeError.leadTimeDayMax)}
-                            helperText={leadTimeError.leadTimeDayMax}
-                            InputLabelProps={{ shrink: true }}
-                            onChange={(event) =>
-                              onLeadTimeChange(leadTime.id, 'leadTimeDayMax', event.target.value)
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Remark"
-                            value={leadTime.remark}
-                            InputLabelProps={{ shrink: true }}
-                            onChange={(event) =>
-                              onLeadTimeChange(leadTime.id, 'remark', event.target.value)
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={1}>
-                          <Stack alignItems={{ xs: 'flex-start', md: 'center' }} sx={{ pt: { md: 0.5 } }}>
-                            <IconButton
+                    value={sampleRefund || quote?.sampleRefund || ''}
+                    multiline
+                    minRows={3}
+                    InputLabelProps={{ shrink: true }}
+                    onChange={(event) => onSampleRefundChange(event.target.value)}
+                  />
+                </Grid>
+              </Grid>
+
+                <Stack spacing={2}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Lead Time
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Add />}
+                      sx={outlinedActionButtonSx}
+                      onClick={onAddLeadTime}>
+                      เพิ่ม Lead Time
+                    </Button>
+                  </Stack>
+                  {quoteDraftLeadTimes.map((leadTime) => {
+                    const leadTimeError = quoteDraftLeadTimeErrors[leadTime.id] || {};
+                    return (
+                      <Box
+                        key={leadTime.id}
+                        sx={{
+                          border: `1px solid ${BRAND_COLORS.sand}`,
+                          borderRadius: 2,
+                          p: 1.5,
+                          backgroundColor: BRAND_COLORS.ivory
+                        }}>
+                        <Grid container spacing={1}>
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              fullWidth
                               size="small"
-                              onClick={() => onDeleteLeadTime(leadTime.id)}
-                              sx={{ color: '#c62828' }}>
-                              <DeleteOutline fontSize="small" />
-                            </IconButton>
-                          </Stack>
+                              select
+                              label="Lead Time Code"
+                              value={leadTime.leadTimeCode}
+                              error={Boolean(leadTimeError.leadTimeCode)}
+                              helperText={leadTimeError.leadTimeCode}
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(event) =>
+                                onLeadTimeChange(leadTime.id, 'leadTimeCode', event.target.value)
+                              }>
+                              {leadTimeOptions.map((option) => (
+                                <MenuItem
+                                  key={option.code}
+                                  value={option.code}
+                                  disabled={isLeadTimeOptionDisabled(option.code, leadTime.id)}>
+                                  {getLeadTimeOptionLabel(option)}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={12} md={2}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="วันเริ่มต้น"
+                              value={leadTime.leadTimeDayMin}
+                              error={Boolean(leadTimeError.leadTimeDayMin)}
+                              helperText={leadTimeError.leadTimeDayMin}
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(event) =>
+                                onLeadTimeChange(leadTime.id, 'leadTimeDayMin', event.target.value)
+                              }
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={2}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="วันสิ้นสุด"
+                              value={leadTime.leadTimeDayMax}
+                              error={Boolean(leadTimeError.leadTimeDayMax)}
+                              helperText={leadTimeError.leadTimeDayMax}
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(event) =>
+                                onLeadTimeChange(leadTime.id, 'leadTimeDayMax', event.target.value)
+                              }
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label="Remark"
+                              value={leadTime.remark}
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(event) =>
+                                onLeadTimeChange(leadTime.id, 'remark', event.target.value)
+                              }
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={1}>
+                            <Stack
+                              alignItems={{ xs: 'flex-start', md: 'center' }}
+                              sx={{ pt: { md: 0.5 } }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => onDeleteLeadTime(leadTime.id)}
+                                sx={{ color: '#c62828' }}>
+                                <DeleteOutline fontSize="small" />
+                              </IconButton>
+                            </Stack>
+                          </Grid>
                         </Grid>
-                      </Grid>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            </>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </>
           ) : null}
-        </Stack>
+            </Stack>
       </DialogContent>
       <DialogActions>
         <Button className="btn-crimson-red" variant="contained" onClick={onClose}>

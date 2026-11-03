@@ -1008,7 +1008,8 @@ export default function SalesOrderDetail(): ReactElement {
         exchangeRate: item.exchangeRate ?? null,
         supplierShippingCost: item.supplierShippingCost ?? null,
         supplierTotalUnitCost: item.supplierTotalUnitCost ?? null,
-        supplierQuoteTierId: item.supplierQuoteTierId ?? null
+        supplierQuoteTierId: item.supplierQuoteTierId ?? null,
+        lineType: item.lineType || 'PRODUCT'
       }))
     };
 

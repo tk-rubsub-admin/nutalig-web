@@ -1812,8 +1812,9 @@ export default function QuotationDetail(): JSX.Element {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Stack spacing={0.25}>
+
                                                         <Typography variant="body2" fontWeight={700}>
-                                                            {row.quotationItem.name || row.optionName}
+                                                            #{row.detailId} : {row.quotationItem.name || row.optionName}
                                                         </Typography>
                                                         <Typography variant="caption" color="text.secondary">
                                                             {row.quotationItem.spec || '-'}

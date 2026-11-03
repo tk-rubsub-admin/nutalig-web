@@ -20,6 +20,7 @@ export interface AutomaticDeliveryItem {
   supplierUnitPrice: number;
   supplierShippingCost: number;
   isAutomaticShipping: true;
+  lineType: 'ADDITIONAL_COST';
 }
 
 export function buildAutomaticDeliveryItem(
@@ -64,6 +65,7 @@ export function buildAutomaticDeliveryItem(
     supplierCurrency: deliveryCurrency,
     supplierUnitPrice: totalShippingCost,
     supplierShippingCost: 0,
-    isAutomaticShipping: true
+    isAutomaticShipping: true,
+    lineType: 'ADDITIONAL_COST'
   };
 }

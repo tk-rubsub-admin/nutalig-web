@@ -31,6 +31,7 @@ export interface CreatePurchaseOrderItemRequest {
   supplierUnitPrice?: number | null;
   supplierShippingCost?: number | null;
   components?: PurchaseOrderDetailComponentRequest[];
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
 }
 
 export interface PurchaseOrderDetailComponentRequest {
@@ -106,6 +107,7 @@ export interface UpdatePurchaseOrderItemRequest {
   shippingMethod?: string | null;
   supplierQuoteTierId?: number | null;
   components?: PurchaseOrderDetailComponentRequest[];
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
 }
 
 export interface UpdatePurchaseOrderRequest {

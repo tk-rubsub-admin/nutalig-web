@@ -121,6 +121,7 @@ interface SaleOrderRFQItem {
   amount: number;
   totalFreight: number;
   remark: string;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
 }
 
 interface SaleOrderRFQFormValues {
@@ -404,6 +405,10 @@ function getTierSplitSupplierId(tierSplit?: RFQDetailTierSplit): string {
   return tierSplit?.supplier?.supplierId || tierSplit?.supplier?.id || '';
 }
 
+function getRFQSupplierId(rfq?: RFQRecord | null): string {
+  return rfq?.finalSupplier?.supplierId || rfq?.finalSupplier?.id || '';
+}
+
 function formatApiDate(value: dayjs.Dayjs | string): string | undefined {
   if (!value) return undefined;
   if (dayjs.isDayjs(value)) return value.format(DEFAULT_DATE_FORMAT_BFF);
@@ -528,7 +533,10 @@ function createSaleOrderItemsFromRFQ(
           sourceRfqId: rfq.id,
           optionId: detail.id,
           tierSplitId: tierSplit.id,
-          supplierId: getTierSplitSupplierId(tierSplit) || getRFQDetailSupplierId(detail),
+          supplierId:
+            getTierSplitSupplierId(tierSplit) ||
+            getRFQDetailSupplierId(detail) ||
+            getRFQSupplierId(rfq),
           supplierQuoteTierId: tierSplit.supplierQuoteTierId || undefined,
           shippingMethod,
           isFcl: Boolean(tierSplit.isFcl),
@@ -674,11 +682,14 @@ function createSaleOrderItemsFromQuotation(
         ? numericItemId
         : Date.now() + index,
       sourceRfqId: item.sourceRfqId || sourceRfq.id,
+      lineType: item.lineType || mappedDetail?.lineType || 'PRODUCT',
       optionId: rfqDetailId,
       tierId: rfqTierId,
       tierSplitId: rfqTierSplitId,
       supplierId:
-        getTierSplitSupplierId(mappedTierSplit) || getRFQDetailSupplierId(mappedDetail),
+        getTierSplitSupplierId(mappedTierSplit) ||
+        getRFQDetailSupplierId(mappedDetail) ||
+        getRFQSupplierId(sourceRfq),
       quotationDetailId: item.id,
       supplierQuoteTierId:
         mappedTierSplit?.supplierQuoteTierId || mappedTier?.supplierQuoteTierId || undefined,
@@ -1609,7 +1620,8 @@ export default function SalesOrderRFQ(): JSX.Element {
         exchangeRate: selectedItem.exchangeRate ?? null,
         supplierShippingCost: selectedItem.supplierShippingCost ?? null,
         supplierTotalUnitCost: selectedItem.supplierTotalUnitCost ?? null,
-        supplierQuoteTierId: selectedItem.supplierQuoteTierId
+        supplierQuoteTierId: selectedItem.supplierQuoteTierId,
+        lineType: selectedItem.lineType || 'PRODUCT'
       }))
     };
 
@@ -1678,7 +1690,13 @@ export default function SalesOrderRFQ(): JSX.Element {
             (item) =>
               String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId)
           )
-          .map((item) => ({ ...item, shippingMethod: selectedItem.shippingMethod }))
+          .map((item) => ({
+            ...item,
+            // Older quotation rows may not have rfqDetailId populated. The
+            // selection URL still carries the authoritative RFQ detail id.
+            optionId: item.optionId || selectedItem.detailId || undefined,
+            shippingMethod: selectedItem.shippingMethod
+          }))
       );
       const items = hasSelectedRFQParams ? selectedItemFromDialog : allItems.slice(0, 1);
       const itemsWithImage = items.map((item) => ({

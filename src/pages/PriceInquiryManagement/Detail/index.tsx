@@ -255,6 +255,7 @@ interface FinalPriceDraftTier {
 
 interface FinalPriceDraftDetail {
   id: number;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
   optionName: string;
   isSpecial?: boolean;
   plan?: string | null;
@@ -978,6 +979,7 @@ function createFinalPriceDraftFromQuote(
   return {
     details: quote.details.map((detail, detailIndex) => ({
       id: detail.id || -(Date.now() + detailIndex + 1),
+      lineType: detail.lineType || 'PRODUCT',
       optionName: detail.optionName || `Option ${detailIndex + 1}`,
       isSpecial: false,
       plan: detail.plan || '',
@@ -2881,7 +2883,18 @@ export default function RFQDetail(): ReactElement {
             isFcl: selectedTierSplitForEdit.tierSplit.isFcl ?? null,
             isShareFCL: selectedTierSplitForEdit.tierSplit.isShareFCL ?? null,
             containerSize: selectedTierSplitForEdit.tierSplit.containerSize ?? null,
-            supplierId: null
+            // A tier split can be created without a supplier on the detail.
+            // Keep the supplier from the split/detail when available, and use
+            // the supplier quote as the last fallback so the confirmed price
+            // can be used to create a Sales Order later.
+            supplierId:
+              selectedTierSplitForEdit.tierSplit.supplier?.supplierId ||
+              selectedTierSplitForEdit.tierSplit.supplier?.id ||
+              selectedTierSplitForEdit.detail.supplier?.supplierId ||
+              selectedTierSplitForEdit.detail.supplier?.id ||
+              finalPriceQuote.supplier?.supplierId ||
+              finalPriceQuote.supplier?.id ||
+              null
           } as UpdateRFQDetailTierSplitRequest
         )
         : updateRFQDetailTier(
@@ -3163,7 +3176,10 @@ export default function RFQDetail(): ReactElement {
   const handleOpenFinalPriceDialog = (quote: RFQSupplierQuote) => {
     setFinalPriceQuote(quote);
     setFinalPriceProcurementRemark('');
-    setFinalPriceDraft(createFinalPriceDraftFromQuote(quote, rfq?.additionalCosts || []));
+    const additionalCosts = quote.additionalCosts?.length
+      ? quote.additionalCosts
+      : rfq?.additionalCosts || [];
+    setFinalPriceDraft(createFinalPriceDraftFromQuote(quote, additionalCosts));
     setFinalPriceErrors({});
   };
 
@@ -3784,6 +3800,7 @@ export default function RFQDetail(): ReactElement {
       console.log('FinalPriceDraft: ', finalPriceDraft);
       const detailPayload: CreateRFQDetailRequest[] = finalPriceDraft.details.map(
         (detail, detailIndex) => ({
+          lineType: detail.lineType || 'PRODUCT',
           optionName: detail.optionName,
           spec: detail.spec,
           sortOrder: detailIndex + 1,
@@ -3857,6 +3874,52 @@ export default function RFQDetail(): ReactElement {
             : []
         })
       );
+      const additionalCostDetails: CreateRFQDetailRequest[] = finalPriceDraft.additionalCosts
+        .map((additionalCost, index) => {
+          const amount = parsePriceInput(additionalCost.value);
+          if (!additionalCost.description.trim() || amount === null || amount < 0) {
+            return null;
+          }
+          const description = additionalCost.description.trim();
+          const normalizedDescription = description.toLowerCase();
+          const lineType = /ตีตัวอย่าง|ตัวอย่าง|sample/.test(normalizedDescription)
+            ? 'SAMPLE_COST'
+            : /สกรีน|screen|พิมพ์/.test(normalizedDescription)
+              ? 'SCREENING_COST'
+              : 'ADDITIONAL_COST';
+          return {
+            lineType,
+            optionName: description,
+            spec: additionalCost.unit?.trim() || description,
+            sortOrder: detailPayload.length + index + 1,
+            remark: null,
+            internalRemark: null,
+            commission: null,
+            recommend: null,
+            supplierId,
+            tiers: [
+              {
+                quantity: 1,
+                productPrice: amount,
+                commission: 100,
+                currency: 'THB',
+                shippingMethod: 'LAND',
+                containerSize: null,
+                landFreightCost: 0,
+                seaFreightCost: 0,
+                isFcl: false,
+                isShareFCL: false,
+                landTotalPrice: amount,
+                seaTotalPrice: amount,
+                supplierQuoteTierId: null,
+                sortOrder: 1
+              }
+            ],
+            tierSplits: []
+          };
+        })
+        .filter((detail): detail is CreateRFQDetailRequest => detail !== null);
+      detailPayload.push(...additionalCostDetails);
       const incompleteAdditionalCost = finalPriceDraft.additionalCosts.find(
         (additionalCost) =>
           Boolean(additionalCost.description.trim() || additionalCost.value.trim() || additionalCost.unit.trim()) &&
@@ -5603,6 +5666,7 @@ export default function RFQDetail(): ReactElement {
                                       }}
                                     />
                                     <Typography fontWeight={700}>
+                                      #{detail.id}:
                                       {formatOptionNameWithPlan(
                                         detail.optionName || `Option ${index + 1}`,
                                         detail.plan

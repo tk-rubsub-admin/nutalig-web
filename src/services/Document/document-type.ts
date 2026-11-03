@@ -40,6 +40,7 @@ export interface CreateQuotationItem {
     tierSplitId?: number;
     rfqDetailId?: number;
     sourceRfqId?: string;
+    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
     name: string;
     type: string;
     capacity: string;
@@ -107,6 +108,7 @@ export interface QuotationItem {
     tierSplitId?: number;
     rfqDetailId?: number;
     sourceRfqId?: string;
+    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
     name: string;
     type: string;
     capacity: string;

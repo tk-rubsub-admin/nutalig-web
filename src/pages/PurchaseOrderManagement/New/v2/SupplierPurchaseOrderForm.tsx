@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  InputAdornment,
   ListSubheader,
   MenuItem,
   Stack,
@@ -100,7 +101,8 @@ type EditablePurchaseOrderItemField =
   | 'spec'
   | 'quantity'
   | 'supplierUnitPrice'
-  | 'supplierShippingCost';
+  | 'supplierShippingCost'
+  | 'supplierCurrency';
 
 interface PurchaseOrderItemEdit {
   name?: string;
@@ -108,6 +110,7 @@ interface PurchaseOrderItemEdit {
   quantity?: number;
   supplierUnitPrice?: number;
   supplierShippingCost?: number;
+  supplierCurrency?: string | null;
 }
 
 type PricingSource =
@@ -130,6 +133,7 @@ interface ManualPurchaseOrderItem {
   rfqId?: string | null;
   exchangeRate?: number | null;
   pricingSource?: PricingSource;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
 }
 
 interface SupplierQuoteTierPricing {
@@ -408,6 +412,12 @@ export default function SupplierPurchaseOrderForm({
     { refetchOnWindowFocus: false }
   );
 
+  const { data: currencyOptions = [] } = useQuery(
+    ['purchase-order-create-currencies', GROUP_CODE.CURRENCY],
+    () => getSystemConfig(GROUP_CODE.CURRENCY),
+    { refetchOnWindowFocus: false }
+  );
+
   useEffect(() => {
     setDraft(createDraft(salesOrder));
   }, [salesOrder]);
@@ -564,6 +574,7 @@ export default function SupplierPurchaseOrderForm({
               : item.supplierCurrency || item.supplierUnitPrice !== null
                 ? 'Sales Order Item'
                 : 'Supplier Shipping',
+            lineType: item.lineType || 'PRODUCT',
             isAutomaticShipping: false,
             ...(itemEdits[item.id] || {})
           };
@@ -682,7 +693,10 @@ export default function SupplierPurchaseOrderForm({
     () => ({
       salesOrderNo: salesOrder?.salesOrderNo || '',
       items: editableItems
-        .filter((item) => item.id > 0 && !item.isAutomaticShipping)
+        .filter(
+          (item) =>
+            item.id > 0 && !item.isAutomaticShipping && (item.lineType || 'PRODUCT') === 'PRODUCT'
+        )
         .map((item) => ({ salesOrderDetailId: item.id, quantity: Number(item.quantity || 0) }))
     }),
     [editableItems, salesOrder?.salesOrderNo]
@@ -751,7 +765,8 @@ export default function SupplierPurchaseOrderForm({
         supplierCurrency: editableItems[0]?.supplierCurrency || selectedShipping?.currency || null,
         supplierUnitPrice: 0,
         supplierShippingCost: 0,
-        pricingSource: 'Manual Item'
+        pricingSource: 'Manual Item',
+        lineType: 'PRODUCT'
       }
     ]);
   };
@@ -782,7 +797,8 @@ export default function SupplierPurchaseOrderForm({
         quantity: Number(item.quantity || 0),
         supplierCurrency: item.supplierCurrency || null,
         supplierUnitPrice: Number(item.supplierUnitPrice || 0),
-        supplierShippingCost: Number(item.supplierShippingCost || 0)
+        supplierShippingCost: Number(item.supplierShippingCost || 0),
+        lineType: item.lineType || 'PRODUCT'
       }))
     }),
     [draft, editableItems, filteredItems, salesOrder.salesOrderNo, suggestedShippingMethodSnapshot]
@@ -923,15 +939,49 @@ export default function SupplierPurchaseOrderForm({
               <CollapsibleWrapper title="ข้อมูลใบสั่งซื้อและสรุปยอด" defaultExpanded>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={12}>
-                    <ReadonlyTextField
+                    <TextField
+                      fullWidth
                       label="อ้างอิงใบยืนยันสั่งซื้อ"
-                      value={salesOrder?.salesOrderNo}
+                      value={salesOrder?.salesOrderNo || ''}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: salesOrder?.salesOrderNo ? (
+                          <InputAdornment position="end">
+                            <IconButton
+                              component="a"
+                              href={`/sales-order/${salesOrder.salesOrderNo}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              edge="end"
+                              aria-label="เปิดใบยืนยันสั่งซื้อ">
+                              <OpenInNew fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ) : undefined
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={12}>
-                    <ReadonlyTextField
+                    <TextField
+                      fullWidth
                       label="อ้างอิงคำขอราคาเลขที่"
-                      value={supplierQuoteRfqIds.join(', ') || salesOrder.rfqId}
+                      value={supplierQuoteRfqIds.join(', ') || salesOrder.rfqId || ''}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: (salesOrder.rfqId || supplierQuoteRfqIds[0]) ? (
+                          <InputAdornment position="end">
+                            <IconButton
+                              component="a"
+                              href={`/price-inquiry/${salesOrder.rfqId || supplierQuoteRfqIds[0]}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              edge="end"
+                              aria-label="เปิดคำขอราคา">
+                              <OpenInNew fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ) : undefined
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={12}>
@@ -1661,7 +1711,6 @@ export default function SupplierPurchaseOrderForm({
                                   onChange={(event) =>
                                     handleItemEdit(item.id, 'name', event.target.value)
                                   }
-                                  InputProps={{ readOnly: item.isAutomaticShipping }}
                                 />
                                 <TextField
                                   fullWidth
@@ -1673,7 +1722,6 @@ export default function SupplierPurchaseOrderForm({
                                   onChange={(event) =>
                                     handleItemEdit(item.id, 'spec', event.target.value)
                                   }
-                                  InputProps={{ readOnly: item.isAutomaticShipping }}
                                 />
 
                                 {isSuperAdmin ? (
@@ -1705,29 +1753,47 @@ export default function SupplierPurchaseOrderForm({
                                 onChange={(event) =>
                                   handleItemEdit(item.id, 'quantity', event.target.value)
                                 }
-                                InputProps={{ readOnly: item.isAutomaticShipping }}
                                 inputProps={{ min: 0, step: 1, style: { textAlign: 'right' } }}
                               />
                             </TableCell>
                             <TableCell align="right" sx={{ px: 1, verticalAlign: 'top' }}>
-                              <TextField
-                                size="small"
-                                type="number"
-                                sx={{ width: '100%' }}
-                                value={item.supplierUnitPrice || 0}
-                                onChange={(event) =>
-                                  handleItemEdit(item.id, 'supplierUnitPrice', event.target.value)
-                                }
-                                inputProps={{ min: 0, step: 0.0001, style: { textAlign: 'right' } }}
-                                helperText={
-                                  Number(item.supplierShippingCost || 0) > 0
-                                    ? `${item.supplierCurrency || ''
-                                    } • ค่าขนส่งต่อชิ้น ${formatNumber(
-                                      Number(item.supplierShippingCost)
-                                    )}`
-                                    : item.supplierCurrency || undefined
-                                }
-                              />
+                              <Stack spacing={0.5}>
+                                <TextField
+                                  size="small"
+                                  type="number"
+                                  sx={{ width: '100%' }}
+                                  value={item.supplierUnitPrice || 0}
+                                  onChange={(event) =>
+                                    handleItemEdit(item.id, 'supplierUnitPrice', event.target.value)
+                                  }
+                                  inputProps={{ min: 0, step: 0.0001, style: { textAlign: 'right' } }}
+                                  helperText={
+                                    Number(item.supplierShippingCost || 0) > 0
+                                      ? `${item.supplierCurrency || ''
+                                      } • ค่าขนส่งต่อชิ้น ${formatNumber(
+                                        Number(item.supplierShippingCost)
+                                      )}`
+                                      : undefined
+                                  }
+                                />
+                                <br />
+                                <TextField
+                                  select
+                                  size="small"
+                                  label="สกุลเงิน"
+                                  value={item.supplierCurrency || ''}
+                                  onChange={(event) =>
+                                    handleItemEdit(item.id, 'supplierCurrency', event.target.value)
+                                  }
+                                >
+                                  {currencyOptions.map((option) => (
+                                    <MenuItem key={option.code} value={option.code}>
+                                      {option.code}
+                                      {option.nameTh ? ` - ${option.nameTh}` : ''}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                              </Stack>
                             </TableCell>
                             <TableCell align="right" sx={{ px: 1, verticalAlign: 'top' }}>
                               <TextField

@@ -229,6 +229,7 @@ export interface RFQDetailTier {
 export interface RFQDetailOption {
   id: number;
   optionName: string;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
   plan?: string | null;
   spec: string;
   sortOrder: number;
@@ -600,6 +601,7 @@ export interface CreateRFQDetailTierSplitRequest {
 
 export interface CreateRFQDetailRequest {
   optionName: string;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
   plan?: string | null;
   spec: string;
   sortOrder: number;

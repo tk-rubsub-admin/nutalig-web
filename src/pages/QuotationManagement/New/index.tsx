@@ -575,6 +575,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
 
                 return {
                     ...createEmptyRow(),
+                    lineType: detail.lineType || 'PRODUCT',
                     sourceRfqId: rfq.id,
                     rfqDetailId: detail.id,
                     tierId: '',
@@ -605,6 +606,7 @@ const createQuotationItemsFromRFQ = (rfq: RFQRecord): CreateQuotationItem[] => {
                 shippingMethodLabel?: string
             ): CreateQuotationItem => ({
                 ...createEmptyRow(),
+                lineType: detail.lineType || 'PRODUCT',
                 sourceRfqId: rfq.id,
                 rfqDetailId: detail.id,
                 tierId: tier?.id ? String(tier.id) : '',

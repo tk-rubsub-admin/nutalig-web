@@ -119,6 +119,11 @@ interface FinalPriceQuoteDialogProps {
       description: string;
       value: string;
       unit: string;
+      lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+      sampleRefundPolicy: 'NONE' | 'PARTIAL' | 'FULL';
+      sampleRefundPercent: string;
+      sampleRefundMinOrderQty: string;
+      sampleRefundNote: string;
     }[];
     internalRemark: string;
     recommend: string;
@@ -157,7 +162,7 @@ interface FinalPriceQuoteDialogProps {
   onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
-    field: 'description' | 'value' | 'unit',
+    field: 'description' | 'value' | 'unit' | 'lineType' | 'sampleRefundPolicy' | 'sampleRefundPercent' | 'sampleRefundMinOrderQty' | 'sampleRefundNote',
     value: string
   ) => void;
   onDeleteAdditionalCost: (additionalCostId: number) => void;
@@ -1536,6 +1541,16 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
                         </IconButton>
                       </Tooltip>
                     </Grid>
+                    {additionalCost.lineType === 'SAMPLE_COST' && (
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary">
+                          เงื่อนไข: {additionalCost.sampleRefundPolicy === 'NONE'
+                            ? 'คืนเงินไม่ได้'
+                            : `คืนเงินได้ ${additionalCost.sampleRefundPolicy === 'FULL' ? '100' : additionalCost.sampleRefundPercent}%${additionalCost.sampleRefundMinOrderQty ? ` ถ้าสั่งขั้นต่ำ ${additionalCost.sampleRefundMinOrderQty} ชิ้น` : ' ไม่มีขั้นต่ำ'}`}
+                          {additionalCost.sampleRefundNote ? ` (${additionalCost.sampleRefundNote})` : ''}
+                        </Typography>
+                      </Grid>
+                    )}
                   </Grid>
                 ))
               ) : (

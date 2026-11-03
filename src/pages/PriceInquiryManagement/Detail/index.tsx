@@ -228,6 +228,12 @@ interface DraftAdditionalCost {
   description: string;
   value: string;
   unit: string;
+  lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+  sampleRefundPolicy: 'NONE' | 'PARTIAL' | 'FULL';
+  sampleRefundPercent: string;
+  sampleRefundMinOrderQty: string;
+  sampleRefundNote: string;
+  sampleRefundConditionText?: string | null;
 }
 
 interface DraftSupplierQuoteLeadTimeError {
@@ -262,6 +268,11 @@ interface FinalPriceDraftDetail {
   spec: string;
   sortOrder: number;
   remark?: string | null;
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
+  sampleRefundConditionText?: string | null;
   tiers: FinalPriceDraftTier[];
 }
 
@@ -302,12 +313,18 @@ interface DraftSupplierQuoteTier {
 interface DraftSupplierQuoteDetail {
   id: number;
   rfqDetailId?: number | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
   supplier?: Supplier | null;
   optionName: string;
   plan?: string | null;
   spec: string;
   sortOrder: number;
   remark: string | null;
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
+  sampleRefundConditionText?: string | null;
   packageName?: string;
   packageDimension?: string;
   packageWeight?: string;
@@ -922,6 +939,11 @@ function createDetailEditDraft(detail: RFQDetailOption): DetailEditDraft {
     spec: detail.spec || '',
     sortOrder: detail.sortOrder?.toString() || '',
     remark: detail.remark || '',
+    sampleRefundPolicy: detail.sampleRefundPolicy || null,
+    sampleRefundPercent: detail.sampleRefundPercent ?? null,
+    sampleRefundMinOrderQty: detail.sampleRefundMinOrderQty ?? null,
+    sampleRefundNote: detail.sampleRefundNote || null,
+    sampleRefundConditionText: detail.sampleRefundConditionText || null,
     internalRemark: detail.internalRemark || '',
     recommend: detail.recommend || '',
     commission: detail.commission?.toString() || '',
@@ -986,16 +1008,21 @@ function createFinalPriceDraftFromQuote(
       spec: detail.spec || '',
       sortOrder: detail.sortOrder || detailIndex + 1,
       remark: detail.remark || null,
+      sampleRefundPolicy: detail.sampleRefundPolicy || null,
+      sampleRefundPercent: detail.sampleRefundPercent ?? null,
+      sampleRefundMinOrderQty: detail.sampleRefundMinOrderQty ?? null,
+      sampleRefundNote: detail.sampleRefundNote || null,
+      sampleRefundConditionText: detail.sampleRefundConditionText || null,
       tiers: detail.tiers.map((tier, tierIndex) => ({
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
         quantity: tier.quantity,
-        productPrice: '',
+        productPrice: detail.lineType === 'ADDITIONAL_COST' ? tier.productPrice?.toString() || '' : '',
         sellPrice: '',
         commission: normalizeCommissionInput(tier.commission?.toString()),
-        currency: 'THB',
+        currency: detail.lineType === 'ADDITIONAL_COST' ? tier.currency || 'THB' : 'THB',
         landFreightQty: '',
         seaFreightQty: '',
-        landTotalPrice: '',
+        landTotalPrice: detail.lineType === 'ADDITIONAL_COST' ? tier.productPrice?.toString() || '' : '',
         seaTotalPrice: '',
         isFcl: Boolean(tier.isFcl),
         isShareFCL: Boolean(tier.isShareFCL),
@@ -1010,7 +1037,12 @@ function createFinalPriceDraftFromQuote(
         id: additionalCost.id,
         description: additionalCost.description || '',
         value: additionalCost.value || '',
-        unit: additionalCost.unit || ''
+        unit: additionalCost.unit || '',
+        lineType: 'ADDITIONAL_COST',
+        sampleRefundPolicy: 'NONE',
+        sampleRefundPercent: '0',
+        sampleRefundMinOrderQty: '',
+        sampleRefundNote: ''
       })),
     internalRemark: '',
     recommend: ''
@@ -1069,7 +1101,12 @@ function createDraftAdditionalCost(): DraftAdditionalCost {
     id: -Date.now(),
     description: '',
     value: '',
-    unit: ''
+    unit: '',
+    lineType: 'ADDITIONAL_COST',
+    sampleRefundPolicy: 'NONE',
+    sampleRefundPercent: '0',
+    sampleRefundMinOrderQty: '',
+    sampleRefundNote: ''
   };
 }
 
@@ -1351,6 +1388,7 @@ function createSupplierQuoteDetailFromQuote(
   return {
     id: detail.id || -Date.now(),
     rfqDetailId: detail.rfqDetailId || null,
+    lineType: detail.lineType || 'PRODUCT',
     supplier: supplier || null,
     optionName: detail.optionName || '',
     plan: detail.plan || '',
@@ -1377,14 +1415,33 @@ function createSupplierQuoteDetailFromQuote(
 }
 
 function createSupplierQuoteAdditionalCostFromQuote(
-  additionalCost: RFQSupplierQuoteAdditionalCost
+  additionalCost: RFQSupplierQuoteAdditionalCost,
+  sampleDetail?: RFQSupplierQuoteDetail
 ): DraftAdditionalCost {
   return {
     id: additionalCost.id || -Date.now(),
     description: additionalCost.description || '',
     value: additionalCost.value || '',
-    unit: additionalCost.unit || ''
+    unit: additionalCost.unit || '',
+    lineType: sampleDetail?.lineType === 'SAMPLE_COST' ? 'SAMPLE_COST' : 'ADDITIONAL_COST',
+    sampleRefundPolicy: sampleDetail?.sampleRefundPolicy || 'NONE',
+    sampleRefundPercent: sampleDetail?.sampleRefundPercent?.toString() || '0',
+    sampleRefundMinOrderQty: sampleDetail?.sampleRefundMinOrderQty?.toString() || '',
+    sampleRefundNote: sampleDetail?.sampleRefundNote || '',
+    sampleRefundConditionText: sampleDetail?.sampleRefundConditionText || null
   };
+}
+
+function mapSupplierQuoteAdditionalCosts(
+  quote?: RFQSupplierQuote | null
+): DraftAdditionalCost[] {
+  return (quote?.additionalCosts || []).map((cost) => {
+    const sampleDetail = quote?.details?.find(
+      (detail) => detail.lineType === 'SAMPLE_COST'
+        && detail.optionName?.trim().toLowerCase() === cost.description?.trim().toLowerCase()
+    );
+    return createSupplierQuoteAdditionalCostFromQuote(cost, sampleDetail);
+  });
 }
 
 function createSupplierQuoteLeadTimeFromQuote(
@@ -1422,6 +1479,7 @@ function buildSupplierQuotePayload(
     remark: quote?.remark || null,
     details: details.map((detail, index) => ({
       rfqDetailId: detail.rfqDetailId || null,
+      lineType: detail.lineType || 'PRODUCT',
       supplierId:
         detail.supplier?.supplierId || detail.supplier?.id || supplier.supplierId || supplier.id,
       optionName: detail.optionName.trim(),
@@ -1429,6 +1487,10 @@ function buildSupplierQuotePayload(
       spec: detail.spec.trim(),
       sortOrder: index + 1,
       remark: detail.remark?.trim() || null,
+      sampleRefundPolicy: detail.lineType === 'SAMPLE_COST' ? detail.sampleRefundPolicy || 'NONE' : null,
+      sampleRefundPercent: detail.lineType === 'SAMPLE_COST' ? detail.sampleRefundPercent || 0 : null,
+      sampleRefundMinOrderQty: detail.lineType === 'SAMPLE_COST' ? detail.sampleRefundMinOrderQty || 0 : null,
+      sampleRefundNote: detail.lineType === 'SAMPLE_COST' ? detail.sampleRefundNote?.trim() || null : null,
       tiers: detail.tiers.map((tier, tierIndex) => ({
         quantity: tier.quantity,
         productPrice: tier.productPrice,
@@ -1469,7 +1531,12 @@ function buildSupplierQuotePayload(
         description: additionalCost.description.trim(),
         value: additionalCost.value,
         unit: additionalCost.unit,
-        sortOrder: index + 1
+        sortOrder: index + 1,
+        lineType: additionalCost.lineType,
+        sampleRefundPolicy: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundPolicy : null,
+        sampleRefundPercent: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundPercent) : null,
+        sampleRefundMinOrderQty: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundMinOrderQty) : null,
+        sampleRefundNote: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundNote.trim() || null : null
       })),
     leadTimes: leadTimes
       .filter(
@@ -2942,7 +3009,9 @@ export default function RFQDetail(): ReactElement {
     setQuoteDialogQuote(existingQuote || null);
     setQuoteDraftDetails(
       existingQuote?.details?.length
-        ? existingQuote.details.map((detail) =>
+        ? existingQuote.details
+          .filter((detail) => detail.lineType !== 'ADDITIONAL_COST')
+          .map((detail) =>
           createSupplierQuoteDetailFromQuote(detail, supplier)
         )
         : [createDraftQuoteDetail(1, supplier)]
@@ -2952,7 +3021,7 @@ export default function RFQDetail(): ReactElement {
     );
     setQuoteDraftAdditionalCosts(
       existingQuote?.additionalCosts?.length
-        ? existingQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
+        ? mapSupplierQuoteAdditionalCosts(existingQuote)
         : [createDraftAdditionalCost()]
     );
     setQuoteDraftLeadTimes(
@@ -2974,7 +3043,9 @@ export default function RFQDetail(): ReactElement {
     setProcurementRemark('');
     setQuoteDraftDetails(
       templateQuote?.details?.length
-        ? templateQuote.details.map((detail) =>
+        ? templateQuote.details
+          .filter((detail) => detail.lineType !== 'ADDITIONAL_COST')
+          .map((detail) =>
           createSupplierQuoteDetailFromQuote(detail, supplier)
         )
         : [createDraftQuoteDetail(1, supplier)]
@@ -2984,7 +3055,7 @@ export default function RFQDetail(): ReactElement {
     );
     setQuoteDraftAdditionalCosts(
       templateQuote?.additionalCosts?.length
-        ? templateQuote.additionalCosts.map(createSupplierQuoteAdditionalCostFromQuote)
+        ? mapSupplierQuoteAdditionalCosts(templateQuote)
         : [createDraftAdditionalCost()]
     );
     setQuoteDraftLeadTimes(
@@ -3678,7 +3749,7 @@ export default function RFQDetail(): ReactElement {
 
   const handleFinalPriceAdditionalCostChange = (
     additionalCostId: number,
-    field: 'description' | 'value' | 'unit',
+  field: 'description' | 'value' | 'unit' | 'lineType' | 'sampleRefundPolicy' | 'sampleRefundPercent' | 'sampleRefundMinOrderQty' | 'sampleRefundNote',
     value: string
   ) => {
     setFinalPriceDraft((prev) => ({
@@ -3800,7 +3871,11 @@ export default function RFQDetail(): ReactElement {
       console.log('FinalPriceDraft: ', finalPriceDraft);
       const detailPayload: CreateRFQDetailRequest[] = finalPriceDraft.details.map(
         (detail, detailIndex) => ({
-          lineType: detail.lineType || 'PRODUCT',
+        lineType: detail.lineType || 'PRODUCT',
+        sampleRefundPolicy: detail.sampleRefundPolicy || null,
+        sampleRefundPercent: detail.sampleRefundPercent ?? null,
+        sampleRefundMinOrderQty: detail.sampleRefundMinOrderQty ?? null,
+        sampleRefundNote: detail.sampleRefundNote || null,
           optionName: detail.optionName,
           spec: detail.spec,
           sortOrder: detailIndex + 1,
@@ -3875,6 +3950,11 @@ export default function RFQDetail(): ReactElement {
         })
       );
       const additionalCostDetails: CreateRFQDetailRequest[] = finalPriceDraft.additionalCosts
+        .filter((additionalCost) => !finalPriceDraft.details.some(
+          (detail) =>
+            detail.lineType === 'ADDITIONAL_COST' &&
+            detail.optionName.trim().toLowerCase() === additionalCost.description.trim().toLowerCase()
+        ))
         .map((additionalCost, index) => {
           const amount = parsePriceInput(additionalCost.value);
           if (!additionalCost.description.trim() || amount === null || amount < 0) {
@@ -3994,7 +4074,12 @@ export default function RFQDetail(): ReactElement {
         tiers: sourceDetail.tiers.map((tier, index) => ({
           ...tier,
           id: -(Date.now() + prev.length * 100 + index + 1),
-          sortOrder: index + 1
+        sortOrder: index + 1,
+        lineType: additionalCost.lineType,
+        sampleRefundPolicy: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundPolicy : null,
+        sampleRefundPercent: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundPercent) : null,
+        sampleRefundMinOrderQty: additionalCost.lineType === 'SAMPLE_COST' ? parsePriceInput(additionalCost.sampleRefundMinOrderQty) : null,
+        sampleRefundNote: additionalCost.lineType === 'SAMPLE_COST' ? additionalCost.sampleRefundNote.trim() || null : null
         }))
       };
 

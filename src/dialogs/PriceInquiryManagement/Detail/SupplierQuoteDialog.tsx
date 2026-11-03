@@ -257,6 +257,11 @@ export interface SupplierQuoteDialogProps {
     description: string;
     value: string;
     unit: string;
+    lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+    sampleRefundPolicy: 'NONE' | 'PARTIAL' | 'FULL';
+    sampleRefundPercent: string;
+    sampleRefundMinOrderQty: string;
+    sampleRefundNote: string;
   }>;
   quoteDraftPackages: SupplierQuoteDialogPackage[];
   quoteDraftLeadTimes: Array<{
@@ -309,7 +314,7 @@ export interface SupplierQuoteDialogProps {
   onAddAdditionalCost: () => void;
   onAdditionalCostChange: (
     additionalCostId: number,
-    field: 'description' | 'value' | 'unit',
+    field: 'description' | 'value' | 'unit' | 'lineType' | 'sampleRefundPolicy' | 'sampleRefundPercent' | 'sampleRefundMinOrderQty' | 'sampleRefundNote',
     value: string
   ) => void;
   onDeleteAdditionalCost: (additionalCostId: number) => void;
@@ -1029,6 +1034,15 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                 </Stack>
                 {quoteDraftAdditionalCosts.map((additionalCost) => (
                   <Grid container spacing={1} key={additionalCost.id} alignItems="center">
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        select fullWidth size="small" label="ประเภท" value={additionalCost.lineType}
+                        onChange={(event) => onAdditionalCostChange(additionalCost.id, 'lineType', event.target.value)}>
+                        <MenuItem value="ADDITIONAL_COST">ค่าใช้จ่ายอื่น</MenuItem>
+                        <MenuItem value="SAMPLE_COST">ค่าตัวอย่าง</MenuItem>
+                        <MenuItem value="SCREENING_COST">ค่าตรวจสอบ</MenuItem>
+                      </TextField>
+                    </Grid>
                     <Grid item xs={12} md={4}>
                       <TextField
                         fullWidth
@@ -1077,6 +1091,37 @@ export function SupplierQuoteDialog(props: SupplierQuoteDialogProps): ReactEleme
                         <DeleteOutline />
                       </IconButton>
                     </Grid>
+                    {additionalCost.lineType === 'SAMPLE_COST' && (
+                      <Grid item xs={12}>
+                        <Grid container spacing={1}>
+                          <Grid item xs={12} md={3}>
+                            <TextField select fullWidth size="small" label="เงื่อนไขคืนเงิน"
+                              value={additionalCost.sampleRefundPolicy}
+                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundPolicy', event.target.value)}>
+                              <MenuItem value="NONE">คืนเงินไม่ได้</MenuItem>
+                              <MenuItem value="PARTIAL">คืนเงินบางส่วน</MenuItem>
+                              <MenuItem value="FULL">คืนเงิน 100%</MenuItem>
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={12} md={2}>
+                            <TextField fullWidth size="small" type="number" label="คืนเงิน %"
+                              value={additionalCost.sampleRefundPercent}
+                              disabled={additionalCost.sampleRefundPolicy === 'NONE' || additionalCost.sampleRefundPolicy === 'FULL'}
+                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundPercent', event.target.value)} />
+                          </Grid>
+                          <Grid item xs={12} md={3}>
+                            <TextField fullWidth size="small" type="number" label="ขั้นต่ำ (ชิ้น)"
+                              value={additionalCost.sampleRefundMinOrderQty}
+                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundMinOrderQty', event.target.value)} />
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <TextField fullWidth size="small" label="หมายเหตุเงื่อนไข"
+                              value={additionalCost.sampleRefundNote}
+                              onChange={(event) => onAdditionalCostChange(additionalCost.id, 'sampleRefundNote', event.target.value)} />
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                    )}
                   </Grid>
                 ))}
               </Stack>

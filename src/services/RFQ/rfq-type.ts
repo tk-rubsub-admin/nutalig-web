@@ -230,6 +230,11 @@ export interface RFQDetailOption {
   id: number;
   optionName: string;
   lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
+  sampleRefundConditionText?: string | null;
   plan?: string | null;
   spec: string;
   sortOrder: number;
@@ -602,6 +607,11 @@ export interface CreateRFQDetailTierSplitRequest {
 export interface CreateRFQDetailRequest {
   optionName: string;
   lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
+  sampleRefundConditionText?: string | null;
   plan?: string | null;
   spec: string;
   sortOrder: number;
@@ -737,6 +747,12 @@ export interface RFQSupplierQuoteTier {
 export interface RFQSupplierQuoteDetail {
   id?: number;
   rfqDetailId?: number | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
+  sampleRefundConditionText?: string | null;
   optionName: string;
   plan?: string | null;
   spec: string;
@@ -819,6 +835,11 @@ export interface UpsertRFQSupplierQuoteDetailRequest {
   packageCapacity?: string | null;
   packages?: UpsertRFQSupplierQuotePackageRequest[];
   tiers: UpsertRFQSupplierQuoteTierRequest[];
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
 }
 
 export interface UpsertRFQSupplierQuotePackageRequest {
@@ -834,6 +855,11 @@ export interface UpsertRFQSupplierQuoteAdditionalCostRequest {
   unit: string | null;
   value: string | null;
   sortOrder: number;
+  lineType?: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+  sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
+  sampleRefundPercent?: number | null;
+  sampleRefundMinOrderQty?: number | null;
+  sampleRefundNote?: string | null;
 }
 
 export interface UpsertRFQSupplierQuoteLeadTimeRequest {

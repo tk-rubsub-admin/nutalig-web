@@ -68,7 +68,7 @@ export interface CreateSalesOrderDetailRequest {
     supplierShippingCost?: number | null;
     supplierTotalUnitCost?: number | null;
     supplierQuoteTierId?: number | null;
-    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
 }
 
 export interface CreateSalesOrderRequestV1 {
@@ -199,7 +199,7 @@ export interface SalesOrderDetailV1 {
     supplierShippingCost?: number | null;
     supplierTotalUnitCost?: number | null;
     supplierQuoteTierId?: number | null;
-    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
 }
 
 export interface UpdateSalesOrderDetailRequestV1 {
@@ -224,7 +224,7 @@ export interface UpdateSalesOrderDetailRequestV1 {
     supplierShippingCost?: number | null;
     supplierTotalUnitCost?: number | null;
     supplierQuoteTierId?: number | null;
-    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+    lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
 }
 
 export interface UpdateSalesOrderRequestV1 {

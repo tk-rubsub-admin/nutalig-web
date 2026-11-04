@@ -479,20 +479,20 @@ export default function QuotationDetail(): JSX.Element {
         receiptCount: receiptRecords.length
     });
     const confirmQuotationRows: ConfirmQuotationRow[] = (quotation?.items || []).map((item, index) => {
-        if (isSampleProductionQuotationItem(item)) {
-            return {
-                key: `${item.id || index}:NO_SHIPPING`,
-                quotationItem: item,
-                detailId: null,
-                tierId: null,
-                shippingMethod: null,
-                optionName: item.name || `รายการที่ ${index + 1}`,
-                quantity: Number(item.quantity || 0),
-                unitPrice: Number(item.unitPrice || 0),
-                isFcl: false,
-                isShareFCL: false
-            };
-        }
+        // if (isSampleProductionQuotationItem(item)) {
+        //     return {
+        //         key: `${item.id || index}:NO_SHIPPING`,
+        //         quotationItem: item,
+        //         detailId: null,
+        //         tierId: null,
+        //         shippingMethod: null,
+        //         optionName: item.name || `รายการที่ ${index + 1}`,
+        //         quantity: Number(item.quantity || 0),
+        //         unitPrice: Number(item.unitPrice || 0),
+        //         isFcl: false,
+        //         isShareFCL: false
+        //     };
+        // }
 
         const matched = findMatchingTier(rfq?.details || [], item);
         return {

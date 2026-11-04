@@ -133,7 +133,7 @@ interface ManualPurchaseOrderItem {
   rfqId?: string | null;
   exchangeRate?: number | null;
   pricingSource?: PricingSource;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
 }
 
 interface SupplierQuoteTierPricing {

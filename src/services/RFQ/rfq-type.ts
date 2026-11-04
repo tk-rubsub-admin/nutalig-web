@@ -229,7 +229,7 @@ export interface RFQDetailTier {
 export interface RFQDetailOption {
   id: number;
   optionName: string;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
   sampleRefundPercent?: number | null;
   sampleRefundMinOrderQty?: number | null;
@@ -606,7 +606,7 @@ export interface CreateRFQDetailTierSplitRequest {
 
 export interface CreateRFQDetailRequest {
   optionName: string;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
   sampleRefundPercent?: number | null;
   sampleRefundMinOrderQty?: number | null;
@@ -747,7 +747,7 @@ export interface RFQSupplierQuoteTier {
 export interface RFQSupplierQuoteDetail {
   id?: number;
   rfqDetailId?: number | null;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
   sampleRefundPercent?: number | null;
   sampleRefundMinOrderQty?: number | null;
@@ -835,7 +835,7 @@ export interface UpsertRFQSupplierQuoteDetailRequest {
   packageCapacity?: string | null;
   packages?: UpsertRFQSupplierQuotePackageRequest[];
   tiers: UpsertRFQSupplierQuoteTierRequest[];
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
   sampleRefundPercent?: number | null;
   sampleRefundMinOrderQty?: number | null;
@@ -855,7 +855,7 @@ export interface UpsertRFQSupplierQuoteAdditionalCostRequest {
   unit: string | null;
   value: string | null;
   sortOrder: number;
-  lineType?: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+  lineType?: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST';
   sampleRefundPolicy?: 'NONE' | 'PARTIAL' | 'FULL' | null;
   sampleRefundPercent?: number | null;
   sampleRefundMinOrderQty?: number | null;

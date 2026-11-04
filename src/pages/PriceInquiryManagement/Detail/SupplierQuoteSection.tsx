@@ -39,6 +39,21 @@ import { SupplierQuoteDialogDetail } from 'dialogs/PriceInquiryManagement/Detail
 import Can from 'auth/Can';
 import { PERMISSIONS } from 'auth/permissions';
 
+function getLineTypeLabel(lineType?: string | null): string {
+  switch (lineType) {
+    case 'SAMPLE_COST':
+      return 'ค่าตัวอย่าง';
+    case 'SCREENING_COST':
+      return 'ค่าสกรีน';
+    case 'ADDITIONAL_COST':
+      return 'ค่าใช้จ่ายเพิ่มเติม';
+    case 'MOLE_COST':
+      return 'ค่าโมลด์';
+    default:
+      return 'สินค้า';
+  }
+}
+
 interface SupplierQuoteDraftAdditionalCost {
   id: number;
   description: string;
@@ -396,6 +411,12 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                                 flexShrink: 0
                                               }}
                                             />
+                                            <Chip
+                                              size="small"
+                                              label={getLineTypeLabel(detail.lineType)}
+                                              color={detail.lineType === 'PRODUCT' || !detail.lineType ? 'default' : 'warning'}
+                                              variant="outlined"
+                                            />
                                             <Typography
                                               variant="subtitle2"
                                               fontWeight={700}
@@ -489,6 +510,12 @@ export function SupplierQuoteSection(props: SupplierQuoteSectionProps): ReactEle
                                             fontWeight: 700,
                                             flexShrink: 0
                                           }}
+                                        />
+                                        <Chip
+                                          size="small"
+                                          label={getLineTypeLabel(detail.lineType)}
+                                          color={detail.lineType === 'PRODUCT' || !detail.lineType ? 'default' : 'warning'}
+                                          variant="outlined"
                                         />
                                         <Typography variant="body2" fontWeight={700}>
                                           {formatOptionNameWithPlan(

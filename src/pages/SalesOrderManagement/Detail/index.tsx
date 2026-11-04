@@ -559,7 +559,14 @@ export default function SalesOrderDetail(): ReactElement {
       return sum + Number(item.unitPrice || 0) * Number(item.quantity || 0);
     }, 0);
 
-    return { subTotal };
+    const productAmount = displayItems.reduce((sum, item) => {
+      if ((item.lineType || 'PRODUCT') !== 'PRODUCT') {
+        return sum;
+      }
+      return sum + Number(item.amount || 0);
+    }, 0);
+
+    return { subTotal, productAmount };
   }, [displayItems]);
   const editableSubTotal = Number(isEditing ? draft.subTotal : summary.subTotal || 0);
   const editableDiscount = Number(isEditing ? draft.discount : salesOrder?.discount || 0);
@@ -2036,10 +2043,8 @@ export default function SalesOrderDetail(): ReactElement {
                       </Typography>
                       <TextField
                         type="number"
-                        value={draft.amount}
-                        onChange={(event) =>
-                          updateDraftField('amount', Number(event.target.value || 0))
-                        }
+                        value={summary.productAmount}
+                        InputProps={{ readOnly: true }}
                         sx={{
                           width: { xs: '100%', sm: 180 },
                           '& .MuiInputBase-input': {
@@ -2049,7 +2054,7 @@ export default function SalesOrderDetail(): ReactElement {
                       />
                     </Stack>
                   ) : (
-                    <Summary label="ค่าสินค้า" value={salesOrder?.amount} />
+                    <Summary label="ค่าสินค้า" value={summary.productAmount} />
                   )}
                   {isEditing ? (
                     <Stack

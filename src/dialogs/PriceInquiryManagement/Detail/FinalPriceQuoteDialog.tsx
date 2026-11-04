@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Collapse,
   Dialog,
   DialogActions,
@@ -70,6 +71,7 @@ interface FinalPriceDraftTier {
 
 interface FinalPriceDraftDetail {
   id: number;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   optionName: string;
   isSpecial?: boolean;
   plan?: string | null;
@@ -119,7 +121,7 @@ interface FinalPriceQuoteDialogProps {
       description: string;
       value: string;
       unit: string;
-      lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+      lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST';
       sampleRefundPolicy: 'NONE' | 'PARTIAL' | 'FULL';
       sampleRefundPercent: string;
       sampleRefundMinOrderQty: string;
@@ -270,6 +272,22 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     }
 
     return trimmedPlan ? `${trimmedOptionName} (${trimmedPlan})` : trimmedOptionName;
+  };
+
+  const getLineTypeLabel = (lineType?: FinalPriceDraftDetail['lineType']): string => {
+    switch (lineType) {
+      case 'SAMPLE_COST':
+        return 'ค่าตัวอย่าง';
+      case 'SCREENING_COST':
+        return 'ค่าสกรีน';
+      case 'ADDITIONAL_COST':
+        return 'ค่าใช้จ่ายเพิ่มเติม';
+      case 'MOLE_COST':
+        return 'ค่าโมล';
+      case 'PRODUCT':
+      default:
+        return 'สินค้า';
+    }
   };
 
   const getTierQuantity = (detailId: number, tierId: number): number => {
@@ -444,6 +462,12 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
       <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
           {/* <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}> */}
+          <Chip
+            size="small"
+            label={`${detail.lineType || 'PRODUCT'}: ${getLineTypeLabel(detail.lineType)}`}
+            color={detail.lineType && detail.lineType !== 'PRODUCT' ? 'warning' : 'default'}
+            variant="outlined"
+          />
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
@@ -897,7 +921,6 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
       }}>
       <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-          {/* <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}> */}
           <Grid container spacing={1}>
             <GridTextField item xs={12} md={6}>
               <TextField

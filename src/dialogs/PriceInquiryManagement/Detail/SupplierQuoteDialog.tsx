@@ -181,6 +181,7 @@ function SupplierAutocompleteField({
 export interface SupplierQuoteDialogDetail {
   id: number;
   rfqDetailId?: number | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   supplier?: Supplier | null;
   optionName: string;
   plan?: string | null;

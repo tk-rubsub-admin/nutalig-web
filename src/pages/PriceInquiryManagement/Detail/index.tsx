@@ -229,7 +229,7 @@ interface DraftAdditionalCost {
   description: string;
   value: string;
   unit: string;
-  lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST';
+  lineType: 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST';
   sampleRefundPolicy: 'NONE' | 'PARTIAL' | 'FULL';
   sampleRefundPercent: string;
   sampleRefundMinOrderQty: string;
@@ -262,7 +262,7 @@ interface FinalPriceDraftTier {
 
 interface FinalPriceDraftDetail {
   id: number;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   optionName: string;
   isSpecial?: boolean;
   plan?: string | null;
@@ -314,7 +314,7 @@ interface DraftSupplierQuoteTier {
 interface DraftSupplierQuoteDetail {
   id: number;
   rfqDetailId?: number | null;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
   supplier?: Supplier | null;
   optionName: string;
   plan?: string | null;
@@ -1687,56 +1687,145 @@ function mergeFinalPriceDraftFromExtractedPayload(
   payload: UpsertRFQSupplierQuoteRequest
 ): FinalPriceDraft {
   const extractedDetails = payload.details || [];
+  const extractedAdditionalCosts = payload.additionalCosts || [];
   const extractedPackages = payload.packages?.length
     ? payload.packages.map(createDraftPackageFromExtractedPayload)
     : mapSupplierQuotePackages(undefined, payload.details);
 
+  const getAdditionalCostCurrency = (unit?: string | null): string => {
+    const normalizedUnit = (unit || '').toLowerCase();
+    if (normalizedUnit.includes('บาท') || normalizedUnit.includes('thb')) return 'THB';
+    if (normalizedUnit.includes('usd') || normalizedUnit.includes('ดอลลาร์')) return 'USD';
+    return 'CNY';
+  };
+
+  const createAdditionalCostDetail = (
+    additionalCost: UpsertRFQSupplierQuoteRequest['additionalCosts'][number],
+    index: number
+  ): FinalPriceDraftDetail => {
+    const amount = String(additionalCost.value || '').replace(/,/g, '').trim();
+    const currency = getAdditionalCostCurrency(additionalCost.unit);
+    const tier = createFinalPriceDraftTier(1);
+    return {
+      id: -(Date.now() + 5000 + index + 1),
+      lineType: additionalCost.lineType || 'ADDITIONAL_COST',
+      optionName: additionalCost.description || `รายละเอียดเพิ่มเติม ${index + 1}`,
+      isSpecial: false,
+      plan: '',
+      spec: additionalCost.unit || '',
+      sortOrder: index + 1,
+      remark: null,
+      tiers: [{
+        ...tier,
+        quantity: 1,
+        productPrice: amount,
+        currency,
+        landTotalPrice: amount
+      }]
+    };
+  };
+
+  const mappedDetails = currentDraft.details.map((currentDetail, detailIndex) => {
+    const matchedExtractedDetail = extractedDetails.find((detail) =>
+      (detail.rfqDetailId && Number(detail.rfqDetailId) === Number(currentDetail.id)) ||
+      (detail.optionName || '').trim() === currentDetail.optionName.trim() ||
+      Number(detail.sortOrder || 0) === Number(currentDetail.sortOrder || detailIndex + 1)
+    );
+    const additionalCost = extractedAdditionalCosts.find(
+      (cost) =>
+        (cost.lineType || 'ADDITIONAL_COST') === (currentDetail.lineType || 'PRODUCT')
+    );
+
+    let mappedDetail = currentDetail;
+    if (matchedExtractedDetail) {
+      mappedDetail = {
+        ...currentDetail,
+        tiers: currentDetail.tiers.map((currentTier, tierIndex) => {
+          const matchedTier = (matchedExtractedDetail.tiers || []).find(
+            (tier) => Number(tier.quantity || 0) === Number(currentTier.quantity || 0) ||
+              Number(tier.sortOrder || 0) === Number(currentTier.sortOrder || tierIndex + 1)
+          );
+          if (!matchedTier) return currentTier;
+          return {
+            ...currentTier,
+            productPrice: matchedTier.productPrice == null
+              ? currentTier.productPrice : String(Number(matchedTier.productPrice || 0)),
+            commission: matchedTier.commission == null || String(matchedTier.commission).trim() === ''
+              ? normalizeCommissionInput(currentTier.commission)
+              : String(Number(matchedTier.commission || 0)),
+            currency: matchedTier.currency == null ? currentTier.currency : String(matchedTier.currency || ''),
+            landTotalPrice: matchedTier.landTotalPrice == null
+              ? currentTier.landTotalPrice : String(Number(matchedTier.landTotalPrice || 0)),
+            seaTotalPrice: matchedTier.seaTotalPrice == null
+              ? currentTier.seaTotalPrice : String(Number(matchedTier.seaTotalPrice || 0)),
+            isFcl: matchedTier.isFcl == null ? currentTier.isFcl : Boolean(matchedTier.isFcl),
+            isShareFCL: matchedTier.isShareFCL == null ? currentTier.isShareFCL : Boolean(matchedTier.isShareFCL)
+          };
+        })
+      };
+    }
+
+    if (!additionalCost) return mappedDetail;
+    const amount = String(additionalCost.value || '').replace(/,/g, '').trim();
+    const tier = mappedDetail.tiers[0] || createFinalPriceDraftTier(1);
+    return {
+      ...mappedDetail,
+      lineType: additionalCost.lineType || mappedDetail.lineType,
+      spec: additionalCost.unit || mappedDetail.spec,
+      tiers: [{
+        ...tier,
+        quantity: 1,
+        productPrice: amount,
+        currency: getAdditionalCostCurrency(additionalCost.unit),
+        landTotalPrice: amount
+      }, ...mappedDetail.tiers.slice(1)]
+    };
+  });
+
+  const newAdditionalCostDetails = extractedAdditionalCosts
+    .filter((cost) =>
+      !mappedDetails.some(
+        (detail) =>
+          (detail.lineType || 'PRODUCT') === (cost.lineType || 'ADDITIONAL_COST')
+      )
+    )
+    .map((cost, index) => createAdditionalCostDetail(cost, mappedDetails.length + index));
+
   return {
     ...currentDraft,
-    details: currentDraft.details.map((currentDetail, detailIndex) => {
+    details: [...mappedDetails, ...newAdditionalCostDetails].map((detail, index) => ({
+      ...detail,
+      sortOrder: index + 1
+    })),
+    /* details: currentDraft.details.map((currentDetail, detailIndex) => {
       const matchedExtractedDetail =
         extractedDetails.find((detail) => {
           if (detail.rfqDetailId && Number(detail.rfqDetailId) === Number(currentDetail.id)) {
             return true;
           }
-
           if ((detail.optionName || '').trim() === (currentDetail.optionName || '').trim()) {
             return true;
           }
-
-          return (
-            Number(detail.sortOrder || 0) === Number(currentDetail.sortOrder || detailIndex + 1)
-          );
+          return Number(detail.sortOrder || 0) === Number(currentDetail.sortOrder || detailIndex + 1);
         }) || null;
-
-      if (!matchedExtractedDetail) {
-        return currentDetail;
-      }
-
+      if (!matchedExtractedDetail) return currentDetail;
       return {
         ...currentDetail,
         tiers: currentDetail.tiers.map((currentTier, tierIndex) => {
-          const matchedExtractedTier =
-            (matchedExtractedDetail.tiers || []).find(
-              (tier) =>
-                Number(tier.quantity || 0) === Number(currentTier.quantity || 0) ||
-                Number(tier.sortOrder || 0) === Number(currentTier.sortOrder || tierIndex + 1)
-            ) || null;
-
-          if (!matchedExtractedTier) {
-            return currentTier;
-          }
-
+          const matchedExtractedTier = (matchedExtractedDetail.tiers || []).find(
+            (tier) =>
+              Number(tier.quantity || 0) === Number(currentTier.quantity || 0) ||
+              Number(tier.sortOrder || 0) === Number(currentTier.sortOrder || tierIndex + 1)
+          ) || null;
+          if (!matchedExtractedTier) return currentTier;
           return {
             ...currentTier,
             productPrice:
-              matchedExtractedTier.productPrice === null ||
-                matchedExtractedTier.productPrice === undefined
+              matchedExtractedTier.productPrice === null || matchedExtractedTier.productPrice === undefined
                 ? currentTier.productPrice
                 : String(Number(matchedExtractedTier.productPrice || 0)),
             commission:
-              matchedExtractedTier.commission === null ||
-                matchedExtractedTier.commission === undefined ||
+              matchedExtractedTier.commission === null || matchedExtractedTier.commission === undefined ||
                 String(matchedExtractedTier.commission).trim() === ''
                 ? normalizeCommissionInput(currentTier.commission)
                 : String(Number(matchedExtractedTier.commission || 0)),
@@ -1745,34 +1834,37 @@ function mergeFinalPriceDraftFromExtractedPayload(
                 ? currentTier.currency
                 : String(matchedExtractedTier.currency || ''),
             landTotalPrice:
-              matchedExtractedTier.landTotalPrice === null ||
-                matchedExtractedTier.landTotalPrice === undefined
+              matchedExtractedTier.landTotalPrice === null || matchedExtractedTier.landTotalPrice === undefined
                 ? currentTier.landTotalPrice
                 : String(Number(matchedExtractedTier.landTotalPrice || 0)),
             seaTotalPrice:
-              matchedExtractedTier.seaTotalPrice === null ||
-                matchedExtractedTier.seaTotalPrice === undefined
+              matchedExtractedTier.seaTotalPrice === null || matchedExtractedTier.seaTotalPrice === undefined
                 ? currentTier.seaTotalPrice
                 : String(Number(matchedExtractedTier.seaTotalPrice || 0)),
-            isFcl:
-              matchedExtractedTier.isFcl === null || matchedExtractedTier.isFcl === undefined
-                ? currentTier.isFcl
-                : Boolean(matchedExtractedTier.isFcl),
-            isShareFCL:
-              matchedExtractedTier.isShareFCL === null ||
-                matchedExtractedTier.isShareFCL === undefined
-                ? currentTier.isShareFCL
-                : Boolean(matchedExtractedTier.isShareFCL)
+            isFcl: matchedExtractedTier.isFcl === null || matchedExtractedTier.isFcl === undefined
+              ? currentTier.isFcl : Boolean(matchedExtractedTier.isFcl),
+            isShareFCL: matchedExtractedTier.isShareFCL === null || matchedExtractedTier.isShareFCL === undefined
+              ? currentTier.isShareFCL : Boolean(matchedExtractedTier.isShareFCL)
           };
         })
       };
-    }),
+    }), */
     additionalCosts: (payload.additionalCosts || []).length
       ? (payload.additionalCosts || []).map((additionalCost, index) => ({
-        id: currentDraft.additionalCosts[index]?.id || -(Date.now() + index + 1),
+        id:
+          currentDraft.additionalCosts.find(
+            (currentAdditionalCost) =>
+              currentAdditionalCost.description.trim().toLowerCase() ===
+              (additionalCost.description || '').trim().toLowerCase()
+          )?.id || currentDraft.additionalCosts[index]?.id || -(Date.now() + index + 1),
         description: additionalCost.description || '',
         value: additionalCost.value || '',
-        unit: additionalCost.unit || ''
+        unit: additionalCost.unit || '',
+        lineType: additionalCost.lineType || 'ADDITIONAL_COST',
+        sampleRefundPolicy: 'NONE',
+        sampleRefundPercent: '0',
+        sampleRefundMinOrderQty: '',
+        sampleRefundNote: ''
       }))
       : currentDraft.additionalCosts,
     packages: extractedPackages.length ? extractedPackages : currentDraft.packages,
@@ -3260,9 +3352,27 @@ export default function RFQDetail(): ReactElement {
   const handleOpenFinalPriceDialog = (quote: RFQSupplierQuote) => {
     setFinalPriceQuote(quote);
     setFinalPriceProcurementRemark('');
-    const additionalCosts = quote.additionalCosts?.length
+    const rfqAdditionalCosts = rfq?.additionalCosts || [];
+    const sourceAdditionalCosts = quote.additionalCosts?.length
       ? quote.additionalCosts
-      : rfq?.additionalCosts || [];
+      : rfqAdditionalCosts;
+    const additionalCosts: RFQAdditionalCost[] = sourceAdditionalCosts.map((additionalCost, index) => {
+      const matchedRfqAdditionalCost = rfqAdditionalCosts.find(
+        (rfqAdditionalCost) =>
+          rfqAdditionalCost.description.trim().toLowerCase() ===
+          (additionalCost.description || '').trim().toLowerCase()
+      );
+      return {
+        id: matchedRfqAdditionalCost?.id || -(Date.now() + index + 1),
+        costType: matchedRfqAdditionalCost?.costType || null,
+        description: additionalCost.description || '',
+        unit: additionalCost.unit || null,
+        value: additionalCost.value || null,
+        sortOrder: additionalCost.sortOrder || index + 1,
+        createdDate: matchedRfqAdditionalCost?.createdDate || '',
+        updatedDate: matchedRfqAdditionalCost?.updatedDate || ''
+      };
+    });
     setFinalPriceDraft(createFinalPriceDraftFromQuote(quote, additionalCosts));
     setFinalPriceErrors({});
   };
@@ -3965,8 +4075,7 @@ export default function RFQDetail(): ReactElement {
       const additionalCostDetails: CreateRFQDetailRequest[] = finalPriceDraft.additionalCosts
         .filter((additionalCost) => !finalPriceDraft.details.some(
           (detail) =>
-            detail.lineType === 'ADDITIONAL_COST' &&
-            detail.optionName.trim().toLowerCase() === additionalCost.description.trim().toLowerCase()
+            (detail.lineType || 'PRODUCT') === (additionalCost.lineType || 'ADDITIONAL_COST')
         ))
         .map((additionalCost, index) => {
           const amount = parsePriceInput(additionalCost.value);
@@ -4012,7 +4121,7 @@ export default function RFQDetail(): ReactElement {
           };
         })
         .filter((detail): detail is CreateRFQDetailRequest => detail !== null);
-      detailPayload.push(...additionalCostDetails);
+      // detailPayload.push(...additionalCostDetails);
       const incompleteAdditionalCost = finalPriceDraft.additionalCosts.find(
         (additionalCost) =>
           Boolean(additionalCost.description.trim() || additionalCost.value.trim() || additionalCost.unit.trim()) &&

@@ -121,7 +121,7 @@ interface SaleOrderRFQItem {
   amount: number;
   totalFreight: number;
   remark: string;
-  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | null;
+  lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
 }
 
 interface SaleOrderRFQFormValues {
@@ -1690,13 +1690,65 @@ export default function SalesOrderRFQ(): JSX.Element {
             (item) =>
               String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId)
           )
-          .map((item) => ({
-            ...item,
-            // Older quotation rows may not have rfqDetailId populated. The
-            // selection URL still carries the authoritative RFQ detail id.
-            optionId: item.optionId || selectedItem.detailId || undefined,
-            shippingMethod: selectedItem.shippingMethod
-          }))
+          .map((item) => {
+            const sourceRfq = quotationRfqsById.get(item.sourceRfqId || '') || rfq;
+            const selectedDetail = selectedItem.detailId
+              ? sourceRfq.details?.find((detail) => detail.id === selectedItem.detailId)
+              : undefined;
+            const selectedTier = selectedDetail?.tiers?.find((tier) => {
+              if (!selectedItem.shippingMethod) return true;
+              return isSeaShippingMethod(selectedItem.shippingMethod) ===
+                isSeaShippingMethod(tier.shippingMethod);
+            }) || selectedDetail?.tiers?.[0];
+            const selectedTierSplit = selectedDetail?.tierSplits?.find((tierSplit) => {
+              if (!selectedItem.shippingMethod) return true;
+              return isSeaShippingMethod(selectedItem.shippingMethod) ===
+                isSeaShippingMethod(tierSplit.shippingMethod);
+            }) || selectedDetail?.tierSplits?.[0];
+            const supplierQuoteTierId =
+              selectedTierSplit?.supplierQuoteTierId || selectedTier?.supplierQuoteTierId;
+            const supplierQuoteTier = supplierQuoteTierId
+              ? supplierQuoteTiersById.get(supplierQuoteTierId)
+              : undefined;
+            const mappedPrice = selectedTierSplit || selectedTier;
+            const isNonProductLine = Boolean(
+              selectedDetail?.lineType && selectedDetail.lineType !== 'PRODUCT'
+            );
+            const supplierUnitPrice = Number(
+              supplierQuoteTier?.productPrice ?? mappedPrice?.productPrice ?? item.supplierUnitPrice ?? item.unitPrice
+            );
+            const supplierShippingCost = Number(
+              supplierQuoteTier?.shippingCost ?? mappedPrice?.shippingCost ?? 0
+            );
+
+            return {
+              ...item,
+              optionId: selectedDetail?.id || selectedItem.detailId || item.optionId,
+              tierId: selectedTier?.id,
+              tierSplitId: selectedTierSplit?.id,
+              supplierId:
+                getTierSplitSupplierId(selectedTierSplit) ||
+                getRFQDetailSupplierId(selectedDetail) ||
+                item.supplierId,
+              supplierQuoteTierId,
+              lineType: selectedDetail?.lineType || item.lineType,
+              name: isNonProductLine
+                ? selectedDetail?.optionName || item.name
+                : item.name,
+              spec: selectedDetail?.spec || item.spec,
+              unitPrice: isNonProductLine ? supplierUnitPrice : item.unitPrice,
+              supplierCurrency:
+                supplierQuoteTier?.productPriceCurrency ||
+                supplierQuoteTier?.currency ||
+                mappedPrice?.currency ||
+                item.supplierCurrency,
+              supplierUnitPrice,
+              supplierShippingCost,
+              supplierTotalUnitCost: supplierUnitPrice + supplierShippingCost,
+              shippingMethod: isNonProductLine ? null : selectedItem.shippingMethod,
+              totalFreight: isNonProductLine ? 0 : item.quantity * supplierShippingCost
+            };
+          })
       );
       const items = hasSelectedRFQParams ? selectedItemFromDialog : allItems.slice(0, 1);
       const itemsWithImage = items.map((item) => ({

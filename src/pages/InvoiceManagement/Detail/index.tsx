@@ -3,6 +3,8 @@ import {
   ArrowBackIos,
   ArrowDropDown,
   Cancel,
+  CloudUpload,
+  DeleteOutline,
   Description,
   FilePresent,
   Menu as MenuIcon,
@@ -49,6 +51,7 @@ import PageTitle from 'components/PageTitle';
 import { GridSearchSection, Wrapper } from 'components/Styled';
 import { Page } from 'layout/LayoutRoute';
 import {
+  ChangeEvent,
   MouseEvent as ReactMouseEvent,
   ReactElement,
   SyntheticEvent,
@@ -72,6 +75,8 @@ import { TemplateLanguage } from 'services/Document/document-type';
 import {
   getInvoice,
   receiveInvoicePayment,
+  uploadInvoicePaymentAttachments,
+  deleteInvoicePaymentAttachment,
   approveInvoiceRequiredApprove,
   rejectInvoiceRequiredApprove,
   sendAwaitingValidationNotification,
@@ -79,7 +84,12 @@ import {
   viewInvoice
 } from 'services/Invoice/invoice-api';
 import { searchReceipts, viewReceipt } from 'services/Receipt/receipt-api';
-import { InvoiceItem, InvoiceRecord, UpdateInvoiceRequest } from 'services/Invoice/invoice-type';
+import {
+  InvoiceItem,
+  InvoicePaymentSlipFile,
+  InvoiceRecord,
+  UpdateInvoiceRequest
+} from 'services/Invoice/invoice-type';
 import { getSalesOrderV1 } from 'services/SaleOrder/sale-order-api';
 import { CustomerSnapshot } from 'services/SaleOrder/sale-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
@@ -407,6 +417,35 @@ export default function InvoiceDetail(): ReactElement {
     };
   }, [invoice, draft.items, isEditing]);
 
+  const paymentAttachments = useMemo(
+    () =>
+      (invoice?.payments || []).flatMap((payment) => {
+        const files: InvoicePaymentSlipFile[] = payment.slipFiles?.length
+          ? payment.slipFiles
+          : payment.slipFileUrl
+            ? [
+              {
+                id: payment.id,
+                fileName: payment.slipFileName,
+                originalFileName: payment.slipFileName,
+                fileUrl: payment.slipFileUrl,
+                contentType: null,
+                fileSize: null,
+                sortOrder: 1
+              }
+            ]
+            : [];
+
+        return files.map((file) => ({
+          paymentId: payment.id,
+          paymentDate: payment.paymentDate,
+          paymentMethod: payment.paymentMethod,
+          file
+        }));
+      }),
+    [invoice?.payments]
+  );
+
   const isReceivePaymentEnabled = Boolean(
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
   );
@@ -511,6 +550,44 @@ export default function InvoiceDetail(): ReactElement {
 
   const handleCloseReceivePaymentDialog = () => {
     setReceivePaymentDialogOpen(false);
+  };
+
+  const handleUploadPaymentAttachments = async (
+    event: ChangeEvent<HTMLInputElement>,
+    paymentId: number
+  ) => {
+    const files = Array.from(event.target.files || []);
+    if (!invoice?.invoiceNo || !files.length) return;
+    setIsSaving(true);
+    try {
+      await toast.promise(uploadInvoicePaymentAttachments(invoice.invoiceNo, paymentId, files), {
+        loading: t('toast.loading'),
+        success: t('toast.success'),
+        error: t('toast.failed')
+      });
+      await refetchInvoice();
+    } finally {
+      event.target.value = '';
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeletePaymentAttachment = async (paymentId: number, attachmentId: number) => {
+    if (!invoice?.invoiceNo || !window.confirm('ยืนยันลบไฟล์แนบนี้หรือไม่')) return;
+    setIsSaving(true);
+    try {
+      await toast.promise(
+        deleteInvoicePaymentAttachment(invoice.invoiceNo, paymentId, attachmentId),
+        {
+          loading: t('toast.loading'),
+          success: t('toast.success'),
+          error: t('toast.failed')
+        }
+      );
+      await refetchInvoice();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSubmitReceivePayment = () => {
@@ -1403,43 +1480,6 @@ export default function InvoiceDetail(): ReactElement {
                                 {formatNumber(payment.amount || 0)}
                               </TableCell>
                               <TableCell align="center">
-                                {payment.slipFiles?.length ? (
-                                  <Stack
-                                    direction="row"
-                                    spacing={0.5}
-                                    justifyContent="center"
-                                    flexWrap="wrap">
-                                    {payment.slipFiles.map((file) => (
-                                      <Tooltip
-                                        key={file.id}
-                                        title={file.originalFileName || file.fileName || 'ดูสลิป'}>
-                                        <Button
-                                          size="small"
-                                          variant="text"
-                                          component="a"
-                                          href={file.fileUrl || undefined}
-                                          target="_blank"
-                                          rel="noopener noreferrer">
-                                          <FilePresent />
-                                        </Button>
-                                      </Tooltip>
-                                    ))}
-                                  </Stack>
-                                ) : payment.slipFileUrl ? (
-                                  <Tooltip title="ดูสลิป">
-                                    <Button
-                                      size="small"
-                                      variant="text"
-                                      component="a"
-                                      href={payment.slipFileUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer">
-                                      <FilePresent />
-                                    </Button>
-                                  </Tooltip>
-                                ) : (
-                                  '-'
-                                )}
                                 {payment.receiptNo ? (
                                   <Tooltip title="ดาวน์โหลดใบเสร็จรับเงิน">
                                     <Button
@@ -1489,6 +1529,108 @@ export default function InvoiceDetail(): ReactElement {
                   ) : (
                     <Typography variant="body2" color="text.secondary">
                       ยังไม่มีประวัติการรับชำระเงิน
+                    </Typography>
+                  )}
+                </Stack>
+              </Grid>
+            </GridSearchSection>
+
+            <GridSearchSection container sx={{ mt: 0 }}>
+              <Grid item xs={12}>
+                <Stack spacing={1.25} className={classes.section}>
+                  <Typography variant="h6">ไฟล์แนบการรับชำระเงิน</Typography>
+                  {invoice?.payments?.length ? (
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {invoice.payments.map((payment) => (
+                        <Button
+                          key={`upload-${payment.id}`}
+                          component="label"
+                          size="small"
+                          variant="outlined"
+                          startIcon={<CloudUpload />}>
+                          อัปโหลดไฟล์แนบ #{payment.id}
+                          <input
+                            hidden
+                            type="file"
+                            multiple
+                            accept="image/*,.pdf"
+                            onChange={(event) => handleUploadPaymentAttachments(event, payment.id)}
+                          />
+                        </Button>
+                      ))}
+                    </Stack>
+                  ) : null}
+                  {paymentAttachments.length ? (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell align="center" className={classes.tableHeader}>
+                              วันที่รับชำระ
+                            </TableCell>
+                            <TableCell align="center" className={classes.tableHeader}>
+                              วิธีชำระเงิน
+                            </TableCell>
+                            <TableCell align="left" className={classes.tableHeader}>
+                              ชื่อไฟล์
+                            </TableCell>
+                            <TableCell align="center" className={classes.tableHeader}>
+                              ดำเนินการ
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {paymentAttachments.map(({ paymentId, paymentDate, paymentMethod, file }) => (
+                            <TableRow key={`${paymentId}-${file.id}`}>
+                              <TableCell align="center">
+                                {paymentDate ? formatDate(paymentDate, 'DD/MM/YYYY') : '-'}
+                              </TableCell>
+                              <TableCell align="center">
+                                {paymentMethod === 'TRANSFER'
+                                  ? 'โอนเงิน'
+                                  : paymentMethod === 'CHEQUE'
+                                    ? 'เช็ค'
+                                    : paymentMethod === 'CASH'
+                                      ? 'เงินสด'
+                                      : '-'}
+                              </TableCell>
+                              <TableCell align="left">
+                                {file.originalFileName || file.fileName || '-'}
+                              </TableCell>
+                              <TableCell align="center">
+                                {file.fileUrl ? (
+                                  <Tooltip title="เปิดไฟล์แนบ">
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      component="a"
+                                      href={file.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer">
+                                      <FilePresent />
+                                    </Button>
+                                  </Tooltip>
+                                ) : (
+                                  null
+                                )}
+                                <Tooltip title="ลบไฟล์แนบ">
+                                  <Button
+                                    size="small"
+                                    variant="text"
+                                    color="error"
+                                    onClick={() => handleDeletePaymentAttachment(paymentId, file.id)}>
+                                    <DeleteOutline />
+                                  </Button>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      ยังไม่มีไฟล์แนบการรับชำระเงิน
                     </Typography>
                   )}
                 </Stack>

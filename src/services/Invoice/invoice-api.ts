@@ -119,6 +119,32 @@ export const receiveInvoicePayment = async (id: string, data: FormData): Promise
   return response.data;
 };
 
+export const uploadInvoicePaymentAttachments = async (
+  invoiceNo: string,
+  paymentId: number,
+  files: File[]
+): Promise<InvoiceRecord> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  const response = await api
+    .post(`/v1/invoices/${invoiceNo}/payments/${paymentId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const deleteInvoicePaymentAttachment = async (
+  invoiceNo: string,
+  paymentId: number,
+  attachmentId: number
+): Promise<InvoiceRecord> => {
+  const response = await api
+    .delete(`/v1/invoices/${invoiceNo}/payments/${paymentId}/attachments/${attachmentId}`)
+    .then((result) => result.data);
+  return response.data;
+};
+
 export const sendAwaitingValidationNotification = async (
   id: string,
   paymentId: number

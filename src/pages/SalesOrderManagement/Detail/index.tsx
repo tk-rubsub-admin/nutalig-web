@@ -10,6 +10,7 @@ import {
   FilePresent,
   Menu as MenuIcon,
   NoteAdd,
+  OpenInNew,
   ReceiptLong,
   Save,
   Search
@@ -120,6 +121,8 @@ import { formatNumber, formatNumberWithDigit } from 'utils/utils';
 import { buildSalesOrderDocumentFlowItems } from 'utils/documentFlow';
 import { TemplateLanguage } from 'services/Document/document-type';
 import { getShippingMethodLabel, SHIPPING_METHOD_LABELS } from 'utils/shipping';
+import { getSystemConfig } from 'services/Config/config-api';
+import { GROUP_CODE } from 'services/Config/config-type';
 
 const SALES_ORDER_SHIPPING_TYPE_OPTIONS = [
   'ALL',
@@ -154,6 +157,7 @@ interface SalesOrderDraft {
   isVat: boolean;
   requestCoa: boolean;
   requestPo: boolean;
+  paymentTerm: string;
   remark: string;
   customerSnapshot: CustomerSnapshot;
   items: SalesOrderDetailV1[];
@@ -282,6 +286,8 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
     isVat: Number(salesOrder?.vatRate || 0) > 0,
     requestCoa: Boolean(salesOrder?.requestCoa),
     requestPo: Boolean(salesOrder?.requestPo),
+    paymentTerm:
+      salesOrder?.paymentTerm?.code || salesOrder?.customer?.customerPaymentTerm?.code || '',
     remark: salesOrder?.remark || '',
     customerSnapshot: {
       customerName:
@@ -329,7 +335,7 @@ export default function SalesOrderDetail(): ReactElement {
   const { hasRole } = useAuth();
   const theme = useTheme();
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
-  const [tab, setTab] = useState<'detail' | 'history' | 'paymentHistory'>('detail');
+  const [tab, setTab] = useState<'detail' | 'history' | 'payment'>('detail');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [quotationNoError, setQuotationNoError] = useState(false);
@@ -408,6 +414,12 @@ export default function SalesOrderDetail(): ReactElement {
     enabled: Boolean(id),
     refetchOnWindowFocus: false
   });
+
+  const { data: paymentTerms = [] } = useQuery(
+    ['sales-order-payment-terms'],
+    () => getSystemConfig(GROUP_CODE.CUSTOMER_PAYMENT_TERM),
+    { staleTime: 5 * 60 * 1000 }
+  );
 
   const { data: productionTimelines = [], isFetching: isProductionTimelinesFetching } = useQuery(
     ['sales-order-production-timelines', id],
@@ -590,9 +602,14 @@ export default function SalesOrderDetail(): ReactElement {
     return Math.min(100, Math.max(0, (paidTotal / grandTotal) * 100));
   }, [salesOrder?.grandTotal, salesOrder?.paidTotal]);
 
+  const invoicedTotal = useMemo(
+    () => relatedInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0),
+    [relatedInvoices]
+  );
+
   const handleChangeTab = (
     _event: SyntheticEvent,
-    value: 'detail' | 'history' | 'paymentHistory'
+    value: 'detail' | 'history' | 'payment'
   ) => {
     setTab(value);
   };
@@ -993,6 +1010,7 @@ export default function SalesOrderDetail(): ReactElement {
       customerSnapshot: draft.customerSnapshot,
       requestCoa: draft.requestCoa,
       requestPo: draft.requestPo,
+      paymentTerm: draft.paymentTerm || null,
       remark: draft.remark,
       items: draft.items.map((item) => ({
         id: item.id,
@@ -1210,7 +1228,7 @@ export default function SalesOrderDetail(): ReactElement {
                     primary={isDownSm ? 'ดาวน์โหลดไฟล์ใบยืนยันสั่งซื้อ' : 'ดูใบยืนยันสั่งซื้อ'}
                   />
                 </MenuItem>
-                <Can permission={PERMISSIONS.INVOICE_CREATE}>
+                {/* <Can permission={PERMISSIONS.INVOICE_CREATE}>
                   <MenuItem
                     onClick={handleCreateInvoice}
                     disabled={!salesOrder || canDownloadDocument || Boolean(salesOrder.invoiceNo)}
@@ -1220,7 +1238,7 @@ export default function SalesOrderDetail(): ReactElement {
                     </ListItemIcon>
                     <ListItemText primary={t('documentManagement.invoice.createInvoiceMenu')} />
                   </MenuItem>
-                </Can>
+                </Can> */}
                 <Can permission={PERMISSIONS.PURCHASE_ORDER_CREATE}>
                   <MenuItem
                     onClick={handleCreatePurchaseOrder}
@@ -1299,8 +1317,8 @@ export default function SalesOrderDetail(): ReactElement {
               }
             }}>
             <Tab value="detail" label="รายละเอียด" />
+            <Tab value="payment" label="ชำระเงิน" />
             <Tab value="history" label="ประวัติ" />
-            <Tab value="paymentHistory" label="ประวัติการชำระเงิน" />
           </Tabs>
         </Box>
 
@@ -1431,6 +1449,34 @@ export default function SalesOrderDetail(): ReactElement {
                     label={t('customerManagement.customer')}
                     value={getCustomerLabel(salesOrder)}
                   />
+                  {isEditing ? (
+                    <TextField
+                      select
+                      label="เงื่อนไขการชำระเงิน"
+                      value={draft.paymentTerm}
+                      onChange={(event) => updateDraftField('paymentTerm', event.target.value)}
+                      disabled={paymentTerms.length === 0}
+                    >
+                      <MenuItem value="">-</MenuItem>
+                      {paymentTerms.map((term) => (
+                        <MenuItem key={term.code} value={term.code}>
+                          {term.nameTh || term.nameEn || term.code}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  ) : (
+                    <Info
+                      label="เงื่อนไขการชำระเงิน"
+                      value={
+                        salesOrder?.paymentTerm?.nameTh ||
+                        salesOrder?.paymentTerm?.nameEn ||
+                        salesOrder?.paymentTerm?.code ||
+                        salesOrder?.customer?.customerPaymentTerm?.nameTh ||
+                        salesOrder?.customer?.customerPaymentTerm?.code ||
+                        '-'
+                      }
+                    />
+                  )}
                   {isEditing ? (
                     <>
                       <TextField
@@ -2323,11 +2369,54 @@ export default function SalesOrderDetail(): ReactElement {
           <ActivityHistoryTimeline records={activityHistory} />
         </TabPanel>
 
-        <TabPanel value="paymentHistory" currentTab={tab}>
+        <TabPanel value="payment" currentTab={tab}>
           <GridSearchSection container sx={{ mt: 0 }}>
             <Grid item xs={12}>
               <Stack spacing={1.25} className={classes.section}>
-                <Typography variant="h6">ประวัติการรับชำระเงิน</Typography>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                  justifyContent="space-between"
+                  spacing={1}>
+                  <Typography variant="h6">การชำระเงินลูกค้า</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    เงื่อนไข: {salesOrder?.paymentTerm?.nameTh || salesOrder?.paymentTerm?.code || '-'}
+                  </Typography>
+                </Stack>
+                <Grid container spacing={1.5}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: BRAND_UI.sandTint }}>
+                      <Typography variant="caption" color="text.secondary">ยอด Sales Order</Typography>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {formatNumber(Number(salesOrder?.grandTotal || 0))} {salesOrder?.currency || ''}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#eff6ff' }}>
+                      <Typography variant="caption" color="text.secondary">ออกใบแจ้งหนี้แล้ว</Typography>
+                      <Typography sx={{ fontWeight: 700, color: '#1d4ed8' }}>
+                        {formatNumber(invoicedTotal)} {salesOrder?.currency || ''}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#ecfdf5' }}>
+                      <Typography variant="caption" color="text.secondary">ชำระแล้ว</Typography>
+                      <Typography sx={{ fontWeight: 700, color: '#047857' }}>
+                        {formatNumber(Number(salesOrder?.paidTotal || 0))} {salesOrder?.currency || ''}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#fff7ed' }}>
+                      <Typography variant="caption" color="text.secondary">คงเหลือ</Typography>
+                      <Typography sx={{ fontWeight: 700, color: '#c2410c' }}>
+                        {formatNumber(Number(salesOrder?.outstandingTotal || 0))} {salesOrder?.currency || ''}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
                 <Stack spacing={1}>
                   <Stack
                     direction={isDownSm ? 'column' : 'row'}
@@ -2376,39 +2465,85 @@ export default function SalesOrderDetail(): ReactElement {
                     </Stack>
                   </Box>
                 </Stack>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1 }}>
-                  Payment Schedule
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mt: 1 }}>
+                  แผนการชำระเงิน
                 </Typography>
-                <TableContainer>
-                  <Table size="small" aria-label="sales order payment schedule">
+                <TableContainer sx={{ border: `1px solid ${BRAND_COLORS.sand}`, borderRadius: 2 }}>
+                  <Table size="small" aria-label="sales order payment schedule" sx={{ minWidth: 760 }}>
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ backgroundColor: BRAND_UI.sandTint }}>
                         <TableCell>งวด</TableCell>
                         <TableCell align="right">เปอร์เซ็นต์</TableCell>
-                        <TableCell align="right">ยอดตามงวด</TableCell>
+                        <TableCell align="right">ก่อน VAT</TableCell>
+                        <TableCell align="right">VAT</TableCell>
+                        <TableCell align="right">ยอดรวมงวด</TableCell>
                         <TableCell align="right">ชำระแล้ว</TableCell>
                         <TableCell align="right">คงเหลือ</TableCell>
-                        <TableCell>สถานะ</TableCell>
-                        <TableCell>Invoice</TableCell>
+                        <TableCell align="center">สถานะ</TableCell>
+                        <TableCell align="center">Invoice</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {paymentSchedules.map((schedule) => (
-                        <TableRow key={schedule.id}>
+                        <TableRow key={schedule.id} hover>
                           <TableCell>{`${schedule.installmentNo}/${schedule.installmentCount}`}</TableCell>
                           <TableCell align="right">{formatNumber(schedule.percentage)}%</TableCell>
+                          <TableCell align="right">{formatNumber(schedule.expectedSubTotal)}</TableCell>
+                          <TableCell align="right">{formatNumber(schedule.expectedVat)}</TableCell>
                           <TableCell align="right">{formatNumber(schedule.expectedAmount)}</TableCell>
                           <TableCell align="right">{formatNumber(schedule.paidAmount)}</TableCell>
                           <TableCell align="right">{formatNumber(schedule.outstandingAmount)}</TableCell>
-                          <TableCell>
-                            <Chip size="small" label={schedule.status} />
+                          <TableCell align="center">
+                            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                              <Chip
+                                size="small"
+                                color={
+                                  schedule.status === 'PAID'
+                                    ? 'success'
+                                    : schedule.status === 'PARTIALLY_PAID'
+                                      ? 'warning'
+                                      : schedule.status === 'UNPAID'
+                                        ? 'info'
+                                        : 'default'
+                                }
+                                label={
+                                  schedule.status === 'UNINVOICED'
+                                    ? 'ยังไม่ออกใบแจ้งหนี้'
+                                    : schedule.status === 'UNPAID'
+                                      ? 'รอชำระ'
+                                      : schedule.status === 'PARTIALLY_PAID'
+                                        ? 'ชำระบางส่วน'
+                                        : schedule.status === 'PAID'
+                                          ? 'ชำระครบแล้ว'
+                                          : schedule.status
+                                }
+                              />
+                              {schedule.status === 'UNINVOICED' ? (
+                                <Tooltip title="สร้างใบแจ้งหนี้งวดนี้">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    aria-label={`สร้างใบแจ้งหนี้งวดที่ ${schedule.installmentNo}`}
+                                    onClick={() =>
+                                      history.push(
+                                        `${ROUTE_PATHS.INVOICE_CREATE_FROM_SALES_ORDER.replace(
+                                          ':salesOrderId',
+                                          salesOrder?.salesOrderNo || ''
+                                        )}?paymentScheduleId=${schedule.id}`
+                                      )
+                                    }>
+                                    <OpenInNew fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : null}
+                            </Stack>
                           </TableCell>
                           <TableCell>{schedule.invoiceNo || '-'}</TableCell>
                         </TableRow>
                       ))}
                       {!paymentSchedules.length ? (
                         <TableRow>
-                          <TableCell colSpan={7} align="center">ยังไม่มี Payment Schedule</TableCell>
+                          <TableCell colSpan={9} align="center">ยังไม่มี Payment Schedule</TableCell>
                         </TableRow>
                       ) : null}
                     </TableBody>

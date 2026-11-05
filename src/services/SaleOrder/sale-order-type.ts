@@ -5,6 +5,7 @@ import { Pagination } from 'services/general-type';
 import { ProductDto } from 'services/Product/product-type';
 import { Staff, StaffKPI } from 'services/Staff/staff-type';
 import { Supplier } from 'services/Supplier/supplier-type';
+import { SystemConfig } from 'services/Config/config-type';
 
 export interface CustomerSnapshot {
     customerName: string;
@@ -141,6 +142,7 @@ export interface SalesOrderV1 {
     requestCoa: boolean;
     requestPo: boolean;
     paymentScheduleDate: string | null;
+    paymentTerm?: SystemConfig | null;
     urgentRequest: boolean;
     urgentRequestReason: string | null;
     urgentRequestStatus: string | null;
@@ -244,6 +246,7 @@ export interface UpdateSalesOrderRequestV1 {
     requestCoa?: boolean | null;
     requestPo?: boolean | null;
     requestPoReason?: string | null;
+    paymentTerm?: string | null;
     remark?: string | null;
     items?: UpdateSalesOrderDetailRequestV1[];
 }

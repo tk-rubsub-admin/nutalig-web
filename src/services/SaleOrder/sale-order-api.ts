@@ -134,6 +134,8 @@ export interface SalesOrderPaymentSchedule {
     installmentCount: number;
     paymentType: string;
     percentage: number;
+    expectedSubTotal: number;
+    expectedVat: number;
     expectedAmount: number;
     paidAmount: number;
     outstandingAmount: number;

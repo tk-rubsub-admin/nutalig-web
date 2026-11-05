@@ -3,6 +3,7 @@ import { ArrowBackIos, ReceiptLong } from '@mui/icons-material';
 import {
   Button,
   Checkbox,
+  Divider,
   FormControlLabel,
   Grid,
   MenuItem,
@@ -26,14 +27,22 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { createInvoice, getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
 import { getSystemConfig } from 'services/Config/config-api';
-import { getSalesOrderV1, getSalesOrderPaymentSchedules, SalesOrderPaymentSchedule } from 'services/SaleOrder/sale-order-api';
-import { CustomerSnapshot, SalesOrderDetailV1, SalesOrderV1 } from 'services/SaleOrder/sale-order-type';
+import {
+  getSalesOrderV1,
+  getSalesOrderPaymentSchedules,
+  SalesOrderPaymentSchedule
+} from 'services/SaleOrder/sale-order-api';
+import {
+  CustomerSnapshot,
+  SalesOrderDetailV1,
+  SalesOrderV1
+} from 'services/SaleOrder/sale-order-type';
 import { formatNumber } from 'utils/utils';
 
 interface InvoiceCreateParams {
@@ -63,13 +72,17 @@ const PAYMENT_TERM_INSTALLMENTS: Record<string, number[]> = {
 };
 
 function getExpireDays(config?: SystemConfig[] | null, fallbackDays = 30): number {
-  const parsedDays = Number(config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays);
+  const parsedDays = Number(
+    config?.[0]?.code || config?.[0]?.nameTh || config?.[0]?.nameEn || fallbackDays
+  );
   return Math.max(1, Number.isFinite(parsedDays) ? parsedDays : fallbackDays);
 }
 
 function createDraft(salesOrder?: SalesOrderV1, expireDays = 30): InvoiceCreateDraft {
   const today = new Date().toISOString().slice(0, 10);
-  const dueDate = new Date(Date.now() + expireDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const dueDate = new Date(Date.now() + expireDays * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 
   return {
     docDate: today,
@@ -79,16 +92,21 @@ function createDraft(salesOrder?: SalesOrderV1, expireDays = 30): InvoiceCreateD
     subTotal: Number(salesOrder?.subTotal || 0),
     discount: Number(salesOrder?.discount || 0),
     isVat: Number(salesOrder?.vatRate || 0) > 0,
-    paymentTerm: salesOrder?.customer?.customerPaymentTerm?.code || '',
+    paymentTerm:
+      salesOrder?.paymentTerm?.code || salesOrder?.customer?.customerPaymentTerm?.code || '',
     customerAddressId: salesOrder?.customerAddress?.id ? String(salesOrder.customerAddress.id) : '',
     customerSnapshot: {
-      customerName: salesOrder?.customerSnapshot?.customerName || salesOrder?.customer?.customerName || '',
+      customerName:
+        salesOrder?.customerSnapshot?.customerName || salesOrder?.customer?.customerName || '',
       taxId: salesOrder?.customerSnapshot?.taxId || salesOrder?.customer?.taxId || '',
-      branchCode: salesOrder?.customerSnapshot?.branchCode || salesOrder?.customer?.branchNumber || '',
-      branchName: salesOrder?.customerSnapshot?.branchName || salesOrder?.customer?.branchName || '',
+      branchCode:
+        salesOrder?.customerSnapshot?.branchCode || salesOrder?.customer?.branchNumber || '',
+      branchName:
+        salesOrder?.customerSnapshot?.branchName || salesOrder?.customer?.branchName || '',
       address: salesOrder?.customerSnapshot?.address || getCustomerAddress(salesOrder),
       contactName: salesOrder?.customerSnapshot?.contactName || getCustomerContactName(salesOrder),
-      contactNumber: salesOrder?.customerSnapshot?.contactNumber || getCustomerContactNumber(salesOrder)
+      contactNumber:
+        salesOrder?.customerSnapshot?.contactNumber || getCustomerContactNumber(salesOrder)
     }
   };
 }
@@ -158,7 +176,9 @@ function Summary({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 15, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 15, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <Typography variant="body1" sx={{ fontWeight: strong ? 800 : 700, fontSize: 18 }}>
         {formatNumber(value || 0)}
       </Typography>
@@ -179,7 +199,9 @@ function SummaryInput({
 }): ReactElement {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 15, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 15, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <TextField
         type="number"
         value={value}
@@ -204,7 +226,9 @@ function SummaryInput({
 function Info({ label, value }: { label: string; value?: string | number | null }): ReactElement {
   return (
     <Stack spacing={0.25}>
-      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
+        {label}
+      </Typography>
       <Typography
         variant="body2"
         sx={{ fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -217,6 +241,7 @@ function Info({ label, value }: { label: string; value?: string | number | null 
 export default function NewInvoice(): ReactElement {
   const { salesOrderId } = useParams<InvoiceCreateParams>();
   const history = useHistory();
+  const location = useLocation();
   const { t } = useTranslation();
   const [draft, setDraft] = useState<InvoiceCreateDraft>(createDraft());
   const [isSaving, setIsSaving] = useState(false);
@@ -269,6 +294,11 @@ export default function NewInvoice(): ReactElement {
     () => getSalesOrderPaymentSchedules(salesOrder?.salesOrderNo || ''),
     { enabled: Boolean(salesOrder?.salesOrderNo), refetchOnWindowFocus: false }
   );
+  const requestedPaymentScheduleId = useMemo(() => {
+    const value = new URLSearchParams(location.search).get('paymentScheduleId');
+    const parsed = value ? Number(value) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [location.search]);
   const { data: invoiceExpireDayConfig = [] } = useQuery(
     ['invoice-expire-day', GROUP_CODE.INVOICE_EXPIRE_DAY],
     () => getSystemConfig(GROUP_CODE.INVOICE_EXPIRE_DAY),
@@ -298,7 +328,8 @@ export default function NewInvoice(): ReactElement {
   }, [relatedInvoices]);
 
   const openedInvoiceCount = useMemo(
-    () => relatedInvoices.filter((invoice) => COUNTED_INVOICE_STATUSES.includes(invoice.status)).length,
+    () =>
+      relatedInvoices.filter((invoice) => COUNTED_INVOICE_STATUSES.includes(invoice.status)).length,
     [relatedInvoices]
   );
 
@@ -307,6 +338,10 @@ export default function NewInvoice(): ReactElement {
     const discount = Number(draft.discount || 0);
     return Math.max(subTotal - discount - openedInvoiceAmount, 0);
   }, [draft.discount, draft.subTotal, openedInvoiceAmount]);
+
+  const selectedPaymentSchedule = requestedPaymentScheduleId
+    ? paymentSchedules.find((schedule) => schedule.id === requestedPaymentScheduleId)
+    : paymentSchedules.find((schedule) => schedule.status === 'UNINVOICED');
 
   const summary = useMemo(() => {
     const paymentTerm = draft.paymentTerm;
@@ -317,25 +352,49 @@ export default function NewInvoice(): ReactElement {
     const remainingAmount = Math.max(baseAmount - openedInvoiceAmount, 0);
     const installments = PAYMENT_TERM_INSTALLMENTS[paymentTerm];
     const installmentPercent = installments?.[openedInvoiceCount];
-    const depositAmount = installmentPercent === undefined
-      ? remainingAmount
-      : Math.min((baseAmount * installmentPercent) / 100, remainingAmount);
-    const vat = draft.isVat ? depositAmount * 0.07 : 0;
+    const depositAmount = selectedPaymentSchedule
+      ? Number(selectedPaymentSchedule.expectedSubTotal || 0)
+      : installmentPercent === undefined
+        ? remainingAmount
+        : Math.min((baseAmount * installmentPercent) / 100, remainingAmount);
+    const vat = selectedPaymentSchedule
+      ? Number(selectedPaymentSchedule.expectedVat || 0)
+      : draft.isVat
+        ? depositAmount * 0.07
+        : 0;
+    const grandTotal = selectedPaymentSchedule
+      ? Number(selectedPaymentSchedule.expectedAmount || depositAmount + vat)
+      : depositAmount + vat;
+    const scheduleSubTotal = selectedPaymentSchedule
+      ? Number(selectedPaymentSchedule.expectedSubTotal || 0)
+      : subTotal;
 
     return {
-      subTotal,
-      discount,
-      openedInvoiceAmount,
-      remainingAmount,
+      subTotal: scheduleSubTotal,
+      discount: selectedPaymentSchedule ? 0 : discount,
+      openedInvoiceAmount: selectedPaymentSchedule ? 0 : openedInvoiceAmount,
+      remainingAmount: selectedPaymentSchedule ? scheduleSubTotal : remainingAmount,
       depositAmount,
       vat,
-      grandTotal: depositAmount + vat
+      grandTotal
     };
-  }, [draft.discount, draft.isVat, draft.paymentTerm, draft.subTotal, openedInvoiceAmount, openedInvoiceCount]);
-  const selectedPaymentSchedule = paymentSchedules.find((schedule) => schedule.status === 'UNINVOICED');
+  }, [
+    draft.discount,
+    draft.isVat,
+    draft.paymentTerm,
+    draft.subTotal,
+    openedInvoiceAmount,
+    openedInvoiceCount,
+    selectedPaymentSchedule
+  ]);
 
   const handleSubmit = async () => {
     if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    if (requestedPaymentScheduleId && !selectedPaymentSchedule) {
+      toast.error('ไม่พบงวดการชำระเงิน หรือมีการออกใบแจ้งหนี้งวดนี้แล้ว');
       return;
     }
 
@@ -353,8 +412,8 @@ export default function NewInvoice(): ReactElement {
           dueDate: draft.dueDate || undefined,
           deliveryDate: draft.deliveryDate || undefined,
           remark: draft.remark?.trim() || undefined,
-          subTotal: Number(draft.subTotal || 0),
-          discount: Number(draft.discount || 0),
+          subTotal: Number(selectedPaymentSchedule ? summary.depositAmount : draft.subTotal || 0),
+          discount: selectedPaymentSchedule ? 0 : Number(draft.discount || 0),
           amount: Number(summary.depositAmount || 0),
           vat: Number(summary.vat || 0),
           grandTotal: Number(summary.grandTotal || 0),
@@ -398,7 +457,9 @@ export default function NewInvoice(): ReactElement {
             className="btn-emerald-green"
             startIcon={<ReceiptLong />}
             onClick={() => setIsConfirmOpen(true)}
-            disabled={!salesOrder || isSaving || isInvoicesFetching || availableInvoiceBaseAmount <= 0}>
+            disabled={
+              !salesOrder || isSaving || isInvoicesFetching || availableInvoiceBaseAmount <= 0
+            }>
             {t('documentManagement.invoice.createInvoiceButton')}
           </Button>
           <Button
@@ -424,7 +485,10 @@ export default function NewInvoice(): ReactElement {
                 label={t('documentManagement.invoice.referenceSalesOrder')}
                 value={salesOrder?.salesOrderNo}
               />
-              <Info label="ยอดที่เปิดใบแจ้งหนี้ไปแล้ว" value={formatNumber(summary.openedInvoiceAmount)} />
+              <Info
+                label="ยอดที่เปิดใบแจ้งหนี้ไปแล้ว"
+                value={formatNumber(summary.openedInvoiceAmount)}
+              />
               <Info
                 label="ยอดคงเหลือที่ออกใบแจ้งหนี้ได้"
                 value={formatNumber(availableInvoiceBaseAmount)}
@@ -468,28 +532,121 @@ export default function NewInvoice(): ReactElement {
               <Typography variant="h6">
                 {t('documentManagement.invoice.customerSection.title')}
               </Typography>
-              <Info label={t('customerManagement.column.id')} value={salesOrder?.customer?.id || '-'} />
-              <TextField label="ชื่อลูกค้า" value={draft.customerSnapshot.customerName}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, customerName: event.target.value } }))} />
-              <TextField label="เลขประจำตัวผู้เสียภาษี" value={draft.customerSnapshot.taxId}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, taxId: event.target.value } }))} />
-              <TextField label="รหัสสาขา" value={draft.customerSnapshot.branchCode}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, branchCode: event.target.value } }))} />
-              <TextField label="ชื่อสาขา" value={draft.customerSnapshot.branchName}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, branchName: event.target.value } }))} />
-              <TextField label="ชื่อผู้ติดต่อ" value={draft.customerSnapshot.contactName}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, contactName: event.target.value } }))} />
-              <TextField label="เบอร์โทรผู้ติดต่อ" value={draft.customerSnapshot.contactNumber}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, contactNumber: event.target.value } }))} />
-              <TextField select label="เลือกที่อยู่ลูกค้า" value={draft.customerAddressId}
+              <Info
+                label={t('customerManagement.column.id')}
+                value={salesOrder?.customer?.id || '-'}
+              />
+              <TextField
+                label="ชื่อลูกค้า"
+                value={draft.customerSnapshot.customerName}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: {
+                      ...previous.customerSnapshot,
+                      customerName: event.target.value
+                    }
+                  }))
+                }
+              />
+              <TextField
+                label="เลขประจำตัวผู้เสียภาษี"
+                value={draft.customerSnapshot.taxId}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: { ...previous.customerSnapshot, taxId: event.target.value }
+                  }))
+                }
+              />
+              <TextField
+                label="รหัสสาขา"
+                value={draft.customerSnapshot.branchCode}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: {
+                      ...previous.customerSnapshot,
+                      branchCode: event.target.value
+                    }
+                  }))
+                }
+              />
+              <TextField
+                label="ชื่อสาขา"
+                value={draft.customerSnapshot.branchName}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: {
+                      ...previous.customerSnapshot,
+                      branchName: event.target.value
+                    }
+                  }))
+                }
+              />
+              <TextField
+                label="ชื่อผู้ติดต่อ"
+                value={draft.customerSnapshot.contactName}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: {
+                      ...previous.customerSnapshot,
+                      contactName: event.target.value
+                    }
+                  }))
+                }
+              />
+              <TextField
+                label="เบอร์โทรผู้ติดต่อ"
+                value={draft.customerSnapshot.contactNumber}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: {
+                      ...previous.customerSnapshot,
+                      contactNumber: event.target.value
+                    }
+                  }))
+                }
+              />
+              <TextField
+                select
+                label="เลือกที่อยู่ลูกค้า"
+                value={draft.customerAddressId}
                 onChange={(event) => {
-                  const address = salesOrder?.customer?.addresses?.find((value) => String(value.id) === String(event.target.value));
-                  setDraft((previous) => ({ ...previous, customerAddressId: String(event.target.value), customerSnapshot: { ...previous.customerSnapshot, address: address?.fullAddress || '' } }));
-                }} InputLabelProps={{ shrink: true }}>
-                {(salesOrder?.customer?.addresses || []).map((address) => <MenuItem key={address.id} value={address.id}>{address.fullAddress}</MenuItem>)}
+                  const address = salesOrder?.customer?.addresses?.find(
+                    (value) => String(value.id) === String(event.target.value)
+                  );
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerAddressId: String(event.target.value),
+                    customerSnapshot: {
+                      ...previous.customerSnapshot,
+                      address: address?.fullAddress || ''
+                    }
+                  }));
+                }}
+                InputLabelProps={{ shrink: true }}>
+                {(salesOrder?.customer?.addresses || []).map((address) => (
+                  <MenuItem key={address.id} value={address.id}>
+                    {address.fullAddress}
+                  </MenuItem>
+                ))}
               </TextField>
-              <TextField label="ที่อยู่" multiline minRows={2} value={draft.customerSnapshot.address}
-                onChange={(event) => setDraft((previous) => ({ ...previous, customerSnapshot: { ...previous.customerSnapshot, address: event.target.value } }))} />
+              <TextField
+                label="ที่อยู่"
+                multiline
+                minRows={2}
+                value={draft.customerSnapshot.address}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    customerSnapshot: { ...previous.customerSnapshot, address: event.target.value }
+                  }))
+                }
+              />
               <TextField
                 select
                 disabled={summary.openedInvoiceAmount > 0}
@@ -634,7 +791,40 @@ export default function NewInvoice(): ReactElement {
               <Typography variant="h5" sx={{ fontWeight: 800 }}>
                 {t('documentManagement.invoice.summarySection.title')}
               </Typography>
-              <Summary label="ยอดรวมทั้งสิ้น" value={summary.subTotal} />
+              {selectedPaymentSchedule ? (
+                <>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 0.5 }}>
+                    ยอดเต็มของใบยืนยันสั่งซื้อ
+                  </Typography>
+                  <Summary label="ยอด Sales Order ก่อน VAT" value={Number(draft.subTotal || 0)} />
+                  <Summary label="VAT Sales Order" value={Number(salesOrder?.vat || 0)} />
+                  <Summary
+                    label="ยอดรวม Sales Order"
+                    value={Number(salesOrder?.grandTotal || 0)}
+                    strong
+                  />
+                </>
+              ) : null}
+              {/* {selectedPaymentSchedule ? (
+                <Info
+                  label="งวดการชำระเงิน"
+                  value={`งวดที่ ${selectedPaymentSchedule.installmentNo}/${selectedPaymentSchedule.installmentCount}`}
+                />
+              ) : null} */}
+              <Divider />
+              {selectedPaymentSchedule ? (
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 0.5 }}>
+                  {`ยอดเต็มของใบแจ้งหนี้ งวดที่ ${selectedPaymentSchedule.installmentNo}/${selectedPaymentSchedule.installmentCount}`}
+                </Typography>
+              ) : (
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 0.5 }}>
+                  {`ยอดเต็มของใบแจ้งหนี้`}
+                </Typography>
+              )}
+              <Summary
+                label={selectedPaymentSchedule ? 'ยอดตามงวดก่อน VAT' : 'ยอดรวมทั้งสิ้น'}
+                value={summary.subTotal}
+              />
               <SummaryInput
                 label={t('documentManagement.invoice.summarySection.discount')}
                 value={summary.discount}
@@ -645,24 +835,30 @@ export default function NewInvoice(): ReactElement {
                   }))
                 }
               />
+              <Summary label="ยอดที่เปิดใบแจ้งหนี้ไปแล้ว" value={summary.openedInvoiceAmount} />
+              <Summary label="ยอดคงเหลือที่ออกใบแจ้งหนี้ได้" value={summary.remainingAmount} />
               <Summary
-                label="ยอดที่เปิดใบแจ้งหนี้ไปแล้ว"
-                value={summary.openedInvoiceAmount}
-              />
-              <Summary
-                label="ยอดคงเหลือที่ออกใบแจ้งหนี้ได้"
-                value={summary.remainingAmount}
-              />
-              <Summary
-                label={t('documentManagement.invoice.summarySection.depositAmount')}
+                label={
+                  selectedPaymentSchedule
+                    ? 'ยอดก่อน VAT ของงวด'
+                    : t('documentManagement.invoice.summarySection.depositAmount')
+                }
                 value={summary.depositAmount}
               />
               <Summary
-                label={t('documentManagement.invoice.summarySection.vat')}
+                label={
+                  selectedPaymentSchedule
+                    ? 'VAT ของงวด'
+                    : t('documentManagement.invoice.summarySection.vat')
+                }
                 value={summary.vat}
               />
               <Summary
-                label={t('documentManagement.invoice.summarySection.grandTotal')}
+                label={
+                  selectedPaymentSchedule
+                    ? 'ยอดรวมตามงวด'
+                    : t('documentManagement.invoice.summarySection.grandTotal')
+                }
                 value={summary.grandTotal}
                 strong
               />

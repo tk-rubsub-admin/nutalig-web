@@ -43,6 +43,8 @@ export interface InvoicePayment {
   id: number;
   paymentDate: string;
   amount: number;
+  receivedAmount?: number | null;
+  unallocatedAmount?: number | null;
   paymentMethod: 'TRANSFER' | 'CHEQUE' | 'CASH';
   status?: 'PENDING' | 'APPROVE' | 'REJECT';
   chequeBank: string | null;

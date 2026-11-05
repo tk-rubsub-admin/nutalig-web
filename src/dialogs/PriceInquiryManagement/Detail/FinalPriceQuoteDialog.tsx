@@ -108,6 +108,7 @@ interface FinalPriceDraftErrors {
 interface FinalPriceQuoteDialogProps {
   open: boolean;
   finalPriceQuote: RFQSupplierQuote | null;
+  rfqId?: string | null;
   rfqDetails: RFQDetailOption[];
   rfqTypeCode?: string | null;
   referenceRfqId?: string | null;
@@ -182,6 +183,7 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
   const {
     open,
     finalPriceQuote,
+    rfqId,
     rfqDetails,
     rfqTypeCode,
     referenceRfqId,
@@ -218,6 +220,8 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     t
   } = props;
   const [isOldPriceSectionExpanded, setIsOldPriceSectionExpanded] = useState(true);
+  const [isCurrentRfqPriceExpanded, setIsCurrentRfqPriceExpanded] = useState(true);
+  const [isReferenceRfqPriceExpanded, setIsReferenceRfqPriceExpanded] = useState(true);
   const isRepeatPrice = rfqTypeCode === 'REPEAT_PRICE';
   const referenceId = referenceRfqId?.trim() || '';
   const {
@@ -228,8 +232,16 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     enabled: open && isRepeatPrice && Boolean(referenceId),
     refetchOnWindowFocus: false
   });
-  const oldPriceDetails = isRepeatPrice ? referenceRfq?.details || [] : rfqDetails;
-  const oldPriceDetailsWithTiers = oldPriceDetails.filter((detail) => (detail.tiers || []).length > 0);
+  const currentRfqPriceDetailsWithTiers = rfqDetails.filter(
+    (detail) => (detail.tiers || []).length > 0
+  );
+  const referenceRfqPriceDetailsWithTiers = (referenceRfq?.details || []).filter(
+    (detail) => (detail.tiers || []).length > 0
+  );
+  const oldPriceDetailsWithTiers = [
+    ...currentRfqPriceDetailsWithTiers,
+    ...referenceRfqPriceDetailsWithTiers
+  ];
 
   const renderPackageSummary = (packageItem: FinalPriceDraftPackage): string => {
     const dimension = packageItem.packageDimension?.trim();
@@ -329,9 +341,11 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
     }
   }, [shouldShowOldPriceSection]);
 
-  const renderOldPriceDetailCard = (detail: RFQDetailOption): ReactElement => (
+  const renderOldPriceDetailCard = (
+    detail: RFQDetailOption,
+    sourceLabel: string
+  ): ReactElement => (
     <Box
-      key={detail.id}
       sx={{
         border: `1px solid ${BRAND_COLORS.sand}`,
         borderRadius: 2,
@@ -340,13 +354,19 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
       }}>
       <Stack spacing={1.25}>
         <Stack spacing={0.25}>
+          {/* <Typography variant="caption" color="text.secondary">
+            {sourceLabel}
+          </Typography> */}
           <Typography variant="subtitle2" fontWeight={700}>
             {formatOptionNameWithPlan(detail.optionName, detail.plan)}
           </Typography>
           {detail.createdDate && dayjs(detail.createdDate).isValid() ? (
-            <Typography variant="subtitle2" color="text.secondary">
-              วันที่ได้ราคา {dayjs(detail.createdDate).format('DD/MM/YYYY')}
-            </Typography>
+            <Chip
+              size="small"
+              color="info"
+              label={`ราคา ณ วันที่ ${dayjs(detail.createdDate).format('DD/MM/YYYY HH:mm')}`}
+              sx={{ alignSelf: 'flex-start' }}
+            />
           ) : null}
           {detail.spec ? (
             <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -1358,22 +1378,80 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               </Button>
               <Collapse in={isOldPriceSectionExpanded} timeout="auto" unmountOnExit>
                 <Stack spacing={1.5} sx={{ px: 2, pb: 2 }}>
-                  {isRepeatPrice && referenceId ? (
+                  {/* {isRepeatPrice && referenceId ? (
                     <Typography variant="body2" color="text.secondary">
                       อ้างอิง RFQ {referenceId}
                     </Typography>
-                  ) : null}
+                  ) : null} */}
                   {isRepeatPrice && !referenceId ? (
-                    <Alert severity="warning">ไม่พบเลขที่ RFQ อ้างอิงสำหรับแสดงราคาที่เคยให้</Alert>
-                  ) : isRepeatPrice && isReferenceRfqLoading ? (
+                    <Alert severity="warning">ไม่พบเลขที่ RFQ อ้างอิงสำหรับแสดงราคาเพิ่มเติม</Alert>
+                  ) : null}
+                  {isRepeatPrice && isReferenceRfqLoading ? (
                     <Typography role="status">กำลังโหลดราคาจาก RFQ อ้างอิง...</Typography>
-                  ) : isRepeatPrice && isReferenceRfqError ? (
+                  ) : null}
+                  {isRepeatPrice && isReferenceRfqError ? (
                     <Alert severity="error">ไม่สามารถโหลดราคาจาก RFQ อ้างอิงได้</Alert>
-                  ) : oldPriceDetailsWithTiers.length ? (
-                    oldPriceDetailsWithTiers.map((detail) => renderOldPriceDetailCard(detail))
-                  ) : (
-                    <Typography color="text.secondary">ไม่มีราคาจาก Tier ใน RFQ อ้างอิง</Typography>
-                  )}
+                  ) : null}
+                  {oldPriceDetailsWithTiers.length ? (
+                    <>
+                      {currentRfqPriceDetailsWithTiers.length ? (
+                        <Box>
+                          <Button
+                            fullWidth
+                            variant="text"
+                            onClick={() => setIsCurrentRfqPriceExpanded((expanded) => !expanded)}
+                            endIcon={
+                              <ArrowDropDown
+                                sx={{
+                                  transform: isCurrentRfqPriceExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                                }}
+                              />
+                            }
+                            sx={{ justifyContent: 'space-between', color: 'text.primary' }}>
+                            RFQ ปัจจุบัน {rfqId || '-'}
+                          </Button>
+                          <Collapse in={isCurrentRfqPriceExpanded} timeout="auto" unmountOnExit>
+                            <Stack spacing={1.5} sx={{ pt: 1 }}>
+                              {currentRfqPriceDetailsWithTiers.map((detail) => (
+                                <Box key={`current-${detail.id}`}>
+                                  {renderOldPriceDetailCard(detail, `RFQ ปัจจุบัน ${rfqId || '-'}`)}
+                                </Box>
+                              ))}
+                            </Stack>
+                          </Collapse>
+                        </Box>
+                      ) : null}
+                      {isRepeatPrice && referenceRfqPriceDetailsWithTiers.length ? (
+                        <Box>
+                          <Button
+                            fullWidth
+                            variant="text"
+                            onClick={() => setIsReferenceRfqPriceExpanded((expanded) => !expanded)}
+                            endIcon={
+                              <ArrowDropDown
+                                sx={{
+                                  transform: isReferenceRfqPriceExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                                }}
+                              />
+                            }
+                            sx={{ justifyContent: 'space-between', color: 'text.primary' }}>
+                            RFQ อ้างอิง {referenceId}
+                          </Button>
+                          <Collapse in={isReferenceRfqPriceExpanded} timeout="auto" unmountOnExit>
+                            <Stack spacing={1.5} sx={{ pt: 1 }}>
+                              {referenceRfqPriceDetailsWithTiers.map((detail) => (
+                                <Box key={`reference-${detail.id}`}>
+                                  {renderOldPriceDetailCard(detail, `RFQ อ้างอิง ${referenceId}`)}
+                                </Box>
+                              ))}
+                            </Stack>
+                          </Collapse>
+                        </Box>
+                      ) : null}
+                    </>
+                  ) : !isRepeatPrice || (!isReferenceRfqLoading && !isReferenceRfqError) ? (
+                    <Typography color="text.secondary">ไม่มีราคาจาก Tier</Typography>
+                  ) : null}
                 </Stack>
               </Collapse>
             </Box>

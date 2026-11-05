@@ -6909,6 +6909,7 @@ export default function RFQDetail(): ReactElement {
       <FinalPriceQuoteDialog
         open={Boolean(finalPriceQuote)}
         finalPriceQuote={finalPriceQuote}
+        rfqId={params.id}
         rfqDetails={rfq?.details || []}
         rfqTypeCode={rfq?.rfqType?.code}
         referenceRfqId={rfq?.referenceRfqId}

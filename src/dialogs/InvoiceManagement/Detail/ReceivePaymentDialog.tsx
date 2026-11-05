@@ -16,7 +16,6 @@ type ReceivePaymentDialogProps = {
   invoiceNo: string;
   paymentDate: string;
   amount: number;
-  maxAmount: number;
   paymentMethod: 'TRANSFER' | 'CHEQUE' | 'CASH';
   chequeBank: string;
   chequeNo: string;
@@ -40,7 +39,6 @@ export default function ReceivePaymentDialog({
   invoiceNo,
   paymentDate,
   amount,
-  maxAmount,
   paymentMethod,
   chequeBank,
   chequeNo,
@@ -60,7 +58,7 @@ export default function ReceivePaymentDialog({
 }: ReceivePaymentDialogProps): ReactElement {
   const isTransfer = paymentMethod === 'TRANSFER';
   const isCheque = paymentMethod === 'CHEQUE';
-  const isAmountInvalid = amount <= 0 || amount > maxAmount;
+  const isAmountInvalid = amount <= 0;
   const isSubmitDisabled =
     !paymentDate ||
     isAmountInvalid ||

@@ -1505,7 +1505,6 @@ export default function InvoiceDetail(): ReactElement {
           invoiceNo={invoice?.invoiceNo}
           paymentDate={paymentDate}
           amount={paymentAmount}
-          maxAmount={summary.outstandingTotal}
           paymentMethod={paymentMethod}
           chequeBank={chequeBank}
           chequeNo={chequeNo}

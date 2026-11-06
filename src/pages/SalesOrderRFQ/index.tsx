@@ -90,6 +90,7 @@ import {
 import { GROUP_CODE, SystemConfig } from 'services/Config/config-type';
 import { getSystemConfig } from 'services/Config/config-api';
 import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
+import CustomerBillingProfileFields from 'components/CustomerBillingProfileFields';
 
 interface SaleOrderRFQParams {
   rfqId: string;
@@ -1678,11 +1679,11 @@ export default function SalesOrderRFQ(): JSX.Element {
     const applyRFQ = async () => {
       const allItems = quotation
         ? createSaleOrderItemsFromQuotation(
-            rfq,
-            quotation?.data,
-            quotationRfqsById,
-            supplierQuoteTiersById
-          )
+          rfq,
+          quotation?.data,
+          quotationRfqsById,
+          supplierQuoteTiersById
+        )
         : createSaleOrderItemsFromRFQ(rfq, supplierQuoteTiersById);
       const selectedItemFromDialog = selectedRFQParams.flatMap((selectedItem) =>
         allItems
@@ -2142,69 +2143,13 @@ export default function SalesOrderRFQ(): JSX.Element {
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="เลขประจำตัวผู้เสียภาษี"
-              value={formik.values.customerSnapshot.taxId}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.taxId', event.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="รหัสสาขา"
-              value={formik.values.customerSnapshot.branchCode}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.branchCode', event.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="ชื่อสาขา"
-              value={formik.values.customerSnapshot.branchName}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.branchName', event.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="ชื่อผู้ติดต่อ"
-              value={formik.values.customerSnapshot.contactName}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.contactName', event.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </GridTextField>
-          <GridTextField item xs={12} sm={6}>
-            <TextField fullWidth variant="outlined" label="เบอร์โทรผู้ติดต่อ"
-              value={formik.values.customerSnapshot.contactNumber}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.contactNumber', event.target.value)}
-              InputLabelProps={{ shrink: true }} />
-          </GridTextField>
           <GridTextField item xs={12}>
-            <TextField select fullWidth variant="outlined" label="เลือกที่อยู่ลูกค้า"
-              value={formik.values.customerAddressId || ''}
-              onChange={(event) => {
-                const address = customer?.addresses?.find((value) => String(value.id) === String(event.target.value));
-                formik.setFieldValue('customerAddressId', event.target.value);
-                formik.setFieldValue('customerSnapshot.address', address?.fullAddress || '');
-              }}
-              InputLabelProps={{ shrink: true }} disabled={!customer?.id}>
-              {(customer?.addresses || []).map((address: Address) => <MenuItem key={address.id} value={address.id}>{address.fullAddress}</MenuItem>)}
-            </TextField>
-          </GridTextField>
-          <GridTextField item xs={12}>
-            <TextField fullWidth variant="outlined" label="ที่อยู่" multiline minRows={2}
-              value={formik.values.customerSnapshot.address}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.address', event.target.value)}
-              InputLabelProps={{ shrink: true }} />
+            <CustomerBillingProfileFields
+              customer={customer}
+              snapshot={formik.values.customerSnapshot}
+              isVat={formik.values.isVat}
+              onSnapshotChange={(snapshot) => formik.setFieldValue('customerSnapshot', snapshot)}
+            />
           </GridTextField>
           {!customer ? (
             <Grid item xs={12}>
@@ -2720,7 +2665,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                           {option.icon}
                           <Typography
                             fontWeight={800}
-                            sx={{ color: option.isSelected ? option.color: BRAND_UI.mutedText }}>
+                            sx={{ color: option.isSelected ? option.color : BRAND_UI.mutedText }}>
                             {option.shippingMethod}
                           </Typography>
                           <Typography

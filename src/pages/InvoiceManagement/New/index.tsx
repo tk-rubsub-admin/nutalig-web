@@ -44,6 +44,8 @@ import {
   SalesOrderV1
 } from 'services/SaleOrder/sale-order-type';
 import { formatNumber } from 'utils/utils';
+import CustomerBillingProfileFields from 'components/CustomerBillingProfileFields';
+import { getCustomer } from 'services/Customer/customer-api';
 
 interface InvoiceCreateParams {
   salesOrderId: string;
@@ -280,6 +282,11 @@ export default function NewInvoice(): ReactElement {
       enabled: Boolean(salesOrderId),
       refetchOnWindowFocus: false
     }
+  );
+  const { data: billingCustomer } = useQuery(
+    ['invoice-create-billing-customer', salesOrder?.customer?.id],
+    () => getCustomer(salesOrder?.customer?.id || ''),
+    { enabled: Boolean(salesOrder?.customer?.id), refetchOnWindowFocus: false }
   );
   const { data: relatedInvoices = [], isFetching: isInvoicesFetching } = useQuery(
     ['invoice-create-related-invoices', salesOrder?.salesOrderNo],
@@ -549,103 +556,11 @@ export default function NewInvoice(): ReactElement {
                   }))
                 }
               />
-              <TextField
-                label="เลขประจำตัวผู้เสียภาษี"
-                value={draft.customerSnapshot.taxId}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerSnapshot: { ...previous.customerSnapshot, taxId: event.target.value }
-                  }))
-                }
-              />
-              <TextField
-                label="รหัสสาขา"
-                value={draft.customerSnapshot.branchCode}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerSnapshot: {
-                      ...previous.customerSnapshot,
-                      branchCode: event.target.value
-                    }
-                  }))
-                }
-              />
-              <TextField
-                label="ชื่อสาขา"
-                value={draft.customerSnapshot.branchName}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerSnapshot: {
-                      ...previous.customerSnapshot,
-                      branchName: event.target.value
-                    }
-                  }))
-                }
-              />
-              <TextField
-                label="ชื่อผู้ติดต่อ"
-                value={draft.customerSnapshot.contactName}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerSnapshot: {
-                      ...previous.customerSnapshot,
-                      contactName: event.target.value
-                    }
-                  }))
-                }
-              />
-              <TextField
-                label="เบอร์โทรผู้ติดต่อ"
-                value={draft.customerSnapshot.contactNumber}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerSnapshot: {
-                      ...previous.customerSnapshot,
-                      contactNumber: event.target.value
-                    }
-                  }))
-                }
-              />
-              <TextField
-                select
-                label="เลือกที่อยู่ลูกค้า"
-                value={draft.customerAddressId}
-                onChange={(event) => {
-                  const address = salesOrder?.customer?.addresses?.find(
-                    (value) => String(value.id) === String(event.target.value)
-                  );
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerAddressId: String(event.target.value),
-                    customerSnapshot: {
-                      ...previous.customerSnapshot,
-                      address: address?.fullAddress || ''
-                    }
-                  }));
-                }}
-                InputLabelProps={{ shrink: true }}>
-                {(salesOrder?.customer?.addresses || []).map((address) => (
-                  <MenuItem key={address.id} value={address.id}>
-                    {address.fullAddress}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label="ที่อยู่"
-                multiline
-                minRows={2}
-                value={draft.customerSnapshot.address}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    customerSnapshot: { ...previous.customerSnapshot, address: event.target.value }
-                  }))
-                }
+              <CustomerBillingProfileFields
+                customer={(billingCustomer || salesOrder?.customer) as any}
+                snapshot={draft.customerSnapshot}
+                isVat={draft.isVat}
+                onSnapshotChange={(snapshot) => setDraft((previous) => ({ ...previous, customerSnapshot: snapshot }))}
               />
               <TextField
                 select

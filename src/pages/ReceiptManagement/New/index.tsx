@@ -32,6 +32,8 @@ import { createReceipt } from 'services/Receipt/receipt-api';
 import { ReceiptType } from 'services/Receipt/receipt-type';
 import { formatDate } from 'utils';
 import { formatNumber } from 'utils/utils';
+import CustomerBillingProfileFields from 'components/CustomerBillingProfileFields';
+import { getCustomer } from 'services/Customer/customer-api';
 
 interface ReceiptCreateParams {
   invoiceId: string;
@@ -207,6 +209,11 @@ export default function NewReceipt(): ReactElement {
       refetchOnWindowFocus: false
     }
   );
+  const { data: billingCustomer } = useQuery(
+    ['receipt-create-billing-customer', invoice?.customer?.id],
+    () => getCustomer(invoice?.customer?.id || ''),
+    { enabled: Boolean(invoice?.customer?.id), refetchOnWindowFocus: false }
+  );
 
   const selectedPayment = useMemo(
     () => invoice?.payments?.find((payment) => String(payment.id) === paymentId),
@@ -295,6 +302,11 @@ export default function NewReceipt(): ReactElement {
       <LoadingDialog open={isFetching || isSaving} />
       <PageTitle title={t('documentManagement.receipt.newReceipt')} />
       <Wrapper>
+        <CustomerBillingProfileFields
+          customer={(billingCustomer || invoice?.customer) as any}
+          isVat={Number(invoice?.vatRate || 0) > 0}
+          readOnly
+        />
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1}

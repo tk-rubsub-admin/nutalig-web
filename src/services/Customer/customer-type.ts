@@ -27,7 +27,29 @@ export interface CreateCustomerRequest {
   salesAccounts: string[];
   coSalesAccount: string;
   address: CreateCustomerAddressRequest;
+  billingProfile?: CreateCustomerBillingProfileRequest;
+  billingProfiles?: CreateCustomerBillingProfileRequest[];
   contacts: CreateCustomerContactRequest[];
+}
+
+export interface CreateCustomerBillingProfileRequest {
+  profileName?: string;
+  billingProfileType?: 'VAT' | 'NO_VAT';
+  useCustomerAddressForBilling?: boolean;
+  billingName: string;
+  taxId?: string;
+  branchCode?: string;
+  branchName?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  postcode?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  isDefault?: boolean;
 }
 
 export interface CreateCustomerAddressRequest {
@@ -186,6 +208,7 @@ export interface Customer {
   addresses: Address[];
   contacts: Contact[];
   email: string;
+  billingProfiles?: CustomerBillingProfile[];
   salesAccount: string;
   salesAccounts: string[];
   coSalesAccount: string;
@@ -194,6 +217,28 @@ export interface Customer {
   createdDate: string;
   updatedBy: string;
   updatedDate: string;
+}
+
+export interface CustomerBillingProfile {
+  id: number;
+  customerId?: string;
+  profileName?: string;
+  billingProfileType?: 'VAT' | 'NO_VAT';
+  billingName: string;
+  taxId?: string;
+  branchCode?: string;
+  branchName?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  postcode?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  isDefault?: boolean;
+  active?: boolean;
 }
 
 export interface CustomerBranchRequest {

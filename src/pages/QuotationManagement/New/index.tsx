@@ -10,7 +10,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "react-query";
 import { useHistory, useParams } from "react-router-dom";
-import { Address, Contact, Customer, UpdateCustomerRequest } from "services/Customer/customer-type";
+import { Address, Contact, Customer, CustomerBillingProfile, UpdateCustomerRequest } from "services/Customer/customer-type";
 import { getSales } from "services/Sales/sales-api";
 import { getFreelanceSales } from "services/FreelanceSale/freelance-sale-api";
 import { useTheme } from "styled-components";
@@ -35,8 +35,8 @@ import LoadingDialog from "components/LoadingDialog";
 import { formatCurrency, formatNumber } from "utils/utils";
 import { getRFQ, getRFQSupplierQuotes } from "services/RFQ/rfq-api";
 import { RFQDetailOption, RFQRecord } from "services/RFQ/rfq-type";
-import { addCustomerAddress, addCustomerContact, getCustomer, updateCustomer } from "services/Customer/customer-api";
-import { CreateCustomerAddressRequest, CreateCustomerContactRequest } from "services/Customer/customer-type";
+import { addCustomerAddress, addCustomerBillingProfile, addCustomerContact, getCustomer, updateCustomer } from "services/Customer/customer-api";
+import { CreateCustomerAddressRequest, CreateCustomerBillingProfileRequest, CreateCustomerContactRequest } from "services/Customer/customer-type";
 import { getCountry, getDistrict, getProvince, getSubDistrict } from "services/Address/address-api";
 import { Country, District, Province, SubDistrict } from "services/Address/address-type";
 import { GROUP_CODE, SystemConfig } from "services/Config/config-type";
@@ -711,12 +711,27 @@ export default function NewQuotation() {
     const [selectedRfqsFromDialog, setSelectedRfqsFromDialog] = useState<RFQRecord[]>([]);
     const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
     const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState<string>('');
+    const [selectedBillingProfileId, setSelectedBillingProfileId] = useState<number | ''>('');
+    const [isAddBillingProfileDialogOpen, setIsAddBillingProfileDialogOpen] = useState(false);
+    const [billingProfileForm, setBillingProfileForm] = useState<CreateCustomerBillingProfileRequest>({
+        profileName: '', billingProfileType: 'VAT', billingName: '', taxId: '', branchCode: '', branchName: '',
+        addressLine1: '', addressLine2: '', subdistrict: '', district: '', province: '', postcode: '',
+        country: 'Thailand', email: '', phone: '', isDefault: false
+    });
     const today = dayjs();
     const { data: rfq, isFetching: isRFQFetching } = useQuery(
         ['quotation-from-rfq', rfqId],
         () => getRFQ(rfqId || ''),
         {
             enabled: isCreateFromRFQ,
+            refetchOnWindowFocus: false
+        }
+    );
+    const { data: quotationCustomer } = useQuery(
+        ['quotation-customer', rfq?.customer?.id],
+        () => getCustomer(rfq?.customer?.id || ''),
+        {
+            enabled: Boolean(rfq?.customer?.id),
             refetchOnWindowFocus: false
         }
     );
@@ -1219,11 +1234,45 @@ export default function NewQuotation() {
         || formik.values.coSaleId
         || '';
 
+    const getBillingProfileAddress = (profile?: CustomerBillingProfile | null): string =>
+        profile
+            ? [profile.addressLine1, profile.addressLine2, profile.subdistrict, profile.district, profile.province, profile.postcode]
+                .filter(Boolean)
+                .join(' ')
+            : '';
+
+    const getBillingProfileForVat = (
+        profiles: CustomerBillingProfile[] = [],
+        isVat: boolean
+    ): CustomerBillingProfile | undefined => {
+        if (!profiles.length) return undefined;
+        if (isVat) {
+            return profiles.find((profile) => profile.billingProfileType === 'VAT') || profiles[0];
+        }
+        const noVatProfiles = profiles.filter((profile) => profile.billingProfileType === 'NO_VAT');
+        return noVatProfiles[noVatProfiles.length - 1] || profiles[0];
+    };
+
+    const applyBillingProfileToSnapshot = (profile?: CustomerBillingProfile) => {
+        setSelectedBillingProfileId(profile?.id || '');
+        if (!profile) return;
+        formik.setFieldValue('customerSnapshot', {
+            ...formik.values.customerSnapshot,
+            customerName: profile.billingName || formik.values.customerSnapshot.customerName,
+            taxId: profile.taxId || '',
+            branchCode: profile.branchCode || '',
+            branchName: profile.branchName || '',
+            address: getBillingProfileAddress(profile),
+            contactNumber: profile.phone || formik.values.customerSnapshot.contactNumber
+        });
+    };
+
     useEffect(() => {
         if (!rfq) return;
 
-        const customerAddresses = rfq.customer?.addresses || [];
-        const customerContacts = rfq.customer?.contacts || [];
+        const customerSource = quotationCustomer || rfq.customer;
+        const customerAddresses = customerSource?.addresses || [];
+        const customerContacts = customerSource?.contacts || [];
         const defaultAddress =
             customerAddresses.find((address) => address.isDefault) ||
             customerAddresses[0];
@@ -1234,8 +1283,8 @@ export default function NewQuotation() {
         const salesId =
             rfq.sales?.salesId ||
             rfq.sales?.employeeId ||
-            rfq.customer?.salesAccounts?.[0] ||
-            rfq.customer?.salesAccount ||
+            customerSource?.salesAccounts?.[0] ||
+            customerSource?.salesAccount ||
             '';
         // const rfqAdditionalCostTotal = (rfq.additionalCosts || []).reduce(
         //     (sum, cost) => sum + Number(cost.value || 0),
@@ -1245,24 +1294,28 @@ export default function NewQuotation() {
         const quotationItems = createQuotationItemsFromRFQ(rfq);
         const quotationGrandTotal = calculateQuotationGrandTotal(quotationItems);
 
-        setCustomer(rfq.customer ? {
-            ...rfq.customer,
+        setCustomer(customerSource ? {
+            ...customerSource,
             addresses: customerAddresses,
             contacts: customerContacts
         } as Customer : null);
+        const defaultBillingProfile = getBillingProfileForVat(customerSource?.billingProfiles, formik.values.isVat);
+        setSelectedBillingProfileId(defaultBillingProfile?.id || '');
         formik.setValues({
             ...formik.values,
             rfqId: rfqId || '',
             rfqIds: rfqId ? [rfqId] : [],
-            customerId: rfq.customer?.id || '',
+            customerId: customerSource?.id || '',
             customerAddressId: defaultAddress?.id || '',
             customerContactId: defaultContact?.id || '',
-            customerBranchCode: rfq.customer?.branches?.find((branch) => branch.isDefault)?.branchCode || rfq.customer?.branchNumber || '',
+            customerBranchCode: customerSource?.branches?.find((branch) => branch.isDefault)?.branchCode || customerSource?.branchNumber || '',
             customerSnapshot: {
-                customerName: rfq.customer?.customerName || '', taxId: rfq.customer?.taxId || '',
-                branchCode: rfq.customer?.branches?.find((branch) => branch.isDefault)?.branchCode || rfq.customer?.branchNumber || '',
-                branchName: rfq.customer?.branches?.find((branch) => branch.isDefault)?.branchName || rfq.customer?.branchName || '',
-                address: defaultAddress?.fullAddress || '', contactName: defaultContact?.contactName || '', contactNumber: defaultContact?.contactNumber || ''
+                customerName: defaultBillingProfile?.billingName || customerSource?.customerName || '',
+                taxId: defaultBillingProfile?.taxId || customerSource?.taxId || '',
+                branchCode: defaultBillingProfile?.branchCode || customerSource?.branches?.find((branch) => branch.isDefault)?.branchCode || customerSource?.branchNumber || '',
+                branchName: defaultBillingProfile?.branchName || customerSource?.branches?.find((branch) => branch.isDefault)?.branchName || customerSource?.branchName || '',
+                address: getBillingProfileAddress(defaultBillingProfile) || defaultAddress?.fullAddress || '',
+                contactName: defaultContact?.contactName || '', contactNumber: defaultBillingProfile?.phone || defaultContact?.contactNumber || ''
             },
             docDate: today.format(DEFAULT_DATE_FORMAT),
             effectiveDate: quotationDefaultEffectiveDate.format(DEFAULT_DATE_FORMAT),
@@ -1275,7 +1328,7 @@ export default function NewQuotation() {
             project: rfq.project || '',
             items: quotationItems
         });
-    }, [rfq]);
+    }, [rfq, quotationCustomer]);
 
     useEffect(() => {
         if (!formik.values.coSaleId) return;
@@ -1355,6 +1408,53 @@ export default function NewQuotation() {
             }
         });
         setIsAddCustomerAddressDialogOpen(true);
+    };
+
+    const handleOpenAddBillingProfileDialog = () => {
+        if (!customer?.id) {
+            toast.error('กรุณาเลือกลูกค้าก่อน');
+            return;
+        }
+        setBillingProfileForm({
+            profileName: '', billingProfileType: 'VAT', billingName: '', taxId: '', branchCode: '', branchName: '',
+            addressLine1: '', addressLine2: '', subdistrict: '', district: '', province: '', postcode: '',
+            country: 'Thailand', email: '', phone: '', isDefault: false
+        });
+        setIsAddBillingProfileDialogOpen(true);
+    };
+
+    const handleConfirmAddBillingProfile = async () => {
+        if (!customer?.id || !billingProfileForm.billingName.trim()) {
+            toast.error('กรุณาระบุชื่อหัวบิล');
+            return;
+        }
+        const addBillingProfilePromise = addCustomerBillingProfile(customer.id, billingProfileForm);
+        toast.promise(addBillingProfilePromise, {
+            loading: t('toast.loading'),
+            success: (response) => {
+                const updatedCustomer = ((response as any)?.data ?? response) as Customer;
+                setCustomer(updatedCustomer);
+                const createdProfile = updatedCustomer.billingProfiles
+                    ?.slice()
+                    .reverse()
+                    .find((profile) => profile.billingName === billingProfileForm.billingName);
+                setSelectedBillingProfileId(createdProfile?.id || '');
+                if (createdProfile) {
+                    formik.setFieldValue('customerSnapshot', {
+                        ...formik.values.customerSnapshot,
+                        customerName: createdProfile.billingName || '',
+                        taxId: createdProfile.taxId || '',
+                        branchCode: createdProfile.branchCode || '',
+                        branchName: createdProfile.branchName || '',
+                        address: getBillingProfileAddress(createdProfile),
+                        contactNumber: createdProfile.phone || ''
+                    });
+                }
+                setIsAddBillingProfileDialogOpen(false);
+                return t('toast.success');
+            },
+            error: t('toast.failed')
+        });
     };
 
     const getAddressPayload = (): CreateCustomerAddressRequest => {
@@ -1728,6 +1828,9 @@ export default function NewQuotation() {
         group.items.push({ row, index });
         return groups;
     }, []);
+    const selectedBillingProfile = customer?.billingProfiles?.find(
+        (profile) => profile.id === selectedBillingProfileId
+    );
 
     return (
         <Page>
@@ -1826,7 +1929,13 @@ export default function NewQuotation() {
                             <RadioGroup
                                 row
                                 value={String(formik.values.isVat)}
-                                onChange={(e) => formik.setFieldValue('isVat', e.target.value === 'true')}
+                                onChange={(e) => {
+                                    const isVat = e.target.value === 'true';
+                                    formik.setFieldValue('isVat', isVat);
+                                    applyBillingProfileToSnapshot(
+                                        getBillingProfileForVat(customer?.billingProfiles, isVat)
+                                    );
+                                }}
                             >
                                 <FormControlLabel value="true" control={<Radio />} label="มี VAT" />
                                 <FormControlLabel value="false" control={<Radio />} label="ไม่มี VAT" />
@@ -2175,41 +2284,90 @@ export default function NewQuotation() {
                             </TextField>
                         </GridTextField>
                     </>}
-                    <GridTextField item xs={12} sm={6}><TextField label="ชื่อลูกค้า"
-                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.customerName} onChange={(event) => formik.setFieldValue('customerSnapshot.customerName', event.target.value)} /></GridTextField>
-                    <GridTextField item xs={12} sm={6}><TextField label="เลขประจำตัวผู้เสียภาษี"
-                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.taxId} onChange={(event) => formik.setFieldValue('customerSnapshot.taxId', event.target.value)} /></GridTextField>
-                    <GridTextField item xs={12} sm={6}><TextField label="รหัสสาขา"
-                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.branchCode} onChange={(event) => formik.setFieldValue('customerSnapshot.branchCode', event.target.value)} /></GridTextField>
-                    <GridTextField item xs={12} sm={6}><TextField label="ชื่อสาขา"
-                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.branchName} onChange={(event) => formik.setFieldValue('customerSnapshot.branchName', event.target.value)} /></GridTextField>
-                    <GridTextField item xs={12} sm={6}><TextField label="ชื่อผู้ติดต่อ"
-                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.contactName} onChange={(event) => formik.setFieldValue('customerSnapshot.contactName', event.target.value)} /></GridTextField>
-                    <GridTextField item xs={12} sm={6}><TextField label="เบอร์โทรผู้ติดต่อ"
-                        InputLabelProps={{ shrink: true }} fullWidth value={formik.values.customerSnapshot.contactNumber} onChange={(event) => formik.setFieldValue('customerSnapshot.contactNumber', event.target.value)} /></GridTextField>
                     <GridTextField item xs={12}>
                         <TextField
                             select
-                            label="เลือกที่อยู่ลูกค้า"
                             fullWidth
-                            value={formik.values.customerAddressId || ''}
-                            onChange={(event) => {
-                                const address = customer?.addresses?.find((value) => String(value.id) === String(event.target.value));
-                                formik.setFieldValue('customerAddressId', event.target.value);
-                                formik.setFieldValue('customerSnapshot.address', address?.fullAddress || '');
-                            }}
+                            label="หัวบิลลูกค้า"
+                            value={selectedBillingProfileId}
                             InputLabelProps={{ shrink: true }}
                             disabled={!customer?.id}
-                        >
-                            {(customer?.addresses || []).map((address: Address) => (
-                                <MenuItem key={address.id} value={address.id}>
-                                    {address.fullAddress}
+                            onChange={(event) => {
+                                if (event.target.value === '__ADD_BILLING_PROFILE__') {
+                                    handleOpenAddBillingProfileDialog();
+                                    return;
+                                }
+                                const profileId = Number(event.target.value);
+                                const profile = customer?.billingProfiles?.find((item) => item.id === profileId);
+                                applyBillingProfileToSnapshot(profile);
+                            }}>
+                            <MenuItem value="">{customer?.billingProfiles?.length ? 'เลือกหัวบิล' : 'ไม่มีข้อมูลหัวบิล'}</MenuItem>
+                            {(customer?.billingProfiles || []).map((profile) => (
+                                <MenuItem key={profile.id} value={profile.id}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Chip
+                                            size="small"
+                                            color={profile.billingProfileType === 'NO_VAT' ? 'default' : 'primary'}
+                                            label={profile.billingProfileType === 'NO_VAT' ? 'ไม่จด VAT' : 'จด VAT'}
+                                        />
+                                        {profile.isDefault ? <Chip
+                                            size="small"
+                                            label="ค่าเริ่มต้น" /> : ''}
+                                        <span>
+                                            {profile.billingName || profile.profileName || `หัวบิล ${profile.id}`}
+                                        </span>|
+                                        <span>
+                                            {profile.branchCode + ' : ' + profile.branchName}
+                                        </span>
+                                    </Stack>
                                 </MenuItem>
                             ))}
+                            <MenuItem value="__ADD_BILLING_PROFILE__">
+                                <ListItemIcon sx={{ minWidth: 32 }}>
+                                    <Add fontSize="small" />
+                                </ListItemIcon>
+                                เพิ่มหัวบิลใหม่
+                            </MenuItem>
                         </TextField>
                     </GridTextField>
-                    <GridTextField item xs={12}><TextField label="ที่อยู่"
-                        InputLabelProps={{ shrink: true }} fullWidth multiline minRows={2} value={formik.values.customerSnapshot.address} onChange={(event) => formik.setFieldValue('customerSnapshot.address', event.target.value)} /></GridTextField>
+                    {selectedBillingProfile ? (
+                        <>
+                            <GridTextField item xs={12} sm={6}>
+                                <TextField fullWidth label="ชื่อหัวบิล" value={selectedBillingProfile.billingName || ''}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12} sm={6}>
+                                <TextField fullWidth label="ประเภทหัวบิล"
+                                    value={selectedBillingProfile.billingProfileType === 'NO_VAT' ? 'ไม่จด VAT' : 'จด VAT'}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12} sm={6}>
+                                <TextField fullWidth label="เลขประจำตัวผู้เสียภาษี" value={selectedBillingProfile.taxId || ''}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12} sm={3}>
+                                <TextField fullWidth label="รหัสสาขา" value={selectedBillingProfile.branchCode || ''}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12} sm={3}>
+                                <TextField fullWidth label="ชื่อสาขา" value={selectedBillingProfile.branchName || ''}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12} sm={6}>
+                                <TextField fullWidth label="อีเมล" value={selectedBillingProfile.email || ''}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12} sm={6}>
+                                <TextField fullWidth label="เบอร์โทร" value={selectedBillingProfile.phone || ''}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                            <GridTextField item xs={12}>
+                                <TextField fullWidth multiline minRows={2} label="ที่อยู่หัวบิล"
+                                    value={getBillingProfileAddress(selectedBillingProfile)}
+                                    InputLabelProps={{ shrink: true }} InputProps={{ readOnly: true }} />
+                            </GridTextField>
+                        </>
+                    ) : null}
                 </Grid>
             </CollapsibleWrapper>
             <CollapsibleWrapper
@@ -3488,6 +3646,106 @@ export default function NewQuotation() {
                         variant="contained"
                         className="btn-emerald-green"
                         onClick={handleConfirmAddCustomerAddress}>
+                        {t('button.save')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            <Dialog
+                open={isAddBillingProfileDialogOpen}
+                onClose={() => setIsAddBillingProfileDialogOpen(false)}
+                fullWidth
+                maxWidth="md">
+                <DialogTitle>เพิ่มหัวบิลใหม่</DialogTitle>
+                <DialogContent>
+                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField select fullWidth label="ประเภทหัวบิล" value={billingProfileForm.billingProfileType || 'VAT'} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, billingProfileType: event.target.value as 'VAT' | 'NO_VAT' })}>
+                                <MenuItem value="VAT">จด VAT</MenuItem>
+                                <MenuItem value="NO_VAT">ไม่จด VAT</MenuItem>
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth label="ชื่อโปรไฟล์หัวบิล" value={billingProfileForm.profileName || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, profileName: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField required fullWidth label="ชื่อหัวบิล" value={billingProfileForm.billingName} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, billingName: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth label="เลขประจำตัวผู้เสียภาษี" value={billingProfileForm.taxId || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, taxId: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth label="รหัสสาขา" value={billingProfileForm.branchCode || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, branchCode: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth label="ชื่อสาขา" value={billingProfileForm.branchName || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, branchName: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth label="อีเมล" value={billingProfileForm.email || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, email: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth label="เบอร์โทร" value={billingProfileForm.phone || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, phone: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField fullWidth label="ที่อยู่" value={billingProfileForm.addressLine1 || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, addressLine1: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField fullWidth label="ที่อยู่เพิ่มเติม" value={billingProfileForm.addressLine2 || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, addressLine2: event.target.value })} />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField select fullWidth label="จังหวัด" value={provinces.find((item: Province) => item.nameTh === billingProfileForm.province)?.id || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => {
+                                    const selected = provinces.find((item: Province) => item.id === event.target.value);
+                                    setBillingProfileForm({ ...billingProfileForm, province: selected?.nameTh || '', district: '', subdistrict: '', postcode: '' });
+                                }}>
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {provinces.map((item: Province) => <MenuItem key={item.id} value={item.id}>{item.nameTh}</MenuItem>)}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField select fullWidth label="อำเภอ/เขต" value={districts.find((item: District) => item.nameTh === billingProfileForm.district)?.id || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => {
+                                    const selected = districts.find((item: District) => item.id === event.target.value);
+                                    setBillingProfileForm({ ...billingProfileForm, district: selected?.nameTh || '', subdistrict: '', postcode: '' });
+                                }}>
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {districts
+                                    .filter((item: District) => item.provinceId === provinces.find((province: Province) => province.nameTh === billingProfileForm.province)?.id)
+                                    .map((item: District) => <MenuItem key={item.id} value={item.id}>{item.nameTh}</MenuItem>)}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField select fullWidth label="ตำบล/แขวง" value={subdistricts.find((item: SubDistrict) => item.nameTh === billingProfileForm.subdistrict)?.id || ''} InputLabelProps={{ shrink: true }}
+                                onChange={(event) => {
+                                    const selected = subdistricts.find((item: SubDistrict) => item.id === event.target.value);
+                                    setBillingProfileForm({ ...billingProfileForm, subdistrict: selected?.nameTh || '', postcode: selected?.zipCode || '' });
+                                }}>
+                                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                                {subdistricts
+                                    .filter((item: SubDistrict) => item.districtId === districts.find((district: District) => district.nameTh === billingProfileForm.district)?.id)
+                                    .map((item: SubDistrict) => <MenuItem key={item.id} value={item.id}>{item.nameTh}</MenuItem>)}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField fullWidth disabled label="รหัสไปรษณีย์" value={billingProfileForm.postcode || ''} InputLabelProps={{ shrink: true }} />
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button variant="contained" className="btn-crimson-red" onClick={() => setIsAddBillingProfileDialogOpen(false)}>
+                        {t('button.cancel')}
+                    </Button>
+                    <Button variant="contained" className="btn-emerald-green" onClick={handleConfirmAddBillingProfile}
+                        disabled={!billingProfileForm.billingName.trim()}>
                         {t('button.save')}
                     </Button>
                 </DialogActions>

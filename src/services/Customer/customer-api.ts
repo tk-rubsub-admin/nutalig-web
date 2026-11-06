@@ -12,7 +12,7 @@ import {
   CreateCustomerResponseV2,
   UploadCustomerResponse,
   CustomerDashboard
-  , CustomerBranchRequest
+  , CustomerBranchRequest, CreateCustomerBillingProfileRequest
 } from './customer-type';
 import { AxiosProgressEvent } from 'axios';
 
@@ -113,6 +113,20 @@ export const removeCustomerAddress = async (id: string, addressId: string) => {
 export const addCustomerContact = async (id: string, data: CreateCustomerContactRequest) => {
   const response: Customer = await api
     .post(`/v1/customers/${id}/contacts`, data)
+    .then((response) => response.data);
+  return response;
+};
+
+export const addCustomerBillingProfile = async (id: string, data: CreateCustomerBillingProfileRequest) => {
+  const response: Customer = await api
+    .post(`/v1/customers/${id}/billing-profiles`, data)
+    .then((response) => response.data);
+  return response;
+};
+
+export const removeCustomerBillingProfile = async (id: string, profileId: number) => {
+  const response: Customer = await api
+    .delete(`/v1/customers/${id}/billing-profiles/${profileId}`)
     .then((response) => response.data);
   return response;
 };

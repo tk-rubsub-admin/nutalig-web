@@ -36,9 +36,11 @@ import { getCountry, getDistrict, getProvince, getSubDistrict } from 'services/A
 import {
   addCustomerContact,
   addCustomerAddress,
+  addCustomerBillingProfile,
   getCustomer,
   removeCustomerAddress,
   removeCustomerContact,
+  removeCustomerBillingProfile,
   updateCustomer
 } from 'services/Customer/customer-api';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
@@ -48,6 +50,8 @@ import {
   CreateCustomerAddressRequest,
   CreateCustomerContactRequest,
   Customer,
+  CustomerBillingProfile,
+  CreateCustomerBillingProfileRequest,
   UpdateCustomerRequest
 } from 'services/Customer/customer-type';
 import { Country } from 'services/Address/address-type';
@@ -126,9 +130,16 @@ export default function CustomerDetail(): JSX.Element {
   const [visibleConfirmationDialog, setVisibleConfirmationDialog] = useState(false);
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [isBillingProfileDialogOpen, setIsBillingProfileDialogOpen] = useState(false);
   const [tab, setTab] = useState<'detail' | 'history'>('detail');
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedBillingProfile, setSelectedBillingProfile] = useState<CustomerBillingProfile | null>(null);
+  const [billingProfileForm, setBillingProfileForm] = useState<CreateCustomerBillingProfileRequest>({
+    profileName: '', billingProfileType: 'VAT', billingName: '', taxId: '', branchCode: '', branchName: '',
+    addressLine1: '', addressLine2: '', subdistrict: '', district: '', province: '', postcode: '',
+    country: 'Thailand', email: '', phone: '', isDefault: false
+  });
   const branchInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const {
@@ -526,6 +537,54 @@ export default function CustomerDetail(): JSX.Element {
       })
     );
     setVisibleConfirmationDialog(true);
+  };
+
+  const openBillingProfileDialog = () => {
+    setBillingProfileForm({
+      profileName: '', billingProfileType: 'VAT', billingName: '', taxId: '', branchCode: '', branchName: '',
+      addressLine1: '', addressLine2: '', subdistrict: '', district: '', province: '', postcode: '',
+      country: 'Thailand', email: '', phone: '', isDefault: false
+    });
+    setIsBillingProfileDialogOpen(true);
+  };
+
+  const handleAddBillingProfile = () => {
+    if (!customer?.id || !billingProfileForm.billingName.trim()) return;
+    const promise = addCustomerBillingProfile(customer.id, billingProfileForm);
+    toast.promise(promise, {
+      loading: t('toast.loading'),
+      success: () => {
+        customerRefetch();
+        refetchActivityHistory();
+        setIsBillingProfileDialogOpen(false);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
+  };
+
+  const handleDeleteBillingProfile = (profile: CustomerBillingProfile) => {
+    if (!customer?.id || !profile.id || profile.isDefault) return;
+    setSelectedBillingProfile(profile);
+    setActionType('delete-billing-profile');
+    setTitle(t('button.delete'));
+    setMsg(`ยืนยันการลบหัวบิล ${profile.billingName || profile.profileName || ''} หรือไม่`);
+    setVisibleConfirmationDialog(true);
+  };
+
+  const handleConfirmDeleteBillingProfile = () => {
+    if (!customer?.id || !selectedBillingProfile?.id) return;
+    const promise = removeCustomerBillingProfile(customer.id, selectedBillingProfile.id);
+    toast.promise(promise, {
+      loading: t('toast.loading'),
+      success: () => {
+        customerRefetch();
+        refetchActivityHistory();
+        setSelectedBillingProfile(null);
+        return t('toast.success');
+      },
+      error: t('toast.failed')
+    });
   };
 
   const handleConfirmDeleteContact = () => {
@@ -1028,6 +1087,62 @@ export default function CustomerDetail(): JSX.Element {
             </GridTextField>
           </Grid>
         </Wrapper>
+        <Wrapper sx={{ mt: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6">หัวบิล</Typography>
+                <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                  <Button variant="contained" size="small" startIcon={<Add />} onClick={openBillingProfileDialog}>
+                    เพิ่มหัวบิล
+                  </Button>
+                </Can>
+              </Stack>
+            </Grid>
+            {customer?.billingProfiles?.length ? customer.billingProfiles.map((profile: CustomerBillingProfile, index) => (
+              <Grid item xs={12} key={profile.id || index}>
+                <Paper elevation={0} sx={{ p: 2, border: '1px solid #eee' }}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        {profile.profileName || profile.billingName || `หัวบิล ${index + 1}`}
+                      </Typography>
+                      {profile.isDefault && <Chip label="ค่าเริ่มต้น" size="small" color="primary" />}
+                      <Chip label={profile.billingProfileType === 'NO_VAT' ? 'ไม่จด VAT' : 'จด VAT'} size="small" />
+                      <Can permission={PERMISSIONS.CUSTOMER_EDIT}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          disabled={Boolean(profile.isDefault)}
+                          aria-label="ลบหัวบิล"
+                          onClick={() => handleDeleteBillingProfile(profile)}>
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
+                      </Can>
+                    </Stack>
+                    <Grid container spacing={1}>
+                      <Grid item xs={12} sm={6}><Typography variant="body2">ชื่อหัวบิล: {profile.billingName || '-'}</Typography></Grid>
+                      <Grid item xs={12} sm={6}><Typography variant="body2">เลขประจำตัวผู้เสียภาษี: {profile.taxId || '-'}</Typography></Grid>
+                      <Grid item xs={12} sm={6}><Typography variant="body2">รหัสสาขา: {profile.branchCode || '-'}</Typography></Grid>
+                      <Grid item xs={12} sm={6}><Typography variant="body2">ชื่อสาขา: {profile.branchName || '-'}</Typography></Grid>
+                      <Grid item xs={12} sm={6}><Typography variant="body2">อีเมล: {profile.email || '-'}</Typography></Grid>
+                      <Grid item xs={12} sm={6}><Typography variant="body2">เบอร์โทร: {profile.phone || '-'}</Typography></Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="body2">
+                          ที่อยู่: {[profile.addressLine1, profile.addressLine2, profile.subdistrict, profile.district, profile.province, profile.postcode]
+                            .filter(Boolean)
+                            .join(' ') || '-'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Stack>
+                </Paper>
+              </Grid>
+            )) : (
+              <Grid item xs={12}><Typography color="text.secondary">ยังไม่มีข้อมูลหัวบิล</Typography></Grid>
+            )}
+          </Grid>
+        </Wrapper>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <Wrapper>
@@ -1290,6 +1405,8 @@ export default function CustomerDetail(): JSX.Element {
             handleConfirmDeleteAddress();
           } else if (actionType === 'delete-contact') {
             handleConfirmDeleteContact();
+          } else if (actionType === 'delete-billing-profile') {
+            handleConfirmDeleteBillingProfile();
           } else if (actionType === 'update') {
             formik.handleSubmit();
           }
@@ -1300,12 +1417,98 @@ export default function CustomerDetail(): JSX.Element {
             setSelectedAddress(null);
           } else if (actionType === 'delete-contact') {
             setSelectedContact(null);
+          } else if (actionType === 'delete-billing-profile') {
+            setSelectedBillingProfile(null);
           }
           setVisibleConfirmationDialog(false);
         }}
         isShowCancelButton={true}
         isShowConfirmButton={true}
       />
+      <Dialog
+        open={isBillingProfileDialogOpen}
+        onClose={() => setIsBillingProfileDialogOpen(false)}
+        fullWidth
+        maxWidth="md">
+        <DialogTitle>เพิ่มหัวบิล</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField select fullWidth label="ประเภทหัวบิล" value={billingProfileForm.billingProfileType || 'VAT'} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, billingProfileType: event.target.value as 'VAT' | 'NO_VAT' })}>
+                <MenuItem value="VAT">จด VAT</MenuItem>
+                <MenuItem value="NO_VAT">ไม่จด VAT</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="ชื่อโปรไฟล์หัวบิล" value={billingProfileForm.profileName || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, profileName: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField required fullWidth label="ชื่อหัวบิล" value={billingProfileForm.billingName} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, billingName: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="เลขประจำตัวผู้เสียภาษี" value={billingProfileForm.taxId || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, taxId: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="รหัสสาขา" value={billingProfileForm.branchCode || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, branchCode: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="ชื่อสาขา" value={billingProfileForm.branchName || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, branchName: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="อีเมล" value={billingProfileForm.email || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, email: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="เบอร์โทร" value={billingProfileForm.phone || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, phone: event.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField fullWidth label="ที่อยู่" value={billingProfileForm.addressLine1 || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, addressLine1: event.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField fullWidth label="ที่อยู่เพิ่มเติม" value={billingProfileForm.addressLine2 || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, addressLine2: event.target.value })} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField select fullWidth label="จังหวัด" value={billingProfileForm.province || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, province: event.target.value, district: '', subdistrict: '', postcode: '' })}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {provinces.map((item) => <MenuItem key={item.id} value={item.nameTh}>{item.nameTh}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField select fullWidth label="อำเภอ/เขต" value={billingProfileForm.district || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, district: event.target.value, subdistrict: '', postcode: '' })}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {districts.filter((item) => item.provinceId === provinces.find((province) => province.nameTh === billingProfileForm.province)?.id)
+                  .map((item) => <MenuItem key={item.id} value={item.nameTh}>{item.nameTh}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField select fullWidth label="ตำบล/แขวง" value={billingProfileForm.subdistrict || ''} InputLabelProps={{ shrink: true }}
+                onChange={(event) => setBillingProfileForm({ ...billingProfileForm, subdistrict: event.target.value, postcode: subdistricts.find((item) => item.nameTh === event.target.value)?.zipCode || '' })}>
+                <MenuItem value="">{t('general.clearSelected')}</MenuItem>
+                {subdistricts.filter((item) => item.districtId === districts.find((district) => district.nameTh === billingProfileForm.district)?.id)
+                  .map((item) => <MenuItem key={item.id} value={item.nameTh}>{item.nameTh}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth disabled label="รหัสไปรษณีย์" value={billingProfileForm.postcode || ''} InputLabelProps={{ shrink: true }} />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsBillingProfileDialogOpen(false)}>{t('button.cancel')}</Button>
+          <Button variant="contained" disabled={!billingProfileForm.billingName.trim()} onClick={handleAddBillingProfile}>{t('button.save')}</Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={isAddressDialogOpen}
         onClose={() => setIsAddressDialogOpen(false)}

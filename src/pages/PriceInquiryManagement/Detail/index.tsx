@@ -245,6 +245,7 @@ interface DraftSupplierQuoteLeadTimeError {
 
 interface FinalPriceDraftTier {
   id: number;
+  sourceSupplierQuoteTierId?: number | null;
   quantity: number;
   productPrice: string;
   sellPrice: string;
@@ -1016,6 +1017,7 @@ function createFinalPriceDraftFromQuote(
       sampleRefundConditionText: detail.sampleRefundConditionText || null,
       tiers: detail.tiers.map((tier, tierIndex) => ({
         id: tier.id || -(Date.now() + detailIndex * 100 + tierIndex + 1),
+        sourceSupplierQuoteTierId: tier.id || null,
         quantity: tier.quantity,
         productPrice: detail.lineType === 'ADDITIONAL_COST' ? tier.productPrice?.toString() || '' : '',
         sellPrice: '',
@@ -1323,6 +1325,7 @@ function createDraftTier(sortOrder: number): RFQDetailTier {
 function createFinalPriceDraftTier(sortOrder: number): FinalPriceDraftTier {
   return {
     id: -(Date.now() + sortOrder),
+    sourceSupplierQuoteTierId: null,
     quantity: 0,
     productPrice: '',
     sellPrice: '',
@@ -3913,7 +3916,7 @@ export default function RFQDetail(): ReactElement {
         const seaFreightQty = parsePriceInput(tier.seaFreightQty);
         const sourceTier = finalPriceQuote.details
           .find((quoteDetail) => quoteDetail.id === detail.id)
-          ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
+          ?.tiers.find((quoteTier) => quoteTier.id === (tier.sourceSupplierQuoteTierId ?? tier.id));
         const shippingCost = sourceTier?.shippingCost || 0;
         const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
         const nextTierError: DraftDetailTierError = {};
@@ -4016,7 +4019,7 @@ export default function RFQDetail(): ReactElement {
               const seaTotalPrice = parsePriceInput(tier.seaTotalPrice) || 0;
               const sourceTier = finalPriceQuote.details
                 .find((quoteDetail) => quoteDetail.id === detail.id)
-                ?.tiers.find((quoteTier) => quoteTier.id === tier.id);
+                ?.tiers.find((quoteTier) => quoteTier.id === (tier.sourceSupplierQuoteTierId ?? tier.id));
               const shippingCost = sourceTier?.shippingCost || 0;
               const shippingPerUnit = tier.quantity > 0 ? shippingCost / tier.quantity : 0;
               const baseAmount = productPrice + shippingPerUnit;
@@ -4037,7 +4040,7 @@ export default function RFQDetail(): ReactElement {
                 isShareFCL: Boolean(tier.isShareFCL),
                 landTotalPrice,
                 seaTotalPrice,
-                supplierQuoteTierId: tier.id,
+                supplierQuoteTierId: tier.sourceSupplierQuoteTierId ?? (tier.id > 0 ? tier.id : null),
                 sortOrder: tierIndex + 1
               };
             }),

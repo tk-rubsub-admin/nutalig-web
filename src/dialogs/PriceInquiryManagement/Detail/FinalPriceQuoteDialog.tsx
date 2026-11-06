@@ -1525,6 +1525,22 @@ export function FinalPriceQuoteDialog(props: FinalPriceQuoteDialogProps): ReactE
               </Typography>
             ) : null}
 
+            <Box
+              sx={{
+                border: `1px solid ${BRAND_COLORS.sand}`,
+                borderRadius: 2,
+                px: 1.5,
+                py: 1,
+                backgroundColor: BRAND_UI.sandTint
+              }}>
+              <Typography variant="subtitle1" fontWeight={700}>
+                เงื่อนไขการตีตัวอย่าง
+              </Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {finalPriceQuote?.sampleRefund?.trim() || '-'}
+              </Typography>
+            </Box>
+
             {finalPriceDraft.packages.length ? (
               <Box
                 sx={{

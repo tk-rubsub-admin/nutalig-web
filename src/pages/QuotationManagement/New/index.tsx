@@ -1242,15 +1242,16 @@ export default function NewQuotation() {
             : '';
 
     const getBillingProfileForVat = (
-        profiles: CustomerBillingProfile[] = [],
+        profiles: CustomerBillingProfile[] | null | undefined = [],
         isVat: boolean
     ): CustomerBillingProfile | undefined => {
-        if (!profiles.length) return undefined;
+        const availableProfiles = profiles || [];
+        if (!availableProfiles.length) return undefined;
         if (isVat) {
-            return profiles.find((profile) => profile.billingProfileType === 'VAT') || profiles[0];
+            return availableProfiles.find((profile) => profile.billingProfileType === 'VAT') || availableProfiles[0];
         }
-        const noVatProfiles = profiles.filter((profile) => profile.billingProfileType === 'NO_VAT');
-        return noVatProfiles[noVatProfiles.length - 1] || profiles[0];
+        const noVatProfiles = availableProfiles.filter((profile) => profile.billingProfileType === 'NO_VAT');
+        return noVatProfiles[noVatProfiles.length - 1] || availableProfiles[0];
     };
 
     const applyBillingProfileToSnapshot = (profile?: CustomerBillingProfile) => {

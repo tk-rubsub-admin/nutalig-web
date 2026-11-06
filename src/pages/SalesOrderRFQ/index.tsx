@@ -391,11 +391,21 @@ function getTotalFreight(tier: RFQDetailTier | undefined, shippingMethod: string
   if (!tier) {
     return 0;
   }
-  console.log("tier:", tier)
   const quantity = Number(tier.quantity || 0);
-  const freightCost = Number(tier.shippingCost || 0);
+  const freightCost = getRfqDetailShippingCost(tier, shippingMethod);
 
   return quantity * freightCost;
+}
+
+function getRfqDetailShippingCost(
+  tier: RFQDetailTier | RFQDetailTierSplit | undefined,
+  shippingMethod?: string | null
+): number {
+  if (!tier) return 0;
+  if (isSeaShippingMethod(shippingMethod)) {
+    return Number(tier.seaFreightCost ?? tier.shippingCost ?? 0);
+  }
+  return Number(tier.landFreightCost ?? tier.shippingCost ?? 0);
 }
 
 function getRFQDetailSupplierId(detail?: RFQDetailOption): string {
@@ -514,15 +524,8 @@ function createSaleOrderItemsFromRFQ(
         const quantity = Number(tierSplit.quantity || 1);
         const unitPrice = Number(tierSplit.sellPrice || 0);
         const shippingMethod = tierSplit.shippingMethod || 'LAND';
-        const supplierQuoteTier = tierSplit.supplierQuoteTierId
-          ? supplierQuoteTiersById.get(tierSplit.supplierQuoteTierId)
-          : undefined;
-        const supplierUnitPrice = Number(
-          supplierQuoteTier?.productPrice ?? tierSplit.productPrice ?? 0
-        );
-        const shippingCost = Number(
-          supplierQuoteTier?.shippingCost ?? tierSplit.shippingCost ?? 0
-        );
+        const supplierUnitPrice = Number(tierSplit.productPrice || 0);
+        const shippingCost = getRfqDetailShippingCost(tierSplit, shippingMethod);
         const shippingDisplayLabel = getShippingDisplayLabel(
           shippingMethod,
           tierSplit.isFcl,
@@ -542,8 +545,7 @@ function createSaleOrderItemsFromRFQ(
           shippingMethod,
           isFcl: Boolean(tierSplit.isFcl),
           isShareFCL: Boolean(tierSplit.isShareFCL),
-          supplierCurrency:
-            supplierQuoteTier?.productPriceCurrency || supplierQuoteTier?.currency || tierSplit.currency || null,
+          supplierCurrency: tierSplit.currency || null,
           supplierUnitPrice,
           exchangeRate: 0,
           supplierShippingCost: shippingCost,
@@ -662,9 +664,6 @@ function createSaleOrderItemsFromQuotation(
     const mappedTierSplit = mappedDetail?.tierSplits?.find(
       (tierSplit) => tierSplit.id === rfqTierSplitId
     );
-    const mappedTierSplitSupplierQuoteTier = mappedTierSplit?.supplierQuoteTierId
-      ? supplierQuoteTiersById.get(mappedTierSplit.supplierQuoteTierId)
-      : undefined;
     const mappedPrice = mappedTierSplit || mappedTier;
     const isSampleProductionItem = (item.name || '').includes('ค่าตัวอย่าง');
     const mappedShippingMethod = isSampleProductionItem
@@ -697,27 +696,19 @@ function createSaleOrderItemsFromQuotation(
       shippingMethod: mappedShippingMethod,
       isFcl: Boolean(mappedPrice?.isFcl),
       isShareFCL: Boolean(mappedPrice?.isShareFCL),
-      supplierCurrency:
-        mappedTierSplitSupplierQuoteTier?.productPriceCurrency ||
-        mappedTierSplitSupplierQuoteTier?.currency ||
-        mappedPrice?.currency ||
-        null,
-      supplierUnitPrice: Number(
-        mappedTierSplitSupplierQuoteTier?.productPrice ?? mappedPrice?.productPrice ?? 0
-      ),
+      supplierCurrency: mappedPrice?.currency || null,
+      supplierUnitPrice: Number(mappedPrice?.productPrice ?? 0),
       exchangeRate: Number(mappedTier?.exchangeRate || 0),
-      supplierShippingCost: Number(
-        mappedTierSplitSupplierQuoteTier?.shippingCost ?? mappedPrice?.shippingCost ?? 0
-      ),
+      supplierShippingCost: getRfqDetailShippingCost(mappedPrice, mappedShippingMethod),
       supplierTotalUnitCost:
-        Number(mappedTierSplitSupplierQuoteTier?.productPrice ?? mappedPrice?.productPrice ?? 0) +
-        Number(mappedTierSplitSupplierQuoteTier?.shippingCost ?? mappedPrice?.shippingCost ?? 0),
+        Number(mappedPrice?.productPrice ?? 0) +
+        getRfqDetailShippingCost(mappedPrice, mappedShippingMethod),
       name: rfqDetailId ? productName || item.name || productFamily || 'PRE-ORDER' : item.name,
       spec: item.spec || [material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
       quantity,
       unitPrice: Number(item.unitPrice || 0),
       amount: Number(item.amount || 0) || quantity * Number(item.unitPrice || 0),
-      totalFreight: quantity * Number(mappedPrice?.shippingCost || 0),
+      totalFreight: quantity * getRfqDetailShippingCost(mappedPrice, mappedShippingMethod),
       remark: [
         `RFQ: ${item.sourceRfqId || sourceRfq.id}`,
         shippingDisplayLabel ? `Shipping: ${shippingDisplayLabel}` : ''
@@ -1708,18 +1699,14 @@ export default function SalesOrderRFQ(): JSX.Element {
             }) || selectedDetail?.tierSplits?.[0];
             const supplierQuoteTierId =
               selectedTierSplit?.supplierQuoteTierId || selectedTier?.supplierQuoteTierId;
-            const supplierQuoteTier = supplierQuoteTierId
-              ? supplierQuoteTiersById.get(supplierQuoteTierId)
-              : undefined;
             const mappedPrice = selectedTierSplit || selectedTier;
             const isNonProductLine = Boolean(
               selectedDetail?.lineType && selectedDetail.lineType !== 'PRODUCT'
             );
-            const supplierUnitPrice = Number(
-              supplierQuoteTier?.productPrice ?? mappedPrice?.productPrice ?? item.supplierUnitPrice ?? item.unitPrice
-            );
-            const supplierShippingCost = Number(
-              supplierQuoteTier?.shippingCost ?? mappedPrice?.shippingCost ?? 0
+            const supplierUnitPrice = Number(mappedPrice?.productPrice ?? 0);
+            const supplierShippingCost = getRfqDetailShippingCost(
+              mappedPrice,
+              selectedItem.shippingMethod || mappedPrice?.shippingMethod
             );
 
             return {
@@ -1738,11 +1725,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                 : item.name,
               spec: selectedDetail?.spec || item.spec,
               unitPrice: isNonProductLine ? supplierUnitPrice : item.unitPrice,
-              supplierCurrency:
-                supplierQuoteTier?.productPriceCurrency ||
-                supplierQuoteTier?.currency ||
-                mappedPrice?.currency ||
-                item.supplierCurrency,
+              supplierCurrency: mappedPrice?.currency || item.supplierCurrency,
               supplierUnitPrice,
               supplierShippingCost,
               supplierTotalUnitCost: supplierUnitPrice + supplierShippingCost,

@@ -587,9 +587,20 @@ export default function SalesOrderDetail(): ReactElement {
     ? Math.max(editableSubTotal - editableDiscount, 0) * 0.07
     : 0;
   const editableGrandTotal = Math.max(editableSubTotal - editableDiscount, 0) + editableVat;
+  const editableProductAmount = useMemo(() => {
+    if (!isEditing) {
+      return summary.productAmount;
+    }
+    return draft.items.reduce((sum, item) => {
+      if ((item.lineType || 'PRODUCT') !== 'PRODUCT') {
+        return sum;
+      }
+      return sum + Number(item.amount || 0);
+    }, 0);
+  }, [draft.items, isEditing, summary.productAmount]);
   const calculatedSalesOrderAmount = useMemo(() => {
-    return Math.max(editableSubTotal - editableFreight, 0);
-  }, [editableFreight, editableSubTotal]);
+    return Math.max(editableProductAmount - editableFreight, 0);
+  }, [editableFreight, editableProductAmount]);
 
   const paymentProgress = useMemo(() => {
     const grandTotal = Number(salesOrder?.grandTotal || 0);
@@ -2089,7 +2100,7 @@ export default function SalesOrderDetail(): ReactElement {
                       </Typography>
                       <TextField
                         type="number"
-                        value={summary.productAmount}
+                        value={calculatedSalesOrderAmount}
                         InputProps={{ readOnly: true }}
                         sx={{
                           width: { xs: '100%', sm: 180 },
@@ -2100,7 +2111,7 @@ export default function SalesOrderDetail(): ReactElement {
                       />
                     </Stack>
                   ) : (
-                    <Summary label="ค่าสินค้า" value={summary.productAmount} />
+                    <Summary label="ค่าสินค้า" value={Number(salesOrder?.amount || 0)} />
                   )}
                   {isEditing ? (
                     <Stack

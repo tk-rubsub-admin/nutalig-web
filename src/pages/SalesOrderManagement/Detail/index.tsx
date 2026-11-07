@@ -99,7 +99,9 @@ import {
   uploadSalesOrderAttachments,
   requestUrgentApproval,
   approveUrgentSalesOrder,
-  rejectUrgentSalesOrder
+  rejectUrgentSalesOrder,
+  checkSalesOrderProcurementReady,
+  markSalesOrderProcurementReady
 } from 'services/SaleOrder/sale-order-api';
 import {
   getSalesOrderPaymentSchedules,
@@ -346,6 +348,7 @@ export default function SalesOrderDetail(): ReactElement {
     useState<FreelanceSaleRecord | null>(null);
   const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [requestPoConfirmOpen, setRequestPoConfirmOpen] = useState(false);
+  const [readyForPoConfirmOpen, setReadyForPoConfirmOpen] = useState(false);
   const [requestPoReason, setRequestPoReason] = useState('');
   const [requestPoPaymentScheduleDate, setRequestPoPaymentScheduleDate] = useState('');
   const [visibleUrgentDetailDialog, setVisibleUrgentDetailDialog] = useState(false);
@@ -793,20 +796,55 @@ export default function SalesOrderDetail(): ReactElement {
     );
   };
 
-  const handleOpenRequestPoConfirm = () => {
+  const handleOpenRequestPoConfirm = async () => {
     if (!salesOrder?.salesOrderNo) {
       return;
     }
 
-    setRequestPoReason('');
-    setRequestPoPaymentScheduleDate('');
-    setRequestPoConfirmOpen(true);
+    setIsSaving(true);
+    try {
+      const isReady = await checkSalesOrderProcurementReady(salesOrder.salesOrderNo);
+      if (isReady) {
+        setReadyForPoConfirmOpen(true);
+      } else {
+        setRequestPoReason('');
+        setRequestPoPaymentScheduleDate('');
+        setRequestPoConfirmOpen(true);
+      }
+    } catch (error) {
+      toast.error('ไม่สามารถตรวจสอบสถานะการสร้างใบสั่งซื้อได้');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCloseRequestPoConfirm = () => {
     setRequestPoConfirmOpen(false);
     setRequestPoReason('');
     setRequestPoPaymentScheduleDate('');
+  };
+
+  const handleCloseReadyForPoConfirm = () => {
+    setReadyForPoConfirmOpen(false);
+  };
+
+  const handleConfirmReadyForPo = async () => {
+    if (!salesOrder?.salesOrderNo) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await toast.promise(markSalesOrderProcurementReady(salesOrder.salesOrderNo), {
+        loading: 'กำลังปรับสถานะใบยืนยันสั่งซื้อ',
+        success: 'ปรับสถานะพร้อมเปิดใบสั่งซื้อสำเร็จ',
+        error: 'ไม่สามารถปรับสถานะพร้อมเปิดใบสั่งซื้อได้'
+      });
+      setReadyForPoConfirmOpen(false);
+      await refetch();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleConfirmRequestPo = async () => {
@@ -1167,10 +1205,11 @@ export default function SalesOrderDetail(): ReactElement {
             fullWidth={isDownSm}
             variant="contained"
             className="btn-emerald-green"
-            onClick={handleOpenRequestPoConfirm}
+            onClick={() => void handleOpenRequestPoConfirm()}
             disabled={
               !salesOrder ||
               !canManageSalesOrderAttachments ||
+              isSaving ||
               salesOrder?.urgentRequest ||
               ['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
                 salesOrder?.procurementStatus
@@ -2861,6 +2900,22 @@ export default function SalesOrderDetail(): ReactElement {
             onChange={(event) => setRequestPoPaymentScheduleDate(event.target.value)}
             InputLabelProps={{ shrink: true }}
           />
+        </Stack>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={readyForPoConfirmOpen}
+        title="ยืนยันเปิดใบสั่งซื้อ"
+        confirmDisabled={isSaving}
+        confirmText="ยืนยัน"
+        cancelText="ยกเลิก"
+        isShowCancelButton
+        isShowConfirmButton
+        onConfirm={() => void handleConfirmReadyForPo()}
+        onCancel={handleCloseReadyForPoConfirm}>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            ใบยืนยันสั่งซื้อนี้มีรายการชำระเงินงวดแรกที่ชำระเงินแล้ว สามารถเปิดใบสั่งซื้อได้เลย
+          </Typography>
         </Stack>
       </ConfirmDialog>
     </Page>

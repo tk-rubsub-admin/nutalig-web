@@ -153,6 +153,20 @@ export const getSalesOrderPaymentSchedules = async (
     return response.data;
 };
 
+export const checkSalesOrderProcurementReady = async (id: string): Promise<boolean> => {
+    const response = await api
+        .get(`/v1/sales-orders/${id}/procurement-ready`)
+        .then((result) => result.data);
+    return Boolean(response.data);
+};
+
+export const markSalesOrderProcurementReady = async (id: string) => {
+    const response = await api
+        .patch(`/v1/sales-orders/${id}/procurement-ready`)
+        .then((result) => result.data);
+    return response.data;
+};
+
 export const updateSalesOrderV1 = async (id: string, data: UpdateSalesOrderRequestV1) => {
     const response = await api
         .patch(`/v1/sales-orders/${id}`, data)

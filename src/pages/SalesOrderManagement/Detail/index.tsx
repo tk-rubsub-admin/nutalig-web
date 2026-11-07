@@ -2200,7 +2200,7 @@ export default function SalesOrderDetail(): ReactElement {
                         alignItems="center"
                         spacing={2}>
                         <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
-                          ค่าคอมเซลล์นอก
+                          ค่าคอมเซลล์นอกต่อชิ้น
                         </Typography>
                         <TextField
                           type="number"
@@ -2226,7 +2226,7 @@ export default function SalesOrderDetail(): ReactElement {
                         alignItems="center"
                         spacing={2}>
                         <Typography sx={{ color: BRAND_UI.mutedText, fontSize: 12, fontWeight: 700 }}>
-                          ค่าคอมเซลล์นอก
+                          ค่าคอมเซลล์นอกต่อชิ้น
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {salesOrder?.coSaleCommission || 0}

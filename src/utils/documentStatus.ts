@@ -27,6 +27,14 @@ export function getDocumentStatusLabel(
       return 'ฉบับร่าง';
     case 'CREATED':
       return 'สร้างแล้ว';
+    case 'WAITING_PAYMENT':
+      return 'รอชำระเงิน';
+    case 'READY_FOR_PO':
+      return 'พร้อมสร้าง PO';
+    case 'IN_PROGRESS':
+      return 'กำลังดำเนินการ';
+    case 'COMPLETED':
+      return 'เสร็จสิ้น';
     case 'ISSUED':
       return 'ออกเอกสารแล้ว';
     case 'SENT':
@@ -60,6 +68,13 @@ export function getDocumentStatusChipSx(
     case 'DRAFT':
       return { backgroundColor: BRAND_UI.sandTint, color: BRAND_COLORS.charcoal, fontWeight: 'bold' };
     case 'CREATED':
+      return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
+    case 'WAITING_PAYMENT':
+    case 'READY_FOR_PO':
+      return { backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.1), color: SEMANTIC_COLORS.warning, fontWeight: 'bold' };
+    case 'IN_PROGRESS':
+      return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
+    case 'COMPLETED':
       return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'ISSUED':
       return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
@@ -108,7 +123,19 @@ function resolveDocumentStatusKey(
 
   if (
     rawStatus &&
-    ['DRAFT', 'CREATED', 'ISSUED', 'CLOSED', 'VOID', 'CANCELLED', 'PRODUCTION_RUNNING'].includes(
+    [
+      'DRAFT',
+      'CREATED',
+      'WAITING_PAYMENT',
+      'READY_FOR_PO',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'ISSUED',
+      'CLOSED',
+      'VOID',
+      'CANCELLED',
+      'PRODUCTION_RUNNING'
+    ].includes(
       rawStatus
     )
   ) {

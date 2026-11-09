@@ -636,8 +636,12 @@
           "subtitle": "RFQs ready for price comparison and summary"
         },
         "quoted": {
-          "title": "Quoted",
-          "subtitle": "RFQs ready for quotation or next action"
+          "title": "Price received",
+          "subtitle": "Supplier price received and waiting for quotation"
+        },
+        "quotationIssued": {
+          "title": "Quotation issued",
+          "subtitle": "Quotation has been issued to the customer"
         },
         "specialPrice": {
           "title": "Special Price Review",
@@ -667,7 +671,7 @@
         },
         "procurementFlow": {
           "title": "Procurement Flow",
-          "subtitle": "Compare new, sourcing, supplier-quoted, and quoted RFQs"
+          "subtitle": "Compare new, sourcing, supplier-quoted, price-received, and quotation-issued RFQs"
         },
         "salesFlow": {
           "title": "Sales Flow",
@@ -693,6 +697,10 @@
         "channel": {
           "title": "Contact Channel Distribution",
           "subtitle": "RFQs grouped by contact channel"
+        },
+        "closeReason": {
+          "title": "Closed RFQs by Reason",
+          "subtitle": "Closed RFQ count grouped by closing reason"
         },
         "bySales": {
           "title": "By Sales Owner",
@@ -1084,8 +1092,9 @@
       "SUPPLIER_QUOTED": "Supplier Quoted",
       "SPECIAL_PRICE_REVIEW": "Special Price Review",
       "QUOTED": "Quoted",
+      "QUOTATION_ISSUED": "Quotation issued",
       "CANCELED": "Canceled",
-      "COMPLETED": "Completed"
+      "CONFIRMED_PRICE": "Price confirmed"
     }
   },
   "priceInquiryManagement": {

@@ -547,7 +547,7 @@ export default function SalesOrderManagement(): ReactElement {
                 onChange={searchFormik.handleChange}
                 InputLabelProps={{ shrink: true }}>
                 <MenuItem value="">ทั้งหมด</MenuItem>
-                {['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'].map((status) => (
+                {['DRAFT', 'CREATED', 'WAITING_PAYMENT', 'READY_FOR_PO', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'CANCELLED'].map((status) => (
                   <MenuItem key={status} value={status}>
                     {getDocumentStatusLabel(status)}
                   </MenuItem>

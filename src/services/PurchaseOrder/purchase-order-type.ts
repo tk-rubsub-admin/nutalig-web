@@ -353,6 +353,7 @@ export interface PurchaseOrderRecord {
   purchaseOrderNo: string;
   salesOrderNo: string | null;
   docDate: string | null;
+  poMonth: string | null;
   productionLeadTimeDay: number | null;
   shippingLeadTimeDay: number | null;
   status: string;

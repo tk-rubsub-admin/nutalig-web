@@ -529,10 +529,10 @@ export default function SalesOrderDetail(): ReactElement {
   const canManageSalesOrderAttachments =
     salesOrder?.status !== 'CANCELLED' && salesOrder?.status !== 'REJECTED';
   const canCancelSalesOrder = Boolean(
-    salesOrder && ['DRAFT', 'CREATED', 'ISSUED', 'SENT', 'ACCEPTED'].includes(salesOrder.status)
+    salesOrder && ['DRAFT', 'CREATED'].includes(salesOrder.status)
   );
   const canDownloadDocument = Boolean(
-    salesOrder && !['CREATED', 'ISSUED', 'SENT', 'ACCEPTED'].includes(salesOrder.status)
+    salesOrder && !['CREATED'].includes(salesOrder.status)
   );
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestInvoice = relatedInvoices[0] || null;

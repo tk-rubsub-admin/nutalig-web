@@ -367,6 +367,8 @@ export interface RFQRecord {
   requestInformation?: string | null;
   requestTo?: RequestInfoTo | null;
   note?: string | null;
+  closeReason?: SystemConfig | null;
+  closeRemark?: string | null;
   procurementRemark?: string | null;
   procurementRemarks?: RFQProcurementRemark[];
   confirmedDetailId?: number | null;

@@ -452,9 +452,10 @@ const RFQ_STATUS_OPTIONS = [
   'IN_PROGRESS',
   'SUPPLIER_QUOTED',
   'QUOTED',
+  'QUOTATION_ISSUED',
   'CANCELED',
   'CLOSED',
-  'COMPLETED'
+  'CONFIRMED_PRICE'
 ];
 
 export default function RFQManagement(): ReactElement {

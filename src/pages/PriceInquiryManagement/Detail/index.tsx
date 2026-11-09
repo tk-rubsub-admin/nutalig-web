@@ -2179,7 +2179,7 @@ export default function RFQDetail(): ReactElement {
     }
   });
   const isQuoteAndInquiryActionDisabled = ['NEW', 'REQUESTED_INFO'].includes(rfq?.status || '');
-  const isAttachmentUploadVisible = !['QUOTED', 'CANCELED', 'CLOSED', 'COMPLETED'].includes(
+  const isAttachmentUploadVisible = !['QUOTED', 'QUOTATION_ISSUED', 'CANCELED', 'CLOSED', 'CONFIRMED_PRICE'].includes(
     rfq?.status || ''
   );
   const { data: suggestSuppliers = [], isFetching: isSuggestSuppliersFetching } = useQuery(

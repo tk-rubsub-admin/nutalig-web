@@ -228,9 +228,10 @@ const PRICE_INQUIRY_STATUS_OPTIONS = [
   'SPECIAL_PRICE_REVIEW',
   'SUPPLIER_QUOTED',
   'QUOTED',
+  'QUOTATION_ISSUED',
   'CANCELED',
   'CLOSED',
-  'COMPLETED'
+  'CONFIRMED_PRICE'
 ];
 
 function getRFQFileUrl(file?: RFQFileResource | null): string {

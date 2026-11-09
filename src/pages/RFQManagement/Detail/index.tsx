@@ -76,6 +76,7 @@ import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import QuotationRfqGroupedRows from 'components/QuotationRfqGroupedRows';
 import ViewNoteDialog from 'components/ViewNoteDialog';
+import RfqCloseReasonDialog from 'components/RfqCloseReasonDialog';
 import dayjs from 'dayjs';
 import { Page } from 'layout/LayoutRoute';
 import {
@@ -627,16 +628,16 @@ const rfqStatusTimelineSteps = [
   'IN_PROGRESS',
   'SUPPLIER_QUOTED',
   'QUOTED',
-  'COMPLETED'
+  'CONFIRMED_PRICE'
 ] as const;
 
 function getRfqDisplayedStatusTimelineSteps(
   rfq?: RFQRecord
 ): readonly ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED', 'QUOTED', string] {
   const lastStatus =
-    rfq?.status === 'REJECTED' || rfq?.status === 'CLOSED' || rfq?.status === 'COMPLETED'
+    rfq?.status === 'REJECTED' || rfq?.status === 'CLOSED' || rfq?.status === 'CONFIRMED_PRICE'
       ? rfq.status
-      : 'COMPLETED';
+      : 'CONFIRMED_PRICE';
 
   return ['NEW', 'IN_PROGRESS', 'SUPPLIER_QUOTED', 'QUOTED', lastStatus];
 }
@@ -1025,6 +1026,7 @@ export default function RFQDetail(): ReactElement {
   const [visibleRequestSpecialPriceDialog, setVisibleRequestSpecialPriceDialog] = useState(false);
   const [visibleAddNoteDialog, setVisibleAddNoteDialog] = useState(false);
   const [visibleViewNoteDialog, setVisibleViewNoteDialog] = useState(false);
+  const [visibleCloseReasonDetailDialog, setVisibleCloseReasonDetailDialog] = useState(false);
   const [visibleRfqNotFoundDialog, setVisibleRfqNotFoundDialog] = useState(false);
   const [urgentReasonDialogOpen, setUrgentReasonDialogOpen] = useState(false);
   const [urgentReason, setUrgentReason] = useState('');
@@ -1375,14 +1377,14 @@ export default function RFQDetail(): ReactElement {
       ),
     [latestSupplierQuote]
   );
-  const isAttachmentUploadVisible = !['QUOTED', 'CANCELED', 'CLOSED', 'COMPLETED'].includes(
+  const isAttachmentUploadVisible = !['QUOTED', 'QUOTATION_ISSUED', 'CANCELED', 'CLOSED', 'CONFIRMED_PRICE'].includes(
     rfq?.status || ''
   );
-  const isRejectRfqVisible = !['CANCELED', 'CLOSED', 'COMPLETED', 'ACCEPTED', 'REJECTED'].includes(
+  const isRejectRfqVisible = !['CANCELED', 'CLOSED', 'CONFIRMED_PRICE', 'ACCEPTED', 'REJECTED'].includes(
     rfq?.status || ''
   );
   const isQuotedStatus = rfq?.status === 'QUOTED';
-  const canCopyCustomerQuoted = ['QUOTED', 'COMPLETED'].includes(rfq?.status || '');
+  const canCopyCustomerQuoted = ['QUOTED', 'QUOTATION_ISSUED', 'CONFIRMED_PRICE'].includes(rfq?.status || '');
   const activeQuotationNo = selectedQuotationNo || latestQuotationNo;
 
   const {
@@ -2128,7 +2130,7 @@ export default function RFQDetail(): ReactElement {
   const canRejectAction = isRejectRfqVisible && hasPermission(PERMISSIONS.RFQ_EDIT);
   const canCopyRfqAction = hasPermission(PERMISSIONS.RFQ_CREATE);
   const canCloseRfqAction =
-    !['CLOSED', 'COMPLETED', 'REJECTED', 'CANCELED'].includes(rfq?.status || '') &&
+    !['CLOSED', 'CONFIRMED_PRICE', 'REJECTED', 'CANCELED'].includes(rfq?.status || '') &&
     hasPermission(PERMISSIONS.RFQ_EDIT);
   const canRequestSpecialPriceAction = hasPermission(PERMISSIONS.RFQ_EDIT) && rfq?.status === 'NEW';
   const canConfirmPriceAction = rfq?.status === 'QUOTED' && hasPermission(PERMISSIONS.RFQ_CONFIRM);
@@ -2677,6 +2679,23 @@ export default function RFQDetail(): ReactElement {
                   }
                 }}
               />
+              {rfq.status === 'CLOSED' && rfq.closeReason ? (
+                <Chip
+                  label={rfq?.closeReason.nameTh}
+                  size="small"
+                  clickable
+                  onClick={() => setVisibleCloseReasonDetailDialog(true)}
+                  sx={{
+                    height: 28,
+                    backgroundColor: '#fff7ed',
+                    color: '#c2410c',
+                    border: '1px solid #fb923c55',
+                    fontWeight: 700,
+                    alignSelf: 'center',
+                    '& .MuiChip-label': { px: 1.25 }
+                  }}
+                />
+              ) : null}
               {rfq.note ? (
                 <IconButton
                   size="small"
@@ -2806,6 +2825,12 @@ export default function RFQDetail(): ReactElement {
         open={visibleViewNoteDialog}
         note={rfq?.note}
         onClose={handleCloseViewNoteDialog}
+      />
+      <RfqCloseReasonDialog
+        open={visibleCloseReasonDetailDialog}
+        closeReason={rfq?.closeReason}
+        closeRemark={rfq?.closeRemark}
+        onClose={() => setVisibleCloseReasonDetailDialog(false)}
       />
       <DocumentLanguageDialog
         open={visibleQuotationLanguageDialog}
@@ -3284,7 +3309,7 @@ export default function RFQDetail(): ReactElement {
                 defaultExpanded
                 action={
                   isSalesPermission &&
-                    !['QUOTED', 'CANCELED', 'REJECTED', 'CLOSED', 'COMPLETED'].includes(
+                    !['QUOTED', 'QUOTATION_ISSUED', 'CANCELED', 'REJECTED', 'CLOSED', 'CONFIRMED_PRICE'].includes(
                       rfq?.status || ''
                     ) ? (
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>

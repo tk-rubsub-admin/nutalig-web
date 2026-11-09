@@ -73,7 +73,7 @@ export default function SearchRfqDialog({
     () =>
       getRFQList(page, pageSize, {
         customerId,
-        statuses: ['QUOTED', 'COMPLETED'],
+        statuses: ['QUOTED', 'QUOTATION_ISSUED'],
         sortBy: 'id'
       }),
     {

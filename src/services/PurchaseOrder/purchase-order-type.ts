@@ -114,6 +114,7 @@ export interface UpdatePurchaseOrderRequest {
   docDate?: string | null;
   productionLeadTimeDay?: number | null;
   shippingLeadTimeDay?: number | null;
+  paymentTerm?: string | null;
   remark?: string | null;
   items?: UpdatePurchaseOrderItemRequest[];
 }

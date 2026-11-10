@@ -208,6 +208,12 @@ export default function Dashboard(): JSX.Element {
       })
     ];
   }, [selectedMonthVolumeChart]);
+  const purchaseOrderCountChart = useMemo(
+    () => data?.purchaseOrderCountChart && canSee(data.purchaseOrderCountChart.visibleTo)
+      ? data.purchaseOrderCountChart
+      : null,
+    [data?.purchaseOrderCountChart, role]
+  );
   const acceptWorkDurationChart = useMemo(
     () => (data?.acceptWorkDurationChart && canSee(data.acceptWorkDurationChart.visibleTo) ? data.acceptWorkDurationChart : null),
     [data?.acceptWorkDurationChart, role]
@@ -229,9 +235,9 @@ export default function Dashboard(): JSX.Element {
   );
   const customerTypeCountChart = useMemo(
     () =>
-      (data?.customerTypeCountChart && canSee(data.customerTypeCountChart.visibleTo)
-        ? data.customerTypeCountChart
-        : null),
+    (data?.customerTypeCountChart && canSee(data.customerTypeCountChart.visibleTo)
+      ? data.customerTypeCountChart
+      : null),
     [data?.customerTypeCountChart, role]
   );
   const distributionCharts = useMemo(
@@ -869,6 +875,57 @@ export default function Dashboard(): JSX.Element {
       </Grid>
 
       <Grid container spacing={2}>
+        {purchaseOrderCountChart ? (
+          <Grid item xs={12} lg={6}>
+            <Wrapper sx={CHART_CARD_SX}>
+              <Box sx={{ height: BAR_CHART_HEADER_HEIGHT }}>
+                <Typography variant="h6" sx={{ color: DASHBOARD_BRAND.green }}>
+                  {translateLabel(purchaseOrderCountChart.title)}
+                </Typography>
+              </Box>
+              <Chart
+                chartType="ColumnChart"
+                width="100%"
+                height={BAR_CHART_HEIGHT}
+                loader={chartLoader}
+                data={[
+                  ['Month', purchaseOrderCountChart.series[0]?.name || 'จำนวน PO', { role: 'annotation' }],
+                  ...purchaseOrderCountChart.labels.map((label, index) => {
+                    const value = purchaseOrderCountChart.series[0]?.data[index] || 0;
+                    const month = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(label);
+                    const displayLabel = month ? `${month[1]}/${Number(month[2]) + 543}` : label;
+                    return [displayLabel, value, value ? String(value) : null];
+                  })
+                ]}
+                options={{
+                  backgroundColor: 'transparent',
+                  colors: purchaseOrderCountChart.series.map(getDashboardSeriesColor),
+                  legend: CHART_LEGEND,
+                  focusTarget: 'category',
+                  tooltip: { isHtml: true, trigger: 'focus' },
+                  isStacked: true,
+                  annotations: {
+                    alwaysOutside: true,
+                    stem: { color: 'transparent' },
+                    textStyle: {
+                      color: DASHBOARD_BRAND.charcoal,
+                      fontSize: 12,
+                      bold: true
+                    }
+                  },
+                  chartArea: BAR_CHART_AREA,
+                  hAxis: {
+                    textStyle: { color: DASHBOARD_BRAND.charcoal },
+                    slantedText: true,
+                    slantedTextAngle: 45
+                  },
+                  vAxis: { ...CHART_V_AXIS, format: '0' },
+                  bar: { groupWidth: 48 }
+                }}
+              />
+            </Wrapper>
+          </Grid>
+        ) : null}
         <Grid item xs={12} xl={4}>
           <Wrapper>
             <Typography variant="h6" sx={{ mb: 2 }}>

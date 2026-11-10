@@ -112,6 +112,8 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentS
 import { getShippingMethodLabel } from 'utils/shipping';
 import { getPurchaseOrderStartRunWarnings } from 'utils/purchaseOrderStartRun';
 import { formatNumber } from 'utils/utils';
+import { getSystemConfig } from 'services/Config/config-api';
+import { GROUP_CODE } from 'services/Config/config-type';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
 import PurchaseOrderDeliverySection from './PurchaseOrderDeliverySection';
 import PurchaseOrderProofSection from './PurchaseOrderProofSection';
@@ -131,6 +133,7 @@ interface PurchaseOrderDraft {
   docDate: string;
   productionLeadTimeDay: string;
   shippingLeadTimeDay: string;
+  paymentTerm: string;
   remark: string;
   items: PurchaseOrderItem[];
 }
@@ -355,6 +358,7 @@ function createDraft(purchaseOrder?: PurchaseOrderRecord): PurchaseOrderDraft {
         purchaseOrder?.shippingLeadTimeDay !== undefined
         ? String(purchaseOrder.shippingLeadTimeDay)
         : '',
+    paymentTerm: purchaseOrder?.paymentTerm?.code || '',
     remark: purchaseOrder?.remark || '',
     items: (purchaseOrder?.items || []).map((item) => ({ ...item }))
   };
@@ -573,6 +577,12 @@ export default function PurchaseOrderDetail(): ReactElement {
       enabled: Boolean(id),
       refetchOnWindowFocus: false
     }
+  );
+
+  const { data: paymentTerms = [] } = useQuery(
+    ['purchase-order-payment-terms'],
+    () => getSystemConfig(GROUP_CODE.SUPPLIER_PAYMENT_TERM),
+    { staleTime: 5 * 60 * 1000 }
   );
 
   const { data: purchaseOrderPayments = [], isFetching: isStartRunPaymentsFetching } = useQuery(
@@ -1104,6 +1114,7 @@ export default function PurchaseOrderDetail(): ReactElement {
         ? Number(draft.productionLeadTimeDay)
         : null,
       shippingLeadTimeDay: draft.shippingLeadTimeDay ? Number(draft.shippingLeadTimeDay) : null,
+      paymentTerm: draft.paymentTerm || null,
       remark: draft.remark || null,
       items: draft.items.map((item) => ({
         id: item.id > 0 ? item.id : null,
@@ -2403,14 +2414,35 @@ export default function PurchaseOrderDetail(): ReactElement {
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Info
-                      label="Payment Term"
-                      value={
-                        purchaseOrder?.paymentTerm?.nameTh ||
-                        purchaseOrder?.paymentTerm?.nameEn ||
-                        purchaseOrder?.paymentTerm?.code
-                      }
-                    />
+                    {isEditing ? (
+                      <TextField
+                        select
+                        fullWidth
+                        label="เงื่อนไขการชำระเงิน"
+                        value={draft.paymentTerm}
+                        onChange={(event) =>
+                          setDraft((previous) => ({ ...previous, paymentTerm: event.target.value }))
+                        }
+                        disabled={paymentTerms.length === 0}
+                        InputLabelProps={{ shrink: true }}
+                      >
+                        <MenuItem value="">-</MenuItem>
+                        {paymentTerms.map((term) => (
+                          <MenuItem key={term.code} value={term.code}>
+                            {term.nameTh || term.nameEn || term.code}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    ) : (
+                      <Info
+                        label="Payment Term"
+                        value={
+                          purchaseOrder?.paymentTerm?.nameTh ||
+                          purchaseOrder?.paymentTerm?.nameEn ||
+                          purchaseOrder?.paymentTerm?.code
+                        }
+                      />
+                    )}
                   </Grid>
                   <Grid item xs={12}>
                     {isEditing ? (

@@ -92,6 +92,7 @@ export interface DashboardData {
   source: 'api' | 'fallback';
   metrics: DashboardMetric[];
   trendCharts: DashboardTrendChart[];
+  purchaseOrderCountChart?: DashboardTrendChart;
   acceptWorkDurationChart?: DashboardTrendChart;
   supplierQuoteDurationChart?: DashboardTrendChart;
   procurementKpiChart?: DashboardTrendChart;

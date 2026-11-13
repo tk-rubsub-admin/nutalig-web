@@ -558,16 +558,19 @@ export default function SupplierPurchaseOrderForm({
       [
         ...filteredItems.map((item) => {
           const supplierQuoteTier =
-            item.rfqTierSplitId ||
-              item.supplierQuoteTierId === null ||
-              item.supplierQuoteTierId === undefined
+            item.supplierQuoteTierId === null || item.supplierQuoteTierId === undefined
               ? undefined
               : supplierQuoteTierById.get(String(item.supplierQuoteTierId));
+          const isTierSplit = Boolean(item.rfqTierSplitId);
 
           return {
             ...item,
             supplierUnitPrice: supplierQuoteTier?.productPrice ?? item.supplierUnitPrice,
-            supplierShippingCost: supplierQuoteTier ? 0 : item.supplierShippingCost,
+            // Tier split already contains the selected shipping cost. Keep it
+            // instead of replacing it with the automatic shipping value used
+            // by a regular supplier quote tier.
+            supplierShippingCost:
+              supplierQuoteTier && !isTierSplit ? 0 : item.supplierShippingCost,
             supplierCurrency: supplierQuoteTier?.currency || item.supplierCurrency,
             pricingSource: supplierQuoteTier
               ? 'Supplier Quote Tier'

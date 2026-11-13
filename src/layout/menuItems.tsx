@@ -15,7 +15,8 @@ import {
   Grading,
   DoneAll,
   FactCheck,
-  Storefront
+  Storefront,
+  AttachMoney
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { PERMISSIONS } from 'auth/permissions';
@@ -71,6 +72,28 @@ export function useMenuItems() {
           id: 'left_menu__pending_supplier_payments',
           title: 'รายการรอชำระเงิน',
           href: ROUTE_PATHS.PENDING_SUPPLIER_PAYMENTS,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
+        }
+      ]
+    }, {
+      id: 'left_menu__accounting_management',
+      title: 'ฝ่ายบัญชี',
+      icon: AttachMoney,
+      allowedPermission: [
+        PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW,
+        PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW
+      ],
+      children: [
+        {
+          id: 'left_menu__awaiting_invoice_payment',
+          title: 'รอรับชำระเงิน (ใบแจ้งหนี้)',
+          href: ROUTE_PATHS.PENDING_INVOICE_PAYMENTS,
+          allowedPermission: [PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW]
+        },
+        {
+          id: 'left_menu__awaiting_po_payment_settle',
+          title: 'รอตั้งจ่าย (ใบสั่งซื้อ)',
+          href: ROUTE_PATHS.PENDING_PURCHASE_ORDER_PAYMENTS,
           allowedPermission: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
         }
       ]

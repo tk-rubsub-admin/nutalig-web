@@ -160,3 +160,20 @@ export interface InvoiceAwaitingValidationResponse {
   invoice: InvoiceRecord;
   paymentId: number;
 }
+
+export interface InvoicePendingPaymentRecord {
+  paymentId: number;
+  invoiceNo: string;
+  salesOrderNo?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
+  amount: number;
+  receivedAmount?: number | null;
+  unallocatedAmount?: number | null;
+  paymentMethod: 'TRANSFER' | 'CHEQUE' | 'CASH';
+  paymentDate: string;
+  createdDate?: string | null;
+  status: 'PENDING';
+  slipFileName?: string | null;
+  slipFileUrl?: string | null;
+}

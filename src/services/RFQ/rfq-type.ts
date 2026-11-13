@@ -591,6 +591,7 @@ export interface CreateRFQDetailTierRequest {
 }
 
 export interface CreateRFQDetailTierSplitRequest {
+  supplierQuoteTierId?: number | null;
   quantity: number;
   productPrice: number;
   sellPrice: number;
@@ -660,6 +661,7 @@ export interface UpdateRFQDetailTierRequest {
 }
 
 export interface UpdateRFQDetailTierSplitRequest {
+  supplierQuoteTierId?: number | null;
   quantity: number;
   productPrice: number;
   sellPrice: number;

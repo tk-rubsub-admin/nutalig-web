@@ -426,6 +426,15 @@ export default function PurchaseOrderDetail(): ReactElement {
   });
   useEffect(() => {
     const searchParams = new URLSearchParams(history.location.search);
+    const requestedInstructionScheduleId = Number(searchParams.get('instructionScheduleId'));
+    if (
+      searchParams.get('openPaymentInstruction') === '1' &&
+      Number.isInteger(requestedInstructionScheduleId) &&
+      requestedInstructionScheduleId > 0
+    ) {
+      setPaymentInstructionScheduleId(requestedInstructionScheduleId);
+      setOpenPaymentInstructionRequest((current) => current + 1);
+    }
     const requestedTab = searchParams.get('tab') as
       | 'detail'
       | 'payment'
@@ -462,6 +471,8 @@ export default function PurchaseOrderDetail(): ReactElement {
   const [selectedProductionScheduleId, setSelectedProductionScheduleId] = useState<number | ''>('');
   const [openPaymentDraftRequest, setOpenPaymentDraftRequest] = useState(0);
   const [paymentDraftScheduleId, setPaymentDraftScheduleId] = useState<number | ''>('');
+  const [openPaymentInstructionRequest, setOpenPaymentInstructionRequest] = useState(0);
+  const [paymentInstructionScheduleId, setPaymentInstructionScheduleId] = useState<number | ''>('');
   const [productionPaymentWarning, setProductionPaymentWarning] = useState('');
   const [isExpectedEndDateDialogOpen, setIsExpectedEndDateDialogOpen] = useState(false);
   const [newExpectedEndDate, setNewExpectedEndDate] = useState('');
@@ -2976,6 +2987,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                 purchaseOrder={purchaseOrder}
                 openDraftRequest={openPaymentDraftRequest}
                 draftScheduleId={paymentDraftScheduleId}
+                openInstructionRequest={openPaymentInstructionRequest}
+                instructionScheduleId={paymentInstructionScheduleId}
                 onChanged={() =>
                   Promise.all([
                     refetch(),

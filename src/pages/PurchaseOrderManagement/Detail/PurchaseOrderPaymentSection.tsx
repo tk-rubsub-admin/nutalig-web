@@ -81,6 +81,8 @@ interface Props {
   openCreateRequest?: number;
   openDraftRequest?: number;
   draftScheduleId?: number | '';
+  openInstructionRequest?: number;
+  instructionScheduleId?: number | '';
   onCreatePaymentSaved?: () => void;
   onCreatePaymentCancelled?: () => void;
 }
@@ -237,6 +239,8 @@ export default function PurchaseOrderPaymentSection({
   openCreateRequest = 0,
   openDraftRequest = 0,
   draftScheduleId = '',
+  openInstructionRequest = 0,
+  instructionScheduleId = '',
   onCreatePaymentSaved,
   onCreatePaymentCancelled
 }: Props): ReactElement | null {
@@ -393,11 +397,16 @@ export default function PurchaseOrderPaymentSection({
     setPaymentDialogOpen(true);
   };
 
-  const openInstructionDialog = (instruction?: PurchaseOrderPaymentInstruction) => {
+  const openInstructionDialog = (
+    instruction?: PurchaseOrderPaymentInstruction,
+    requestedScheduleId?: number | ''
+  ) => {
     setCreatingDraft(false);
     const nextSchedule = instruction
       ? schedules.find((schedule) => schedule.id === instruction.scheduleId) || null
-      : schedules.find((schedule) => instructionCapacity(schedule) > 0) || null;
+      : schedules.find((schedule) => requestedScheduleId
+        ? schedule.id === requestedScheduleId
+        : instructionCapacity(schedule) > 0) || null;
     setEditingInstruction(instruction || null);
     setInstructionInputMode(instruction ? 'EXCHANGE_RATE' : 'NONE');
     setIsInstructionAmountFocused(false);
@@ -761,6 +770,14 @@ export default function PurchaseOrderPaymentSection({
     // Parent sends a new request when production completion needs a draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openDraftRequest]);
+
+  useEffect(() => {
+    if (openInstructionRequest > 0) {
+      openInstructionDialog(undefined, instructionScheduleId);
+    }
+    // Parent sends a request when the pending payment schedule page is opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openInstructionRequest]);
 
   if (!canView) return null;
 

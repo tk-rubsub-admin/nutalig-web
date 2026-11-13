@@ -137,6 +137,7 @@ export interface SearchPendingSupplierPaymentRequest {
   docDateStart?: string;
   docDateEnd?: string;
   keyword?: string;
+  scheduleStatus?: PurchaseOrderPaymentScheduleStatus;
 }
 
 export interface PendingSupplierPaymentRecord {

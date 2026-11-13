@@ -958,6 +958,13 @@ export default function SalesOrderRFQ(): JSX.Element {
       refetchOnWindowFocus: false
     }
   );
+  const { data: currencyOptions = [] } = useQuery(
+    ['sale-order-rfq-currencies', GROUP_CODE.CURRENCY],
+    () => getSystemConfig(GROUP_CODE.CURRENCY),
+    {
+      refetchOnWindowFocus: false
+    }
+  );
   const { data: customerTypeList = [] } = useQuery(
     ['sale-order-rfq-customer-type', GROUP_CODE.CUSTOMER_TYPE],
     () => getSystemConfig(GROUP_CODE.CUSTOMER_TYPE),
@@ -1890,6 +1897,8 @@ export default function SalesOrderRFQ(): JSX.Element {
   const vatRate = 0.07;
   const vatAmount = formik.values.isVat ? taxableAmount * vatRate : 0;
   const grandTotal = taxableAmount + vatAmount;
+  const summaryCurrency =
+    formik.values.items.find((item) => item.supplierCurrency)?.supplierCurrency || '';
 
   useEffect(() => {
     if (customer?.customerPaymentTerm?.code !== 'DEP50') {
@@ -2578,10 +2587,27 @@ export default function SalesOrderRFQ(): JSX.Element {
                           inputProps={{ min: 0, style: { textAlign: 'right' } }}
                           sx={{ maxWidth: 155, mx: 'auto' }}
                         />
+                        <TextField
+                          select
+                          size="small"
+                          label="สกุลเงิน"
+                          value={row.supplierCurrency || ''}
+                          onChange={(event) =>
+                            updateItem(index, 'supplierCurrency', event.target.value || null)
+                          }
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ maxWidth: 155, mx: 'auto', mt: 1 }}>
+                          <MenuItem value="">ไม่ระบุ</MenuItem>
+                          {currencyOptions.map((option) => (
+                            <MenuItem key={option.code} value={option.code}>
+                              {getSystemConfigLabel(option)} ({option.code})
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       </TableCell>
                       <TableCell align="right">
                         <Typography fontWeight={700} sx={{ fontSize: 20, color: '#2F3447' }}>
-                          {formatNumber(row.amount)}
+                          {formatNumber(row.amount)} {row.supplierCurrency || ''}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
@@ -2699,7 +2725,9 @@ export default function SalesOrderRFQ(): JSX.Element {
               <Stack spacing={2}>
                 <Stack direction="row" justifyContent="space-between">
                   <Typography fontWeight={500}>ยอดรวมสินค้า</Typography>
-                  <Typography fontWeight={600}>{formatCurrency(subtotal)}</Typography>
+                  <Typography fontWeight={600}>
+                    {formatCurrency(subtotal)} {summaryCurrency}
+                  </Typography>
                 </Stack>
                 <Stack
                   direction="row"
@@ -2720,7 +2748,9 @@ export default function SalesOrderRFQ(): JSX.Element {
                 {formik.values.isVat ? (
                   <Stack direction="row" justifyContent="space-between">
                     <Typography fontWeight={500}>ภาษีมูลค่าเพิ่ม (7%)</Typography>
-                    <Typography fontWeight={600}>{formatCurrency(vatAmount)}</Typography>
+                  <Typography fontWeight={600}>
+                    {formatCurrency(vatAmount)} {summaryCurrency}
+                  </Typography>
                   </Stack>
                 ) : null}
                 <Divider />
@@ -2729,7 +2759,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                     จำนวนเงินทั้งสิ้น
                   </Typography>
                   <Typography variant="h5" fontWeight={800} sx={{ color: '#1B5E20' }}>
-                    {formatCurrency(grandTotal)}
+                    {formatCurrency(grandTotal)} {summaryCurrency}
                   </Typography>
                 </Stack>
               </Stack>

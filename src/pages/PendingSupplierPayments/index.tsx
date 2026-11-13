@@ -36,7 +36,8 @@ const defaultFilter: SearchPendingSupplierPaymentRequest = {
   supplierId: '',
   docDateStart: '',
   docDateEnd: '',
-  keyword: ''
+  keyword: '',
+  scheduleStatus: 'AWAITING_PAYMENT'
 };
 
 const paymentTypeLabels: Record<string, string> = {
@@ -75,7 +76,8 @@ export default function PendingSupplierPayments(): JSX.Element {
         supplierId: values.supplierId?.trim() || '',
         docDateStart: values.docDateStart || '',
         docDateEnd: values.docDateEnd || '',
-        keyword: values.keyword?.trim() || ''
+        keyword: values.keyword?.trim() || '',
+        scheduleStatus: values.scheduleStatus
       };
       setPage(1);
       if (page === 1 && JSON.stringify(filter) === JSON.stringify(nextFilter)) refetch();
@@ -95,7 +97,7 @@ export default function PendingSupplierPayments(): JSX.Element {
     if (!records.length) {
       return (
         <TableRow>
-          <TableCell colSpan={9}>
+          <TableCell colSpan={8}>
             <div className={classes.noResult}>ไม่พบรายการค้างชำระ</div>
           </TableCell>
         </TableRow>
@@ -222,7 +224,7 @@ export default function PendingSupplierPayments(): JSX.Element {
                     'ใบสั่งซื้อ',
                     'วันที่เอกสาร',
                     'Supplier',
-                    'ใบสั่งซื้อ',
+                    'ใบสั่งขาย',
                     'งวดชำระ',
                     'ยอดตามงวด',
                     'ชำระแล้ว',

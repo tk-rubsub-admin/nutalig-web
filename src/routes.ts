@@ -22,6 +22,7 @@ export const ROUTE_PATHS = Object.freeze({
   MAGIC_LINK: '/magic-link',
   APPROVAL_REJECT: '/approval-reject',
   INVOICE_AWAITING_VALIDATION: '/invoice-awaiting-validation',
+  PENDING_INVOICE_PAYMENTS: '/pending-invoice-payments',
   SUPPLIER_MANAGEMENT: '/supplier-management',
   SUPPLIER_SHIPPING_MANAGEMENT: '/supplier-shipping-management',
   SUPPLIER_DETAIL: '/supplier/:id',
@@ -43,6 +44,7 @@ export const ROUTE_PATHS = Object.freeze({
   PRICE_INQUIRY_MANAGEMENT: '/price-inquiry-management',
   AWAITING_APPROVE_MANAGEMENT: '/awaiting-approve-management',
   PENDING_SUPPLIER_PAYMENTS: '/pending-supplier-payments',
+  PENDING_PURCHASE_ORDER_PAYMENTS: '/pending-purchase-order-payments',
   FINAL_PRICE_INQUIRY_MANAGEMENT: '/final-price-inquiry-management',
   RFQ_CREATE: '/rfq-create',
   RFQ_DETAIL: '/rfq/:id',
@@ -268,6 +270,16 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.PENDING_SUPPLIER_PAYMENTS,
     component: lazy(() => import('./pages/PendingSupplierPayments' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PENDING_INVOICE_PAYMENTS,
+    component: lazy(() => import('./pages/PendingInvoicePayments' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PENDING_PURCHASE_ORDER_PAYMENTS,
+    component: lazy(() => import('./pages/PendingPurchaseOrderPayments' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW]
   },
   {

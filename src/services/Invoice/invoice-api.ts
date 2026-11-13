@@ -4,6 +4,7 @@ import {
   CreateInvoiceRequest,
   CreateInvoiceResponse,
   InvoiceRecord,
+  InvoicePendingPaymentRecord,
   SearchInvoiceRequest,
   SearchInvoiceResponse,
   UpdateInvoiceRequest
@@ -171,4 +172,23 @@ export const searchInvoices = async (
     .then((result) => result.data);
 
   return response;
+};
+
+export const getPendingInvoicePayments = async (): Promise<InvoicePendingPaymentRecord[]> => {
+  const response = await api.get('/v1/invoices/pending-payments').then((result) => result.data);
+  return response.data || [];
+};
+
+export const approveInvoicePayment = async (invoiceNo: string, paymentId: number): Promise<InvoiceRecord> => {
+  const response = await api.post(`/v1/invoices/${invoiceNo}/payments/${paymentId}/approve`).then((result) => result.data);
+  return response.data;
+};
+
+export const rejectInvoicePayment = async (
+  invoiceNo: string,
+  paymentId: number,
+  reason: string
+): Promise<InvoiceRecord> => {
+  const response = await api.post(`/v1/invoices/${invoiceNo}/payments/${paymentId}/reject`, { reason }).then((result) => result.data);
+  return response.data;
 };

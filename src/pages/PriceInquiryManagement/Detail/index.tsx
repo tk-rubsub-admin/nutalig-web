@@ -14,6 +14,7 @@ import {
   InfoOutlined,
   Menu as MenuIcon,
   OpenInNew,
+  RepeatOne,
   Save
 } from '@mui/icons-material';
 import {
@@ -2482,6 +2483,10 @@ export default function RFQDetail(): ReactElement {
     () => getSortedAdditionalCosts(rfq?.additionalCosts),
     [rfq?.additionalCosts]
   );
+  const hasSampleCostDetail = useMemo(
+    () => (rfq?.details || []).some((detail) => detail.lineType === 'SAMPLE_COST'),
+    [rfq?.details]
+  );
   const isQuotedStatus = rfq?.status === 'QUOTED';
   const slaDayLeft = useMemo(
     () => getSLADayLeft(rfq?.requestedDate, rfq?.slaDate),
@@ -4069,6 +4074,8 @@ export default function RFQDetail(): ReactElement {
                 seaFreightCost,
                 isFcl: Boolean(tier.isFcl),
                 isShareFCL: Boolean(tier.isShareFCL),
+                supplierQuoteTierId:
+                  tier.sourceSupplierQuoteTierId ?? (tier.id > 0 ? tier.id : null),
                 sortOrder: tierIndex + 1
               };
             })
@@ -6155,9 +6162,19 @@ export default function RFQDetail(): ReactElement {
                                   onChange={(event) => handleDraftAdditionalCostChange(item.id, 'unit', event.target.value)} />
                               </Grid>
                               <Grid item xs={12} md={1}>
-                                <IconButton color="error" onClick={() => handleDeleteDraftAdditionalCost(item.id)}>
-                                  <DeleteOutline />
-                                </IconButton>
+                                <Stack direction="row" spacing={0.5} justifyContent="center">
+                                  <IconButton color="error" onClick={() => handleDeleteDraftAdditionalCost(item.id)}>
+                                    <DeleteOutline />
+                                  </IconButton>
+                                  {/* {!hasSampleCostDetail && /ตีตัวอย่าง|ตัวอย่าง|sample/i.test(item.description) ? (
+                                    <IconButton
+                                      color="primary"
+                                      title="ยังไม่มี RFQ Detail ประเภทค่าตีตัวอย่าง"
+                                      aria-label="ยังไม่มี RFQ Detail ประเภทค่าตีตัวอย่าง">
+                                      <RepeatOne />
+                                    </IconButton>
+                                  ) : null} */}
+                                </Stack>
                               </Grid>
                             </Grid>
                           ))}

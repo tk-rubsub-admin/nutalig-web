@@ -124,7 +124,7 @@ export default function PurchaseOrderProofSection({
   const onPressColorSkipped = onPressColorMilestone?.status === 'SKIPPED';
   const canSkipProof = (proofTypeCode: string) =>
     canManageTimeline &&
-    purchaseOrderStatus === 'PRODUCTION_RUNNING' &&
+    ['JOB_STARTED', 'PRODUCTION_RUNNING'].includes(purchaseOrderStatus || '') &&
     Boolean(timelineEvents.find((event) => event.type === proofTypeCode)?.canSkip);
 
   const openSubmitDialog = (type: SystemConfig, proof?: PurchaseOrderProof) => {
@@ -376,7 +376,7 @@ export default function PurchaseOrderProofSection({
                     </>
                   ) : null}
                   {canRequest &&
-                  purchaseOrderStatus === 'PRODUCTION_RUNNING' &&
+                  ['JOB_STARTED', 'PRODUCTION_RUNNING'].includes(purchaseOrderStatus || '') &&
                   prerequisiteReady &&
                   !proof ? (
                     <Button
@@ -389,7 +389,7 @@ export default function PurchaseOrderProofSection({
                     </Button>
                   ) : null}
                   {canRequest &&
-                  purchaseOrderStatus === 'PRODUCTION_RUNNING' &&
+                  ['JOB_STARTED', 'PRODUCTION_RUNNING'].includes(purchaseOrderStatus || '') &&
                   prerequisiteReady &&
                   proof?.canResubmit ? (
                     <Button
@@ -424,9 +424,9 @@ export default function PurchaseOrderProofSection({
         })}
       </Grid>
 
-      {purchaseOrderStatus !== 'PRODUCTION_RUNNING' && canRequest ? (
+      {!['JOB_STARTED', 'PRODUCTION_RUNNING'].includes(purchaseOrderStatus || '') && canRequest ? (
         <Typography variant="caption" color="text.secondary">
-          สามารถส่งงานพรูฟได้เมื่อ PO อยู่ในสถานะกำลังผลิตเท่านั้น
+          สามารถส่งงานพรูฟได้เมื่อกดเริ่มรันงานแล้ว
         </Typography>
       ) : null}
 

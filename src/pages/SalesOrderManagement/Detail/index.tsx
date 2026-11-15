@@ -1211,9 +1211,7 @@ export default function SalesOrderDetail(): ReactElement {
               !canManageSalesOrderAttachments ||
               isSaving ||
               salesOrder?.urgentRequest ||
-              ['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
-                salesOrder?.procurementStatus
-              )
+              ['READY_FOR_PO', 'IN_PROGRESS'].includes(salesOrder?.status)
             }>
             ขออนุมัติสร้างใบสั่งซื้อ
           </Button>
@@ -1295,9 +1293,7 @@ export default function SalesOrderDetail(): ReactElement {
                     disabled={
                       !salesOrder ||
                       !canManageSalesOrderAttachments ||
-                      !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
-                        salesOrder.procurementStatus
-                      )
+                      !['READY_FOR_PO', 'IN_PROGRESS'].includes(salesOrder.status)
                     }
                     sx={{ width: '100%' }}>
                     <ListItemIcon>

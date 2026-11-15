@@ -43,8 +43,11 @@ import { formatNumber } from 'utils/utils';
 const PURCHASE_ORDER_STATUS_OPTIONS = [
   'CREATED',
   'AWAITING_PAYMENT',
+  'AWAITING_START_RUN',
+  'JOB_STARTED',
   'PAID',
   'PRODUCTION_RUNNING',
+  'PRODUCTION_COMPLETED',
   'CANCELLED',
   'CLOSED'
 ];
@@ -181,9 +184,9 @@ export default function PurchaseOrderManagement(): JSX.Element {
           <Stack spacing={1} alignItems="center">
             <Typography variant="body2">{purchaseOrder.purchaseOrderNo}</Typography>
             <Chip
-              label={getDocumentStatusLabel(purchaseOrder.status, purchaseOrder.statusProfile)}
+              label={getDocumentStatusLabel(purchaseOrder.status, null)}
               size="small"
-              sx={getDocumentStatusChipSx(purchaseOrder.status, purchaseOrder.statusProfile)}
+              sx={getDocumentStatusChipSx(purchaseOrder.status, null)}
             />
           </Stack>
         </TableCell>

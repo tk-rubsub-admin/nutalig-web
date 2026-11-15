@@ -109,10 +109,11 @@ import {
 } from 'services/PurchaseOrder/purchase-order-type';
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
-import { getShippingMethodLabel } from 'utils/shipping';
+import { getShippingMethodLabel, SHIPPING_METHOD_LABELS } from 'utils/shipping';
 import { getPurchaseOrderStartRunWarnings } from 'utils/purchaseOrderStartRun';
 import { formatNumber } from 'utils/utils';
 import { getSystemConfig } from 'services/Config/config-api';
+
 import { GROUP_CODE } from 'services/Config/config-type';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
 import PurchaseOrderDeliverySection from './PurchaseOrderDeliverySection';
@@ -124,6 +125,10 @@ import ProductionDeliveryScrapBox, {
   serializeScrapBoxes
 } from './ProductionDeliveryScrapBox';
 import App from 'App';
+
+const DELIVERY_SHIPPING_METHOD_OPTIONS = Object.keys(SHIPPING_METHOD_LABELS).filter(
+  (shippingMethod) => shippingMethod !== 'ALL'
+);
 
 interface PurchaseOrderDetailParams {
   id: string;
@@ -668,6 +673,8 @@ export default function PurchaseOrderDetail(): ReactElement {
     purchaseOrder?.status === 'CREATED' ||
     purchaseOrder?.status === 'AWAITING_PAYMENT' ||
     purchaseOrder?.status === 'PAID' ||
+    purchaseOrder?.status === 'AWAITING_START_RUN' ||
+    purchaseOrder?.status === 'JOB_STARTED' ||
     purchaseOrder?.status === 'PRODUCTION_RUNNING';
   const canClosePurchaseOrder =
     Boolean(purchaseOrder) &&
@@ -675,7 +682,7 @@ export default function PurchaseOrderDetail(): ReactElement {
     purchaseOrder?.status !== 'CLOSED';
   const canStartPurchaseOrderRun =
     canManageTimeline &&
-    ['CREATED', 'AWAITING_PAYMENT', 'PAID'].includes(purchaseOrder?.status || '');
+    purchaseOrder?.status === 'AWAITING_START_RUN';
   const startRunWarnings = getPurchaseOrderStartRunWarnings(
     purchaseOrder?.status,
     purchaseOrderPayments,
@@ -2060,12 +2067,22 @@ export default function PurchaseOrderDetail(): ReactElement {
               </GridTextField>
               <GridTextField item xs={12} sm={6}>
                 <TextField
+                  select
                   label="วิธีขนส่ง"
                   value={productionDeliveryDraft.shippingMethod}
-                  disabled
+                  onChange={(event) =>
+                    updateProductionDeliveryHeader('shippingMethod', event.target.value)
+                  }
+                  disabled={isSubmitting}
+                  required
                   InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
+                  fullWidth>
+                  {DELIVERY_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
+                    <MenuItem key={shippingMethod} value={shippingMethod}>
+                      {getShippingMethodLabel(shippingMethod)}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </GridTextField>
               <GridTextField item xs={12}>
                 <TextField

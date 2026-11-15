@@ -17,6 +17,8 @@ export function getDocumentStatusLabel(
   switch (key) {
     case 'PRODUCTION_RUNNING':
       return 'กำลังรันงานผลิต';
+    case 'PRODUCTION_COMPLETED':
+      return 'ผลิตเสร็จ';
     case 'AWAITING_VALIDATION':
       return 'รอตรวจสอบ';
     case 'PARTIALLY_PAID':
@@ -29,6 +31,12 @@ export function getDocumentStatusLabel(
       return 'สร้างแล้ว';
     case 'WAITING_PAYMENT':
       return 'รอชำระเงิน';
+    case 'AWAITING_PAYMENT':
+      return 'รอชำระเงิน';
+    case 'AWAITING_START_RUN':
+      return 'รอเริ่มรันงาน';
+    case 'JOB_STARTED':
+      return 'เริ่มรันงานแล้ว';
     case 'READY_FOR_PO':
       return 'พร้อมสร้าง PO';
     case 'IN_PROGRESS':
@@ -70,9 +78,12 @@ export function getDocumentStatusChipSx(
     case 'CREATED':
       return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'WAITING_PAYMENT':
+    case 'AWAITING_START_RUN':
     case 'READY_FOR_PO':
       return { backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.1), color: SEMANTIC_COLORS.warning, fontWeight: 'bold' };
     case 'IN_PROGRESS':
+      return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
+    case 'JOB_STARTED':
       return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'COMPLETED':
       return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
@@ -90,6 +101,8 @@ export function getDocumentStatusChipSx(
       return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'PRODUCTION_RUNNING':
       return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
+    case 'PRODUCTION_COMPLETED':
+      return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'REJECTED':
     case 'CANCELLED':
     case 'VOID':
@@ -109,8 +122,8 @@ function resolveDocumentStatusKey(
     return 'AWAITING_VALIDATION';
   }
 
-  if (rawStatus === 'PRODUCTION_RUNNING') {
-    return 'PRODUCTION_RUNNING';
+  if (['AWAITING_START_RUN', 'JOB_STARTED', 'PRODUCTION_RUNNING', 'PRODUCTION_COMPLETED'].includes(rawStatus || '')) {
+    return rawStatus;
   }
 
   if (statusProfile?.paymentLifecycle === 'PARTIALLY_PAID') {
@@ -127,6 +140,8 @@ function resolveDocumentStatusKey(
       'DRAFT',
       'CREATED',
       'WAITING_PAYMENT',
+      'AWAITING_START_RUN',
+      'JOB_STARTED',
       'READY_FOR_PO',
       'IN_PROGRESS',
       'COMPLETED',
@@ -134,7 +149,8 @@ function resolveDocumentStatusKey(
       'CLOSED',
       'VOID',
       'CANCELLED',
-      'PRODUCTION_RUNNING'
+      'PRODUCTION_RUNNING',
+      'PRODUCTION_COMPLETED'
     ].includes(
       rawStatus
     )

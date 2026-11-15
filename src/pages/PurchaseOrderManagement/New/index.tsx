@@ -811,9 +811,7 @@ export default function NewPurchaseOrder(): ReactElement {
       return;
     }
     if (
-      !['READY_FOR_PO', 'READY_FOR_PO_OVERRIDE', 'PO_CREATED'].includes(
-        salesOrder.procurementStatus || ''
-      )
+      !['READY_FOR_PO', 'IN_PROGRESS'].includes(salesOrder.status || '')
     ) {
       toast.error('สถานะใบยืนยันสั่งซื้อยังไม่พร้อมสร้างใบสั่งซื้อ');
       return;

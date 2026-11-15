@@ -43,6 +43,7 @@ import { SalesRecord } from 'services/Sales/sales-type';
 import { getMySearchFields } from 'services/SearchField/search-field-api';
 import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
+import { getShippingMethodLabel } from 'utils/shipping';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
 
@@ -349,7 +350,7 @@ export default function SalesOrderManagement(): ReactElement {
         </TableCell>
         <TableCell align="center">{getSalesLabel(salesOrder)}</TableCell>
         <TableCell align="right">{formatNumber(salesOrder.grandTotal)}</TableCell>
-        <TableCell align="center">{salesOrder.shippingType || '-'}</TableCell>
+        <TableCell align="center">{getShippingMethodLabel(salesOrder.shippingType)}</TableCell>
         <TableCell align="center">
           <Tooltip title="ดูใบยืนยันสั่งซื้อ" arrow>
             <span>

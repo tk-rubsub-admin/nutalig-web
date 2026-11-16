@@ -2,6 +2,7 @@ import { BRAND_COLORS } from 'theme/brandTokens';
 import { Search, DisabledByDefault } from '@mui/icons-material';
 import {
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Grid,
@@ -107,6 +108,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
     docDateStart: '',
     docDateEnd: '',
     status: null,
+    statuses: [],
     shippingMethod: '',
     keyword: ''
   };
@@ -136,7 +138,8 @@ export default function PurchaseOrderManagement(): JSX.Element {
         salesOrderNo: withDocumentNoPrefix(values.salesOrderNo, SALES_ORDER_NO_PREFIX),
         docDateStart: values.docDateStart || '',
         docDateEnd: values.docDateEnd || '',
-        status: values.status || null,
+        status: null,
+        statuses: values.statuses || [],
         shippingMethod: values.shippingMethod || '',
         keyword: values.keyword?.trim() || ''
       };
@@ -359,15 +362,25 @@ export default function PurchaseOrderManagement(): JSX.Element {
           <GridTextField item xs={12} sm={4} md={3}>
             <TextField
               select
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) =>
+                  (selected as string[])
+                    .map((status) => getDocumentStatusLabel(status))
+                    .join(', ')
+              }}
               fullWidth
               label="สถานะ"
-              name="status"
+              name="statuses"
               InputLabelProps={{ shrink: true }}
-              value={searchFormik.values.status || ''}
-              onChange={searchFormik.handleChange}>
-              <MenuItem value="">ทั้งหมด</MenuItem>
+              value={searchFormik.values.statuses || []}
+              onChange={(event) => {
+                const value = event.target.value;
+                searchFormik.setFieldValue('statuses', typeof value === 'string' ? value.split(',') : value);
+              }}>
               {PURCHASE_ORDER_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status} value={status}>
+                  <Checkbox checked={(searchFormik.values.statuses || []).includes(status)} />
                   {getDocumentStatusLabel(status)}
                 </MenuItem>
               ))}

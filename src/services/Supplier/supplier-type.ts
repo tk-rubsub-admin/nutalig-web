@@ -120,6 +120,7 @@ export interface SupplierShipping {
   remark: string | null;
   carCode: string | null;
   destinations: SupplierShippingDestination[];
+  routes?: SupplierShippingRoute[];
 }
 
 export interface SupplierShippingRoute {

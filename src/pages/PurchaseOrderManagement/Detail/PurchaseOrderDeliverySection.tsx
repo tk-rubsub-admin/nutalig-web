@@ -49,6 +49,7 @@ import {
   PurchaseOrderDeliveryRecord,
   UpdatePurchaseOrderDeliveryRequest
 } from 'services/PurchaseOrder/purchase-order-type';
+import { SupplierShippingRoute } from 'services/Supplier/supplier-type';
 import {
   getShippingMethodLabel,
   isSeaShippingMethod,
@@ -63,6 +64,7 @@ interface Props {
     destinationName?: string | null;
     fullAddress?: string | null;
   }>;
+  shippingRoutes?: SupplierShippingRoute[];
   onDeliveryUpdated?: () => Promise<unknown>;
 }
 
@@ -152,6 +154,7 @@ function supportsInTransitStatus(shippingMethod?: string | null): boolean {
 export default function PurchaseOrderDeliverySection({
   deliveries = [],
   shippingDestinations = [],
+  shippingRoutes = [],
   onDeliveryUpdated
 }: Props) {
   const theme = useTheme();
@@ -224,6 +227,7 @@ export default function PurchaseOrderDeliverySection({
       expectedWarehouseDate: delivery.expectedWarehouseDate || '',
       shippingMethod: delivery.shippingMethod || '',
       shippingLocationId: delivery.shippingLocationId || 0,
+      supplierShippingRouteId: delivery.supplierShippingRouteId || (shippingRoutes.length === 1 ? shippingRoutes[0].id : null),
       details: delivery.details.map((detail, index) => ({
         id: detail.id!,
         quantity: detail.quantity,
@@ -478,11 +482,23 @@ export default function PurchaseOrderDeliverySection({
                     {getShippingMethodLabel(delivery.shippingMethod)}
                   </Typography>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="caption" color="text.secondary">
-                    สถานที่ขนส่ง
+                    ขนส่ง
                   </Typography>
-                  <Typography variant="body2">{delivery.shippingLocationName || '-'}</Typography>
+                  <Typography variant="body2">{delivery.supplierShippingName || '-'}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Route
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Typography variant="body2">
+                      {delivery.originLocationName || delivery.destinationLocationName
+                        ? `${delivery.originLocationName || '-'} → ${delivery.destinationLocationName || '-'}`
+                        : '-'}
+                    </Typography>
+                  </Stack>
                 </Grid>
                 {delivery.trackingNumber ? (
                   <Grid item xs={12}>
@@ -594,45 +610,68 @@ export default function PurchaseOrderDeliverySection({
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    select
-                    fullWidth
-                    required
-                    label="วิธีขนส่ง"
-                    value={editDraft.shippingMethod}
-                    onChange={(event) =>
-                      setEditDraft({ ...editDraft, shippingMethod: event.target.value })
-                    }
-                    InputLabelProps={{ shrink: true }}>
-                    {Object.keys(SHIPPING_METHOD_LABELS)
-                      .filter((method) => method !== 'ALL')
-                      .map((method) => (
-                        <MenuItem key={method} value={method}>
-                          {getShippingMethodLabel(method)}
+                {shippingRoutes.length > 0 ? (
+                  <Grid item xs={12} sm={8}>
+                    <TextField
+                      select
+                      fullWidth
+                      required
+                      label="Route"
+                      value={editDraft.supplierShippingRouteId || ''}
+                      onChange={(event) =>
+                        setEditDraft({ ...editDraft, supplierShippingRouteId: Number(event.target.value) })
+                      }
+                      InputLabelProps={{ shrink: true }}>
+                      {shippingRoutes.map((route) => (
+                        <MenuItem key={route.id} value={route.id}>
+                          {route.routeCode || `เส้นทาง #${route.id}`} — {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
                         </MenuItem>
                       ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    select
-                    fullWidth
-                    required
-                    label="สถานที่ขนส่ง"
-                    value={editDraft.shippingLocationId || ''}
-                    onChange={(event) =>
-                      setEditDraft({ ...editDraft, shippingLocationId: Number(event.target.value) })
-                    }
-                    InputLabelProps={{ shrink: true }}>
-                    {shippingDestinations.map((destination) => (
-                      <MenuItem key={destination.id} value={destination.id}>
-                        {destination.destinationName || `สถานที่ #${destination.id}`}
-                        {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
+                    </TextField>
+                  </Grid>
+                ) : (
+                  <>
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        select
+                        fullWidth
+                        required
+                        label="วิธีขนส่ง"
+                        value={editDraft.shippingMethod || ''}
+                        onChange={(event) =>
+                          setEditDraft({ ...editDraft, shippingMethod: event.target.value })
+                        }
+                        InputLabelProps={{ shrink: true }}>
+                        {Object.keys(SHIPPING_METHOD_LABELS)
+                          .filter((method) => method !== 'ALL')
+                          .map((method) => (
+                            <MenuItem key={method} value={method}>
+                              {getShippingMethodLabel(method)}
+                            </MenuItem>
+                          ))}
+                      </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        select
+                        fullWidth
+                        required
+                        label="สถานที่ขนส่ง"
+                        value={editDraft.shippingLocationId || ''}
+                        onChange={(event) =>
+                          setEditDraft({ ...editDraft, shippingLocationId: Number(event.target.value) })
+                        }
+                        InputLabelProps={{ shrink: true }}>
+                        {shippingDestinations.map((destination) => (
+                          <MenuItem key={destination.id} value={destination.id}>
+                            {destination.destinationName || `สถานที่ #${destination.id}`}
+                            {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                  </>
+                )}
               </Grid>
 
               {editDraft.details.map((detail, index) => {

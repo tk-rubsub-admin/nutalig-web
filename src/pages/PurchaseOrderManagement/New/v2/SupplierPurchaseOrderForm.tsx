@@ -83,6 +83,7 @@ interface SupplierPurchaseOrderFormProps {
 interface PurchaseOrderCreateDraft {
   supplierId: string;
   supplierShippingId: string;
+  supplierShippingRouteId: string;
   shippingMethodSnapshot: string;
   docDate: string;
   productionLeadTimeDay: string;
@@ -155,6 +156,7 @@ function createDraft(salesOrder?: SalesOrderV1): PurchaseOrderCreateDraft {
   return {
     supplierId: firstSupplierId,
     supplierShippingId: '',
+    supplierShippingRouteId: '',
     supplierShipping: null,
     shippingMethodSnapshot: salesOrder?.shippingType || '',
     docDate: today,
@@ -447,7 +449,7 @@ export default function SupplierPurchaseOrderForm({
     if (!availableSupplierShippings.length) {
       setDraft((previous) =>
         previous.supplierShippingId || previous.supplierShipping
-          ? { ...previous, supplierShippingId: '', supplierShipping: null }
+          ? { ...previous, supplierShippingId: '', supplierShippingRouteId: '', supplierShipping: null }
           : previous
       );
       return;
@@ -464,11 +466,14 @@ export default function SupplierPurchaseOrderForm({
           ) || null;
         return previous.supplierShipping === supplierShipping
           ? previous
-          : { ...previous, supplierShipping };
+          : { ...previous, supplierShipping, supplierShippingRouteId: '' };
       }
       return {
         ...previous,
         supplierShippingId: String(availableSupplierShippings[0].id),
+        supplierShippingRouteId: availableSupplierShippings[0].routes?.length === 1
+          ? String(availableSupplierShippings[0].routes[0].id)
+          : '',
         supplierShipping: availableSupplierShippings[0]
       };
     });
@@ -505,6 +510,23 @@ export default function SupplierPurchaseOrderForm({
         ...previous,
         shippingLeadTimeDay: String(selectedShipping.leadTimeDayMax)
       };
+    });
+  }, [selectedShipping]);
+
+  useEffect(() => {
+    const routes = selectedShipping?.routes || [];
+    setDraft((previous) => {
+      const selectedRouteExists = routes.some(
+        (route) => String(route.id) === previous.supplierShippingRouteId
+      );
+      const routeId = selectedRouteExists
+        ? previous.supplierShippingRouteId
+        : routes.length === 1
+          ? String(routes[0].id)
+          : '';
+      return previous.supplierShippingRouteId === routeId
+        ? previous
+        : { ...previous, supplierShippingRouteId: routeId };
     });
   }, [selectedShipping]);
 
@@ -779,6 +801,9 @@ export default function SupplierPurchaseOrderForm({
       salesOrderNo: salesOrder.salesOrderNo,
       supplierId: draft.supplierId,
       supplierShippingId: Number(draft.supplierShippingId),
+      supplierShippingRouteId: draft.supplierShippingRouteId
+        ? Number(draft.supplierShippingRouteId)
+        : null,
       salesOrderDetailIds: filteredItems.map((item) => item.id),
       docDate: draft.docDate,
       productionLeadTimeDay: draft.productionLeadTimeDay
@@ -835,6 +860,10 @@ export default function SupplierPurchaseOrderForm({
     setShowValidationErrors(true);
     if (!salesOrder.salesOrderNo || !draft.supplierId || !selectedShipping) {
       toast.error('กรุณาเลือก Supplier และ Supplier Shipping');
+      return;
+    }
+    if (!draft.supplierShippingRouteId) {
+      toast.error('กรุณาเลือก Route');
       return;
     }
     if (!draft.paymentTerm) {
@@ -1318,6 +1347,7 @@ export default function SupplierPurchaseOrderForm({
                           ...previous,
                           shippingMethodSnapshot: event.target.value,
                           supplierShippingId: '',
+                          supplierShippingRouteId: '',
                           supplierShipping: null,
                           shippingLeadTimeDay: ''
                         }))
@@ -1329,7 +1359,7 @@ export default function SupplierPurchaseOrderForm({
                       ))}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={6} sm={3}>
                     <TextField
                       select
                       fullWidth
@@ -1350,6 +1380,9 @@ export default function SupplierPurchaseOrderForm({
                       ))}
                     </TextField>
                   </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <ReadonlyTextField label="Car Code" value={selectedShipping?.carCode || '-'} />
+                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       select
@@ -1368,6 +1401,10 @@ export default function SupplierPurchaseOrderForm({
                         setDraft((previous) => ({
                           ...previous,
                           supplierShippingId: event.target.value,
+                          supplierShippingRouteId:
+                            supplierShipping?.routes?.length === 1
+                              ? String(supplierShipping.routes[0].id)
+                              : '',
                           supplierShipping
                         }));
                       }}
@@ -1397,7 +1434,43 @@ export default function SupplierPurchaseOrderForm({
                     </TextField>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <ReadonlyTextField label="Car Code" value={selectedShipping?.carCode || '-'} />
+                    <TextField
+                      select
+                      fullWidth
+                      label="Route"
+                      disabled={isFormLocked || !selectedShipping || !(selectedShipping.routes || []).length}
+                      value={draft.supplierShippingRouteId}
+                      required
+                      error={showValidationErrors && !draft.supplierShippingRouteId}
+                      onChange={(event) =>
+                        setDraft((previous) => ({
+                          ...previous,
+                          supplierShippingRouteId: event.target.value
+                        }))
+                      }
+                      helperText={
+                        showValidationErrors && !draft.supplierShippingRouteId
+                          ? 'กรุณาเลือก Route'
+                          : selectedShipping && !(selectedShipping.routes || []).length
+                          ? 'ไม่พบ Route สำหรับ Supplier Shipping นี้'
+                          : undefined
+                      }
+                      InputLabelProps={{ shrink: true }}>
+                      {(selectedShipping?.routes || []).map((route) => (
+                        <MenuItem key={route.id} value={String(route.id)}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Chip
+                              size="small"
+                              color="primary"
+                              label={route.routeCode || `Route #${route.id}`}
+                            />
+                            <Typography variant="body2">
+                              {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
+                            </Typography>
+                          </Stack>
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </Grid>
                   <Grid item xs={12} sm={12}>
                     <ReadonlyTextField

@@ -31,6 +31,8 @@ export interface ContainerMetadata {
   trackingNo: string | null;
   containerSize: '20GP' | '40HQ';
   supplierShippingId?: number | null;
+  supplierShippingRouteId?: number | null;
+  shippingRouteCode?: string | null;
   destinationId?: number | null;
   origin?: string | null;
   plannedDepartureDate?: string | null;
@@ -51,7 +53,7 @@ export interface CreateContainerRequest extends ContainerMetadata {
 }
 export type ContainerRoute = Pick<
   ShippingContainer,
-  'supplierShippingId' | 'destinationId' | 'shippingMethod'
+  'supplierShippingId' | 'supplierShippingRouteId' | 'destinationId' | 'shippingMethod'
 > & {
   id?: number;
   version?: number;
@@ -154,6 +156,7 @@ export const previewContainerSources = async (
       params: {
         containerSize: route.containerSize,
         supplierShippingId: route.supplierShippingId,
+        supplierShippingRouteId: route.supplierShippingRouteId,
         destinationId: route.destinationId,
         deliveryId
       }

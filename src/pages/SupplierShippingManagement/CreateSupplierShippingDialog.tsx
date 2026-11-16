@@ -86,6 +86,7 @@ export default function CreateSupplierShippingDialog({
               onChange={(event) => setShippingMethod(event.target.value as 'LAND' | 'SEA')}>
               <MenuItem value="LAND">LAND</MenuItem>
               <MenuItem value="SEA">SEA</MenuItem>
+              <MenuItem value="AIR">AIR</MenuItem>
             </TextField>
             <TextField
               select
@@ -93,7 +94,7 @@ export default function CreateSupplierShippingDialog({
               label="โหมดขนส่ง"
               InputLabelProps={{ shrink: true }}
               value={shippingMode}
-              disabled={shippingMethod === 'LAND'}
+              disabled={shippingMethod !== 'SEA'}
               onChange={(event) => setShippingMode(event.target.value as 'STANDARD' | 'FCL')}>
               <MenuItem value="STANDARD">STANDARD</MenuItem>
               <MenuItem value="FCL">FCL</MenuItem>

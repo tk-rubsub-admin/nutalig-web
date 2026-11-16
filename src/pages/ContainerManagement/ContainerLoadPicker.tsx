@@ -74,6 +74,7 @@ export default function ContainerLoadPicker({
       container.version,
       container.containerSize,
       container.supplierShippingId,
+      container.supplierShippingRouteId,
       container.destinationId,
       deliveryId
     ],

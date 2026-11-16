@@ -109,10 +109,16 @@ import {
 } from 'services/PurchaseOrder/purchase-order-type';
 import { base64ToBlob } from 'utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
-import { getShippingMethodLabel, SHIPPING_METHOD_LABELS } from 'utils/shipping';
+import {
+  getShippingMethodLabel,
+  matchesSupplierShipping,
+  SHIPPING_METHOD_LABELS
+} from 'utils/shipping';
 import { getPurchaseOrderStartRunWarnings } from 'utils/purchaseOrderStartRun';
 import { formatNumber } from 'utils/utils';
 import { getSystemConfig } from 'services/Config/config-api';
+import { getSupplierShippings } from 'services/Supplier/supplier-api';
+import { SupplierShipping } from 'services/Supplier/supplier-type';
 
 import { GROUP_CODE } from 'services/Config/config-type';
 import PurchaseOrderPaymentSection from './PurchaseOrderPaymentSection';
@@ -170,8 +176,10 @@ interface ProductionDeliveryDraft {
   shippedDate: string;
   expectedWarehouseDate: string;
   receivedDate: string;
+  supplierShippingId: string;
   shippingMethod: string;
   shippingLocationId: string;
+  supplierShippingRouteId: string;
   details: ProductionDeliveryDetailDraft[];
   scrapBoxes: ProductionDeliveryScrapBoxDraft[];
 }
@@ -182,6 +190,7 @@ function createProductionDeliveryDraft(
   const today = dayjs();
   const expectedDate = today.add(Number(purchaseOrder?.shippingLeadTimeDay || 0), 'day');
   const activeDestinations = purchaseOrder?.supplierShipping?.destinations || [];
+  const activeRoutes = purchaseOrder?.supplierShipping?.routes || [];
   const deliveredQuantityFor = (purchaseOrderDetailId: number, componentId: number | null) =>
     (purchaseOrder?.deliveries || [])
       .filter((delivery) => delivery.status !== 'CANCELLED')
@@ -253,11 +262,19 @@ function createProductionDeliveryDraft(
     shippedDate: today.format('YYYY-MM-DD'),
     expectedWarehouseDate: expectedDate.format('YYYY-MM-DD'),
     receivedDate: '',
+    supplierShippingId: purchaseOrder?.supplierShipping?.id
+      ? String(purchaseOrder.supplierShipping.id)
+      : '',
     shippingMethod:
       purchaseOrder?.shippingMethodSnapshot ||
       purchaseOrder?.supplierShipping?.shippingMethod ||
       '',
     shippingLocationId: activeDestinations.length === 1 ? String(activeDestinations[0].id) : '',
+    supplierShippingRouteId: purchaseOrder?.supplierShippingRouteIdSnapshot
+      ? String(purchaseOrder.supplierShippingRouteIdSnapshot)
+      : activeRoutes.length === 1
+        ? String(activeRoutes[0].id)
+        : '',
     details,
     scrapBoxes: []
   };
@@ -571,6 +588,57 @@ export default function PurchaseOrderDetail(): ReactElement {
     refetchOnWindowFocus: false
   });
 
+  const { data: supplierShippings = [], isFetching: isSupplierShippingsFetching } = useQuery<
+    SupplierShipping[]
+  >(['purchase-order-production-shippings'], getSupplierShippings, {
+    refetchOnWindowFocus: false
+  });
+
+  const productionShippings = useMemo(() => {
+    const current = purchaseOrder?.supplierShipping;
+    const options = supplierShippings.some((shipping) => shipping.id === current?.id)
+      ? supplierShippings
+      : current
+        ? [current, ...supplierShippings]
+        : supplierShippings;
+    return options;
+  }, [purchaseOrder?.supplierShipping, supplierShippings]);
+
+  const productionShippingsForMethod = useMemo(
+    () => productionShippings.filter((shipping) =>
+      matchesSupplierShipping(productionDeliveryDraft.shippingMethod, shipping)
+    ),
+    [productionDeliveryDraft.shippingMethod, productionShippings]
+  );
+
+  const selectedProductionShipping = useMemo(
+    () => productionShippingsForMethod.find(
+      (shipping) => String(shipping.id) === productionDeliveryDraft.supplierShippingId
+    ) || null,
+    [productionDeliveryDraft.supplierShippingId, productionShippingsForMethod]
+  );
+
+  const productionShippingRoutes = selectedProductionShipping?.routes || [];
+
+  useEffect(() => {
+    if (!productionShippingsForMethod.length) {
+      return;
+    }
+    const selected = productionShippingsForMethod.find(
+      (shipping) => String(shipping.id) === productionDeliveryDraft.supplierShippingId
+    );
+    if (selected) {
+      return;
+    }
+    setProductionDeliveryDraft((current) => ({
+      ...current,
+      supplierShippingId: String(productionShippingsForMethod[0].id),
+      supplierShippingRouteId: productionShippingsForMethod[0].routes?.length === 1
+        ? String(productionShippingsForMethod[0].routes[0].id)
+        : ''
+    }));
+  }, [productionDeliveryDraft.supplierShippingId, productionShippingsForMethod]);
+
   const scrapBoxComponentChoices = useMemo<ScrapBoxComponentChoice[]>(
     () => createProductionDeliveryDraft(purchaseOrder).details.map((detail) => ({
       key: `${detail.purchaseOrderDetailId}:${detail.purchaseOrderDetailComponentId}`,
@@ -762,40 +830,40 @@ export default function PurchaseOrderDetail(): ReactElement {
 
   const handleOpenProductionCompletion = () => {
     if (!productionCompletedMilestone) return;
-    if (isStartRunPaymentSchedulesFetching || (canViewSupplierPayment && isPaymentInstructionsFetching)) {
-      toast.error('กำลังตรวจสอบแผนการชำระเงิน กรุณาลองอีกครั้ง');
-      return;
-    }
-    if (isPaymentSchedulesError || (canViewSupplierPayment && isPaymentInstructionsError)) {
-      toast.error('ไม่สามารถตรวจสอบรายการตั้งจ่ายได้ กรุณาลองอีกครั้ง');
-      return;
-    }
+    // if (isStartRunPaymentSchedulesFetching || (canViewSupplierPayment && isPaymentInstructionsFetching)) {
+    //   toast.error('กำลังตรวจสอบแผนการชำระเงิน กรุณาลองอีกครั้ง');
+    //   return;
+    // }
+    // if (isPaymentSchedulesError || (canViewSupplierPayment && isPaymentInstructionsError)) {
+    //   toast.error('ไม่สามารถตรวจสอบรายการตั้งจ่ายได้ กรุณาลองอีกครั้ง');
+    //   return;
+    // }
 
-    const remainingSchedule = unpaidPaymentSchedules[0];
-    if (!remainingSchedule) {
-      setProductionPaymentWarning('');
-      openMilestoneDialog(productionCompletedMilestone, 'complete');
-      return;
-    }
+    // const remainingSchedule = unpaidPaymentSchedules[0];
+    // if (!remainingSchedule) {
+    //   setProductionPaymentWarning('');
+    //   openMilestoneDialog(productionCompletedMilestone, 'complete');
+    //   return;
+    // }
 
-    const existingInstruction = purchaseOrderPaymentInstructions
-      .filter((instruction) =>
-        instruction.scheduleId === remainingSchedule.id && instruction.status !== 'CANCELLED'
-      )
-      .sort((left, right) => (right.createdDate || '').localeCompare(left.createdDate || ''))[0];
+    // const existingInstruction = purchaseOrderPaymentInstructions
+    //   .filter((instruction) =>
+    //     instruction.scheduleId === remainingSchedule.id && instruction.status !== 'CANCELLED'
+    //   )
+    //   .sort((left, right) => (right.createdDate || '').localeCompare(left.createdDate || ''))[0];
 
-    if (!existingInstruction) {
-      setPaymentDraftScheduleId(remainingSchedule.id);
-      setTab('payment');
-      setOpenPaymentDraftRequest((request) => request + 1);
-      return;
-    }
+    // if (!existingInstruction) {
+    //   setPaymentDraftScheduleId(remainingSchedule.id);
+    //   setTab('payment');
+    //   setOpenPaymentDraftRequest((request) => request + 1);
+    //   return;
+    // }
 
-    setProductionPaymentWarning(
-      existingInstruction.status === 'PAID'
-        ? ''
-        : `มีรายการตั้งจ่ายของงวดที่ ${remainingSchedule.installmentNo} แล้ว แต่ยังไม่ได้ชำระ กรุณาตรวจสอบก่อนบันทึกผลิตเสร็จ`
-    );
+    // setProductionPaymentWarning(
+    //   existingInstruction.status === 'PAID'
+    //     ? ''
+    //     : `มีรายการตั้งจ่ายของงวดที่ ${remainingSchedule.installmentNo} แล้ว แต่ยังไม่ได้ชำระ กรุณาตรวจสอบก่อนบันทึกผลิตเสร็จ`
+    // );
     openMilestoneDialog(productionCompletedMilestone, 'complete');
   };
 
@@ -1206,8 +1274,9 @@ export default function PurchaseOrderDetail(): ReactElement {
         if (
           !productionDeliveryDraft.shippedDate ||
           !productionDeliveryDraft.expectedWarehouseDate ||
-          !productionDeliveryDraft.shippingMethod ||
-          !productionDeliveryDraft.shippingLocationId ||
+          (productionShippingRoutes.length > 0
+            ? !productionDeliveryDraft.supplierShippingRouteId
+            : !productionDeliveryDraft.shippingMethod || !productionDeliveryDraft.shippingLocationId) ||
           (productionDeliveryDraft.details.length === 0 && productionDeliveryDraft.scrapBoxes.length === 0) ||
           productionDeliveryDraft.details.some(
             (detail) => !detail.quantity.trim() || Number(detail.quantity) <= 0
@@ -1249,8 +1318,16 @@ export default function PurchaseOrderDetail(): ReactElement {
           shippedDate: productionDeliveryDraft.shippedDate,
           expectedWarehouseDate: productionDeliveryDraft.expectedWarehouseDate,
           receivedDate: productionDeliveryDraft.receivedDate || null,
-          shippingMethod: productionDeliveryDraft.shippingMethod,
-          shippingLocationId: Number(productionDeliveryDraft.shippingLocationId),
+          supplierShippingId: Number(productionDeliveryDraft.supplierShippingId),
+          ...(productionDeliveryDraft.shippingMethod
+            ? { shippingMethod: productionDeliveryDraft.shippingMethod }
+            : {}),
+          ...(productionDeliveryDraft.shippingLocationId
+            ? { shippingLocationId: Number(productionDeliveryDraft.shippingLocationId) }
+            : {}),
+          ...(productionDeliveryDraft.supplierShippingRouteId
+            ? { supplierShippingRouteId: Number(productionDeliveryDraft.supplierShippingRouteId) }
+            : {}),
           ...(scrapBoxPayload.scrapBoxes.length ? { scrapBoxes: scrapBoxPayload.scrapBoxes } : {}),
           details: [...productionDeliveryDraft.details.map((detail, sortOrder) => {
             const cartonCount = optionalNumber(detail.cartonCount);
@@ -2067,26 +2144,107 @@ export default function PurchaseOrderDetail(): ReactElement {
                   fullWidth
                 />
               </GridTextField>
+              {productionShippingRoutes.length > 0 ? (
+                <GridTextField item xs={12} sm={6}>
+                  <TextField
+                    select
+                    label="วิธีการขนส่ง"
+                    value={productionDeliveryDraft.shippingMethod}
+                    onChange={(event) =>
+                      updateProductionDeliveryHeader('shippingMethod', event.target.value)
+                    }
+                    disabled={isSubmitting}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth>
+                    {DELIVERY_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
+                      <MenuItem key={shippingMethod} value={shippingMethod}>
+                        {getShippingMethodLabel(shippingMethod)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </GridTextField>
+              ) : null}
               <GridTextField item xs={12} sm={6}>
                 <TextField
                   select
-                  label="วิธีขนส่ง"
-                  value={productionDeliveryDraft.shippingMethod}
-                  onChange={(event) =>
-                    updateProductionDeliveryHeader('shippingMethod', event.target.value)
-                  }
-                  disabled={isSubmitting}
+                  label="Supplier Shipping"
+                  value={productionDeliveryDraft.supplierShippingId}
+                  onChange={(event) => {
+                    const shipping = productionShippingsForMethod.find(
+                      (item) => String(item.id) === event.target.value
+                    );
+                    updateProductionDeliveryHeader('supplierShippingId', event.target.value);
+                    setProductionDeliveryDraft((current) => ({
+                      ...current,
+                      supplierShippingRouteId: shipping?.routes?.length === 1
+                        ? String(shipping.routes[0].id)
+                        : ''
+                    }));
+                  }}
+                  disabled={isSubmitting || isSupplierShippingsFetching}
                   required
                   InputLabelProps={{ shrink: true }}
                   fullWidth>
-                  {DELIVERY_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
-                    <MenuItem key={shippingMethod} value={shippingMethod}>
-                      {getShippingMethodLabel(shippingMethod)}
+                  {productionShippingsForMethod.map((shipping) => (
+                    <MenuItem key={shipping.id} value={String(shipping.id)}>
+                      {shipping.shippingName || shipping.carCode || `ขนส่ง #${shipping.id}`}
+                      {shipping.carCode ? ` (${shipping.carCode})` : ''}
                     </MenuItem>
                   ))}
                 </TextField>
               </GridTextField>
-              <GridTextField item xs={12}>
+              {productionShippingRoutes.length > 0 ? (
+                <GridTextField item xs={12} sm={12}>
+                  <TextField
+                    select
+                    label="Route"
+                    value={productionDeliveryDraft.supplierShippingRouteId}
+                    onChange={(event) =>
+                      updateProductionDeliveryHeader('supplierShippingRouteId', event.target.value)
+                    }
+                    disabled={isSubmitting}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth>
+                    {productionShippingRoutes.map((route) => (
+                      <MenuItem key={route.id} value={String(route.id)}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            size="small"
+                            color="primary"
+                            label={route.routeCode || `Route #${route.id}`}
+                          />
+                          <Typography variant="body2">
+                            {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
+                          </Typography>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </GridTextField>
+              ) : (
+                <GridTextField item xs={12} sm={6}>
+                  <TextField
+                    select
+                    label="วิธีขนส่ง"
+                    value={productionDeliveryDraft.shippingMethod}
+                    onChange={(event) =>
+                      updateProductionDeliveryHeader('shippingMethod', event.target.value)
+                    }
+                    disabled={isSubmitting}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth>
+                    {DELIVERY_SHIPPING_METHOD_OPTIONS.map((shippingMethod) => (
+                      <MenuItem key={shippingMethod} value={shippingMethod}>
+                        {getShippingMethodLabel(shippingMethod)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </GridTextField>
+              )}
+              {productionShippingRoutes.length === 0 ? <GridTextField item xs={12}>
                 <TextField
                   select
                   label="สถานที่ขนส่ง"
@@ -2098,14 +2256,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                   required
                   InputLabelProps={{ shrink: true }}
                   fullWidth>
-                  {(purchaseOrder?.supplierShipping?.destinations || []).map((destination) => (
+                  {(selectedProductionShipping?.destinations || []).map((destination) => (
                     <MenuItem key={destination.id} value={String(destination.id)}>
                       {destination.destinationName}
                       {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
                     </MenuItem>
                   ))}
                 </TextField>
-              </GridTextField>
+              </GridTextField> : null}
 
               <Grid item xs={12}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -3038,6 +3196,7 @@ export default function PurchaseOrderDetail(): ReactElement {
           <PurchaseOrderDeliverySection
             deliveries={purchaseOrder?.deliveries}
             shippingDestinations={purchaseOrder?.supplierShipping?.destinations}
+            shippingRoutes={purchaseOrder?.supplierShipping?.routes}
             onDeliveryUpdated={() => refetch()}
           />
         </TabPanel>

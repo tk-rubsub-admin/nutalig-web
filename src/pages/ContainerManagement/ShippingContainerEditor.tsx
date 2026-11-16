@@ -55,6 +55,7 @@ type Form = {
   containerNo: string;
   sealNo: string;
   supplierShippingId: string;
+  supplierShippingRouteId: string;
   destinationId: string;
   origin: string;
   plannedDepartureDate: string;
@@ -69,6 +70,7 @@ const formOf = (value?: ShippingContainer | null): Form => ({
   containerNo: value?.containerNo || '',
   sealNo: value?.sealNo || '',
   supplierShippingId: value?.supplierShippingId ? String(value.supplierShippingId) : '',
+  supplierShippingRouteId: value?.supplierShippingRouteId ? String(value.supplierShippingRouteId) : '',
   destinationId: value?.destinationId ? String(value.destinationId) : '',
   origin: value?.origin || '',
   plannedDepartureDate: value?.plannedDepartureDate || '',
@@ -190,6 +192,7 @@ export default function ShippingContainerEditor({
   const selectedShipping = options.find(
     (shipping) => String(shipping.id) === form.supplierShippingId
   );
+  const shippingRoutes = selectedShipping?.routes || [];
   const update = (field: keyof Form, value: string) =>
     setForm((current) => ({ ...current, [field]: value }));
   const persist = () => {
@@ -197,6 +200,7 @@ export default function ShippingContainerEditor({
       ...form,
       version: container?.version,
       supplierShippingId: form.supplierShippingId ? Number(form.supplierShippingId) : null,
+      supplierShippingRouteId: form.supplierShippingRouteId ? Number(form.supplierShippingRouteId) : null,
       destinationId: form.destinationId ? Number(form.destinationId) : null,
       plannedDepartureDate: form.plannedDepartureDate || null,
       plannedArrivalDate: form.plannedArrivalDate || null,
@@ -343,6 +347,7 @@ export default function ShippingContainerEditor({
                         setForm((current) => ({
                           ...current,
                           supplierShippingId: e.target.value,
+                          supplierShippingRouteId: '',
                           destinationId: ''
                         }))
                       }>
@@ -358,6 +363,22 @@ export default function ShippingContainerEditor({
                         </MenuItem>
                       ) : null}
                     </TextField>
+                    {shippingRoutes.length > 0 ? (
+                      <TextField
+                        select
+                        fullWidth
+                        label="เส้นทางขนส่ง"
+                        value={form.supplierShippingRouteId}
+                        onChange={(e) => update('supplierShippingRouteId', e.target.value)}
+                        disabled={routeLocked}
+                        sx={{ mt: 2 }}>
+                        {shippingRoutes.map((route) => (
+                          <MenuItem key={route.id} value={String(route.id)}>
+                            {route.routeCode || `เส้นทาง #${route.id}`} — {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    ) : null}
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField

@@ -8,6 +8,7 @@ export interface CreatePurchaseOrderRequest {
   salesOrderNo: string;
   supplierId: string;
   supplierShippingId: number;
+  supplierShippingRouteId?: number | null;
   salesOrderDetailIds?: number[];
   docDate?: string;
   productionLeadTimeDay?: number | null;
@@ -390,6 +391,10 @@ export interface PurchaseOrderRecord {
   shippingMethodSnapshot: string | null;
   carCodeSnapshot: string | null;
   containerSizeSnapshot: string | null;
+  supplierShippingRouteIdSnapshot?: number | null;
+  supplierShippingRouteCodeSnapshot?: string | null;
+  supplierShippingRouteOriginSnapshot?: string | null;
+  supplierShippingRouteDestinationSnapshot?: string | null;
   attachments: PurchaseOrderAttachment[];
   items: PurchaseOrderItem[];
   deliveries?: PurchaseOrderDeliveryRecord[];
@@ -422,6 +427,13 @@ export interface PurchaseOrderDeliveryRecord {
   inTransitDate?: string | null;
   shippingLocationId?: number | null;
   shippingLocationName?: string | null;
+  supplierShippingId?: number | null;
+  supplierShippingName?: string | null;
+  supplierShipping?: SupplierShipping | null;
+  supplierShippingRouteId?: number | null;
+  shippingRouteCode?: string | null;
+  originLocationName?: string | null;
+  destinationLocationName?: string | null;
   status: 'DRAFT' | 'HANDED_OVER_TO_CARRIER' | 'IN_TRANSIT' | 'RECEIVED_AT_WAREHOUSE' | 'CANCELLED';
   remark?: string | null;
   createdBy?: string | null;
@@ -451,8 +463,9 @@ export interface PurchaseOrderDeliveryRecord {
 
 export interface UpdatePurchaseOrderDeliveryRequest {
   expectedWarehouseDate: string;
-  shippingMethod: string;
-  shippingLocationId: number;
+  shippingMethod?: string;
+  shippingLocationId?: number | null;
+  supplierShippingRouteId?: number | null;
   details: Array<{
     id: number;
     quantity: number;
@@ -529,8 +542,10 @@ export interface CompletePurchaseOrderProductionRequest {
     shippedDate: string;
     expectedWarehouseDate: string;
     receivedDate?: string | null;
-    shippingMethod: string;
-    shippingLocationId: number;
+    supplierShippingId?: number | null;
+    shippingMethod?: string;
+    shippingLocationId?: number | null;
+    supplierShippingRouteId?: number | null;
     scrapBoxes?: PurchaseOrderDeliveryScrapBox[];
     details: Array<{
       scrapBoxIndex?: number | null;

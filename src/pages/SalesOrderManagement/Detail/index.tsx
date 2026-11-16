@@ -531,9 +531,6 @@ export default function SalesOrderDetail(): ReactElement {
   const canCancelSalesOrder = Boolean(
     salesOrder && ['DRAFT', 'CREATED'].includes(salesOrder.status)
   );
-  const canDownloadDocument = Boolean(
-    salesOrder && !['CREATED'].includes(salesOrder.status)
-  );
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestInvoice = relatedInvoices[0] || null;
   const latestReceipt =
@@ -1267,7 +1264,7 @@ export default function SalesOrderDetail(): ReactElement {
                 </Can>
                 <MenuItem
                   onClick={handleOpenSalesOrderLanguageDialog}
-                  disabled={!salesOrder || canDownloadDocument || isSalesOrderDocumentLoading}
+                  disabled={!salesOrder || isSalesOrderDocumentLoading}
                   sx={{ width: '100%' }}>
                   <ListItemIcon>
                     <Description fontSize="small" />

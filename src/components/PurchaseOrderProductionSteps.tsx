@@ -130,10 +130,10 @@ function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps
   const color = warning
     ? 'error.main'
     : completed
-    ? 'success.main'
-    : skipped || cancelled
-    ? 'text.disabled'
-    : 'info.main';
+      ? 'success.main'
+      : skipped || cancelled
+        ? 'text.disabled'
+        : 'info.main';
 
   return (
     <Box
@@ -154,9 +154,9 @@ function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps
         opacity: cancelled ? 0.65 : 1,
         boxShadow: active
           ? `0 0 0 5px ${alpha(
-              warning ? theme.palette.error.main : theme.palette.primary.main,
-              0.12
-            )}`
+            warning ? theme.palette.error.main : theme.palette.primary.main,
+            0.12
+          )}`
           : 'none',
         '& svg': { fontSize: active ? 25 : 22 }
       }}>
@@ -222,22 +222,22 @@ export default function PurchaseOrderProductionSteps({
   const activeStep = isCancelled
     ? -1
     : firstPendingIndex >= 0
-    ? firstPendingIndex
-    : PRODUCTION_STEPS.length;
+      ? firstPendingIndex
+      : PRODUCTION_STEPS.length;
   const activeEvent = firstPendingIndex >= 0 ? orderedEvents[firstPendingIndex] : undefined;
   const currentStatus = isCancelled
     ? 'ยกเลิกใบสั่งซื้อแล้ว'
     : timeline.overdue
-    ? 'การผลิตเลยกำหนด'
-    : activeEvent?.status === 'CHANGES_REQUESTED'
-    ? 'รอแก้ไขงานพรูฟ'
-    : activeEvent?.status === 'CANCELLED'
-    ? `รอดำเนินการใหม่: ${activeEvent.label}`
-    : activeEvent?.status === 'IN_PROGRESS'
-    ? `กำลังดำเนินการ: ${activeEvent.label}`
-    : activeEvent
-    ? `ขั้นถัดไป: ${activeEvent.label}`
-    : 'ดำเนินการครบแล้ว';
+      ? 'การผลิตเลยกำหนด'
+      : activeEvent?.status === 'CHANGES_REQUESTED'
+        ? 'รอแก้ไขงานพรูฟ'
+        : activeEvent?.status === 'CANCELLED'
+          ? `รอดำเนินการใหม่: ${activeEvent.label}`
+          : activeEvent?.status === 'IN_PROGRESS'
+            ? `กำลังดำเนินการ: ${activeEvent.label}`
+            : activeEvent
+              ? `ขั้นถัดไป: ${activeEvent.label}`
+              : 'ผลิตเสร็จ';
   const currentColor: ChipProps['color'] =
     isCancelled || timeline.overdue || activeEvent?.status === 'CHANGES_REQUESTED'
       ? 'error'
@@ -251,8 +251,8 @@ export default function PurchaseOrderProductionSteps({
     } catch (error: any) {
       toast.error(
         error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          'ไม่สามารถส่งการแจ้งเตือนให้เซลล์ได้'
+        error?.response?.data?.error ||
+        'ไม่สามารถส่งการแจ้งเตือนให้เซลล์ได้'
       );
     } finally {
       setIsNotifyingSales(false);
@@ -321,19 +321,19 @@ export default function PurchaseOrderProductionSteps({
                           warning
                             ? 'error.main'
                             : event?.status === 'SKIPPED'
-                            ? 'text.secondary'
-                            : active
-                            ? 'info.dark'
-                            : completed
-                            ? 'success.dark'
-                            : 'text.secondary'
+                              ? 'text.secondary'
+                              : active
+                                ? 'info.dark'
+                                : completed
+                                  ? 'success.dark'
+                                  : 'text.secondary'
                         }>
                         {step.label}
                       </Typography>
                       {step.type === 'PRODUCTION_STARTED' &&
-                      event?.status === 'COMPLETED' &&
-                      timeline.productionStartedDate &&
-                      canNotifySales ? (
+                        event?.status === 'COMPLETED' &&
+                        timeline.productionStartedDate &&
+                        canNotifySales ? (
                         <Tooltip title="ส่งการแจ้งเตือนเริ่มผลิตให้เซลล์">
                           <span>
                             <IconButton

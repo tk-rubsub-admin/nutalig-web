@@ -17,8 +17,18 @@ export function getDocumentStatusLabel(
   switch (key) {
     case 'PRODUCTION_RUNNING':
       return 'กำลังรันงานผลิต';
+    case 'PRODUCTION_PARTIALLY_COMPLETED':
+      return 'ผลิตเสร็จบางส่วน';
     case 'PRODUCTION_COMPLETED':
       return 'ผลิตเสร็จ';
+    case 'PARTIALLY_IN_TRANSIT':
+      return 'อยู่ระหว่างขนส่งบางส่วน';
+    case 'IN_TRANSIT':
+      return 'อยู่ระหว่างขนส่ง';
+    case 'PARTIALLY_RECEIVED':
+      return 'รับเข้าคลังบางส่วน';
+    case 'RECEIVED':
+      return 'รับเข้าคลังแล้ว';
     case 'AWAITING_VALIDATION':
       return 'รอตรวจสอบ';
     case 'PARTIALLY_PAID':
@@ -101,7 +111,14 @@ export function getDocumentStatusChipSx(
       return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'PRODUCTION_RUNNING':
       return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
+    case 'PRODUCTION_PARTIALLY_COMPLETED':
+    case 'PARTIALLY_IN_TRANSIT':
+    case 'PARTIALLY_RECEIVED':
+      return { backgroundColor: alpha(SEMANTIC_COLORS.warning, 0.18), color: SEMANTIC_COLORS.warning, fontWeight: 'bold' };
+    case 'IN_TRANSIT':
+      return { backgroundColor: BRAND_UI.greenSelected, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'PRODUCTION_COMPLETED':
+    case 'RECEIVED':
       return { backgroundColor: BRAND_UI.greenTint, color: BRAND_COLORS.green, fontWeight: 'bold' };
     case 'REJECTED':
     case 'CANCELLED':
@@ -122,7 +139,8 @@ function resolveDocumentStatusKey(
     return 'AWAITING_VALIDATION';
   }
 
-  if (['AWAITING_START_RUN', 'JOB_STARTED', 'PRODUCTION_RUNNING', 'PRODUCTION_COMPLETED'].includes(rawStatus || '')) {
+  if (['AWAITING_START_RUN', 'JOB_STARTED', 'PRODUCTION_RUNNING', 'PRODUCTION_PARTIALLY_COMPLETED',
+    'PRODUCTION_COMPLETED', 'PARTIALLY_IN_TRANSIT', 'IN_TRANSIT', 'PARTIALLY_RECEIVED', 'RECEIVED'].includes(rawStatus || '')) {
     return rawStatus;
   }
 
@@ -150,7 +168,12 @@ function resolveDocumentStatusKey(
       'VOID',
       'CANCELLED',
       'PRODUCTION_RUNNING',
-      'PRODUCTION_COMPLETED'
+      'PRODUCTION_PARTIALLY_COMPLETED',
+      'PRODUCTION_COMPLETED',
+      'PARTIALLY_IN_TRANSIT',
+      'IN_TRANSIT',
+      'PARTIALLY_RECEIVED',
+      'RECEIVED'
     ].includes(
       rawStatus
     )

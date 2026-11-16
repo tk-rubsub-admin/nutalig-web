@@ -449,6 +449,35 @@ export interface PurchaseOrderDeliveryRecord {
   }>;
 }
 
+export interface UpdatePurchaseOrderDeliveryRequest {
+  expectedWarehouseDate: string;
+  shippingMethod: string;
+  shippingLocationId: number;
+  details: Array<{
+    id: number;
+    quantity: number;
+    cartonCount?: number | null;
+    piecesPerCarton?: number | null;
+    netWeightKg?: number | null;
+    grossWeightKg?: number | null;
+    lengthCm?: number | null;
+    widthCm?: number | null;
+    heightCm?: number | null;
+    cbmM3?: number | null;
+    sortOrder?: number | null;
+  }>;
+  scrapBoxes?: Array<{
+    id: number;
+    netWeightKg?: number | null;
+    grossWeightKg?: number | null;
+    lengthCm?: number | null;
+    widthCm?: number | null;
+    heightCm?: number | null;
+    cbmM3?: number | null;
+    sortOrder?: number | null;
+  }>;
+}
+
 export interface PurchaseOrderProductionCalendarRecord {
   purchaseOrderNo: string;
   salesOrderNo: string | null;

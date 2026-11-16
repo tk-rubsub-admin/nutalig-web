@@ -3,6 +3,7 @@ import { BRAND_COLORS } from 'theme/brandTokens';
 import {
   CheckCircle,
   DirectionsBoat,
+  Edit,
   ExpandMore,
   Inventory2,
   LocalShipping
@@ -20,6 +21,7 @@ import {
   DialogTitle,
   Grid,
   CircularProgress,
+  MenuItem,
   Stack,
   Step,
   StepConnector,
@@ -39,13 +41,28 @@ import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
 import { usePermissions } from 'auth/PermissionContext';
 import { PERMISSIONS } from 'auth/permissions';
-import { markPurchaseOrderDeliveryInTransit } from 'services/PurchaseOrder/purchase-order-api';
-import { PurchaseOrderDeliveryRecord } from 'services/PurchaseOrder/purchase-order-type';
-import { getShippingMethodLabel, isSeaShippingMethod } from 'utils/shipping';
+import {
+  markPurchaseOrderDeliveryInTransit,
+  updatePurchaseOrderDelivery
+} from 'services/PurchaseOrder/purchase-order-api';
+import {
+  PurchaseOrderDeliveryRecord,
+  UpdatePurchaseOrderDeliveryRequest
+} from 'services/PurchaseOrder/purchase-order-type';
+import {
+  getShippingMethodLabel,
+  isSeaShippingMethod,
+  SHIPPING_METHOD_LABELS
+} from 'utils/shipping';
 import PurchaseOrderDeliveryItemsTable from './PurchaseOrderDeliveryItemsTable';
 
 interface Props {
   deliveries?: PurchaseOrderDeliveryRecord[];
+  shippingDestinations?: Array<{
+    id: number;
+    destinationName?: string | null;
+    fullAddress?: string | null;
+  }>;
   onDeliveryUpdated?: () => Promise<unknown>;
 }
 
@@ -134,6 +151,7 @@ function supportsInTransitStatus(shippingMethod?: string | null): boolean {
 
 export default function PurchaseOrderDeliverySection({
   deliveries = [],
+  shippingDestinations = [],
   onDeliveryUpdated
 }: Props) {
   const theme = useTheme();
@@ -146,6 +164,8 @@ export default function PurchaseOrderDeliverySection({
   const [trackingNumberDraft, setTrackingNumberDraft] = useState('');
   const [inTransitDateDraft, setInTransitDateDraft] = useState('');
   const [isUpdatingDelivery, setIsUpdatingDelivery] = useState(false);
+  const [editingDelivery, setEditingDelivery] = useState<PurchaseOrderDeliveryRecord | null>(null);
+  const [editDraft, setEditDraft] = useState<UpdatePurchaseOrderDeliveryRequest | null>(null);
   const [collapsedDeliveryIds, setCollapsedDeliveryIds] = useState<Set<number>>(() => new Set());
   if (!deliveries.length) {
     return (
@@ -193,6 +213,99 @@ export default function PurchaseOrderDeliverySection({
       await onDeliveryUpdated?.();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'ไม่สามารถอัปเดตสถานะขนส่งได้');
+    } finally {
+      setIsUpdatingDelivery(false);
+    }
+  };
+
+  const handleOpenEditDialog = (delivery: PurchaseOrderDeliveryRecord) => {
+    setEditingDelivery(delivery);
+    setEditDraft({
+      expectedWarehouseDate: delivery.expectedWarehouseDate || '',
+      shippingMethod: delivery.shippingMethod || '',
+      shippingLocationId: delivery.shippingLocationId || 0,
+      details: delivery.details.map((detail, index) => ({
+        id: detail.id!,
+        quantity: detail.quantity,
+        cartonCount: detail.cartonCount,
+        piecesPerCarton: detail.piecesPerCarton,
+        netWeightKg: detail.netWeightKg,
+        grossWeightKg: detail.grossWeightKg,
+        lengthCm: detail.lengthCm,
+        widthCm: detail.widthCm,
+        heightCm: detail.heightCm,
+        cbmM3: detail.cbmM3,
+        sortOrder: detail.sortOrder ?? index
+      })),
+      scrapBoxes: (delivery.scrapBoxes || []).map((box, index) => ({
+        id: box.id!,
+        netWeightKg: box.netWeightKg,
+        grossWeightKg: box.grossWeightKg,
+        lengthCm: box.lengthCm,
+        widthCm: box.widthCm,
+        heightCm: box.heightCm,
+        cbmM3: box.cbmM3,
+        sortOrder: box.sortOrder ?? index
+      }))
+    });
+  };
+
+  const closeEditDialog = () => {
+    if (isUpdatingDelivery) return;
+    setEditingDelivery(null);
+    setEditDraft(null);
+  };
+
+  const updateEditDetail = (
+    index: number,
+    field: keyof UpdatePurchaseOrderDeliveryRequest['details'][number],
+    value: string
+  ) => {
+    setEditDraft((current) =>
+      current
+        ? {
+          ...current,
+          details: current.details.map((detail, detailIndex) =>
+            detailIndex === index
+              ? { ...detail, [field]: value === '' ? null : Number(value) }
+              : detail
+          )
+        }
+        : current
+    );
+  };
+
+  const updateEditBox = (
+    index: number,
+    field: keyof NonNullable<UpdatePurchaseOrderDeliveryRequest['scrapBoxes']>[number],
+    value: string
+  ) => {
+    setEditDraft((current) =>
+      current
+        ? {
+          ...current,
+          scrapBoxes: (current.scrapBoxes || []).map((box, boxIndex) =>
+            boxIndex === index ? { ...box, [field]: value === '' ? null : Number(value) } : box
+          )
+        }
+        : current
+    );
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingDelivery?.purchaseOrderNo || !editingDelivery.id || !editDraft) return;
+    setIsUpdatingDelivery(true);
+    try {
+      await updatePurchaseOrderDelivery(
+        editingDelivery.purchaseOrderNo,
+        editingDelivery.id,
+        editDraft
+      );
+      toast.success('แก้ไขเที่ยวขนส่งแล้ว');
+      closeEditDialog();
+      await onDeliveryUpdated?.();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'ไม่สามารถแก้ไขเที่ยวขนส่งได้');
     } finally {
       setIsUpdatingDelivery(false);
     }
@@ -253,24 +366,35 @@ export default function PurchaseOrderDeliverySection({
                 delivery.status === 'HANDED_OVER_TO_CARRIER' &&
                 !delivery.containers?.length &&
                 !collapsedDeliveryIds.has(delivery.id) ? (
-                <Button
-                  variant="contained"
-                  color="success"
-                  size="small"
-                  startIcon={<LocalShipping />}
-                  disabled={!supportsInTransitStatus(delivery.shippingMethod)}
-                  title={
-                    !supportsInTransitStatus(delivery.shippingMethod)
-                      ? 'วิธีขนส่งนี้ไม่รองรับการเปลี่ยนเป็นอยู่ระหว่างขนส่ง'
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleOpenTransitDialog(delivery);
-                  }}
-                  sx={{ flexShrink: 0 }}>
-                  อยู่ระหว่างขนส่ง
-                </Button>
+                <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Edit />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenEditDialog(delivery);
+                    }}>
+                    แก้ไข
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    startIcon={<LocalShipping />}
+                    disabled={!supportsInTransitStatus(delivery.shippingMethod)}
+                    title={
+                      !supportsInTransitStatus(delivery.shippingMethod)
+                        ? 'วิธีขนส่งนี้ไม่รองรับการเปลี่ยนเป็นอยู่ระหว่างขนส่ง'
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenTransitDialog(delivery);
+                    }}>
+                    อยู่ระหว่างขนส่ง
+                  </Button>
+                </Stack>
               ) : null}
             </Stack>
           </AccordionSummary>
@@ -443,6 +567,170 @@ export default function PurchaseOrderDeliverySection({
               isUpdatingDelivery ? <CircularProgress size={16} color="inherit" /> : undefined
             }>
             ยืนยัน
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingDelivery && editDraft)}
+        onClose={closeEditDialog}
+        fullWidth
+        maxWidth="lg">
+        <DialogTitle>แก้ไขเที่ยวขนส่ง {editingDelivery?.deliveryNo || ''}</DialogTitle>
+        <DialogContent dividers>
+          {editDraft ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    type="date"
+                    fullWidth
+                    required
+                    label="วันที่คาดว่าจะถึงคลัง"
+                    value={editDraft.expectedWarehouseDate}
+                    onChange={(event) =>
+                      setEditDraft({ ...editDraft, expectedWarehouseDate: event.target.value })
+                    }
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="วิธีขนส่ง"
+                    value={editDraft.shippingMethod}
+                    onChange={(event) =>
+                      setEditDraft({ ...editDraft, shippingMethod: event.target.value })
+                    }
+                    InputLabelProps={{ shrink: true }}>
+                    {Object.keys(SHIPPING_METHOD_LABELS)
+                      .filter((method) => method !== 'ALL')
+                      .map((method) => (
+                        <MenuItem key={method} value={method}>
+                          {getShippingMethodLabel(method)}
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="สถานที่ขนส่ง"
+                    value={editDraft.shippingLocationId || ''}
+                    onChange={(event) =>
+                      setEditDraft({ ...editDraft, shippingLocationId: Number(event.target.value) })
+                    }
+                    InputLabelProps={{ shrink: true }}>
+                    {shippingDestinations.map((destination) => (
+                      <MenuItem key={destination.id} value={destination.id}>
+                        {destination.destinationName || `สถานที่ #${destination.id}`}
+                        {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              </Grid>
+
+              {editDraft.details.map((detail, index) => {
+                const source = editingDelivery?.details[index];
+                return (
+                  <Box
+                    key={detail.id}
+                    sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      {source?.componentName || source?.productName || `รายการ #${detail.id}`}
+                    </Typography>
+                    <Grid container spacing={1.5}>
+                      {(
+                        [
+                          ['quantity', 'จำนวนสินค้า'],
+                          ['cartonCount', 'จำนวนกล่อง'],
+                          ['piecesPerCarton', 'ชิ้น/กล่อง'],
+                          ['netWeightKg', 'Net (kg)'],
+                          ['grossWeightKg', 'Gross (kg)'],
+                          ['lengthCm', 'ยาว (cm)'],
+                          ['widthCm', 'กว้าง (cm)'],
+                          ['heightCm', 'สูง (cm)'],
+                          ['cbmM3', 'CBM (m³)']
+                        ] as Array<
+                          [keyof UpdatePurchaseOrderDeliveryRequest['details'][number], string]
+                        >
+                      ).map(([field, label]) => (
+                        <Grid item xs={6} sm={4} md={2} key={field}>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            label={label}
+                            value={detail[field] ?? ''}
+                            onChange={(event) => updateEditDetail(index, field, event.target.value)}
+                            inputProps={{ min: 0, step: 'any' }}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                );
+              })}
+
+              {(editDraft.scrapBoxes || []).map((box, index) => (
+                <Box
+                  key={box.id}
+                  sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    กล่องเศษ #{index + 1}
+                  </Typography>
+                  <Grid container spacing={1.5}>
+                    {(
+                      [
+                        ['netWeightKg', 'Net (kg)'],
+                        ['grossWeightKg', 'Gross (kg)'],
+                        ['lengthCm', 'ยาว (cm)'],
+                        ['widthCm', 'กว้าง (cm)'],
+                        ['heightCm', 'สูง (cm)'],
+                        ['cbmM3', 'CBM (m³)']
+                      ] as Array<
+                        [
+                          keyof NonNullable<
+                            UpdatePurchaseOrderDeliveryRequest['scrapBoxes']
+                          >[number],
+                          string
+                        ]
+                      >
+                    ).map(([field, label]) => (
+                      <Grid item xs={6} sm={4} md={2} key={field}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label={label}
+                          value={box[field] ?? ''}
+                          onChange={(event) => updateEditBox(index, field, event.target.value)}
+                          inputProps={{ min: 0, step: 'any' }}
+                          InputLabelProps={{ shrink: true }}
+                          size="small"
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              ))}
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeEditDialog} disabled={isUpdatingDelivery}>
+            ยกเลิก
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleSaveEdit()}
+            disabled={isUpdatingDelivery}>
+            {isUpdatingDelivery ? <CircularProgress size={20} /> : 'บันทึก'}
           </Button>
         </DialogActions>
       </Dialog>

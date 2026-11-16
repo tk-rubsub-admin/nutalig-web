@@ -23,7 +23,8 @@ import {
   SearchPendingSupplierPaymentRequest,
   SearchPendingSupplierPaymentResponse,
   ExchangeRateResponse,
-  UpdatePurchaseOrderRequest
+  UpdatePurchaseOrderRequest,
+  UpdatePurchaseOrderDeliveryRequest
 } from './purchase-order-type';
 
 function buildPurchaseOrderProofFormData(
@@ -228,6 +229,17 @@ export const markPurchaseOrderDeliveryInTransit = async (
       trackingNumber,
       inTransitDate
     })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const updatePurchaseOrderDelivery = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  data: UpdatePurchaseOrderDeliveryRequest
+): Promise<PurchaseOrderRecord> => {
+  const response = await api
+    .patch(`/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}`, data)
     .then((result) => result.data);
   return response.data;
 };

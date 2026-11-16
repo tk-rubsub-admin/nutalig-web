@@ -706,7 +706,9 @@ export default function PurchaseOrderDetail(): ReactElement {
   );
   const canCompleteProduction =
     canManageTimeline &&
-    purchaseOrder?.status === 'PRODUCTION_RUNNING' &&
+    ['PRODUCTION_RUNNING', 'PRODUCTION_PARTIALLY_COMPLETED', 'PARTIALLY_IN_TRANSIT'].includes(
+      purchaseOrder?.status || ''
+    ) &&
     Boolean(purchaseOrder.productionStartedDate) &&
     !purchaseOrder.productionCompletedDate &&
     Boolean(productionCompletedMilestone?.canComplete);
@@ -3035,6 +3037,7 @@ export default function PurchaseOrderDetail(): ReactElement {
         <TabPanel value="delivery" currentTab={tab}>
           <PurchaseOrderDeliverySection
             deliveries={purchaseOrder?.deliveries}
+            shippingDestinations={purchaseOrder?.supplierShipping?.destinations}
             onDeliveryUpdated={() => refetch()}
           />
         </TabPanel>

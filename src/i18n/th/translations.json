@@ -1352,7 +1352,7 @@
       "dashboard": "แดชบอร์ด",
       "document": "เอกสาร",
       "freight": "ค่าขนส่ง",
-      "master_data": "ข้อมูลหลัก",
+      "master_data": "ข้อมูล Master",
       "employee": "พนักงาน",
       "customer": "ลูกค้า",
       "operation": "ปฏิบัติการ",
@@ -1360,7 +1360,11 @@
       "rfq": "ขอราคา",
       "support": "สนับสนุน",
       "system": "ระบบ",
-      "supplier": "ซัพพลายเออร์"
+      "supplier": "ซัพพลายเออร์",
+      "invoice": "ใบแจ้งหนี้",
+      "purchase_order": "ใบสั่งซื้อ",
+      "sales_order": "ใบยืนยันสั่งซื้อ",
+      "container": "ตู้คอนเทนเนอร์"
     }
   },
   "warning": {

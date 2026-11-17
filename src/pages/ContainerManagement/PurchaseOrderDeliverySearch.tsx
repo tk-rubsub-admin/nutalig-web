@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Collapse,
   Grid,
@@ -27,7 +28,10 @@ import DeliveryContainerAssignment from 'components/DeliveryContainerAssignment'
 import { ROUTE_PATHS } from 'routes';
 import { getSupplierShippings } from 'services/Supplier/supplier-api';
 import { searchPurchaseOrderDeliveries } from 'services/PurchaseOrder/purchase-order-delivery-api';
-import { SearchPurchaseOrderDeliveryRequest } from 'services/PurchaseOrder/purchase-order-type';
+import {
+  PurchaseOrderDeliveryRecord,
+  SearchPurchaseOrderDeliveryRequest
+} from 'services/PurchaseOrder/purchase-order-type';
 import { getShippingMethodLabel } from 'utils/shipping';
 import PurchaseOrderDeliveryItemsTable from 'pages/PurchaseOrderManagement/Detail/PurchaseOrderDeliveryItemsTable';
 import DeliveryContainerDragBoard from './DeliveryContainerDragBoard';
@@ -36,6 +40,13 @@ const CONTAINER_STATUS_LABELS = {
   NOT_ASSIGNED: 'ยังไม่จัดตู้',
   PARTIALLY_ASSIGNED: 'จัดตู้บางส่วน',
   ASSIGNED: 'จัดตู้ครบแล้ว'
+};
+const DELIVERY_STATUS_LABELS: Record<PurchaseOrderDeliveryRecord['status'], string> = {
+  DRAFT: 'ฉบับร่าง',
+  HANDED_OVER_TO_CARRIER: 'ส่งมอบให้ขนส่งแล้ว',
+  IN_TRANSIT: 'อยู่ระหว่างขนส่ง',
+  RECEIVED_AT_WAREHOUSE: 'รับเข้าคลังแล้ว',
+  CANCELLED: 'ยกเลิก'
 };
 const SHIPPING_METHODS = [
   'SEA_FCL_20GP',
@@ -227,9 +238,9 @@ export default function PurchaseOrderDeliverySearch() {
           <TableHead>
             <TableRow>
               <TableCell>เลขเที่ยวส่ง</TableCell>
-              <TableCell>ใบสั่งซื้อ</TableCell>
               <TableCell>Supplier</TableCell>
               <TableCell>วิธีขนส่ง</TableCell>
+              <TableCell>สถานะ</TableCell>
               <TableCell>สถานที่ขนส่ง</TableCell>
               <TableCell>กล่อง</TableCell>
               <TableCell>CBM</TableCell>
@@ -256,9 +267,14 @@ export default function PurchaseOrderDeliverySearch() {
                       </Typography>
                       <Typography variant="caption">{record.trackingNumber || ''}</Typography>
                     </TableCell>
-                    <TableCell>{record.purchaseOrderNo}</TableCell>
                     <TableCell>{record.supplierName || '-'}</TableCell>
                     <TableCell>{getShippingMethodLabel(record.shippingMethod)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={DELIVERY_STATUS_LABELS[record.status] || record.status || '-'}
+                      />
+                    </TableCell>
                     <TableCell>{record.shippingLocationName || '-'}</TableCell>
                     <TableCell>{numberLabel(record.totalCartons)}</TableCell>
                     <TableCell>{numberLabel(record.totalCbm)}</TableCell>

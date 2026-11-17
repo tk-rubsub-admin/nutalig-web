@@ -24,7 +24,9 @@ import {
   SearchPendingSupplierPaymentResponse,
   ExchangeRateResponse,
   UpdatePurchaseOrderRequest,
-  UpdatePurchaseOrderDeliveryRequest
+  UpdatePurchaseOrderDeliveryRequest,
+  PurchaseOrderDeliveryAttachment,
+  PurchaseOrderDeliveryAttachmentSection
 } from './purchase-order-type';
 
 function buildPurchaseOrderProofFormData(
@@ -230,6 +232,44 @@ export const markPurchaseOrderDeliveryInTransit = async (
       trackingNumber,
       inTransitDate
     })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const uploadPurchaseOrderDeliveryAttachments = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  files: File[],
+  deliverySection: PurchaseOrderDeliveryAttachmentSection
+): Promise<PurchaseOrderDeliveryAttachment[]> => {
+  let attachments: PurchaseOrderDeliveryAttachment[] = [];
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api
+      .post(
+        `/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/attachments`,
+        formData,
+        {
+          params: { deliverySection },
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      )
+      .then((result) => result.data);
+    attachments = response.data;
+  }
+  return attachments;
+};
+
+export const deletePurchaseOrderDeliveryAttachment = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  attachmentId: number
+): Promise<PurchaseOrderDeliveryAttachment[]> => {
+  const response = await api
+    .delete(
+      `/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/attachments/${attachmentId}`
+    )
     .then((result) => result.data);
   return response.data;
 };

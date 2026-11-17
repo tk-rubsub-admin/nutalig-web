@@ -412,6 +412,18 @@ export interface PurchaseOrderDeliveryScrapBox {
   sortOrder?: number | null;
 }
 
+export type PurchaseOrderDeliveryAttachmentSection = 'DELIVERY_HANDOVER' | 'GOODS_RECEIPT';
+
+export interface PurchaseOrderDeliveryAttachment {
+  id: number;
+  deliveryId: number;
+  fileName: string;
+  fileUrl: string;
+  deliverySection: PurchaseOrderDeliveryAttachmentSection;
+  uploadedBy: string | null;
+  uploadedAt: string;
+}
+
 export type DeliveryContainerStatus = 'NOT_ASSIGNED' | 'PARTIALLY_ASSIGNED' | 'ASSIGNED';
 
 export interface PurchaseOrderDeliveryRecord {
@@ -442,6 +454,7 @@ export interface PurchaseOrderDeliveryRecord {
   createdDate?: string | null;
   updatedDate?: string | null;
   scrapBoxes?: PurchaseOrderDeliveryScrapBox[];
+  attachments?: PurchaseOrderDeliveryAttachment[];
   details: Array<{
     scrapBoxId?: number | null;
     id?: number;

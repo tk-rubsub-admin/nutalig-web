@@ -1,12 +1,18 @@
 import DeliveryContainerAssignment from 'components/DeliveryContainerAssignment';
-import { BRAND_COLORS } from 'theme/brandTokens';
+import { BRAND_COLORS, BRAND_UI } from 'theme/brandTokens';
 import {
   CheckCircle,
+  AttachFile,
+  CloudUpload,
+  DeleteOutline,
   DirectionsBoat,
   Edit,
   ExpandMore,
+  InsertDriveFile,
   Inventory2,
-  LocalShipping
+  LocalShipping,
+  OpenInNew,
+  PictureAsPdf
 } from '@mui/icons-material';
 import {
   Accordion,
@@ -34,18 +40,23 @@ import {
   TextField,
   Typography,
   useMediaQuery,
-  useTheme
+  useTheme,
+  IconButton
 } from '@mui/material';
-import { ReactElement, ReactNode, useState } from 'react';
+import { ReactElement, ReactNode, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
 import { usePermissions } from 'auth/PermissionContext';
 import { PERMISSIONS } from 'auth/permissions';
 import {
+  deletePurchaseOrderDeliveryAttachment,
   markPurchaseOrderDeliveryInTransit,
+  uploadPurchaseOrderDeliveryAttachments,
   updatePurchaseOrderDelivery
 } from 'services/PurchaseOrder/purchase-order-api';
 import {
+  PurchaseOrderDeliveryAttachmentSection,
+  PurchaseOrderDeliveryAttachment,
   PurchaseOrderDeliveryRecord,
   UpdatePurchaseOrderDeliveryRequest
 } from 'services/PurchaseOrder/purchase-order-type';
@@ -151,6 +162,83 @@ function supportsInTransitStatus(shippingMethod?: string | null): boolean {
   return shippingMethod === 'LAND' || shippingMethod === 'SEA';
 }
 
+function getAttachmentIcon(file: File): ReactElement {
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    return <PictureAsPdf fontSize="small" color="error" />;
+  }
+  return <InsertDriveFile fontSize="small" color="action" />;
+}
+
+function AttachmentPreview({ file }: { file: File }): ReactElement {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const isImage = file.type.startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl('');
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file, isImage]);
+
+  if (isImage && previewUrl) {
+    return (
+      <Box
+        component="img"
+        src={previewUrl}
+        alt={file.name}
+        sx={{
+          width: 48,
+          height: 48,
+          objectFit: 'cover',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'divider'
+        }}
+      />
+    );
+  }
+
+  return getAttachmentIcon(file);
+}
+
+function StoredAttachmentPreview({
+  attachment
+}: {
+  attachment: PurchaseOrderDeliveryAttachment;
+}): ReactElement {
+  const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(attachment.fileName);
+  if (isImage) {
+    return (
+      <Box
+        component="img"
+        src={attachment.fileUrl}
+        alt={attachment.fileName}
+        sx={{
+          width: 48,
+          height: 48,
+          objectFit: 'cover',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'divider'
+        }}
+      />
+    );
+  }
+  if (attachment.fileName.toLowerCase().endsWith('.pdf')) {
+    return <PictureAsPdf fontSize="small" color="error" />;
+  }
+  return <InsertDriveFile fontSize="small" color="action" />;
+}
+
+function deliveryAttachmentSectionLabel(
+  section: PurchaseOrderDeliveryAttachment['deliverySection']
+): string {
+  return section === 'DELIVERY_HANDOVER' ? 'ส่งมอบสินค้า' : 'รับสินค้า';
+}
+
 export default function PurchaseOrderDeliverySection({
   deliveries = [],
   shippingDestinations = [],
@@ -166,6 +254,20 @@ export default function PurchaseOrderDeliverySection({
   );
   const [trackingNumberDraft, setTrackingNumberDraft] = useState('');
   const [inTransitDateDraft, setInTransitDateDraft] = useState('');
+  const [inTransitAttachments, setInTransitAttachments] = useState<File[]>([]);
+  const [pendingDeliveryAttachments, setPendingDeliveryAttachments] = useState<
+    Record<string, File[]>
+  >({});
+  const [uploadingDeliveryAttachmentKey, setUploadingDeliveryAttachmentKey] = useState<string | null>(
+    null
+  );
+  const [deletingDeliveryAttachmentId, setDeletingDeliveryAttachmentId] = useState<number | null>(
+    null
+  );
+  const [attachmentToDelete, setAttachmentToDelete] = useState<{
+    delivery: PurchaseOrderDeliveryRecord;
+    attachment: PurchaseOrderDeliveryAttachment;
+  } | null>(null);
   const [isUpdatingDelivery, setIsUpdatingDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<PurchaseOrderDeliveryRecord | null>(null);
   const [editDraft, setEditDraft] = useState<UpdatePurchaseOrderDeliveryRequest | null>(null);
@@ -191,6 +293,7 @@ export default function PurchaseOrderDeliverySection({
     setSelectedDelivery(null);
     setTrackingNumberDraft('');
     setInTransitDateDraft('');
+    setInTransitAttachments([]);
   };
 
   const handleConfirmInTransit = async () => {
@@ -209,10 +312,23 @@ export default function PurchaseOrderDeliverySection({
         trackingNumberDraft.trim(),
         inTransitDateDraft
       );
+      if (inTransitAttachments.length > 0) {
+        try {
+          await uploadPurchaseOrderDeliveryAttachments(
+            selectedDelivery.purchaseOrderNo,
+            selectedDelivery.id,
+            inTransitAttachments,
+            'DELIVERY_HANDOVER'
+          );
+        } catch (error: any) {
+          toast.error(error?.response?.data?.message || 'อัปเดตสถานะแล้ว แต่แนบไฟล์ไม่สำเร็จ');
+        }
+      }
       toast.success('อัปเดตสถานะเป็นอยู่ระหว่างขนส่งแล้ว');
       setSelectedDelivery(null);
       setTrackingNumberDraft('');
       setInTransitDateDraft('');
+      setInTransitAttachments([]);
       await onDeliveryUpdated?.();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'ไม่สามารถอัปเดตสถานะขนส่งได้');
@@ -221,13 +337,89 @@ export default function PurchaseOrderDeliverySection({
     }
   };
 
+  const getDeliveryAttachmentKey = (
+    deliveryId: number,
+    section: PurchaseOrderDeliveryAttachmentSection
+  ) => `${deliveryId}:${section}`;
+
+  const handleSelectDeliveryAttachments = (
+    deliveryId: number,
+    section: PurchaseOrderDeliveryAttachmentSection,
+    files: File[]
+  ) => {
+    setPendingDeliveryAttachments((current) => ({
+      ...current,
+      [getDeliveryAttachmentKey(deliveryId, section)]: files
+    }));
+  };
+
+  const handleUploadDeliveryAttachments = async (
+    delivery: PurchaseOrderDeliveryRecord,
+    section: PurchaseOrderDeliveryAttachmentSection
+  ) => {
+    if (!delivery.purchaseOrderNo) return;
+    const key = getDeliveryAttachmentKey(delivery.id, section);
+    const files = pendingDeliveryAttachments[key] || [];
+    if (!files.length) return;
+
+    setUploadingDeliveryAttachmentKey(key);
+    try {
+      await uploadPurchaseOrderDeliveryAttachments(delivery.purchaseOrderNo, delivery.id, files, section);
+      toast.success('แนบไฟล์สำเร็จ');
+      setPendingDeliveryAttachments((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+      await onDeliveryUpdated?.();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'ไม่สามารถแนบไฟล์ได้');
+    } finally {
+      setUploadingDeliveryAttachmentKey(null);
+    }
+  };
+
+  const handleDeleteDeliveryAttachment = async (
+    delivery: PurchaseOrderDeliveryRecord,
+    attachment: PurchaseOrderDeliveryAttachment
+  ) => {
+    if (!delivery.purchaseOrderNo) {
+      return;
+    }
+    setDeletingDeliveryAttachmentId(attachment.id);
+    try {
+      await deletePurchaseOrderDeliveryAttachment(
+        delivery.purchaseOrderNo,
+        delivery.id,
+        attachment.id
+      );
+      toast.success('ลบไฟล์แนบสำเร็จ');
+      setAttachmentToDelete(null);
+      await onDeliveryUpdated?.();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'ไม่สามารถลบไฟล์แนบได้');
+    } finally {
+      setDeletingDeliveryAttachmentId(null);
+    }
+  };
+
+  const handleConfirmDeleteDeliveryAttachment = () => {
+    if (!attachmentToDelete) return;
+    void handleDeleteDeliveryAttachment(
+      attachmentToDelete.delivery,
+      attachmentToDelete.attachment
+    );
+  };
+
   const handleOpenEditDialog = (delivery: PurchaseOrderDeliveryRecord) => {
     setEditingDelivery(delivery);
     setEditDraft({
       expectedWarehouseDate: delivery.expectedWarehouseDate || '',
       shippingMethod: delivery.shippingMethod || '',
       shippingLocationId: delivery.shippingLocationId || 0,
-      supplierShippingRouteId: delivery.supplierShippingRouteId || (shippingRoutes.length === 1 ? shippingRoutes[0].id : null),
+      supplierShippingRouteId:
+        delivery.supplierShippingRouteId ||
+        (shippingRoutes.length === 1 ? shippingRoutes[0].id : null),
       details: delivery.details.map((detail, index) => ({
         id: detail.id!,
         quantity: detail.quantity,
@@ -452,7 +644,6 @@ export default function PurchaseOrderDeliverySection({
                   </Step>
                 ))}
               </Stepper>
-
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} md={3}>
                   <Typography variant="caption" color="text.secondary">
@@ -495,7 +686,8 @@ export default function PurchaseOrderDeliverySection({
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                     <Typography variant="body2">
                       {delivery.originLocationName || delivery.destinationLocationName
-                        ? `${delivery.originLocationName || '-'} → ${delivery.destinationLocationName || '-'}`
+                        ? `${delivery.originLocationName || '-'} → ${delivery.destinationLocationName || '-'
+                        }`
                         : '-'}
                     </Typography>
                   </Stack>
@@ -517,8 +709,179 @@ export default function PurchaseOrderDeliverySection({
                   </Grid>
                 ) : null}
               </Grid>
-
               <PurchaseOrderDeliveryItemsTable delivery={delivery} />
+              <Typography variant="h5" sx={{ mb: 1 }}>
+                รูปภาพ/ไฟล์แนบ
+              </Typography>
+              {(['DELIVERY_HANDOVER', 'GOODS_RECEIPT'] as const).map((section) => {
+                const attachments = (delivery.attachments || []).filter(
+                  (attachment) => attachment.deliverySection === section
+                );
+                const attachmentKey = getDeliveryAttachmentKey(delivery.id, section);
+                const pendingFiles = pendingDeliveryAttachments[attachmentKey] || [];
+                const isUploading = uploadingDeliveryAttachmentKey === attachmentKey;
+                return (
+                  <Box
+                    key={section}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: BRAND_COLORS.sand,
+                      borderRadius: 1,
+                      overflow: 'hidden'
+                    }}>
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        py: 1,
+                        backgroundColor: BRAND_UI.sandTint,
+                        borderBottom: '1px solid',
+                        borderColor: BRAND_COLORS.sand
+                      }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {deliveryAttachmentSectionLabel(section)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ p: 1.5, minHeight: attachments.length ? 0 : 88 }}>
+                      {attachments.length ? (
+                        <Grid container spacing={1}>
+                          {attachments.map((attachment) => (
+                            <Grid item xs={12} sm={6} key={attachment.id}>
+                              <Stack
+                                direction="row"
+                                alignItems="center"
+                                spacing={1}
+                                sx={{
+                                  minWidth: 0,
+                                  p: 1,
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: 1
+                                }}>
+                                <StoredAttachmentPreview attachment={attachment} />
+                                <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                                  <Typography variant="body2" noWrap title={attachment.fileName}>
+                                    {attachment.fileName}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {formatDate(attachment.uploadedAt)}
+                                  </Typography>
+                                </Stack>
+                                <IconButton
+                                  component="a"
+                                  href={attachment.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  size="small"
+                                  aria-label={`เปิดไฟล์ ${attachment.fileName}`}>
+                                  <OpenInNew fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={deletingDeliveryAttachmentId === attachment.id}
+                                  aria-label={`ลบไฟล์ ${attachment.fileName}`}
+                                  onClick={() =>
+                                    setAttachmentToDelete({ delivery, attachment })
+                                  }>
+                                  {deletingDeliveryAttachmentId === attachment.id ? (
+                                    <CircularProgress size={18} />
+                                  ) : (
+                                    <DeleteOutline fontSize="small" />
+                                  )}
+                                </IconButton>
+                              </Stack>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      ) : null}
+                      {pendingFiles.length ? (
+                        <Box sx={{ mt: attachments.length ? 1.5 : 0 }}>
+                          <Grid container spacing={1}>
+                            {pendingFiles.map((file) => (
+                              <Grid item xs={12} sm={6} key={`${file.name}-${file.size}-${file.lastModified}`}>
+                                <Stack
+                                  direction="row"
+                                  alignItems="center"
+                                  spacing={1}
+                                  sx={{
+                                    minWidth: 0,
+                                    p: 1,
+                                    border: '1px solid',
+                                    borderColor: 'primary.main',
+                                    borderRadius: 1
+                                  }}>
+                                  <AttachmentPreview file={file} />
+                                  <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                                    {file.name}
+                                  </Typography>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    aria-label={`ลบไฟล์ ${file.name}`}
+                                    onClick={() =>
+                                      handleSelectDeliveryAttachments(
+                                        delivery.id,
+                                        section,
+                                        pendingFiles.filter((item) => item !== file)
+                                      )
+                                    }>
+                                    <DeleteOutline fontSize="small" />
+                                  </IconButton>
+                                </Stack>
+                              </Grid>
+                            ))}
+                          </Grid>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            sx={{ mt: 1.5 }}
+                            startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
+                            disabled={isUploading}
+                            onClick={() => void handleUploadDeliveryAttachments(delivery, section)}>
+                            ยืนยันแนบไฟล์
+                          </Button>
+                        </Box>
+                      ) : null}
+                      {!attachments.length && !pendingFiles.length ? (
+                        <Box
+                          sx={{
+                            minHeight: 72,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexDirection: 'column',
+                            gap: 1
+                          }}>
+                          <Typography variant="body2" color="text.secondary">
+                            ไม่มีรูปภาพ/ไฟล์แนบ
+                          </Typography>
+                          <Button
+                            component="label"
+                            size="small"
+                            variant="outlined"
+                            startIcon={<AttachFile />}>
+                            แนบไฟล์
+                            <input
+                              hidden
+                              type="file"
+                              multiple
+                              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                              onChange={(event) => {
+                                handleSelectDeliveryAttachments(
+                                  delivery.id,
+                                  section,
+                                  Array.from(event.target.files || [])
+                                );
+                                event.target.value = '';
+                              }}
+                            />
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  </Box>
+                );
+              })}
 
               {delivery.remark ? (
                 <Typography variant="body2" color="text.secondary">
@@ -533,7 +896,7 @@ export default function PurchaseOrderDeliverySection({
         open={Boolean(selectedDelivery)}
         onClose={handleCloseTransitDialog}
         fullWidth
-        maxWidth="xs">
+        maxWidth="lg">
         <DialogTitle>ยืนยันสถานะอยู่ระหว่างขนส่ง</DialogTitle>
         <DialogContent>
           <Stack spacing={1.5} sx={{ pt: 1 }}>
@@ -568,6 +931,65 @@ export default function PurchaseOrderDeliverySection({
                   : undefined
               }}
             />
+            <Box>
+              <Button component="label" variant="outlined">
+                แนบรูปภาพ/ไฟล์
+                <input
+                  hidden
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  onChange={(event) => {
+                    setInTransitAttachments(Array.from(event.target.files || []));
+                    event.target.value = '';
+                  }}
+                />
+              </Button>
+              {inTransitAttachments.length > 0 ? (
+                <Grid container spacing={1} sx={{ mt: 0.5 }}>
+                  {inTransitAttachments.map((file) => (
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      key={`${file.name}-${file.size}-${file.lastModified}`}>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{
+                          minWidth: 0,
+                          p: 1,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          color: 'text.secondary'
+                        }}>
+                        <AttachmentPreview file={file} />
+                        <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                          {file.name}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={`ลบไฟล์ ${file.name}`}
+                          onClick={() =>
+                            setInTransitAttachments((current) =>
+                              current.filter((item) => item !== file)
+                            )
+                          }>
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                  แนบหลักฐานการส่งมอบสินค้าได้หลายไฟล์ (ไม่บังคับ)
+                </Typography>
+              )}
+            </Box>
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -583,6 +1005,42 @@ export default function PurchaseOrderDeliverySection({
               isUpdatingDelivery ? <CircularProgress size={16} color="inherit" /> : undefined
             }>
             ยืนยัน
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(attachmentToDelete)}
+        onClose={() => {
+          if (!deletingDeliveryAttachmentId) setAttachmentToDelete(null);
+        }}
+        fullWidth
+        maxWidth="xs">
+        <DialogTitle>ยืนยันลบไฟล์แนบ</DialogTitle>
+        <DialogContent>
+          <Typography>
+            ต้องการลบไฟล์{' '}
+            <Typography component="span" fontWeight={700}>
+              {attachmentToDelete?.attachment.fileName || '-'}
+            </Typography>{' '}
+            ใช่หรือไม่?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setAttachmentToDelete(null)}
+            disabled={Boolean(deletingDeliveryAttachmentId)}>
+            ยกเลิก
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteDeliveryAttachment}
+            disabled={Boolean(deletingDeliveryAttachmentId)}
+            startIcon={
+              deletingDeliveryAttachmentId ? <CircularProgress size={16} color="inherit" /> : undefined
+            }>
+            ยืนยันลบ
           </Button>
         </DialogActions>
       </Dialog>
@@ -619,12 +1077,16 @@ export default function PurchaseOrderDeliverySection({
                       label="Route"
                       value={editDraft.supplierShippingRouteId || ''}
                       onChange={(event) =>
-                        setEditDraft({ ...editDraft, supplierShippingRouteId: Number(event.target.value) })
+                        setEditDraft({
+                          ...editDraft,
+                          supplierShippingRouteId: Number(event.target.value)
+                        })
                       }
                       InputLabelProps={{ shrink: true }}>
                       {shippingRoutes.map((route) => (
                         <MenuItem key={route.id} value={route.id}>
-                          {route.routeCode || `เส้นทาง #${route.id}`} — {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
+                          {route.routeCode || `เส้นทาง #${route.id}`} —{' '}
+                          {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -659,7 +1121,10 @@ export default function PurchaseOrderDeliverySection({
                         label="สถานที่ขนส่ง"
                         value={editDraft.shippingLocationId || ''}
                         onChange={(event) =>
-                          setEditDraft({ ...editDraft, shippingLocationId: Number(event.target.value) })
+                          setEditDraft({
+                            ...editDraft,
+                            shippingLocationId: Number(event.target.value)
+                          })
                         }
                         InputLabelProps={{ shrink: true }}>
                         {shippingDestinations.map((destination) => (

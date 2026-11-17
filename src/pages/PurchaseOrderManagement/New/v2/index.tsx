@@ -124,6 +124,13 @@ export default function NewPurchaseOrder(): ReactElement {
           return next;
         });
         const { request, attachments } = section.data;
+        if (!request.supplierShippingRouteId) {
+          setSectionErrors((previous) => ({
+            ...previous,
+            [section.key]: 'กรุณาเลือก Route ก่อนสร้างใบสั่งซื้อ'
+          }));
+          continue;
+        }
         try {
           const response = await toast.promise(createPurchaseOrder(request, attachments), {
             loading: `กำลังสร้างใบสั่งซื้อ ${section.label}`,

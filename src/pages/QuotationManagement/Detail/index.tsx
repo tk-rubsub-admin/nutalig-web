@@ -833,6 +833,7 @@ export default function QuotationDetail(): JSX.Element {
                 selectedRows.map((row) => ({
                     detailId: row.detailId,
                     quotationDetailId: String(row.quotationItem.id || ''),
+                    tierId: row.tierId ? Number(row.tierId) : null,
                     shippingMethod: row.shippingMethod
                 }))
             )

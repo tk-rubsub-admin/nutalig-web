@@ -1803,6 +1803,7 @@ export default function RFQDetail(): ReactElement {
         selectedRows.map((row) => ({
           detailId: row.detail?.id ?? null,
           quotationDetailId: row.quotationItem.id,
+          tierId: row.tier?.id ?? null,
           shippingMethod: row.shippingMethod
         }))
       )

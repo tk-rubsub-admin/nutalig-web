@@ -134,8 +134,10 @@ export interface SupplierShippingRoute {
   routeCode: string | null;
   originLocationId: number;
   originLocationName: string | null;
+  originLocationAddress: string | null;
   destinationLocationId: number;
   destinationLocationName: string | null;
+  destinationLocationAddress: string | null;
   currency: string | null;
   baseCost: number | null;
   leadTimeDayMin: number | null;

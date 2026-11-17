@@ -497,6 +497,14 @@ export default function SupplierPurchaseOrderForm({
     [availableSupplierShippings, draft.supplierShippingId]
   );
 
+  const selectedShippingRoute = useMemo(
+    () =>
+      selectedShipping?.routes?.find(
+        (route) => String(route.id) === draft.supplierShippingRouteId
+      ) || null,
+    [draft.supplierShippingRouteId, selectedShipping]
+  );
+
   const groupedSupplierShippings = useMemo(() => {
     const land = availableSupplierShippings.filter((item) => item.shippingMethod === 'LAND');
     const sea = availableSupplierShippings.filter((item) => item.shippingMethod === 'SEA');
@@ -1505,7 +1513,7 @@ export default function SupplierPurchaseOrderForm({
                   <Grid item xs={12} sm={12}>
                     <ReadonlyTextField
                       label="ที่อยู่ขนส่ง"
-                      value={formatShippingAddress(draft.supplierShipping?.destinations?.[0])}
+                      value={selectedShippingRoute?.originLocationAddress || '-'}
                       multiline
                     />
                   </Grid>

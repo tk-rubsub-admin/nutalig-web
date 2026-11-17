@@ -5,6 +5,7 @@ import {
   DirectionsBoat,
   ExpandLess,
   ExpandMore,
+  Flight,
   LocalShipping,
   Place,
   Search
@@ -277,8 +278,10 @@ export default function SupplierShippingManagement(): JSX.Element {
                                     icon={
                                       shipping.shippingMethod === 'SEA' ? (
                                         <DirectionsBoat />
-                                      ) : (
+                                      ) : shipping.shippingMethod === 'LAND' ? (
                                         <LocalShipping />
+                                      ) : (
+                                        <Flight />
                                       )
                                     }
                                     label={shipping.shippingMethod || '-'}

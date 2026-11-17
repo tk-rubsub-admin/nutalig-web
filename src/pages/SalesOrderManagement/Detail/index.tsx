@@ -531,7 +531,8 @@ export default function SalesOrderDetail(): ReactElement {
   const canManageSalesOrderAttachments =
     salesOrder?.status !== 'CANCELLED' && salesOrder?.status !== 'REJECTED';
   const canCancelSalesOrder = Boolean(
-    salesOrder && ['DRAFT', 'CREATED'].includes(salesOrder.status)
+    salesOrder &&
+    ['DRAFT', 'CREATED', 'WAITING_PAYMENT', 'READY_FOR_PO'].includes(salesOrder.status)
   );
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
   const latestInvoice = relatedInvoices[0] || null;

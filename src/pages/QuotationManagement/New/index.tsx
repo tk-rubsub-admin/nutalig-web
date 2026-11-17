@@ -132,6 +132,14 @@ const CO_SALE_MODE_FREELANCE = 'FREELANCE';
 const ADD_NEW_ADDRESS_VALUE = '__ADD_NEW_ADDRESS__';
 const ADD_NEW_CONTACT_VALUE = '__ADD_NEW_CONTACT__';
 
+const LINE_TYPE_OPTIONS = [
+    { value: 'PRODUCT', label: 'ค่าสินค้า' },
+    { value: 'SAMPLE_COST', label: 'ค่าตีตัวอย่าง' },
+    { value: 'SCREENING_COST', label: 'ค่าสกรีน' },
+    { value: 'ADDITIONAL_COST', label: 'ค่าใช้จ่ายเพิ่มเติม' },
+    { value: 'MOLE_COST', label: 'ค่าทำโมลด์' }
+] as const;
+
 function QuotationItemMobileCard({
     row,
     index,
@@ -358,6 +366,22 @@ function QuotationItemMobileCard({
                             }
                         }}
                     />
+
+                    <TextField
+                        fullWidth
+                        select
+                        label="ประเภทรายการ"
+                        value={row.lineType || 'PRODUCT'}
+                        onChange={(e) => onUpdateItem(index, 'lineType', e.target.value)}
+                        variant="outlined"
+                        sx={fieldSx}
+                    >
+                        {LINE_TYPE_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                            </MenuItem>
+                        ))}
+                    </TextField>
 
                     <Stack direction="row" spacing={1.25}>
                         <TextField
@@ -1068,28 +1092,29 @@ export default function NewQuotation() {
                         : `±${productQtyTolerance}`
                     : ''
             };
-            toast
-                .promise(createQuotation(payload), {
-                    loading: t('toast.loading'),
-                    success: (response) => {
-                        const quotationNo = response?.data?.id;
+            console.log('Payload:', payload);
+            // toast
+            //     .promise(createQuotation(payload), {
+            //         loading: t('toast.loading'),
+            //         success: (response) => {
+            //             const quotationNo = response?.data?.id;
 
-                        history.push(
-                            quotationNo
-                                ? ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo)
-                                : ROUTE_PATHS.QUOTATION_MANAGEMENT
-                        );
-                        return t('toast.success');
-                    },
-                    error: () => {
-                        return t('toast.failed');
-                    }
-                })
-                .finally(() => {
-                    if (isMountedRef.current) {
-                        setIsLoading(false);
-                    }
-                });
+            //             history.push(
+            //                 quotationNo
+            //                     ? ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo)
+            //                     : ROUTE_PATHS.QUOTATION_MANAGEMENT
+            //             );
+            //             return t('toast.success');
+            //         },
+            //         error: () => {
+            //             return t('toast.failed');
+            //         }
+            //     })
+            //     .finally(() => {
+            //         if (isMountedRef.current) {
+            setIsLoading(false);
+            //         }
+            //     });
         }
     });
 
@@ -1673,6 +1698,7 @@ export default function NewQuotation() {
             type: '',
             capacity: '',
             spec: '',
+            lineType: 'ADDITIONAL_COST',
             quantity: 0,
             unitPrice: 0,
             amount: 0,
@@ -2628,6 +2654,22 @@ export default function NewQuotation() {
                                                                     }
                                                                 }}
                                                             />
+
+                                                            <TextField
+                                                                fullWidth
+                                                                select
+                                                                label="ประเภทรายการ"
+                                                                value={row.lineType || 'PRODUCT'}
+                                                                onChange={(e) => updateItem(index, 'lineType', e.target.value)}
+                                                                variant="outlined"
+                                                                sx={fieldSx}
+                                                            >
+                                                                {LINE_TYPE_OPTIONS.map((option) => (
+                                                                    <MenuItem key={option.value} value={option.value}>
+                                                                        {option.label}
+                                                                    </MenuItem>
+                                                                ))}
+                                                            </TextField>
 
                                                             {(group.rfq?.pictures || activeRfq?.pictures || []).length > 1 ? (
                                                                 <Stack spacing={0.75}>

@@ -355,6 +355,7 @@ export interface PurchaseOrderPayment {
 export interface PurchaseOrderRecord {
   purchaseOrderNo: string;
   salesOrderNo: string | null;
+  deliveryDate: string | null;
   docDate: string | null;
   poMonth: string | null;
   productionLeadTimeDay: number | null;

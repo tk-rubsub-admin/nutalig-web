@@ -35,6 +35,10 @@ export interface UpdateInvoiceRequest {
   }>;
 }
 
+export interface InvoiceStatusChangeRequest {
+  reason: string;
+}
+
 export interface CreateInvoiceResponse {
   invoiceNo: string;
 }
@@ -107,6 +111,9 @@ export interface InvoiceRecord {
   installmentCount?: number | null;
   paymentScheduleId?: number | null;
   status: string;
+  statusReason?: string | null;
+  statusChangedBy?: string | null;
+  statusChangedDate?: string | null;
   statusProfile?: DocumentStatusProfile;
   currency: string | null;
   customer: Customer | null;

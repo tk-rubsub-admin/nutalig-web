@@ -21,7 +21,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  ListItemIcon,
   MenuItem,
   Paper,
   Radio,
@@ -82,7 +81,11 @@ import { getShippingMethodLabel } from 'utils/shipping';
 import { isValidPhoneNumber } from 'utils/phoneNumber';
 import { formatCurrency, formatNumber } from 'utils/utils';
 import * as Yup from 'yup';
-import { addCustomerAddress, addCustomerContact, updateCustomer } from 'services/Customer/customer-api';
+import {
+  addCustomerAddress,
+  addCustomerContact,
+  updateCustomer
+} from 'services/Customer/customer-api';
 import {
   CreateCustomerAddressRequest,
   CreateCustomerContactRequest
@@ -95,6 +98,21 @@ import CustomerBillingProfileFields from 'components/CustomerBillingProfileField
 interface SaleOrderRFQParams {
   rfqId: string;
 }
+
+const getLineTypeLabel = (lineType?: string | null): string => {
+  switch (lineType) {
+    case 'SAMPLE_COST':
+      return 'ค่าตัวอย่าง';
+    case 'SCREENING_COST':
+      return 'ค่าสกรีน';
+    case 'ADDITIONAL_COST':
+      return 'ค่าใช้จ่ายเพิ่มเติม';
+    case 'MOLE_COST':
+      return 'ค่าโมลด์';
+    default:
+      return 'สินค้า';
+  }
+};
 
 interface SaleOrderRFQItem {
   id: number;
@@ -139,7 +157,15 @@ interface SaleOrderRFQFormValues {
   customerId: string;
   customerAddressId: string;
   customerContactId: string;
-  customerSnapshot: { customerName: string; taxId: string; branchCode: string; branchName: string; address: string; contactName: string; contactNumber: string; };
+  customerSnapshot: {
+    customerName: string;
+    taxId: string;
+    branchCode: string;
+    branchName: string;
+    address: string;
+    contactName: string;
+    contactNumber: string;
+  };
   customerName: string;
   contactNumber: string;
   creditTerm: string;
@@ -161,6 +187,7 @@ interface SaleOrderRFQFormValues {
 interface SelectedRFQQueryItem {
   detailId: number | null;
   quotationDetailId: string;
+  tierId: number | null;
   shippingMethod: string | null;
 }
 
@@ -252,7 +279,9 @@ function getQuotationImageUrl(quotation?: Quotation, quotationDetailId?: number 
   if (quotationDetailId !== undefined && quotationDetailId !== null) {
     console.log('quotation ', quotation);
     console.log('quotationDetailId ', quotationDetailId);
-    const matchedItem = quotation.items.find((item) => String(item.id) === String(quotationDetailId));
+    const matchedItem = quotation.items.find(
+      (item) => String(item.id) === String(quotationDetailId)
+    );
     if (matchedItem?.imagePreview) {
       return matchedItem.imagePreview;
     }
@@ -550,9 +579,11 @@ function createSaleOrderItemsFromRFQ(
           exchangeRate: 0,
           supplierShippingCost: shippingCost,
           supplierTotalUnitCost: supplierUnitPrice + shippingCost,
-          name: productName || `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
-            quantity
-          )} - ${shippingDisplayLabel}`,
+          name:
+            productName ||
+            `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
+              quantity
+            )} - ${shippingDisplayLabel}`,
           spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
           quantity,
           unitPrice,
@@ -613,14 +644,22 @@ function createSaleOrderItemsFromRFQ(
           supplierUnitPrice: Number(tier.productPrice || 0),
           exchangeRate: Number(tier.exchangeRate || 0),
           supplierShippingCost: Number(
-            isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0
+            isSeaShippingMethod(shippingMethod)
+              ? tier.seaFreightCost || 0
+              : tier.landFreightCost || 0
           ),
           supplierTotalUnitCost:
             Number(tier.productPrice || 0) +
-            Number(isSeaShippingMethod(shippingMethod) ? tier.seaFreightCost || 0 : tier.landFreightCost || 0),
-          name: productName || `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
-            quantity
-          )} - ${shippingDisplayLabel}`,
+            Number(
+              isSeaShippingMethod(shippingMethod)
+                ? tier.seaFreightCost || 0
+                : tier.landFreightCost || 0
+            ),
+          name:
+            productName ||
+            `${detail.optionName || productFamily || 'PRE-ORDER'} - MOQ ${formatNumber(
+              quantity
+            )} - ${shippingDisplayLabel}`,
           spec: [detail.spec, material, rfq.capacity, rfq.description].filter(Boolean).join('\n'),
           quantity,
           unitPrice,
@@ -641,23 +680,22 @@ function createSaleOrderItemsFromRFQ(
 function createSaleOrderItemsFromQuotation(
   rfq: RFQRecord,
   quotation: Quotation,
-  rfqsById: Map<string, RFQRecord>,
-  supplierQuoteTiersById: Map<number, RFQSupplierQuoteTier>
+  rfqsById: Map<string, RFQRecord>
 ): SaleOrderRFQItem[] {
   return (quotation.items || []).map((item, index) => {
     const sourceRfq = rfqsById.get(item.sourceRfqId || '') || rfq;
     const material = getRFQProductLabel(sourceRfq.material);
     const productFamily = getRFQProductLabel(sourceRfq.productFamily);
-    const productName = [getRFQProductLabel(sourceRfq.productSubtype1), material].filter(Boolean).join(' ');
+    const productName = [getRFQProductLabel(sourceRfq.productSubtype1), material]
+      .filter(Boolean)
+      .join(' ');
     const quantity = Number(item.quantity || 1);
     const rfqDetailId = item.rfqDetailId;
     const parsedTierId = Number(item.tierId);
     const rfqTierId = Number.isFinite(parsedTierId) && parsedTierId > 0 ? parsedTierId : undefined;
     const parsedTierSplitId = Number(item.tierSplitId);
     const rfqTierSplitId =
-      Number.isFinite(parsedTierSplitId) && parsedTierSplitId > 0
-        ? parsedTierSplitId
-        : undefined;
+      Number.isFinite(parsedTierSplitId) && parsedTierSplitId > 0 ? parsedTierSplitId : undefined;
     const numericItemId = Number(item.id);
     const mappedDetail = sourceRfq.details?.find((detail) => detail.id === rfqDetailId);
     const mappedTier = mappedDetail?.tiers?.find((tier) => tier.id === rfqTierId);
@@ -670,17 +708,10 @@ function createSaleOrderItemsFromQuotation(
       ? null
       : mappedPrice?.shippingMethod || inferQuotationItemShippingMethod(item.name) || 'LAND';
     const shippingDisplayLabel = mappedShippingMethod
-      ? getShippingDisplayLabel(
-        mappedShippingMethod,
-        mappedPrice?.isFcl,
-        mappedPrice?.isShareFCL
-      )
+      ? getShippingDisplayLabel(mappedShippingMethod, mappedPrice?.isFcl, mappedPrice?.isShareFCL)
       : '';
-
-    return {
-      id: Number.isFinite(numericItemId)
-        ? numericItemId
-        : Date.now() + index,
+    const response = {
+      id: Number.isFinite(numericItemId) ? numericItemId : Date.now() + index,
       sourceRfqId: item.sourceRfqId || sourceRfq.id,
       lineType: item.lineType || mappedDetail?.lineType || 'PRODUCT',
       optionId: rfqDetailId,
@@ -712,8 +743,11 @@ function createSaleOrderItemsFromQuotation(
       remark: [
         `RFQ: ${item.sourceRfqId || sourceRfq.id}`,
         shippingDisplayLabel ? `Shipping: ${shippingDisplayLabel}` : ''
-      ].filter(Boolean).join('\n')
+      ]
+        .filter(Boolean)
+        .join('\n')
     };
+    return response;
   });
 }
 
@@ -738,7 +772,8 @@ export default function SalesOrderRFQ(): JSX.Element {
   const [openSearchFreelanceSalesDialog, setOpenSearchFreelanceSalesDialog] = useState(false);
   const [openCreateFreelanceSaleDialog, setOpenCreateFreelanceSaleDialog] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] = useState<FreelanceSaleRecord | null>(null);
+  const [selectedFreelanceSaleItem, setSelectedFreelanceSaleItem] =
+    useState<FreelanceSaleRecord | null>(null);
   const [selectedFreelanceSaleLabel, setSelectedFreelanceSaleLabel] = useState('');
   const [newFreelanceSale, setNewFreelanceSale] = useState<{
     id: string;
@@ -808,11 +843,15 @@ export default function SalesOrderRFQ(): JSX.Element {
           return parsedItems
             .map((item) => {
               const detailId = Number(item?.detailId || 0);
-              const shippingMethod = String(item?.shippingMethod || '').trim().toUpperCase();
+              const tierId = Number(item?.tierId || 0);
+              const shippingMethod = String(item?.shippingMethod || '')
+                .trim()
+                .toUpperCase();
 
               return {
                 detailId: Number.isFinite(detailId) && detailId > 0 ? detailId : null,
                 quotationDetailId: String(item?.quotationDetailId || ''),
+                tierId: Number.isFinite(tierId) && tierId > 0 ? tierId : null,
                 shippingMethod: shippingMethod || null
               };
             })
@@ -825,6 +864,7 @@ export default function SalesOrderRFQ(): JSX.Element {
 
     const detailId = Number(params.get('detailId') || 0);
     const quotationDetailId = params.get('quotationDetailId') || '';
+    const tierId = Number(params.get('tierId') || 0);
 
     if (!detailId || !quotationDetailId) {
       return [];
@@ -834,7 +874,10 @@ export default function SalesOrderRFQ(): JSX.Element {
       {
         detailId,
         quotationDetailId,
-        shippingMethod: String(params.get('shippingMethod') || 'LAND').trim().toUpperCase()
+        tierId: Number.isFinite(tierId) && tierId > 0 ? tierId : null,
+        shippingMethod: String(params.get('shippingMethod') || 'LAND')
+          .trim()
+          .toUpperCase()
       }
     ];
   }, [location.search]);
@@ -876,7 +919,9 @@ export default function SalesOrderRFQ(): JSX.Element {
         new Set(
           (quotation?.data?.items || [])
             .map((item) => item.sourceRfqId)
-            .filter((sourceRfqId): sourceRfqId is string => Boolean(sourceRfqId && sourceRfqId !== rfqId))
+            .filter((sourceRfqId): sourceRfqId is string =>
+              Boolean(sourceRfqId && sourceRfqId !== rfqId)
+            )
         )
       ),
     [quotation?.data?.items, rfqId]
@@ -1050,7 +1095,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       provinceId: '',
       amphureId: '',
       orderMakerId: '',
-      deliveryDate: today.format(DEFAULT_DATE_FORMAT),
+      deliveryDate: '',
       sendingTime: '',
       notes: '',
       requestCoa: false,
@@ -1148,8 +1193,10 @@ export default function SalesOrderRFQ(): JSX.Element {
         .max(255)
         .required(t('customerManagement.message.validateContactName')),
       contactNumber: Yup.string()
-        .test('valid-phone-number', t('customerManagement.message.invalidPhoneNumberFormat'), (value) =>
-          !value || isValidPhoneNumber(value)
+        .test(
+          'valid-phone-number',
+          t('customerManagement.message.invalidPhoneNumberFormat'),
+          (value) => !value || isValidPhoneNumber(value)
         )
         .required(t('customerManagement.message.validateContactNumber'))
     }),
@@ -1179,7 +1226,9 @@ export default function SalesOrderRFQ(): JSX.Element {
     },
     enableReinitialize: true,
     validationSchema: Yup.object().shape({
-      customerName: Yup.string().max(255).required(t('customerManagement.message.validateCustomerName')),
+      customerName: Yup.string()
+        .max(255)
+        .required(t('customerManagement.message.validateCustomerName')),
       type: Yup.string().max(255).required(t('customerManagement.message.validateType')),
       tier: Yup.string().max(255).nullable(),
       segment: Yup.string().max(255).nullable(),
@@ -1198,8 +1247,12 @@ export default function SalesOrderRFQ(): JSX.Element {
         then: Yup.string().required(t('customerManagement.message.validateCompanyBranchName')),
         otherwise: Yup.string().nullable()
       }),
-      creditTerm: Yup.string().max(255).required(t('customerManagement.message.validateCreditTerm')),
-      paymentTerm: Yup.string().max(255).required(t('customerManagement.message.validatePaymentTerm'))
+      creditTerm: Yup.string()
+        .max(255)
+        .required(t('customerManagement.message.validateCreditTerm')),
+      paymentTerm: Yup.string()
+        .max(255)
+        .required(t('customerManagement.message.validatePaymentTerm'))
     }),
     onSubmit: async (values, actions) => {
       if (!customer?.id) {
@@ -1226,7 +1279,9 @@ export default function SalesOrderRFQ(): JSX.Element {
         coSalesAccount: values.coSalesAccount || null
       };
 
-      const updatePromise = updateCustomer(customer.id, payload).then(() => getCustomer(customer.id));
+      const updatePromise = updateCustomer(customer.id, payload).then(() =>
+        getCustomer(customer.id)
+      );
 
       toast.promise(updatePromise, {
         loading: t('toast.loading'),
@@ -1234,7 +1289,10 @@ export default function SalesOrderRFQ(): JSX.Element {
           const updatedCustomer = response as Customer;
           if (updatedCustomer) {
             setCustomer(updatedCustomer);
-            formik.setFieldValue('salesId', updatedCustomer.salesAccounts?.[0] || updatedCustomer.salesAccount || '');
+            formik.setFieldValue(
+              'salesId',
+              updatedCustomer.salesAccounts?.[0] || updatedCustomer.salesAccount || ''
+            );
             formik.setFieldValue('coSaleId', updatedCustomer.coSalesAccount || '');
             setCoSaleMode(
               updatedCustomer.coSalesAccount ? CO_SALE_MODE_FREELANCE : CO_SALE_MODE_NONE
@@ -1559,8 +1617,9 @@ export default function SalesOrderRFQ(): JSX.Element {
 
     const fallbackSupplierId =
       rfq?.finalSupplier?.supplierId || rfq?.finalSupplier?.id || formik.values.supplierId;
-    console.log('selectedItem', selectedItems)
-    console.log('fallbackSupplierId', fallbackSupplierId)
+    console.log('formik', formik.values.items);
+    console.log('selectedItems', selectedItems);
+    // console.log(getRFQDetailSupplierId(rfq?.details?.find((detail) => detail.id === item.optionId)))
     if (
       selectedItems.some(
         (item) =>
@@ -1580,6 +1639,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       status,
       docDate: formatApiDate(formik.values.docDate),
       expireDate: formatApiDate(formik.values.effectiveDate),
+      deliveryDate: formatApiDate(formik.values.deliveryDate),
       customerId: formik.values.customerId,
       customerAddressId: formik.values.customerAddressId,
       customerContactId: formik.values.customerContactId,
@@ -1588,7 +1648,7 @@ export default function SalesOrderRFQ(): JSX.Element {
       salesId: formik.values.salesId,
       coSaleId: formik.values.coSaleId || undefined,
       discount: 0,
-      freight: selectedItems.reduce((sum, item) => sum + Number(item.totalFreight || 0), 0),
+      freight: 0,
       isVat: formik.values.isVat,
       quotationNo: quotationNo,
       shippingType: formik.values.shippingType || null,
@@ -1598,9 +1658,11 @@ export default function SalesOrderRFQ(): JSX.Element {
       remark: formik.values.notes,
       items: selectedItems.map((selectedItem) => ({
         supplierId:
-          selectedItem.supplierId || getRFQDetailSupplierId(
+          selectedItem.supplierId ||
+          getRFQDetailSupplierId(
             rfq?.details?.find((detail) => detail.id === selectedItem.optionId)
-          ) || fallbackSupplierId,
+          ) ||
+          fallbackSupplierId,
         name: selectedItem.name,
         capacity: rfq?.capacity || null,
         spec: selectedItem.spec,
@@ -1614,12 +1676,6 @@ export default function SalesOrderRFQ(): JSX.Element {
           ? Number(selectedItem.quotationDetailId)
           : null,
         shippingMethod: selectedItem.shippingMethod,
-        supplierCurrency: selectedItem.supplierCurrency || null,
-        supplierUnitPrice: selectedItem.supplierUnitPrice ?? null,
-        exchangeRate: selectedItem.exchangeRate ?? null,
-        supplierShippingCost: selectedItem.supplierShippingCost ?? null,
-        supplierTotalUnitCost: selectedItem.supplierTotalUnitCost ?? null,
-        supplierQuoteTierId: selectedItem.supplierQuoteTierId,
         lineType: selectedItem.lineType || 'PRODUCT'
       }))
     };
@@ -1676,34 +1732,45 @@ export default function SalesOrderRFQ(): JSX.Element {
 
     const applyRFQ = async () => {
       const allItems = quotation
-        ? createSaleOrderItemsFromQuotation(
-          rfq,
-          quotation?.data,
-          quotationRfqsById,
-          supplierQuoteTiersById
-        )
+        ? createSaleOrderItemsFromQuotation(rfq, quotation?.data, quotationRfqsById)
         : createSaleOrderItemsFromRFQ(rfq, supplierQuoteTiersById);
       const selectedItemFromDialog = selectedRFQParams.flatMap((selectedItem) =>
         allItems
           .filter(
             (item) =>
-              String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId)
+              String(item.quotationDetailId || '') === String(selectedItem.quotationDetailId) &&
+              (!selectedItem.tierId ||
+                String(item.tierId || item.tierSplitId || '') === String(selectedItem.tierId))
           )
           .map((item) => {
             const sourceRfq = quotationRfqsById.get(item.sourceRfqId || '') || rfq;
+            console.log('selectedItem', selectedItem);
             const selectedDetail = selectedItem.detailId
               ? sourceRfq.details?.find((detail) => detail.id === selectedItem.detailId)
               : undefined;
-            const selectedTier = selectedDetail?.tiers?.find((tier) => {
-              if (!selectedItem.shippingMethod) return true;
-              return isSeaShippingMethod(selectedItem.shippingMethod) ===
-                isSeaShippingMethod(tier.shippingMethod);
-            }) || selectedDetail?.tiers?.[0];
-            const selectedTierSplit = selectedDetail?.tierSplits?.find((tierSplit) => {
-              if (!selectedItem.shippingMethod) return true;
-              return isSeaShippingMethod(selectedItem.shippingMethod) ===
-                isSeaShippingMethod(tierSplit.shippingMethod);
-            }) || selectedDetail?.tierSplits?.[0];
+
+            const selectedTier =
+              selectedDetail?.tiers?.find((tier) => {
+                if (selectedItem.tierId) {
+                  return tier.id === selectedItem.tierId;
+                }
+                if (!selectedItem.shippingMethod) return true;
+                return (
+                  isSeaShippingMethod(selectedItem.shippingMethod) ===
+                  isSeaShippingMethod(tier.shippingMethod)
+                );
+              }) || selectedDetail?.tiers?.[0];
+            const selectedTierSplit =
+              selectedDetail?.tierSplits?.find((tierSplit) => {
+                if (selectedItem.tierId) {
+                  return tierSplit.id === selectedItem.tierId;
+                }
+                if (!selectedItem.shippingMethod) return true;
+                return (
+                  isSeaShippingMethod(selectedItem.shippingMethod) ===
+                  isSeaShippingMethod(tierSplit.shippingMethod)
+                );
+              }) || selectedDetail?.tierSplits?.[0];
             const supplierQuoteTierId =
               selectedTierSplit?.supplierQuoteTierId || selectedTier?.supplierQuoteTierId;
             const mappedPrice = selectedTierSplit || selectedTier;
@@ -1727,9 +1794,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                 item.supplierId,
               supplierQuoteTierId,
               lineType: selectedDetail?.lineType || item.lineType,
-              name: isNonProductLine
-                ? selectedDetail?.optionName || item.name
-                : item.name,
+              name: isNonProductLine ? selectedDetail?.optionName || item.name : item.name,
               spec: selectedDetail?.spec || item.spec,
               unitPrice: isNonProductLine ? supplierUnitPrice : item.unitPrice,
               supplierCurrency: mappedPrice?.currency || item.supplierCurrency,
@@ -1789,9 +1854,13 @@ export default function SalesOrderRFQ(): JSX.Element {
         customerAddressId: defaultAddress?.id || '',
         customerContactId: defaultContact?.id || '',
         customerSnapshot: {
-          customerName: rfq.customer?.customerName || '', taxId: rfq.customer?.taxId || '',
-          branchCode: rfq.customer?.branchNumber || '', branchName: rfq.customer?.branchName || '',
-          address: defaultAddress?.fullAddress || '', contactName: defaultContact?.contactName || '', contactNumber: defaultContact?.contactNumber || ''
+          customerName: rfq.customer?.customerName || '',
+          taxId: rfq.customer?.taxId || '',
+          branchCode: rfq.customer?.branchNumber || '',
+          branchName: rfq.customer?.branchName || '',
+          address: defaultAddress?.fullAddress || '',
+          contactName: defaultContact?.contactName || '',
+          contactNumber: defaultContact?.contactNumber || ''
         },
         customerName: rfq.customer?.customerName || '',
         contactNumber: rfq.contactPhone || '',
@@ -1807,7 +1876,10 @@ export default function SalesOrderRFQ(): JSX.Element {
         provinceId: defaultDropOff?.province?.id || '',
         amphureId: defaultDropOff?.amphure?.id || '',
         orderMakerId: getRFQSalesEmployeeId(rfq.sales),
-        notes: buildPaymentTermRemark(fullCustomer || (rfq.customer as Customer) || null, grandTotal),
+        notes: buildPaymentTermRemark(
+          fullCustomer || (rfq.customer as Customer) || null,
+          grandTotal
+        ),
         requestCoa: false,
         requestPo: false,
         items: itemsWithImage
@@ -1925,7 +1997,10 @@ export default function SalesOrderRFQ(): JSX.Element {
       ...items[index],
       [field]: value
     };
-    formik.setFieldValue('items', items.map((item) => recalculateSaleOrderItem(item)));
+    formik.setFieldValue(
+      'items',
+      items.map((item) => recalculateSaleOrderItem(item))
+    );
   };
 
   const handleAddManualItem = () => {
@@ -2014,8 +2089,27 @@ export default function SalesOrderRFQ(): JSX.Element {
             />
           </GridTextField>
 
-          <GridTextField item sm={8} />
+          <GridTextField item xs={12} sm={2} style={{ paddingTop: '30px' }}>
+            <DatePicker
+              className={classes.datePickerFromTo}
+              fullWidth
+              inputVariant="outlined"
+              required
+              InputLabelProps={{ shrink: true }}
+              label="วันที่นัดส่งของ"
+              format={DEFAULT_DATE_FORMAT}
+              minDate={formik.values.docDate ? dayjs(formik.values.docDate).toDate() : undefined}
+              value={formik.values.deliveryDate ? dayjs(formik.values.deliveryDate).toDate() : null}
+              onChange={(date) => {
+                formik.setFieldValue(
+                  'deliveryDate',
+                  date ? dayjs(date.toDate()).startOf('day').format(DEFAULT_DATE_FORMAT_BFF) : ''
+                );
+              }}
+            />
+          </GridTextField>
 
+          <GridTextField item sm={6} />
           <GridTextField item xs={12} sm={6}>
             <RadioGroup
               row
@@ -2095,8 +2189,7 @@ export default function SalesOrderRFQ(): JSX.Element {
                     <IconButton
                       edge="end"
                       onClick={() => setOpenSearchFreelanceSalesDialog(true)}
-                      disabled={isFreelanceSalesFetching}
-                    >
+                      disabled={isFreelanceSalesFetching}>
                       <Search />
                     </IconButton>
                   )
@@ -2131,7 +2224,9 @@ export default function SalesOrderRFQ(): JSX.Element {
               variant="outlined"
               label="ชื่อลูกค้า"
               value={formik.values.customerSnapshot.customerName}
-              onChange={(event) => formik.setFieldValue('customerSnapshot.customerName', event.target.value)}
+              onChange={(event) =>
+                formik.setFieldValue('customerSnapshot.customerName', event.target.value)
+              }
               InputLabelProps={{ shrink: true }}
             />
           </GridTextField>
@@ -2208,7 +2303,9 @@ export default function SalesOrderRFQ(): JSX.Element {
                 error={Boolean(
                   updateCustomerDialogFormik.touched.type && updateCustomerDialogFormik.errors.type
                 )}
-                helperText={updateCustomerDialogFormik.touched.type && updateCustomerDialogFormik.errors.type}
+                helperText={
+                  updateCustomerDialogFormik.touched.type && updateCustomerDialogFormik.errors.type
+                }
                 InputLabelProps={{ shrink: true }}
                 sx={fieldSx}>
                 {customerTypeList.map((option) => (
@@ -2562,6 +2659,12 @@ export default function SalesOrderRFQ(): JSX.Element {
                               color="primary"
                               variant="outlined"
                             />
+                            <Chip
+                              size="small"
+                              label={`ประเภท: ${getLineTypeLabel(row.lineType)}`}
+                              color="secondary"
+                              variant="outlined"
+                            />
                           </Stack>
                         </Stack>
                       </TableCell>
@@ -2748,9 +2851,9 @@ export default function SalesOrderRFQ(): JSX.Element {
                 {formik.values.isVat ? (
                   <Stack direction="row" justifyContent="space-between">
                     <Typography fontWeight={500}>ภาษีมูลค่าเพิ่ม (7%)</Typography>
-                  <Typography fontWeight={600}>
-                    {formatCurrency(vatAmount)} {summaryCurrency}
-                  </Typography>
+                    <Typography fontWeight={600}>
+                      {formatCurrency(vatAmount)} {summaryCurrency}
+                    </Typography>
                   </Stack>
                 ) : null}
                 <Divider />

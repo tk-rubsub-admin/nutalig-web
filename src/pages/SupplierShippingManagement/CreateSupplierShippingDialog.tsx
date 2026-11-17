@@ -28,7 +28,7 @@ export default function CreateSupplierShippingDialog({
   onClose,
   onCreated
 }: Props): JSX.Element {
-  const [shippingMethod, setShippingMethod] = useState<'LAND' | 'SEA'>('SEA');
+  const [shippingMethod, setShippingMethod] = useState<'LAND' | 'SEA' | 'AIR'>('SEA');
   const [shippingMode, setShippingMode] = useState<'STANDARD' | 'FCL'>('STANDARD');
   const [shippingName, setShippingName] = useState('');
   const [carCode, setCarCode] = useState('');
@@ -83,7 +83,9 @@ export default function CreateSupplierShippingDialog({
               label="วิธีขนส่ง"
               InputLabelProps={{ shrink: true }}
               value={shippingMethod}
-              onChange={(event) => setShippingMethod(event.target.value as 'LAND' | 'SEA')}>
+              onChange={(event) =>
+                setShippingMethod(event.target.value as 'LAND' | 'SEA' | 'AIR')}
+              >
               <MenuItem value="LAND">LAND</MenuItem>
               <MenuItem value="SEA">SEA</MenuItem>
               <MenuItem value="AIR">AIR</MenuItem>

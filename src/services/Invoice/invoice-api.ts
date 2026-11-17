@@ -34,6 +34,16 @@ export const updateInvoice = async (
   return response.data;
 };
 
+export const cancelInvoice = async (id: string, reason: string): Promise<InvoiceRecord> => {
+  const response = await api.patch(`/v1/invoices/${id}/cancel`, { reason }).then((result) => result.data);
+  return response.data;
+};
+
+export const voidInvoice = async (id: string, reason: string): Promise<InvoiceRecord> => {
+  const response = await api.patch(`/v1/invoices/${id}/void`, { reason }).then((result) => result.data);
+  return response.data;
+};
+
 export const approveInvoiceRequiredApprove = async (id: string): Promise<InvoiceRecord> => {
   const response = await api
     .patch(`/v1/invoices/${id}/required-approve/approve`)

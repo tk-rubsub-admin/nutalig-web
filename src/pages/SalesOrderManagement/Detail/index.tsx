@@ -144,6 +144,7 @@ interface SalesOrderDetailParams {
 interface SalesOrderDraft {
   docDate: string;
   expireDate: string;
+  deliveryDate: string;
   coSaleId: string;
   quotationNo: string;
   shippingType: string;
@@ -275,6 +276,7 @@ function createDraft(salesOrder?: SalesOrderV1): SalesOrderDraft {
   return {
     docDate: toDateInput(salesOrder?.docDate),
     expireDate: toDateInput(salesOrder?.expireDate),
+    deliveryDate: toDateInput(salesOrder?.deliveryDate),
     coSaleId: salesOrder?.coSaleId || '',
     quotationNo: salesOrder?.quotationNo || '',
     shippingType: salesOrder?.shippingType || '',
@@ -1042,6 +1044,7 @@ export default function SalesOrderDetail(): ReactElement {
     const payload: UpdateSalesOrderRequestV1 = {
       docDate: draft.docDate || null,
       expireDate: draft.expireDate || null,
+      deliveryDate: draft.deliveryDate || null,
       coSaleId: draft.coSaleId || null,
       quotationNo: draft.quotationNo,
       subTotal: editableSubTotal,
@@ -1482,6 +1485,17 @@ export default function SalesOrderDetail(): ReactElement {
                       label="วิธีขนส่ง"
                       value={getShippingMethodLabel(salesOrder?.shippingType)}
                     />
+                  )}
+                  {isEditing ? (
+                    <TextField
+                      type="date"
+                      label="วันที่นัดส่งของ"
+                      value={draft.deliveryDate}
+                      onChange={(event) => updateDraftField('deliveryDate', event.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  ) : (
+                    <Info label="วันที่นัดส่งของ" value={salesOrder?.deliveryDate || '-'} />
                   )}
                 </Stack>
               </Grid>

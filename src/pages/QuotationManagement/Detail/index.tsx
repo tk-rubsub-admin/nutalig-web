@@ -764,22 +764,22 @@ export default function QuotationDetail(): JSX.Element {
     const handleOpenConfirmPriceDialog = () => {
         handleCloseActionMenu();
 
-        if (salesOrder?.salesOrderNo) {
-            history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
-            return;
-        }
+        // if (salesOrder?.salesOrderNo) {
+        //     history.push(ROUTE_PATHS.SALE_ORDER_DETAIL.replace(':id', salesOrder.salesOrderNo));
+        //     return;
+        // }
 
-        if (!quotation?.rfqId) {
-            toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
-            return;
-        }
+        // if (!quotation?.rfqId) {
+        //     toast.error('ไม่พบ RFQ อ้างอิงสำหรับคอนเฟิร์มราคา');
+        //     return;
+        // }
 
-        if (!confirmQuotationRows.length) {
-            toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
-            return;
-        }
+        // if (!confirmQuotationRows.length) {
+        //     toast.error('ยังไม่มีรายการใบเสนอราคาสำหรับคอนเฟิร์มราคา');
+        //     return;
+        // }
 
-        console.log('confirmQuotationRows', confirmQuotationRows);
+        // console.log('confirmQuotationRows', confirmQuotationRows);
 
         setSelectedConfirmQuotationRowKeys([]);
         setVisibleConfirmPriceDialog(true);

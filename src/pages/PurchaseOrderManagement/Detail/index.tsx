@@ -2602,6 +2602,9 @@ export default function PurchaseOrderDetail(): ReactElement {
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
+                    <Info label="วันที่นัดส่งของ" value={purchaseOrder?.deliveryDate || '-'} />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
                     {isEditing ? (
                       <TextField
                         select

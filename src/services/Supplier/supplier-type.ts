@@ -108,7 +108,7 @@ export interface SupplierShippingDestination {
 
 export interface SupplierShipping {
   id: number;
-  shippingMethod: 'LAND' | 'SEA';
+  shippingMethod: 'LAND' | 'SEA' | 'AIR';
   shippingMode?: 'STANDARD' | 'FCL' | null;
   shippingName: string | null;
   originCountryCode: string | null;
@@ -127,7 +127,7 @@ export interface SupplierShippingRoute {
   id: number;
   supplierShippingId: number;
   supplierShippingName: string | null;
-  shippingMethod: 'LAND' | 'SEA' | null;
+  shippingMethod: 'LAND' | 'SEA' | 'AIR' | null;
   shippingMode: 'STANDARD' | 'FCL' | null;
   carCode: string | null;
   shippingRouteId: number;

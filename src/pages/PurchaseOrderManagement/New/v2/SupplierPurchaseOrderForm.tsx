@@ -86,6 +86,7 @@ interface PurchaseOrderCreateDraft {
   supplierShippingRouteId: string;
   shippingMethodSnapshot: string;
   docDate: string;
+  deliveryDate: string;
   productionLeadTimeDay: string;
   shippingLeadTimeDay: string;
   containerSizeSnapshot: string;
@@ -95,6 +96,15 @@ interface PurchaseOrderCreateDraft {
   paymentTerm: string;
   supplierShipping: SupplierShipping | null;
   remark: string;
+}
+
+function toDateInput(value?: string | null): string {
+  if (!value) return '';
+  const parts = value.split('/');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return value;
 }
 
 type EditablePurchaseOrderItemField =
@@ -160,6 +170,7 @@ function createDraft(salesOrder?: SalesOrderV1): PurchaseOrderCreateDraft {
     supplierShipping: null,
     shippingMethodSnapshot: salesOrder?.shippingType || '',
     docDate: today,
+    deliveryDate: toDateInput(salesOrder?.deliveryDate),
     productionLeadTimeDay: '',
     shippingLeadTimeDay: '',
     containerSizeSnapshot: resolveContainerSize(salesOrder?.shippingType),
@@ -489,7 +500,8 @@ export default function SupplierPurchaseOrderForm({
   const groupedSupplierShippings = useMemo(() => {
     const land = availableSupplierShippings.filter((item) => item.shippingMethod === 'LAND');
     const sea = availableSupplierShippings.filter((item) => item.shippingMethod === 'SEA');
-    return { land, sea };
+    const air = availableSupplierShippings.filter((item) => item.shippingMethod === 'AIR');
+    return { land, sea, air };
   }, [availableSupplierShippings]);
 
   useEffect(() => {
@@ -1039,7 +1051,7 @@ export default function SupplierPurchaseOrderForm({
                       ))}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={3}>
                     <TextField
                       fullWidth
                       type="date"
@@ -1052,6 +1064,16 @@ export default function SupplierPurchaseOrderForm({
                     />
                   </Grid>
                   <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="วันที่นัดส่งของ"
+                      value={draft.deliveryDate}
+                      InputProps={{ readOnly: true }}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
                     <TextField
                       fullWidth
                       type="number"
@@ -1074,7 +1096,7 @@ export default function SupplierPurchaseOrderForm({
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={3}>
+                  <Grid item xs={6} sm={3}>
                     <TextField
                       fullWidth
                       type="number"
@@ -1431,6 +1453,14 @@ export default function SupplierPurchaseOrderForm({
                           {formatSupplierShippingOption(shipping)}
                         </MenuItem>
                       ))}
+                      {groupedSupplierShippings.air.length ? (
+                        <ListSubheader disableSticky>ทางเครื่องบิน</ListSubheader>
+                      ) : null}
+                      {groupedSupplierShippings.air.map((shipping) => (
+                        <MenuItem key={shipping.id} value={String(shipping.id)}>
+                          {formatSupplierShippingOption(shipping)}
+                        </MenuItem>
+                      ))}
                     </TextField>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -1452,8 +1482,8 @@ export default function SupplierPurchaseOrderForm({
                         showValidationErrors && !draft.supplierShippingRouteId
                           ? 'กรุณาเลือก Route'
                           : selectedShipping && !(selectedShipping.routes || []).length
-                          ? 'ไม่พบ Route สำหรับ Supplier Shipping นี้'
-                          : undefined
+                            ? 'ไม่พบ Route สำหรับ Supplier Shipping นี้'
+                            : undefined
                       }
                       InputLabelProps={{ shrink: true }}>
                       {(selectedShipping?.routes || []).map((route) => (

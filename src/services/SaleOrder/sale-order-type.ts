@@ -63,12 +63,6 @@ export interface CreateSalesOrderDetailRequest {
     rfqTierSplitId?: number | null;
     quotationDetailId?: number | null;
     shippingMethod?: string | null;
-    supplierCurrency?: string | null;
-    supplierUnitPrice?: number | null;
-    exchangeRate?: number | null;
-    supplierShippingCost?: number | null;
-    supplierTotalUnitCost?: number | null;
-    supplierQuoteTierId?: number | null;
     lineType?: 'PRODUCT' | 'SAMPLE_COST' | 'SCREENING_COST' | 'ADDITIONAL_COST' | 'MOLE_COST' | null;
 }
 
@@ -77,6 +71,7 @@ export interface CreateSalesOrderRequestV1 {
     status: CreateSalesOrderStatus;
     docDate?: string;
     expireDate?: string;
+    deliveryDate?: string;
     customerId: string;
     customerAddressId?: string;
     customerContactId?: string;
@@ -89,7 +84,7 @@ export interface CreateSalesOrderRequestV1 {
     freight?: number;
     isVat: boolean;
     quotationNo: string;
-    shippingType?: string;
+    shippingType?: string | null | undefined;
     shipping: string;
     requestCoa?: boolean;
     requestPo?: boolean;
@@ -119,6 +114,7 @@ export interface SalesOrderV1 {
     quotationNo: string | null;
     docDate: string | null;
     expireDate: string | null;
+    deliveryDate: string | null;
     status: string;
     statusProfile?: DocumentStatusProfile;
     procurementStatus: string | null;
@@ -232,6 +228,7 @@ export interface UpdateSalesOrderDetailRequestV1 {
 export interface UpdateSalesOrderRequestV1 {
     docDate?: string | null;
     expireDate?: string | null;
+    deliveryDate?: string | null;
     coSaleId?: string | null;
     quotationNo?: string | null;
     subTotal?: number;

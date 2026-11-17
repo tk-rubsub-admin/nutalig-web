@@ -74,6 +74,8 @@ import { GROUP_CODE } from 'services/Config/config-type';
 import { TemplateLanguage } from 'services/Document/document-type';
 import {
   getInvoice,
+  cancelInvoice,
+  voidInvoice,
   receiveInvoicePayment,
   uploadInvoicePaymentAttachments,
   deleteInvoicePaymentAttachment,
@@ -265,7 +267,7 @@ function Summary({
 
 export default function InvoiceDetail(): ReactElement {
   const { id } = useParams<InvoiceDetailParams>();
-  const { getRole } = useAuth();
+  const { getRole, hasPermission } = useAuth();
   const history = useHistory();
   const { t } = useTranslation();
   const theme = useTheme();
@@ -289,6 +291,8 @@ export default function InvoiceDetail(): ReactElement {
   const [urgentRejectReason, setUrgentRejectReason] = useState('');
   const [isRequiredApproveDialogOpen, setIsRequiredApproveDialogOpen] = useState(false);
   const [isRejectReasonDialogOpen, setIsRejectReasonDialogOpen] = useState(false);
+  const [invoiceStatusAction, setInvoiceStatusAction] = useState<'CANCEL' | 'VOID' | null>(null);
+  const [invoiceStatusReason, setInvoiceStatusReason] = useState('');
   const useStyles = makeStyles({
     tableHeader: {
       border: `2px solid ${BRAND_COLORS.sand}`,
@@ -450,8 +454,25 @@ export default function InvoiceDetail(): ReactElement {
     invoice && ['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)
   );
   const canEditInvoice = Boolean(invoice && ['DRAFT', 'ISSUED', 'PARTIALLY_PAID'].includes(invoice.status));
-  const canDownloadInvoice = Boolean(invoice && !['DRAFT'].includes(invoice.status));
   const relatedReceipts = relatedReceiptsResponse?.data?.records || [];
+  const hasActiveReceipt = relatedReceipts.some(
+    (receipt) => receipt.status !== 'CANCELLED' && receipt.status !== 'VOID'
+  );
+  const hasApprovedPayment = Boolean(
+    invoice?.payments?.some((payment) => payment.status === 'APPROVE')
+  );
+  const canCancelInvoice = Boolean(
+    invoice && ['DRAFT', 'ISSUED', 'AWAITING_VALIDATION'].includes(invoice.status)
+      && (hasPermission(PERMISSIONS.INVOICE_CREATE) || hasPermission(PERMISSIONS.INVOICE_REVERSE))
+      && !hasActiveReceipt
+      && !hasApprovedPayment
+  );
+  const canVoidInvoice = Boolean(
+    invoice && ['PARTIALLY_PAID', 'PAID'].includes(invoice.status)
+      && hasPermission(PERMISSIONS.INVOICE_REVERSE)
+      && !hasActiveReceipt
+  );
+  const canDownloadInvoice = Boolean(invoice && !['DRAFT'].includes(invoice.status));
   const latestReceipt =
     relatedReceipts.find((record) => record.invoiceNo === invoice?.invoiceNo) ||
     relatedReceipts[0] ||
@@ -482,6 +503,34 @@ export default function InvoiceDetail(): ReactElement {
 
   const handleCloseActionMenu = () => {
     setActionMenuAnchorEl(null);
+  };
+
+  const handleOpenInvoiceStatusDialog = (action: 'CANCEL' | 'VOID') => {
+    handleCloseActionMenu();
+    setInvoiceStatusAction(action);
+    setInvoiceStatusReason('');
+  };
+
+  const handleConfirmInvoiceStatusChange = async () => {
+    if (!invoice?.invoiceNo || !invoiceStatusAction || !invoiceStatusReason.trim()) return;
+    setIsSaving(true);
+    try {
+      await toast.promise(
+        invoiceStatusAction === 'CANCEL'
+          ? cancelInvoice(invoice.invoiceNo, invoiceStatusReason.trim())
+          : voidInvoice(invoice.invoiceNo, invoiceStatusReason.trim()),
+        {
+          loading: invoiceStatusAction === 'CANCEL' ? 'กำลังยกเลิกใบแจ้งหนี้' : 'กำลัง Void ใบแจ้งหนี้',
+          success: invoiceStatusAction === 'CANCEL' ? 'ยกเลิกใบแจ้งหนี้เรียบร้อย' : 'Void ใบแจ้งหนี้เรียบร้อย',
+          error: (error) => error?.response?.data?.message || 'ไม่สามารถเปลี่ยนสถานะใบแจ้งหนี้ได้'
+        }
+      );
+      setInvoiceStatusAction(null);
+      setInvoiceStatusReason('');
+      await Promise.all([refetchInvoice(), refetchActivityHistory()]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSelectEditInvoice = () => {
@@ -853,6 +902,22 @@ export default function InvoiceDetail(): ReactElement {
               </ListItemIcon>
               <ListItemText primary={isDownSm ? 'ดาวน์โหลดไฟล์ใบแจ้งหนี้' : 'ดูใบแจ้งหนี้'} />
             </MenuItem>
+            {canCancelInvoice ? (
+              <MenuItem
+                onClick={() => handleOpenInvoiceStatusDialog('CANCEL')}
+                sx={{ width: '100%', color: 'error.main' }}>
+                <ListItemIcon sx={{ color: 'error.main' }}><Cancel fontSize="small" /></ListItemIcon>
+                <ListItemText primary="ยกเลิกใบแจ้งหนี้" />
+              </MenuItem>
+            ) : null}
+            {canVoidInvoice ? (
+              <MenuItem
+                onClick={() => handleOpenInvoiceStatusDialog('VOID')}
+                sx={{ width: '100%', color: 'error.main' }}>
+                <ListItemIcon sx={{ color: 'error.main' }}><Cancel fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Void ใบแจ้งหนี้" />
+              </MenuItem>
+            ) : null}
             <Can permission={PERMISSIONS.RECEIVE_PAYMENT}>
               <MenuItem
                 onClick={handleOpenReceivePaymentDialog}
@@ -1190,6 +1255,9 @@ export default function InvoiceDetail(): ReactElement {
                     label={t('documentManagement.invoice.salesSection.status')}
                     value={getDocumentStatusLabel(invoice?.status, invoice?.statusProfile)}
                   />
+                  {invoice?.status === 'CANCELLED' || invoice?.status === 'VOID' ? (
+                    <Info label="เหตุผล" value={invoice.statusReason || '-'} />
+                  ) : null}
                 </Stack>
               </Grid>
 
@@ -1724,6 +1792,49 @@ export default function InvoiceDetail(): ReactElement {
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setIsRejectReasonDialogOpen(false)}>{t('button.close')}</Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={Boolean(invoiceStatusAction)}
+          onClose={() => {
+            if (!isSaving) {
+              setInvoiceStatusAction(null);
+              setInvoiceStatusReason('');
+            }
+          }}
+          fullWidth
+          maxWidth="sm">
+          <DialogTitle>
+            {invoiceStatusAction === 'VOID' ? 'ยืนยัน Void ใบแจ้งหนี้' : 'ยืนยันยกเลิกใบแจ้งหนี้'}
+          </DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              fullWidth
+              required
+              multiline
+              minRows={3}
+              label="เหตุผล"
+              value={invoiceStatusReason}
+              onChange={(event) => setInvoiceStatusReason(event.target.value)}
+              autoFocus
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => {
+                setInvoiceStatusAction(null);
+                setInvoiceStatusReason('');
+              }}
+              disabled={isSaving}>
+              {t('button.cancel')}
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => void handleConfirmInvoiceStatusChange()}
+              disabled={!invoiceStatusReason.trim() || isSaving}>
+              ยืนยัน
+            </Button>
           </DialogActions>
         </Dialog>
         <DocumentLanguageDialog

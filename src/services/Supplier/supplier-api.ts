@@ -173,7 +173,7 @@ export const searchSupplierShippingsV2 = async (params?: {
 };
 
 export const createSupplierShippingV2 = async (payload: {
-  shippingMethod: 'LAND' | 'SEA';
+  shippingMethod: 'LAND' | 'SEA' | 'AIR';
   shippingMode?: 'STANDARD' | 'FCL';
   shippingName?: string;
   carCode?: string;

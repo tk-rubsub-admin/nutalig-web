@@ -1093,28 +1093,28 @@ export default function NewQuotation() {
                     : ''
             };
             console.log('Payload:', payload);
-            // toast
-            //     .promise(createQuotation(payload), {
-            //         loading: t('toast.loading'),
-            //         success: (response) => {
-            //             const quotationNo = response?.data?.id;
+            toast
+                .promise(createQuotation(payload), {
+                    loading: t('toast.loading'),
+                    success: (response) => {
+                        const quotationNo = response?.data?.id;
 
-            //             history.push(
-            //                 quotationNo
-            //                     ? ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo)
-            //                     : ROUTE_PATHS.QUOTATION_MANAGEMENT
-            //             );
-            //             return t('toast.success');
-            //         },
-            //         error: () => {
-            //             return t('toast.failed');
-            //         }
-            //     })
-            //     .finally(() => {
-            //         if (isMountedRef.current) {
-            setIsLoading(false);
-            //         }
-            //     });
+                        history.push(
+                            quotationNo
+                                ? ROUTE_PATHS.QUOTATION_DETAIL.replace(':id', quotationNo)
+                                : ROUTE_PATHS.QUOTATION_MANAGEMENT
+                        );
+                        return t('toast.success');
+                    },
+                    error: () => {
+                        return t('toast.failed');
+                    }
+                })
+                .finally(() => {
+                    if (isMountedRef.current) {
+                        setIsLoading(false);
+                    }
+                });
         }
     });
 

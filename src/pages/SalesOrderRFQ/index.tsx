@@ -1675,6 +1675,7 @@ export default function SalesOrderRFQ(): JSX.Element {
         quotationDetailId: selectedItem.quotationDetailId
           ? Number(selectedItem.quotationDetailId)
           : null,
+        supplierQuoteTierId: selectedItem.supplierQuoteTierId ?? null,
         shippingMethod: selectedItem.shippingMethod,
         lineType: selectedItem.lineType || 'PRODUCT'
       }))

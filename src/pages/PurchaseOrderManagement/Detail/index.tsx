@@ -95,6 +95,7 @@ import {
   updatePurchaseOrderProductionExpectedEndDate,
   startPurchaseOrderRun,
   uploadPurchaseOrderAttachments
+  ,generatePurchaseOrderCartonLabel
 } from 'services/PurchaseOrder/purchase-order-api';
 import {
   PurchaseOrderAttachmentDocumentType,
@@ -481,6 +482,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   }, [history.location.search, canViewSupplierPayment, canViewProof]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generatingCartonLabelId, setGeneratingCartonLabelId] = useState<number | null>(null);
   const [draft, setDraft] = useState<PurchaseOrderDraft>(createDraft());
   const [newDraftItemId, setNewDraftItemId] = useState<number | null>(null);
   const newDraftItemRowRef = useRef<HTMLTableRowElement | null>(null);
@@ -1175,6 +1177,37 @@ export default function PurchaseOrderDetail(): ReactElement {
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     });
+  };
+
+  const handleGenerateCartonLabel = async (item: PurchaseOrderItem, packageId?: number | null) => {
+    if (!purchaseOrder?.purchaseOrderNo || !item.id || !packageId) {
+      toast.error('ไม่พบข้อมูล Package สำหรับสร้างใบแปะข้างกล่อง');
+      return;
+    }
+    setGeneratingCartonLabelId(packageId);
+    try {
+      const response = await toast.promise(
+        generatePurchaseOrderCartonLabel(purchaseOrder.purchaseOrderNo, item.id, packageId),
+        {
+          loading: 'กำลังสร้างใบแปะข้างกล่อง',
+          success: 'สร้างใบแปะข้างกล่องเรียบร้อยแล้ว',
+          error: 'สร้างใบแปะข้างกล่องไม่สำเร็จ'
+        }
+      );
+      (response.files || []).forEach((file) => {
+        const blob = base64ToBlob(file.base64, file.contentType || 'application/pdf');
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = file.fileName || `${purchaseOrder.purchaseOrderNo}-carton-label.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      });
+    } finally {
+      setGeneratingCartonLabelId(null);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -2955,6 +2988,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                             <TableCell className={classes.tableHeader} align="right">CBM/ลัง</TableCell>
                             <TableCell className={classes.tableHeader} align="right">CBM รวม</TableCell>
                             <TableCell className={classes.tableHeader} align="center">สถานะ</TableCell>
+                            <TableCell className={classes.tableHeader} align="center">ดำเนินการ</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -2962,7 +2996,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                             if (!item.packages?.length) return [];
                             return [
                               <TableRow key={`package-group-${item.id || itemIndex}`} sx={{ backgroundColor: '#eef4fa' }}>
-                                <TableCell colSpan={8}>
+                                <TableCell colSpan={9}>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     {item.name || `สินค้า ${itemIndex + 1}`}
                                   </Typography>
@@ -2982,10 +3016,21 @@ export default function PurchaseOrderDetail(): ReactElement {
                                   <TableCell align="center">
                                     <Chip size="small" color={packageItem.selectedForCalculation ? 'success' : 'default'} label={packageItem.selectedForCalculation ? 'รวมใน CBM' : 'ไม่นำมาคำนวณ'} />
                                   </TableCell>
+                                  <TableCell align="center">
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      startIcon={<Description />}
+                                      disabled={!packageItem.id || generatingCartonLabelId === packageItem.id}
+                                      onClick={() => handleGenerateCartonLabel(item, packageItem.id)}
+                                    >
+                                      {generatingCartonLabelId === packageItem.id ? 'กำลังสร้าง...' : 'Generate ใบแปะ'}
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               )),
                               <TableRow key={`package-subtotal-${item.id || itemIndex}`} sx={{ backgroundColor: '#f7f9fc' }}>
-                                <TableCell colSpan={6} align="right">
+                                <TableCell colSpan={7} align="right">
                                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     รวม CBM ของ {item.name || `สินค้า ${itemIndex + 1}`}
                                   </Typography>
@@ -3000,7 +3045,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                             ];
                           })}
                           <TableRow>
-                            <TableCell colSpan={6} align="right">
+                            <TableCell colSpan={7} align="right">
                               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>รวม CBM ทุกสินค้า</Typography>
                             </TableCell>
                             <TableCell align="right">

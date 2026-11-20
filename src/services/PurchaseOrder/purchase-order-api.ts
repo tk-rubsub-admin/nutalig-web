@@ -26,8 +26,11 @@ import {
   UpdatePurchaseOrderRequest,
   UpdatePurchaseOrderDeliveryRequest,
   PurchaseOrderDeliveryAttachment,
-  PurchaseOrderDeliveryAttachmentSection
+  PurchaseOrderDeliveryAttachmentSection,
+  PurchaseOrderReceipt,
+  CreatePurchaseOrderReceiptRequest
 } from './purchase-order-type';
+import { DownloadDocumentResponse } from 'services/general-type';
 
 function buildPurchaseOrderProofFormData(
   data: SubmitPurchaseOrderProofRequest,
@@ -274,6 +277,54 @@ export const deletePurchaseOrderDeliveryAttachment = async (
   return response.data;
 };
 
+export const getPurchaseOrderDeliveryReceiveContext = async (
+  purchaseOrderNo: string,
+  deliveryId: number
+): Promise<PurchaseOrderReceipt> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/receive`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+
+export const createPurchaseOrderDeliveryReceipt = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  data: CreatePurchaseOrderReceiptRequest
+): Promise<PurchaseOrderReceipt> => {
+  const response = await api
+    .post(`/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/receipts`, data)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderDeliveryReceipts = async (
+  purchaseOrderNo: string,
+  deliveryId: number
+): Promise<PurchaseOrderReceipt[]> => {
+  const response = await api
+    .get(`/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/receipts`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const cancelPurchaseOrderReceipt = async (
+  receiptNo: string
+): Promise<PurchaseOrderReceipt> => {
+  const response = await api
+    .patch(`/v1/purchase-order-receipts/${receiptNo}/cancel`)
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const getPurchaseOrderReceipt = async (receiptNo: string): Promise<PurchaseOrderReceipt> => {
+  const response = await api
+    .get(`/v1/purchase-order-receipts/${receiptNo}`)
+    .then((result) => result.data);
+  return response.data;
+};
+
 export const updatePurchaseOrderDelivery = async (
   purchaseOrderNo: string,
   deliveryId: number,
@@ -400,6 +451,21 @@ export const viewPurchaseOrder = async (id: string, original: boolean, copy: boo
     })
     .then((result) => result);
 
+  return response;
+};
+
+export const generatePurchaseOrderCartonLabel = async (
+  purchaseOrderNo: string,
+  detailId: number,
+  packageId: number,
+  componentId?: number | null
+): Promise<DownloadDocumentResponse> => {
+  const response = await api
+    .get(
+      `/v1/purchase-orders/${purchaseOrderNo}/details/${detailId}/packages/${packageId}/carton-label`,
+      { params: { format: 'PDF', componentId: componentId || undefined } }
+    )
+    .then((result) => result.data);
   return response;
 };
 

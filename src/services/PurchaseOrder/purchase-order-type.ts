@@ -447,7 +447,14 @@ export interface PurchaseOrderDeliveryRecord {
   shippingRouteCode?: string | null;
   originLocationName?: string | null;
   destinationLocationName?: string | null;
-  status: 'DRAFT' | 'HANDED_OVER_TO_CARRIER' | 'IN_TRANSIT' | 'RECEIVED_AT_WAREHOUSE' | 'CANCELLED';
+  status:
+    | 'DRAFT'
+    | 'HANDED_OVER_TO_CARRIER'
+    | 'IN_TRANSIT'
+    | 'PARTIALLY_RECEIVED'
+    | 'RECEIVED_AT_WAREHOUSE'
+    | 'RECEIVED_WITH_ISSUE'
+    | 'CANCELLED';
   remark?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
@@ -474,6 +481,66 @@ export interface PurchaseOrderDeliveryRecord {
     sortOrder?: number | null;
   }>;
 }
+
+export type PurchaseOrderReceiptStatus = 'CONFIRMED' | 'CANCELLED';
+
+export interface PurchaseOrderReceiptDetail {
+  id?: number | null;
+  deliveryDetailId: number;
+  purchaseOrderDetailId?: number | null;
+  purchaseOrderDetailComponentId?: number | null;
+  productName?: string | null;
+  componentName?: string | null;
+  shippedQuantity: number;
+  receivedQuantity?: number | null;
+  damagedQuantity?: number | null;
+  shortageQuantity?: number | null;
+  excessQuantity?: number | null;
+  receivedQuantityToDate?: number | null;
+  remainingQuantity?: number | null;
+  lotNo?: string | null;
+  expiryDate?: string | null;
+  warehouseLocationId?: number | null;
+  remark?: string | null;
+}
+
+export interface PurchaseOrderReceipt {
+  receiptNo?: string | null;
+  purchaseOrderNo: string;
+  deliveryId: number;
+  deliveryNo?: string | null;
+  supplierName?: string | null;
+  shippingMethod?: string | null;
+  trackingNumber?: string | null;
+  shippingRouteCode?: string | null;
+  originLocationName?: string | null;
+  destinationLocationName?: string | null;
+  warehouseId?: number | null;
+  receivedDate?: string | null;
+  receivedBy?: string | null;
+  status?: PurchaseOrderReceiptStatus | null;
+  remark?: string | null;
+  createdDate?: string | null;
+  details: PurchaseOrderReceiptDetail[];
+}
+
+export interface CreatePurchaseOrderReceiptRequest {
+  warehouseId?: number | null;
+  receivedDate: string;
+  remark?: string | null;
+  details: Array<{
+    deliveryDetailId: number;
+    receivedQuantity: number;
+    damagedQuantity: number;
+    shortageQuantity: number;
+    excessQuantity: number;
+    lotNo?: string | null;
+    expiryDate?: string | null;
+    warehouseLocationId?: number | null;
+    remark?: string | null;
+  }>;
+}
+
 
 export interface UpdatePurchaseOrderDeliveryRequest {
   expectedWarehouseDate: string;

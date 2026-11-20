@@ -45,7 +45,9 @@ const DELIVERY_STATUS_LABELS: Record<PurchaseOrderDeliveryRecord['status'], stri
   DRAFT: 'ฉบับร่าง',
   HANDED_OVER_TO_CARRIER: 'ส่งมอบให้ขนส่งแล้ว',
   IN_TRANSIT: 'อยู่ระหว่างขนส่ง',
+  PARTIALLY_RECEIVED: 'รับเข้าบางส่วน',
   RECEIVED_AT_WAREHOUSE: 'รับเข้าคลังแล้ว',
+  RECEIVED_WITH_ISSUE: 'รับแล้วมีปัญหา',
   CANCELLED: 'ยกเลิก'
 };
 const SHIPPING_METHODS = [

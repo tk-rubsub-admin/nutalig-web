@@ -44,6 +44,7 @@ import {
   IconButton
 } from '@mui/material';
 import { ReactElement, ReactNode, useEffect, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
 import { usePermissions } from 'auth/PermissionContext';
@@ -67,6 +68,7 @@ import {
   SHIPPING_METHOD_LABELS
 } from 'utils/shipping';
 import PurchaseOrderDeliveryItemsTable from './PurchaseOrderDeliveryItemsTable';
+import { ROUTE_PATHS } from 'routes';
 
 interface Props {
   deliveries?: PurchaseOrderDeliveryRecord[];
@@ -83,7 +85,9 @@ const DELIVERY_STATUS: Record<PurchaseOrderDeliveryRecord['status'], string> = {
   DRAFT: 'ฉบับร่าง',
   HANDED_OVER_TO_CARRIER: 'ส่งมอบให้ขนส่งแล้ว',
   IN_TRANSIT: 'อยู่ระหว่างขนส่ง',
+  PARTIALLY_RECEIVED: 'รับเข้าบางส่วน',
   RECEIVED_AT_WAREHOUSE: 'รับเข้าคลังแล้ว',
+  RECEIVED_WITH_ISSUE: 'รับแล้วมีปัญหา',
   CANCELLED: 'ยกเลิกแล้ว'
 };
 
@@ -151,7 +155,9 @@ function DeliveryStepIcon({ active, completed, iconNode }: DeliveryStepIconProps
 const DELIVERY_STEP_INDEX: Partial<Record<PurchaseOrderDeliveryRecord['status'], number>> = {
   HANDED_OVER_TO_CARRIER: 0,
   IN_TRANSIT: 1,
-  RECEIVED_AT_WAREHOUSE: 2
+  PARTIALLY_RECEIVED: 2,
+  RECEIVED_AT_WAREHOUSE: 2,
+  RECEIVED_WITH_ISSUE: 2
 };
 
 function formatDate(value?: string | null): string {
@@ -246,6 +252,7 @@ export default function PurchaseOrderDeliverySection({
   onDeliveryUpdated
 }: Props) {
   const theme = useTheme();
+  const history = useHistory();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { has } = usePermissions();
   const canUpdateDelivery = has(PERMISSIONS.PURCHASE_ORDER_START_RUN);
@@ -591,6 +598,23 @@ export default function PurchaseOrderDeliverySection({
                     อยู่ระหว่างขนส่ง
                   </Button>
                 </Stack>
+              ) : null}
+              {has(PERMISSIONS.PURCHASE_ORDER_RECEIVE_CONFIRM) &&
+                ['IN_TRANSIT', 'PARTIALLY_RECEIVED'].includes(delivery.status) ? (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<Inventory2 />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    history.push({
+                      pathname: ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_RECEIVE,
+                      search: `?poNo=${encodeURIComponent(delivery.purchaseOrderNo || '')}&deliveryId=${delivery.id}`
+                    });
+                  }}>
+                  รับสินค้า
+                </Button>
               ) : null}
             </Stack>
           </AccordionSummary>

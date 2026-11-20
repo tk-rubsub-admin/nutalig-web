@@ -28,7 +28,8 @@ import {
   PurchaseOrderDeliveryAttachment,
   PurchaseOrderDeliveryAttachmentSection,
   PurchaseOrderReceipt,
-  CreatePurchaseOrderReceiptRequest
+  CreatePurchaseOrderReceiptRequest,
+  CartonLabelScan
 } from './purchase-order-type';
 import { DownloadDocumentResponse } from 'services/general-type';
 
@@ -467,6 +468,13 @@ export const generatePurchaseOrderCartonLabel = async (
     )
     .then((result) => result.data);
   return response;
+};
+
+export const scanPurchaseOrderCartonLabel = async (token: string): Promise<CartonLabelScan> => {
+  const response = await api
+    .get('/v1/purchase-orders/carton-label/scan', { params: { token } })
+    .then((result) => result.data);
+  return response.data;
 };
 
 export const updatePurchaseOrder = async (

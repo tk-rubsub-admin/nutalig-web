@@ -4,6 +4,21 @@ import { SystemConfig } from 'services/Config/config-type';
 import { DocumentStatusProfile } from 'services/document-status-type';
 import { Pagination } from 'services/general-type';
 
+export interface CartonLabelScan {
+  purchaseOrderNo: string;
+  purchaseOrderDetailId?: number | null;
+  purchaseOrderDetailPackageId?: number | null;
+  componentId?: number | null;
+  productName?: string | null;
+  spec?: string | null;
+  componentCode?: string | null;
+  componentName?: string | null;
+  componentSpecification?: string | null;
+  packageDimension?: string | null;
+  packageWeight?: string | null;
+  packageCapacity?: string | null;
+}
+
 export interface CreatePurchaseOrderRequest {
   salesOrderNo: string;
   supplierId: string;

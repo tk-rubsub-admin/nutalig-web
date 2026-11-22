@@ -26,11 +26,11 @@ import Paginate from 'components/Paginate';
 import { GridSearchSection, GridTextField, Wrapper } from 'components/Styled';
 import { useFormik } from 'formik';
 import { Page } from 'layout/LayoutRoute';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { searchPurchaseOrders } from 'services/PurchaseOrder/purchase-order-api';
 import {
@@ -80,6 +80,20 @@ function withDocumentNoPrefix(value: string | undefined, prefix: string): string
     : `${prefix}${normalizedValue}`;
 }
 
+function purchaseOrderFilterFromSearch(search: string, defaultFilter: SearchPurchaseOrderRequest) {
+  const params = new URLSearchParams(search);
+  return {
+    purchaseOrderNo: params.get('purchaseOrderNo') || defaultFilter.purchaseOrderNo || '',
+    salesOrderNo: params.get('salesOrderNo') || defaultFilter.salesOrderNo || '',
+    docDateStart: params.get('docDateStart') || defaultFilter.docDateStart || '',
+    docDateEnd: params.get('docDateEnd') || defaultFilter.docDateEnd || '',
+    status: null,
+    statuses: params.get('statuses') ? params.get('statuses')!.split(',').filter(Boolean) : [],
+    shippingMethod: params.get('shippingMethod') || '',
+    keyword: params.get('keyword') || ''
+  };
+}
+
 export default function PurchaseOrderManagement(): JSX.Element {
   const useStyles = makeStyles({
     noResultMessage: {
@@ -101,6 +115,7 @@ export default function PurchaseOrderManagement(): JSX.Element {
   const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
   const { t } = useTranslation();
   const history = useHistory();
+  const location = useLocation();
 
   const defaultFilter: SearchPurchaseOrderRequest = {
     purchaseOrderNo: '',
@@ -113,9 +128,31 @@ export default function PurchaseOrderManagement(): JSX.Element {
     keyword: ''
   };
 
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [filter, setFilter] = useState<SearchPurchaseOrderRequest>(defaultFilter);
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const initialFilter = useMemo(
+    () => purchaseOrderFilterFromSearch(location.search, defaultFilter),
+    [location.search]
+  );
+  const [page, setPage] = useState<number>(Number(params.get('page')) || 1);
+  const [pageSize, setPageSize] = useState<number>(Number(params.get('pageSize')) || 10);
+  const [filter, setFilter] = useState<SearchPurchaseOrderRequest>(initialFilter);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    nextParams.set('page', String(page));
+    nextParams.set('pageSize', String(pageSize));
+    Object.entries(filter).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) nextParams.set(key, value.join(','));
+      } else if (value !== null && value !== undefined && String(value).trim()) {
+        nextParams.set(key, String(value).trim());
+      }
+    });
+    const nextSearch = `?${nextParams.toString()}`;
+    if (nextSearch !== location.search) {
+      history.replace({ pathname: location.pathname, search: nextSearch });
+    }
+  }, [filter, history, location.pathname, location.search, page, pageSize]);
 
   const {
     data: purchaseOrderList,
@@ -131,7 +168,8 @@ export default function PurchaseOrderManagement(): JSX.Element {
   );
 
   const searchFormik = useFormik<SearchPurchaseOrderRequest>({
-    initialValues: defaultFilter,
+    initialValues: initialFilter,
+    enableReinitialize: true,
     onSubmit: (values) => {
       const nextFilter: SearchPurchaseOrderRequest = {
         purchaseOrderNo: withDocumentNoPrefix(values.purchaseOrderNo, PURCHASE_ORDER_NO_PREFIX),

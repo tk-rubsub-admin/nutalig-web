@@ -27,11 +27,11 @@ import Paginate from "components/Paginate";
 import { GridSearchSection, GridTextField, Wrapper } from "components/Styled";
 import { useFormik } from "formik";
 import { Page } from "layout/LayoutRoute";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isMobileOnly } from "react-device-detect";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "react-query";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import { searchQuotation, viewQuotation } from "services/Document/document-api";
 import { Quotation, SearchQuotationRequest } from "services/Document/document-type";
 import { DownloadDocumentResponse } from "services/general-type";
@@ -53,6 +53,19 @@ function getDefaultDocDateRange() {
     return {
         docDateStart: now.startOf('month').format('YYYY-MM-DD'),
         docDateEnd: now.endOf('month').format('YYYY-MM-DD')
+    };
+}
+
+function quotationFilterFromSearch(search: string, defaultFilter: SearchQuotationRequest) {
+    const params = new URLSearchParams(search);
+    return {
+        docNoEqual: params.get('docNoEqual') || defaultFilter.docNoEqual || '',
+        docDateStart: params.get('docDateStart') || defaultFilter.docDateStart || '',
+        docDateEnd: params.get('docDateEnd') || defaultFilter.docDateEnd || '',
+        customerIdEqual: params.get('customerIdEqual') || '',
+        salesId: params.get('salesId') || '',
+        statusEqual: params.get('statusEqual') || null,
+        keyword: params.get('keyword') || ''
     };
 }
 
@@ -85,6 +98,7 @@ export default function QuotationManagement(): JSX.Element {
     const isDownSm = useMediaQuery(theme.breakpoints.down('sm'));
     const { t } = useTranslation();
     const history = useHistory();
+    const location = useLocation();
 
     const defaultFilter: SearchQuotationRequest = {
         docNoEqual: '',
@@ -95,9 +109,29 @@ export default function QuotationManagement(): JSX.Element {
         keyword: ''
     };
 
-    const [page, setPage] = useState<number>(1);
-    const [pageSize, setPageSize] = useState<number>(10);
-    const [quotationFilter, setQuotationFilter] = useState<SearchQuotationRequest>(defaultFilter);
+    const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const initialQuotationFilter = useMemo(
+        () => quotationFilterFromSearch(location.search, defaultFilter),
+        [location.search]
+    );
+    const [page, setPage] = useState<number>(Number(params.get('page')) || 1);
+    const [pageSize, setPageSize] = useState<number>(Number(params.get('pageSize')) || 10);
+    const [quotationFilter, setQuotationFilter] = useState<SearchQuotationRequest>(initialQuotationFilter);
+
+    useEffect(() => {
+        const nextParams = new URLSearchParams();
+        nextParams.set('page', String(page));
+        nextParams.set('pageSize', String(pageSize));
+        Object.entries(quotationFilter).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && String(value).trim()) {
+                nextParams.set(key, String(value).trim());
+            }
+        });
+        const nextSearch = `?${nextParams.toString()}`;
+        if (nextSearch !== location.search) {
+            history.replace({ pathname: location.pathname, search: nextSearch });
+        }
+    }, [history, location.pathname, location.search, page, pageSize, quotationFilter]);
 
     const { data: salesOptions = [], isFetching: isSalesFetching } = useQuery(
         ['quotation-sales-options'],
@@ -121,8 +155,8 @@ export default function QuotationManagement(): JSX.Element {
     );
 
     const searchFormik = useFormik<SearchQuotationRequest>({
-        initialValues: defaultFilter,
-        enableReinitialize: false,
+        initialValues: initialQuotationFilter,
+        enableReinitialize: true,
         onSubmit: (values) => {
             const nextFilter: SearchQuotationRequest = {
                 docNoEqual: values.docNoEqual?.trim() || '',

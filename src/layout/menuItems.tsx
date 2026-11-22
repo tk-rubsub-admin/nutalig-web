@@ -16,7 +16,8 @@ import {
   DoneAll,
   FactCheck,
   Storefront,
-  AttachMoney
+  AttachMoney,
+  Warehouse
 } from '@mui/icons-material';
 import { ROLES } from 'auth/roles';
 import { PERMISSIONS } from 'auth/permissions';
@@ -187,6 +188,29 @@ export function useMenuItems() {
           title: 'จัดการตู้คอนเทนเนอร์',
           href: ROUTE_PATHS.CONTAINER_MANAGEMENT,
           allowedPermission: [PERMISSIONS.CONTAINER_VIEW]
+        }
+      ]
+    }, {
+      id: 'left_menu__store_management',
+      title: 'ฝ่ายคลังสินค้า',
+      icon: Warehouse,
+      allowedPermission: [
+        PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW,
+        PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW,
+        PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW
+      ],
+      children: [
+        {
+          id: 'left_menu__purchase_order_receive',
+          title: 'รับสินค้า',
+          href: ROUTE_PATHS.PURCHASE_ORDER_RECEIVE_LIST,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
+        },
+        {
+          id: 'left_menu__awaiting_invoice_payment',
+          title: 'รอรับชำระเงิน (ใบแจ้งหนี้)',
+          href: ROUTE_PATHS.PENDING_INVOICE_PAYMENTS,
+          allowedPermission: [PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW]
         }
       ]
     },

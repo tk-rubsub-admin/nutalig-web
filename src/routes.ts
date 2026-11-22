@@ -70,6 +70,7 @@ export const ROUTE_PATHS = Object.freeze({
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2: '/purchase-order-create-v2/:salesOrderId',
   PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
   PURCHASE_ORDER_DELIVERY_RECEIVE: '/purchase-order-receive',
+  PURCHASE_ORDER_RECEIVE_LIST: '/purchase-order-receive-list',
   PURCHASE_ORDER_CARTON_LABEL_SCAN: '/purchase-order-receive/scan',
   PURCHASE_ORDER_DOCUMENT: '/purchase-order/:id/document',
   PURCHASE_ORDER_PROOF_DETAIL: '/purchase-order-proof/:id',
@@ -421,12 +422,17 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_CARTON_LABEL_SCAN,
     component: lazy(() => import('./pages/PurchaseOrderManagement/CartonLabelScan')),
-    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.PURCHASE_ORDER_RECEIVE_LIST,
+    component: lazy(() => import('./pages/PurchaseOrderManagement/ReceiveList')),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
   },
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_RECEIVE,
     component: lazy(() => import('./pages/PurchaseOrderManagement/Receive')),
-    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_VIEW]
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
   },
   {
     path: ROUTE_PATHS.PURCHASE_ORDER_PROOF_DETAIL,

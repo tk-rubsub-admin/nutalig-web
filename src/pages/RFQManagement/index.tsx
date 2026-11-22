@@ -430,6 +430,36 @@ function createFilterFromRequestParams(search: string, salesId = ''): RFQManagem
   return defaultFilter;
 }
 
+function buildRequestParams(
+  filter: RFQManagementFilter,
+  page: number,
+  pageSize: number,
+  customerKeyword: string
+): string {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+
+  Object.entries(filter).forEach(([key, value]) => {
+    if (key === 'statuses') {
+      if (Array.isArray(value) && value.length) {
+        params.set('statuses', value.join(','));
+      }
+      return;
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      params.set(key, value.trim());
+    }
+  });
+
+  if (customerKeyword.trim()) {
+    params.set('customerKeyword', customerKeyword.trim());
+  }
+
+  return params.toString();
+}
+
 function parseBooleanFilter(value?: string): boolean | undefined {
   const normalized = value?.trim().toLowerCase();
 
@@ -482,31 +512,56 @@ export default function RFQManagement(): ReactElement {
   const history = useHistory();
   const location = useLocation<RFQManagementLocationState>();
   const returnToListState = location.state?.returnToList;
-  const [page, setPage] = useState<number>(returnToListState?.page || 1);
-  const [pageSize, setPageSize] = useState<number>(returnToListState?.pageSize || 10);
+  const requestParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const hasUrlListState = requestParams.has('page') || requestParams.has('pageSize');
+  const [page, setPage] = useState<number>(
+    Number(requestParams.get('page')) || returnToListState?.page || 1
+  );
+  const [pageSize, setPageSize] = useState<number>(
+    Number(requestParams.get('pageSize')) || returnToListState?.pageSize || 10
+  );
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const canCreateRFQ = hasPermission(PERMISSIONS.RFQ_CREATE);
   const currentRole = getRole();
   const currentSalesId = getSalesId() || getEmployeeId();
   const isSalesRole = currentRole === ROLES.SALES;
-  const requestParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const hasSalesIdRequestParam = requestParams.has('salesId');
   const [customerKeyword, setCustomerKeyword] = useState(
-    returnToListState?.customerKeyword || ''
+    requestParams.get('customerKeyword') || returnToListState?.customerKeyword || ''
   );
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
   const roleDefaultFilter = useMemo(
     () => createFilterFromRequestParams(location.search, isSalesRole ? currentSalesId : ''),
     [currentSalesId, isSalesRole, location.search]
   );
+  const defaultFilter = useMemo(
+    () => createDefaultFilter(isSalesRole ? currentSalesId : ''),
+    [currentSalesId, isSalesRole]
+  );
   const initialFilter = useMemo(
     () => ({
-      ...(returnToListState?.filter || roleDefaultFilter),
-      id: normalizeRfqIdForDisplay(returnToListState?.filter?.id || roleDefaultFilter.id)
+      ...(!hasUrlListState && returnToListState?.filter ? returnToListState.filter : roleDefaultFilter),
+      id: normalizeRfqIdForDisplay(
+        (!hasUrlListState && returnToListState?.filter?.id) || roleDefaultFilter.id
+      )
     }),
-    [returnToListState?.filter, roleDefaultFilter]
+    [hasUrlListState, returnToListState?.filter, roleDefaultFilter]
   );
   const [filter, setFilter] = useState(initialFilter);
+
+  useEffect(() => {
+    const search = buildRequestParams(filter, page, pageSize, customerKeyword);
+    const nextSearch = search ? `?${search}` : '';
+    if (nextSearch === location.search) {
+      return;
+    }
+
+    history.replace({
+      pathname: location.pathname,
+      search: nextSearch,
+      state: location.state
+    });
+  }, [customerKeyword, filter, history, location.pathname, location.search, location.state, page, pageSize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -760,12 +815,12 @@ export default function RFQManagement(): ReactElement {
     setCustomerKeyword('');
     setPage(1);
 
-    if (page === 1 && JSON.stringify(filter) === JSON.stringify(roleDefaultFilter)) {
+    if (page === 1 && JSON.stringify(filter) === JSON.stringify(defaultFilter)) {
       rfqRefetch();
       return;
     }
 
-    setFilter(roleDefaultFilter);
+    setFilter(defaultFilter);
   };
 
   const handleExport = async () => {

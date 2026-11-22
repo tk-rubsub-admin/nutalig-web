@@ -33,7 +33,7 @@ import toast from 'react-hot-toast';
 import { isMobileOnly } from 'react-device-detect';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import dayjs from 'dayjs';
 import { exportSalesOrdersV1, searchSalesOrdersV1 } from 'services/SaleOrder/sale-order-api';
@@ -115,6 +115,25 @@ const defaultFilter: SearchSalesOrderRequestV1 = {
 
 const SCREEN_CODE = 'SALE_ORDER_LIST';
 
+function salesOrderFilterFromSearch(search: string, defaultFilter: SearchSalesOrderRequestV1) {
+  const params = new URLSearchParams(search);
+  return {
+    ...defaultFilter,
+    salesOrderNo: params.get('salesOrderNo') || defaultFilter.salesOrderNo || '',
+    docDateStart: params.get('docDateStart') || defaultFilter.docDateStart || '',
+    docDateEnd: params.get('docDateEnd') || defaultFilter.docDateEnd || '',
+    customerId: params.get('customerId') || '',
+    salesId: params.get('salesId') || defaultFilter.salesId || '',
+    status: params.get('status') || null,
+    urgentRequestStatus: params.get('urgentRequestStatus') || null,
+    procurementStatus: params.get('procurementStatus')
+      ? params.get('procurementStatus')!.split(',').filter(Boolean)
+      : defaultFilter.procurementStatus || [],
+    shippingType: params.get('shippingType') || '',
+    keyword: params.get('keyword') || ''
+  };
+}
+
 export default function SalesOrderManagement(): ReactElement {
   const useStyles = makeStyles({
     noResultMessage: {
@@ -137,6 +156,7 @@ export default function SalesOrderManagement(): ReactElement {
   const { getEmployeeId, getRole, getSalesId } = useAuth();
   const { t } = useTranslation();
   const history = useHistory();
+  const location = useLocation();
   const currentRole = getRole();
   const currentSalesId = getSalesId() || getEmployeeId();
   const isSalesRole = currentRole === ROLES.SALES;
@@ -147,10 +167,30 @@ export default function SalesOrderManagement(): ReactElement {
     }),
     [currentSalesId, isSalesRole]
   );
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [filter, setFilter] = useState<SearchSalesOrderRequestV1>(roleDefaultFilter);
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const initialFilter = useMemo(
+    () => salesOrderFilterFromSearch(location.search, roleDefaultFilter),
+    [location.search, roleDefaultFilter]
+  );
+  const [page, setPage] = useState(Number(params.get('page')) || 1);
+  const [pageSize, setPageSize] = useState(Number(params.get('pageSize')) || 10);
+  const [filter, setFilter] = useState<SearchSalesOrderRequestV1>(initialFilter);
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    nextParams.set('page', String(page));
+    nextParams.set('pageSize', String(pageSize));
+    Object.entries(filter).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) nextParams.set(key, value.join(','));
+      } else if (value !== null && value !== undefined && String(value).trim()) {
+        nextParams.set(key, String(value).trim());
+      }
+    });
+    const nextSearch = `?${nextParams.toString()}`;
+    if (nextSearch !== location.search) history.replace({ pathname: location.pathname, search: nextSearch });
+  }, [filter, history, location.pathname, location.search, page, pageSize]);
 
   const { data: visibleSearchFields = [] } = useQuery(
     ['my-search-fields', SCREEN_CODE],
@@ -215,7 +255,7 @@ export default function SalesOrderManagement(): ReactElement {
   );
 
   const searchFormik = useFormik<SearchSalesOrderRequestV1>({
-    initialValues: roleDefaultFilter,
+    initialValues: initialFilter,
     enableReinitialize: true,
     onSubmit: (values) => {
       const nextFilter: SearchSalesOrderRequestV1 = {

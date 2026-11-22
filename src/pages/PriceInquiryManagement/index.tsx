@@ -491,38 +491,36 @@ export default function PriceInquiryManagement(): ReactElement {
     [currentProcurementId, currentSalesId, isProcurementRole, isSalesRole, location.search]
   );
   const restoredListState = location.state?.restoreListState;
+  const hasUrlListState = requestParams.has('page') || requestParams.has('pageSize');
   const initialFilter = useMemo(
     () => ({
-      ...(restoredListState?.filter || roleDefaultFilter),
-      id: normalizeRfqIdForDisplay(restoredListState?.filter?.id || roleDefaultFilter.id)
+      ...(!hasUrlListState && restoredListState?.filter ? restoredListState.filter : roleDefaultFilter),
+      id: normalizeRfqIdForDisplay(
+        (!hasUrlListState && restoredListState?.filter?.id) || roleDefaultFilter.id
+      )
     }),
-    [restoredListState?.filter, roleDefaultFilter]
+    [hasUrlListState, restoredListState?.filter, roleDefaultFilter]
   );
-  const [page, setPage] = useState<number>(restoredListState?.page || 1);
-  const [pageSize, setPageSize] = useState<number>(restoredListState?.pageSize || 10);
+  const [page, setPage] = useState<number>(Number(requestParams.get('page')) || restoredListState?.page || 1);
+  const [pageSize, setPageSize] = useState<number>(Number(requestParams.get('pageSize')) || restoredListState?.pageSize || 10);
   const [filter, setFilter] = useState(initialFilter);
   const [customerKeyword, setCustomerKeyword] = useState('');
   const [debouncedCustomerKeyword, setDebouncedCustomerKeyword] = useState('');
 
   useEffect(() => {
-    if (!restoredListState) {
-      return;
-    }
-
-    history.replace({
-      pathname: location.pathname
+    const nextParams = new URLSearchParams();
+    nextParams.set('page', String(page));
+    nextParams.set('pageSize', String(pageSize));
+    Object.entries(filter).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (value.length) nextParams.set(key, value.join(','));
+      } else if (value !== null && value !== undefined && String(value).trim()) {
+        nextParams.set(key, String(value).trim());
+      }
     });
-  }, [history, location.pathname, restoredListState]);
-
-  useEffect(() => {
-    if (restoredListState || !location.search) {
-      return;
-    }
-
-    setFilter(roleDefaultFilter);
-    setPage(Number(requestParams.get('page') || 1));
-    setPageSize(Number(requestParams.get('pageSize') || 10));
-  }, [location.search, requestParams, restoredListState, roleDefaultFilter]);
+    const nextSearch = `?${nextParams.toString()}`;
+    if (nextSearch !== location.search) history.replace({ pathname: location.pathname, search: nextSearch });
+  }, [filter, history, location.pathname, location.search, page, pageSize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

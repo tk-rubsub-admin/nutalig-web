@@ -285,7 +285,6 @@ function ReceiveMethodDialog({
       cancelled = true;
       scannerControlsRef.current?.stop();
       scannerControlsRef.current = null;
-      reader.reset();
     };
   }, [cameraAttempt, mode, onScan, open]);
 

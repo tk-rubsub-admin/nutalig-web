@@ -205,12 +205,6 @@ export function useMenuItems() {
           title: 'รับสินค้า',
           href: ROUTE_PATHS.PURCHASE_ORDER_RECEIVE_LIST,
           allowedPermission: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
-        },
-        {
-          id: 'left_menu__awaiting_invoice_payment',
-          title: 'รอรับชำระเงิน (ใบแจ้งหนี้)',
-          href: ROUTE_PATHS.PENDING_INVOICE_PAYMENTS,
-          allowedPermission: [PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW]
         }
       ]
     },

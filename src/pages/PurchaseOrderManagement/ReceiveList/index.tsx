@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
+import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { ListEmptyState, ListErrorState, ListLoadingState } from 'components/ManagementList';
 import Paginate from 'components/Paginate';
 import { useUrlListState } from 'hooks/useUrlListState';
@@ -31,15 +32,6 @@ import { searchPurchaseOrderDeliveries } from 'services/PurchaseOrder/purchase-o
 import { getShippingMethodLabel } from 'utils/shipping';
 
 const formatDate = (value?: string | null) => (value ? dayjs(value).format('DD/MM/YYYY') : '-');
-
-type BarcodeDetectorResult = { rawValue?: string };
-type BarcodeDetectorInstance = {
-  detect: (source: ImageBitmapSource) => Promise<BarcodeDetectorResult[]>;
-};
-type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance;
-
-const getBarcodeDetector = () =>
-  (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
 
 function getCartonLabelLink(value: string): string | null {
   try {
@@ -255,52 +247,35 @@ function ReceiveMethodDialog({
   onScan
 }: ReceiveMethodDialogProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerControlsRef = useRef<IScannerControls | null>(null);
   const [cameraError, setCameraError] = useState('');
+  const [cameraAttempt, setCameraAttempt] = useState(0);
 
   useEffect(() => {
     if (!open || mode !== 'camera') return undefined;
 
     let cancelled = false;
-    let animationFrame = 0;
-    let stream: MediaStream | null = null;
-    const BarcodeDetector = getBarcodeDetector();
-    const detector = BarcodeDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
-
-    const scan = async () => {
-      if (cancelled || !videoRef.current || !detector) return;
-      try {
-        const results = await detector.detect(videoRef.current);
-        const value = results.find((result) => result.rawValue)?.rawValue;
-        if (value) {
-          onScan(value);
-          return;
-        }
-      } catch {
-        // Camera frames can fail while the video is starting; continue scanning.
-      }
-      if (!cancelled) animationFrame = requestAnimationFrame(() => void scan());
-    };
+    const reader = new BrowserQRCodeReader();
 
     const startCamera = async () => {
-      if (!BarcodeDetector) {
-        setCameraError('เบราว์เซอร์นี้ไม่รองรับการสแกน QR ด้วยกล้อง กรุณาใช้การกรอกลิงก์ QR เอง');
-        return;
-      }
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setCameraError('ไม่สามารถเปิดกล้องจากเบราว์เซอร์นี้ได้ กรุณาใช้การกรอกลิงก์ QR เอง');
-        return;
-      }
+      if (!videoRef.current) return;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false
-        });
-        if (cancelled || !videoRef.current) return;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        animationFrame = requestAnimationFrame(() => void scan());
+        const controls = await reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result, _error, scannerControls) => {
+            if (cancelled || !result) return;
+            scannerControls.stop();
+            onScan(result.getText());
+          }
+        );
+        if (cancelled) {
+          controls.stop();
+        } else {
+          scannerControlsRef.current = controls;
+        }
       } catch {
-        setCameraError('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการใช้กล้อง หรือใช้การกรอกลิงก์ QR เอง');
+        setCameraError('ไม่สามารถเปิดกล้องหรืออ่าน QR ได้ กรุณาอนุญาตการใช้กล้อง หรือใช้การกรอกลิงก์ QR เอง');
       }
     };
 
@@ -308,11 +283,11 @@ function ReceiveMethodDialog({
     void startCamera();
     return () => {
       cancelled = true;
-      cancelAnimationFrame(animationFrame);
-      stream?.getTracks().forEach((track) => track.stop());
-      if (videoRef.current) videoRef.current.srcObject = null;
+      scannerControlsRef.current?.stop();
+      scannerControlsRef.current = null;
+      reader.reset();
     };
-  }, [mode, onScan, open]);
+  }, [cameraAttempt, mode, onScan, open]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -340,7 +315,9 @@ function ReceiveMethodDialog({
 
         {mode === 'camera' ? (
           <Stack spacing={2}>
-            <Typography color="text.secondary">หันกล้องไปที่ QR ใบแปะข้างกล่อง</Typography>
+            <Typography color="text.secondary">
+              หันกล้องไปที่ QR ใบแปะข้างกล่อง หาก Safari แสดงคำขออนุญาต ให้กด “อนุญาต”
+            </Typography>
             <Box
               component="video"
               ref={videoRef}
@@ -348,7 +325,22 @@ function ReceiveMethodDialog({
               playsInline
               sx={{ width: '100%', minHeight: 260, bgcolor: 'black', borderRadius: 1, objectFit: 'cover' }}
             />
-            {cameraError ? <Typography color="error">{cameraError}</Typography> : null}
+            {cameraError ? (
+              <Stack spacing={1}>
+                <Typography color="error">{cameraError}</Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setCameraError('');
+                    setCameraAttempt((attempt) => attempt + 1);
+                  }}>
+                  ขออนุญาตใช้กล้องอีกครั้ง
+                </Button>
+                <Typography variant="caption" color="text.secondary">
+                  หากเคยเลือก “ไม่อนุญาต” ให้เปิดสิทธิ์กล้องของเว็บไซต์ใน Settings &gt; Safari ก่อน
+                </Typography>
+              </Stack>
+            ) : null}
           </Stack>
         ) : null}
 

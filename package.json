@@ -58,6 +58,8 @@
     "@types/qs": "~6.9.7",
     "@vis.gl/react-google-maps": "latest",
     "@vitejs/plugin-react": "~4.0.3",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "axios": "~0.21.1",
     "compress.js": "~1.2.2",
     "dayjs": "~1.10.5",

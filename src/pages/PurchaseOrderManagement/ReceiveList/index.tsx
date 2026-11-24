@@ -317,13 +317,31 @@ function ReceiveMethodDialog({
             <Typography color="text.secondary">
               หันกล้องไปที่ QR ใบแปะข้างกล่อง หาก Safari แสดงคำขออนุญาต ให้กด “อนุญาต”
             </Typography>
-            <Box
-              component="video"
-              ref={videoRef}
-              muted
-              playsInline
-              sx={{ width: '100%', minHeight: 260, bgcolor: 'black', borderRadius: 1, objectFit: 'cover' }}
-            />
+            <Box sx={{ position: 'relative', width: '100%', overflow: 'hidden', bgcolor: 'black', borderRadius: 1 }}>
+              <Box
+                component="video"
+                ref={videoRef}
+                muted
+                playsInline
+                sx={{ display: 'block', width: '100%', minHeight: 260, objectFit: 'cover' }}
+              />
+              <Box
+                aria-hidden="true"
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: { xs: 'min(68vw, 280px)', sm: 280 },
+                  height: { xs: 'min(68vw, 280px)', sm: 280 },
+                  transform: 'translate(-50%, -50%)',
+                  border: '3px solid',
+                  borderColor: 'success.light',
+                  borderRadius: 2,
+                  boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.28)',
+                  pointerEvents: 'none'
+                }}
+              />
+            </Box>
             {cameraError ? (
               <Stack spacing={1}>
                 <Typography color="error">{cameraError}</Typography>

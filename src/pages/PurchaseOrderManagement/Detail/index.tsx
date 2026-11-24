@@ -24,6 +24,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -44,6 +45,7 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme
@@ -94,8 +96,8 @@ import {
   updatePurchaseOrder,
   updatePurchaseOrderProductionExpectedEndDate,
   startPurchaseOrderRun,
-  uploadPurchaseOrderAttachments
-  ,generatePurchaseOrderCartonLabel
+  uploadPurchaseOrderAttachments,
+  generatePurchaseOrderCartonLabel
 } from 'services/PurchaseOrder/purchase-order-api';
 import {
   PurchaseOrderAttachmentDocumentType,
@@ -607,16 +609,18 @@ export default function PurchaseOrderDetail(): ReactElement {
   }, [purchaseOrder?.supplierShipping, supplierShippings]);
 
   const productionShippingsForMethod = useMemo(
-    () => productionShippings.filter((shipping) =>
-      matchesSupplierShipping(productionDeliveryDraft.shippingMethod, shipping)
-    ),
+    () =>
+      productionShippings.filter((shipping) =>
+        matchesSupplierShipping(productionDeliveryDraft.shippingMethod, shipping)
+      ),
     [productionDeliveryDraft.shippingMethod, productionShippings]
   );
 
   const selectedProductionShipping = useMemo(
-    () => productionShippingsForMethod.find(
-      (shipping) => String(shipping.id) === productionDeliveryDraft.supplierShippingId
-    ) || null,
+    () =>
+      productionShippingsForMethod.find(
+        (shipping) => String(shipping.id) === productionDeliveryDraft.supplierShippingId
+      ) || null,
     [productionDeliveryDraft.supplierShippingId, productionShippingsForMethod]
   );
 
@@ -635,20 +639,23 @@ export default function PurchaseOrderDetail(): ReactElement {
     setProductionDeliveryDraft((current) => ({
       ...current,
       supplierShippingId: String(productionShippingsForMethod[0].id),
-      supplierShippingRouteId: productionShippingsForMethod[0].routes?.length === 1
-        ? String(productionShippingsForMethod[0].routes[0].id)
-        : ''
+      supplierShippingRouteId:
+        productionShippingsForMethod[0].routes?.length === 1
+          ? String(productionShippingsForMethod[0].routes[0].id)
+          : ''
     }));
   }, [productionDeliveryDraft.supplierShippingId, productionShippingsForMethod]);
 
   const scrapBoxComponentChoices = useMemo<ScrapBoxComponentChoice[]>(
-    () => createProductionDeliveryDraft(purchaseOrder).details.map((detail) => ({
-      key: `${detail.purchaseOrderDetailId}:${detail.purchaseOrderDetailComponentId}`,
-      purchaseOrderDetailId: detail.purchaseOrderDetailId,
-      purchaseOrderDetailComponentId: detail.purchaseOrderDetailComponentId!,
-      label: `${purchaseOrder?.items.find((item) => item.id === detail.purchaseOrderDetailId)?.name || ''} — ${detail.label}`,
-      remainingQuantity: Number(detail.remainingQuantity)
-    })),
+    () =>
+      createProductionDeliveryDraft(purchaseOrder).details.map((detail) => ({
+        key: `${detail.purchaseOrderDetailId}:${detail.purchaseOrderDetailComponentId}`,
+        purchaseOrderDetailId: detail.purchaseOrderDetailId,
+        purchaseOrderDetailComponentId: detail.purchaseOrderDetailComponentId!,
+        label: `${purchaseOrder?.items.find((item) => item.id === detail.purchaseOrderDetailId)?.name || ''
+          } — ${detail.label}`,
+        remainingQuantity: Number(detail.remainingQuantity)
+      })),
     [purchaseOrder]
   );
 
@@ -751,8 +758,7 @@ export default function PurchaseOrderDetail(): ReactElement {
     purchaseOrder?.status !== 'CANCELLED' &&
     purchaseOrder?.status !== 'CLOSED';
   const canStartPurchaseOrderRun =
-    canManageTimeline &&
-    purchaseOrder?.status === 'AWAITING_START_RUN';
+    canManageTimeline && purchaseOrder?.status === 'AWAITING_START_RUN';
   const startRunWarnings = getPurchaseOrderStartRunWarnings(
     purchaseOrder?.status,
     purchaseOrderPayments,
@@ -801,8 +807,7 @@ export default function PurchaseOrderDetail(): ReactElement {
   );
   const nextCompletableMilestone = productionTimeline?.events.find((event) => event.canComplete);
   const unpaidPaymentSchedules = purchaseOrderPaymentSchedules.filter(
-    (schedule) =>
-      Number(schedule.outstandingAmount || 0) - Number(schedule.pendingAmount || 0) > 0
+    (schedule) => Number(schedule.outstandingAmount || 0) - Number(schedule.pendingAmount || 0) > 0
   );
   const selectedProductionSchedule = unpaidPaymentSchedules.find(
     (schedule) => schedule.id === selectedProductionScheduleId
@@ -814,9 +819,7 @@ export default function PurchaseOrderDetail(): ReactElement {
           instruction.scheduleId === selectedProductionSchedule.id &&
           instruction.status !== 'CANCELLED'
       )
-      .sort((left, right) =>
-        (right.createdDate || '').localeCompare(left.createdDate || '')
-      )[0]
+      .sort((left, right) => (right.createdDate || '').localeCompare(left.createdDate || ''))[0]
     : undefined;
 
   const openMilestoneDialog = (event: PurchaseOrderTimelineEvent, mode: 'complete' | 'skip') => {
@@ -1179,7 +1182,26 @@ export default function PurchaseOrderDetail(): ReactElement {
     });
   };
 
-  const handleGenerateCartonLabel = async (item: PurchaseOrderItem, packageId?: number | null) => {
+  const getPackageComponentId = (
+    item: PurchaseOrderItem,
+    packageItem: NonNullable<PurchaseOrderItem['packages']>[number]
+  ): number | null => {
+    if (!packageItem.sourcePackageId) {
+      return null;
+    }
+
+    return (
+      item.components?.find(
+        (component) => component.sourceQuoteDetailPackageId === packageItem.sourcePackageId
+      )?.id || null
+    );
+  };
+
+  const handleGenerateCartonLabel = async (
+    item: PurchaseOrderItem,
+    packageId?: number | null,
+    componentId?: number | null
+  ) => {
     if (!purchaseOrder?.purchaseOrderNo || !item.id || !packageId) {
       toast.error('ไม่พบข้อมูล Package สำหรับสร้างใบแปะข้างกล่อง');
       return;
@@ -1187,7 +1209,12 @@ export default function PurchaseOrderDetail(): ReactElement {
     setGeneratingCartonLabelId(packageId);
     try {
       const response = await toast.promise(
-        generatePurchaseOrderCartonLabel(purchaseOrder.purchaseOrderNo, item.id, packageId),
+        generatePurchaseOrderCartonLabel(
+          purchaseOrder.purchaseOrderNo,
+          item.id,
+          packageId,
+          componentId
+        ),
         {
           loading: 'กำลังสร้างใบแปะข้างกล่อง',
           success: 'สร้างใบแปะข้างกล่องเรียบร้อยแล้ว',
@@ -1309,8 +1336,10 @@ export default function PurchaseOrderDetail(): ReactElement {
           !productionDeliveryDraft.expectedWarehouseDate ||
           (productionShippingRoutes.length > 0
             ? !productionDeliveryDraft.supplierShippingRouteId
-            : !productionDeliveryDraft.shippingMethod || !productionDeliveryDraft.shippingLocationId) ||
-          (productionDeliveryDraft.details.length === 0 && productionDeliveryDraft.scrapBoxes.length === 0) ||
+            : !productionDeliveryDraft.shippingMethod ||
+            !productionDeliveryDraft.shippingLocationId) ||
+          (productionDeliveryDraft.details.length === 0 &&
+            productionDeliveryDraft.scrapBoxes.length === 0) ||
           productionDeliveryDraft.details.some(
             (detail) => !detail.quantity.trim() || Number(detail.quantity) <= 0
           )
@@ -1328,7 +1357,10 @@ export default function PurchaseOrderDetail(): ReactElement {
         }
         let scrapBoxPayload: ReturnType<typeof serializeScrapBoxes>;
         try {
-          scrapBoxPayload = serializeScrapBoxes(productionDeliveryDraft.scrapBoxes, scrapBoxComponentChoices);
+          scrapBoxPayload = serializeScrapBoxes(
+            productionDeliveryDraft.scrapBoxes,
+            scrapBoxComponentChoices
+          );
         } catch (error) {
           toast.error((error as Error).message);
           setIsSubmitting(false);
@@ -1337,7 +1369,10 @@ export default function PurchaseOrderDetail(): ReactElement {
         const quantitiesByComponent = new Map<string, number>();
         for (const detail of [...productionDeliveryDraft.details, ...scrapBoxPayload.details]) {
           const key = `${detail.purchaseOrderDetailId}:${detail.purchaseOrderDetailComponentId}`;
-          quantitiesByComponent.set(key, (quantitiesByComponent.get(key) || 0) + Number(detail.quantity));
+          quantitiesByComponent.set(
+            key,
+            (quantitiesByComponent.get(key) || 0) + Number(detail.quantity)
+          );
         }
         // const exceededChoice = scrapBoxComponentChoices.find(
         //   (choice) => (quantitiesByComponent.get(choice.key) || 0) > choice.remainingQuantity
@@ -1362,30 +1397,33 @@ export default function PurchaseOrderDetail(): ReactElement {
             ? { supplierShippingRouteId: Number(productionDeliveryDraft.supplierShippingRouteId) }
             : {}),
           ...(scrapBoxPayload.scrapBoxes.length ? { scrapBoxes: scrapBoxPayload.scrapBoxes } : {}),
-          details: [...productionDeliveryDraft.details.map((detail, sortOrder) => {
-            const cartonCount = optionalNumber(detail.cartonCount);
-            const lengthCm = optionalNumber(detail.lengthCm);
-            const widthCm = optionalNumber(detail.widthCm);
-            const heightCm = optionalNumber(detail.heightCm);
-            const calculatedCbm =
-              cartonCount && lengthCm && widthCm && heightCm
-                ? (cartonCount * lengthCm * widthCm * heightCm) / 1000000
-                : null;
-            return {
-              purchaseOrderDetailId: detail.purchaseOrderDetailId,
-              purchaseOrderDetailComponentId: detail.purchaseOrderDetailComponentId,
-              quantity: Number(detail.quantity),
-              cartonCount,
-              piecesPerCarton: optionalNumber(detail.piecesPerCarton),
-              netWeightKg: optionalNumber(detail.netWeightKg),
-              grossWeightKg: optionalNumber(detail.grossWeightKg),
-              lengthCm,
-              widthCm,
-              heightCm,
-              cbmM3: optionalNumber(detail.cbmM3) ?? calculatedCbm,
-              sortOrder
-            };
-          }), ...scrapBoxPayload.details]
+          details: [
+            ...productionDeliveryDraft.details.map((detail, sortOrder) => {
+              const cartonCount = optionalNumber(detail.cartonCount);
+              const lengthCm = optionalNumber(detail.lengthCm);
+              const widthCm = optionalNumber(detail.widthCm);
+              const heightCm = optionalNumber(detail.heightCm);
+              const calculatedCbm =
+                cartonCount && lengthCm && widthCm && heightCm
+                  ? (cartonCount * lengthCm * widthCm * heightCm) / 1000000
+                  : null;
+              return {
+                purchaseOrderDetailId: detail.purchaseOrderDetailId,
+                purchaseOrderDetailComponentId: detail.purchaseOrderDetailComponentId,
+                quantity: Number(detail.quantity),
+                cartonCount,
+                piecesPerCarton: optionalNumber(detail.piecesPerCarton),
+                netWeightKg: optionalNumber(detail.netWeightKg),
+                grossWeightKg: optionalNumber(detail.grossWeightKg),
+                lengthCm,
+                widthCm,
+                heightCm,
+                cbmM3: optionalNumber(detail.cbmM3) ?? calculatedCbm,
+                sortOrder
+              };
+            }),
+            ...scrapBoxPayload.details
+          ]
         };
         const updatedPurchaseOrder = await completePurchaseOrderProduction(
           purchaseOrder.purchaseOrderNo,
@@ -2210,9 +2248,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                     updateProductionDeliveryHeader('supplierShippingId', event.target.value);
                     setProductionDeliveryDraft((current) => ({
                       ...current,
-                      supplierShippingRouteId: shipping?.routes?.length === 1
-                        ? String(shipping.routes[0].id)
-                        : ''
+                      supplierShippingRouteId:
+                        shipping?.routes?.length === 1 ? String(shipping.routes[0].id) : ''
                     }));
                   }}
                   disabled={isSubmitting || isSupplierShippingsFetching}
@@ -2249,7 +2286,8 @@ export default function PurchaseOrderDetail(): ReactElement {
                             label={route.routeCode || `Route #${route.id}`}
                           />
                           <Typography variant="body2">
-                            {route.originLocationName || '-'} → {route.destinationLocationName || '-'}
+                            {route.originLocationName || '-'} →{' '}
+                            {route.destinationLocationName || '-'}
                           </Typography>
                         </Stack>
                       </MenuItem>
@@ -2277,37 +2315,45 @@ export default function PurchaseOrderDetail(): ReactElement {
                   </TextField>
                 </GridTextField>
               )}
-              {productionShippingRoutes.length === 0 ? <GridTextField item xs={12}>
-                <TextField
-                  select
-                  label="สถานที่ขนส่ง"
-                  value={productionDeliveryDraft.shippingLocationId}
-                  onChange={(event) =>
-                    updateProductionDeliveryHeader('shippingLocationId', event.target.value)
-                  }
-                  disabled={isSubmitting}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth>
-                  {(selectedProductionShipping?.destinations || []).map((destination) => (
-                    <MenuItem key={destination.id} value={String(destination.id)}>
-                      {destination.destinationName}
-                      {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </GridTextField> : null}
+              {productionShippingRoutes.length === 0 ? (
+                <GridTextField item xs={12}>
+                  <TextField
+                    select
+                    label="สถานที่ขนส่ง"
+                    value={productionDeliveryDraft.shippingLocationId}
+                    onChange={(event) =>
+                      updateProductionDeliveryHeader('shippingLocationId', event.target.value)
+                    }
+                    disabled={isSubmitting}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth>
+                    {(selectedProductionShipping?.destinations || []).map((destination) => (
+                      <MenuItem key={destination.id} value={String(destination.id)}>
+                        {destination.destinationName}
+                        {destination.fullAddress ? ` — ${destination.fullAddress}` : ''}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </GridTextField>
+              ) : null}
 
               <Grid item xs={12}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                   <Typography variant="subtitle1" fontWeight={700}>
                     รายการอะไหล่/ชิ้นส่วนในเที่ยวส่ง
                   </Typography>
-                  <Button size="small" variant="contained" startIcon={<Add fontSize="small" />}
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<Add fontSize="small" />}
                     disabled={isSubmitting || scrapBoxComponentChoices.length === 0}
                     onClick={() => {
                       const box = createScrapBoxDraft(nextScrapBoxId.current++);
-                      setProductionDeliveryDraft((current) => ({ ...current, scrapBoxes: [...current.scrapBoxes, box] }));
+                      setProductionDeliveryDraft((current) => ({
+                        ...current,
+                        scrapBoxes: [...current.scrapBoxes, box]
+                      }));
                     }}>
                     กล่องเศษ
                   </Button>
@@ -2401,14 +2447,26 @@ export default function PurchaseOrderDetail(): ReactElement {
               <Grid item xs={12}>
                 <Stack spacing={2}>
                   {productionDeliveryDraft.scrapBoxes.map((box) => (
-                    <ProductionDeliveryScrapBox key={box.id} value={box} choices={scrapBoxComponentChoices}
+                    <ProductionDeliveryScrapBox
+                      key={box.id}
+                      value={box}
+                      choices={scrapBoxComponentChoices}
                       disabled={isSubmitting}
-                      onChange={(updatedBox) => setProductionDeliveryDraft((current) => ({
-                        ...current, scrapBoxes: current.scrapBoxes.map((entry) => entry.id === box.id ? updatedBox : entry)
-                      }))}
-                      onRemove={() => setProductionDeliveryDraft((current) => ({
-                        ...current, scrapBoxes: current.scrapBoxes.filter((entry) => entry.id !== box.id)
-                      }))} />
+                      onChange={(updatedBox) =>
+                        setProductionDeliveryDraft((current) => ({
+                          ...current,
+                          scrapBoxes: current.scrapBoxes.map((entry) =>
+                            entry.id === box.id ? updatedBox : entry
+                          )
+                        }))
+                      }
+                      onRemove={() =>
+                        setProductionDeliveryDraft((current) => ({
+                          ...current,
+                          scrapBoxes: current.scrapBoxes.filter((entry) => entry.id !== box.id)
+                        }))
+                      }
+                    />
                   ))}
                 </Stack>
               </Grid>
@@ -2490,9 +2548,7 @@ export default function PurchaseOrderDetail(): ReactElement {
           onChange={(
             _event: SyntheticEvent,
             value: 'detail' | 'payment' | 'proof' | 'delivery' | 'history'
-          ) =>
-            setTab(value)
-          }>
+          ) => setTab(value)}>
           <Tab value="detail" label="รายละเอียด" />
           {canViewSupplierPayment ? <Tab value="payment" label="ชำระเงิน" /> : null}
           {canViewProof ? <Tab value="proof" label="งานพรูฟ" /> : null}
@@ -2648,8 +2704,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                           setDraft((previous) => ({ ...previous, paymentTerm: event.target.value }))
                         }
                         disabled={paymentTerms.length === 0}
-                        InputLabelProps={{ shrink: true }}
-                      >
+                        InputLabelProps={{ shrink: true }}>
                         <MenuItem value="">-</MenuItem>
                         {paymentTerms.map((term) => (
                           <MenuItem key={term.code} value={term.code}>
@@ -2773,8 +2828,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                         displayItems.map((item, index) => (
                           <Fragment key={item.id || item.lineNo || index}>
                             <TableRow
-                              ref={item.id === newDraftItemId ? newDraftItemRowRef : undefined}
-                            >
+                              ref={item.id === newDraftItemId ? newDraftItemRowRef : undefined}>
                               <TableCell align="center" className={classes.imageCell}>
                                 {item.imageUrl ? (
                                   <Box
@@ -2910,10 +2964,16 @@ export default function PurchaseOrderDetail(): ReactElement {
                             <TableCell className={classes.tableHeader}>รหัส</TableCell>
                             <TableCell className={classes.tableHeader}>ชื่อชิ้นส่วน</TableCell>
                             <TableCell className={classes.tableHeader}>สเปก</TableCell>
-                            <TableCell className={classes.tableHeader} align="right">ต่อสินค้า</TableCell>
-                            <TableCell className={classes.tableHeader} align="right">รวม</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">
+                              ต่อสินค้า
+                            </TableCell>
+                            <TableCell className={classes.tableHeader} align="right">
+                              รวม
+                            </TableCell>
                             <TableCell className={classes.tableHeader}>หน่วย</TableCell>
-                            {isEditing ? <TableCell className={classes.tableHeader}>จัดการ</TableCell> : null}
+                            {isEditing ? (
+                              <TableCell className={classes.tableHeader}>จัดการ</TableCell>
+                            ) : null}
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -2921,48 +2981,147 @@ export default function PurchaseOrderDetail(): ReactElement {
                             <Fragment key={`components-${item.id || itemIndex}`}>
                               <TableRow sx={{ backgroundColor: '#fff3d6' }}>
                                 <TableCell colSpan={isEditing ? 7 : 6}>
-                                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                    alignItems="center">
                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                       {item.name || `สินค้า ${itemIndex + 1}`}
                                     </Typography>
                                     {isEditing ? (
-                                      <Button size="small" startIcon={<Add />} onClick={() => addDraftComponent(itemIndex)}>
+                                      <Button
+                                        size="small"
+                                        startIcon={<Add />}
+                                        onClick={() => addDraftComponent(itemIndex)}>
                                         เพิ่มชิ้นส่วน
                                       </Button>
                                     ) : null}
                                   </Stack>
                                 </TableCell>
                               </TableRow>
-                              {item.components?.length ? item.components.map((component, componentIndex) => (
-                                <TableRow key={`${item.id}-${component.id || componentIndex}`}>
-                                  <TableCell>
-                                    {isEditing ? <TextField size="small" value={component.componentCode || ''} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'componentCode', event.target.value)} /> : component.componentCode || '-'}
-                                  </TableCell>
-                                  <TableCell>
-                                    {isEditing ? <TextField required size="small" value={component.componentName || ''} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'componentName', event.target.value)} /> : component.componentName || '-'}
-                                  </TableCell>
-                                  <TableCell>
-                                    {isEditing ? <TextField size="small" value={component.specification || ''} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'specification', event.target.value)} /> : component.specification || '-'}
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    {isEditing ? <TextField size="small" type="number" inputProps={{ min: 0.00001, step: 0.00001 }} value={component.quantityPerItem || 0} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'quantityPerItem', Number(event.target.value || 0))} /> : formatNumber(component.quantityPerItem || 0)}
-                                  </TableCell>
-                                  <TableCell align="right">{formatNumber(Number(item.quantity || 0) * Number(component.quantityPerItem || 0))}</TableCell>
-                                  <TableCell>
-                                    {isEditing ? <TextField size="small" value={component.unit || 'pcs'} onChange={(event) => updateDraftComponent(itemIndex, componentIndex, 'unit', event.target.value)} /> : component.unit || 'pcs'}
-                                  </TableCell>
-                                  {isEditing ? (
+                              {item.components?.length ? (
+                                item.components.map((component, componentIndex) => (
+                                  <TableRow key={`${item.id}-${component.id || componentIndex}`}>
                                     <TableCell>
-                                      <IconButton color="error" size="small" aria-label="ลบชิ้นส่วน" onClick={() => removeDraftComponent(itemIndex, componentIndex)}>
-                                        <DeleteOutline />
-                                      </IconButton>
+                                      {isEditing ? (
+                                        <TextField
+                                          size="small"
+                                          value={component.componentCode || ''}
+                                          onChange={(event) =>
+                                            updateDraftComponent(
+                                              itemIndex,
+                                              componentIndex,
+                                              'componentCode',
+                                              event.target.value
+                                            )
+                                          }
+                                        />
+                                      ) : (
+                                        component.componentCode || '-'
+                                      )}
                                     </TableCell>
-                                  ) : null}
-                                </TableRow>
-                              )) : (
+                                    <TableCell>
+                                      {isEditing ? (
+                                        <TextField
+                                          required
+                                          size="small"
+                                          value={component.componentName || ''}
+                                          onChange={(event) =>
+                                            updateDraftComponent(
+                                              itemIndex,
+                                              componentIndex,
+                                              'componentName',
+                                              event.target.value
+                                            )
+                                          }
+                                        />
+                                      ) : (
+                                        component.componentName || '-'
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {isEditing ? (
+                                        <TextField
+                                          size="small"
+                                          value={component.specification || ''}
+                                          onChange={(event) =>
+                                            updateDraftComponent(
+                                              itemIndex,
+                                              componentIndex,
+                                              'specification',
+                                              event.target.value
+                                            )
+                                          }
+                                        />
+                                      ) : (
+                                        component.specification || '-'
+                                      )}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                      {isEditing ? (
+                                        <TextField
+                                          size="small"
+                                          type="number"
+                                          inputProps={{ min: 0.00001, step: 0.00001 }}
+                                          value={component.quantityPerItem || 0}
+                                          onChange={(event) =>
+                                            updateDraftComponent(
+                                              itemIndex,
+                                              componentIndex,
+                                              'quantityPerItem',
+                                              Number(event.target.value || 0)
+                                            )
+                                          }
+                                        />
+                                      ) : (
+                                        formatNumber(component.quantityPerItem || 0)
+                                      )}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                      {formatNumber(
+                                        Number(item.quantity || 0) *
+                                        Number(component.quantityPerItem || 0)
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {isEditing ? (
+                                        <TextField
+                                          size="small"
+                                          value={component.unit || 'pcs'}
+                                          onChange={(event) =>
+                                            updateDraftComponent(
+                                              itemIndex,
+                                              componentIndex,
+                                              'unit',
+                                              event.target.value
+                                            )
+                                          }
+                                        />
+                                      ) : (
+                                        component.unit || 'pcs'
+                                      )}
+                                    </TableCell>
+                                    {isEditing ? (
+                                      <TableCell>
+                                        <IconButton
+                                          color="error"
+                                          size="small"
+                                          aria-label="ลบชิ้นส่วน"
+                                          onClick={() =>
+                                            removeDraftComponent(itemIndex, componentIndex)
+                                          }>
+                                          <DeleteOutline />
+                                        </IconButton>
+                                      </TableCell>
+                                    ) : null}
+                                  </TableRow>
+                                ))
+                              ) : (
                                 <TableRow>
                                   <TableCell colSpan={isEditing ? 7 : 6}>
-                                    <Typography variant="body2" color="text.secondary">ยังไม่มีรายการชิ้นส่วน</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      ยังไม่มีรายการชิ้นส่วน
+                                    </Typography>
                                   </TableCell>
                                 </TableRow>
                               )}
@@ -2983,19 +3142,33 @@ export default function PurchaseOrderDetail(): ReactElement {
                             <TableCell className={classes.tableHeader}>Package</TableCell>
                             <TableCell className={classes.tableHeader}>ขนาดกล่อง</TableCell>
                             <TableCell className={classes.tableHeader}>น้ำหนัก</TableCell>
-                            <TableCell className={classes.tableHeader} align="right">บรรจุ/ลัง</TableCell>
-                            <TableCell className={classes.tableHeader} align="right">จำนวนลัง</TableCell>
-                            <TableCell className={classes.tableHeader} align="right">CBM/ลัง</TableCell>
-                            <TableCell className={classes.tableHeader} align="right">CBM รวม</TableCell>
-                            <TableCell className={classes.tableHeader} align="center">สถานะ</TableCell>
-                            <TableCell className={classes.tableHeader} align="center">ดำเนินการ</TableCell>
+                            <TableCell className={classes.tableHeader} align="right">
+                              บรรจุ/ลัง
+                            </TableCell>
+                            <TableCell className={classes.tableHeader} align="right">
+                              จำนวนลัง
+                            </TableCell>
+                            <TableCell className={classes.tableHeader} align="right">
+                              CBM/ลัง
+                            </TableCell>
+                            <TableCell className={classes.tableHeader} align="right">
+                              CBM รวม
+                            </TableCell>
+                            <TableCell className={classes.tableHeader} align="center">
+                              สถานะ
+                            </TableCell>
+                            <TableCell className={classes.tableHeader} align="center">
+                              ดำเนินการ
+                            </TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {displayItems.flatMap((item, itemIndex) => {
                             if (!item.packages?.length) return [];
                             return [
-                              <TableRow key={`package-group-${item.id || itemIndex}`} sx={{ backgroundColor: '#eef4fa' }}>
+                              <TableRow
+                                key={`package-group-${item.id || itemIndex}`}
+                                sx={{ backgroundColor: '#eef4fa' }}>
                                 <TableCell colSpan={9}>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     {item.name || `สินค้า ${itemIndex + 1}`}
@@ -3003,33 +3176,78 @@ export default function PurchaseOrderDetail(): ReactElement {
                                 </TableCell>
                               </TableRow>,
                               ...item.packages.map((packageItem, packageIndex) => (
-                                <TableRow key={`${item.id}-${packageItem.id || packageItem.sourcePackageId || packageIndex}`}>
+                                <TableRow
+                                  key={`${item.id}-${packageItem.id || packageItem.sourcePackageId || packageIndex
+                                    }`}>
                                   <TableCell>{packageItem.packageName || '-'}</TableCell>
                                   <TableCell>{packageItem.packageDimension || '-'}</TableCell>
                                   <TableCell>{packageItem.packageWeight || '-'}</TableCell>
                                   <TableCell align="right">
-                                    {packageItem.packageCapacity || (packageItem.capacityQty != null ? `${formatNumber(packageItem.capacityQty)} pcs.` : '-')}
+                                    {packageItem.packageCapacity ||
+                                      (packageItem.capacityQty != null
+                                        ? `${formatNumber(packageItem.capacityQty)} pcs.`
+                                        : '-')}
                                   </TableCell>
-                                  <TableCell align="right">{packageItem.cartonCount != null ? formatNumber(packageItem.cartonCount) : '-'}</TableCell>
-                                  <TableCell align="right">{packageItem.cbmPerCarton != null ? formatNumber(packageItem.cbmPerCarton) : '-'}</TableCell>
-                                  <TableCell align="right">{packageItem.totalCbm != null ? formatNumber(packageItem.totalCbm) : '-'}</TableCell>
-                                  <TableCell align="center">
-                                    <Chip size="small" color={packageItem.selectedForCalculation ? 'success' : 'default'} label={packageItem.selectedForCalculation ? 'รวมใน CBM' : 'ไม่นำมาคำนวณ'} />
+                                  <TableCell align="right">
+                                    {packageItem.cartonCount != null
+                                      ? formatNumber(packageItem.cartonCount)
+                                      : '-'}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    {packageItem.cbmPerCarton != null
+                                      ? formatNumber(packageItem.cbmPerCarton)
+                                      : '-'}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    {packageItem.totalCbm != null
+                                      ? formatNumber(packageItem.totalCbm)
+                                      : '-'}
                                   </TableCell>
                                   <TableCell align="center">
-                                    <Button
+                                    <Chip
                                       size="small"
-                                      variant="outlined"
-                                      startIcon={<Description />}
-                                      disabled={!packageItem.id || generatingCartonLabelId === packageItem.id}
-                                      onClick={() => handleGenerateCartonLabel(item, packageItem.id)}
-                                    >
-                                      {generatingCartonLabelId === packageItem.id ? 'กำลังสร้าง...' : 'Generate ใบแปะ'}
-                                    </Button>
+                                      color={
+                                        packageItem.selectedForCalculation ? 'success' : 'default'
+                                      }
+                                      label={
+                                        packageItem.selectedForCalculation
+                                          ? 'รวมใน CBM'
+                                          : 'ไม่นำมาคำนวณ'
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    <Tooltip title="Generate ใบแปะ">
+                                      <span>
+                                        <IconButton
+                                          size="small"
+                                          color="primary"
+                                          aria-label="Generate ใบแปะ"
+                                          disabled={
+                                            !packageItem.id ||
+                                            generatingCartonLabelId === packageItem.id
+                                          }
+                                          onClick={() =>
+                                            handleGenerateCartonLabel(
+                                              item,
+                                              packageItem.id,
+                                              getPackageComponentId(item, packageItem)
+                                            )
+                                          }>
+                                          {generatingCartonLabelId === packageItem.id ? (
+                                            <CircularProgress size={20} />
+                                          ) : (
+                                            <Description fontSize="small" />
+                                          )}
+                                        </IconButton>
+                                      </span>
+                                    </Tooltip>
                                   </TableCell>
                                 </TableRow>
                               )),
-                              <TableRow key={`package-subtotal-${item.id || itemIndex}`} sx={{ backgroundColor: '#f7f9fc' }}>
+                              <TableRow
+                                key={`package-subtotal-${item.id || itemIndex}`}
+                                sx={{ backgroundColor: '#f7f9fc' }}>
                                 <TableCell colSpan={7} align="right">
                                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     รวม CBM ของ {item.name || `สินค้า ${itemIndex + 1}`}
@@ -3037,7 +3255,14 @@ export default function PurchaseOrderDetail(): ReactElement {
                                 </TableCell>
                                 <TableCell align="right">
                                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                    {formatNumber(item.packages.reduce((total, packageItem) => total + Number(packageItem.totalCbm || 0), 0))} CBM
+                                    {formatNumber(
+                                      item.packages.reduce(
+                                        (total, packageItem) =>
+                                          total + Number(packageItem.totalCbm || 0),
+                                        0
+                                      )
+                                    )}{' '}
+                                    CBM
                                   </Typography>
                                 </TableCell>
                                 <TableCell />
@@ -3046,11 +3271,25 @@ export default function PurchaseOrderDetail(): ReactElement {
                           })}
                           <TableRow>
                             <TableCell colSpan={7} align="right">
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>รวม CBM ทุกสินค้า</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                รวม CBM ทุกสินค้า
+                              </Typography>
                             </TableCell>
                             <TableCell align="right">
                               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                {formatNumber(displayItems.reduce((total, item) => total + (item.packages || []).reduce((packageTotal, packageItem) => packageTotal + Number(packageItem.totalCbm || 0), 0), 0))} CBM
+                                {formatNumber(
+                                  displayItems.reduce(
+                                    (total, item) =>
+                                      total +
+                                      (item.packages || []).reduce(
+                                        (packageTotal, packageItem) =>
+                                          packageTotal + Number(packageItem.totalCbm || 0),
+                                        0
+                                      ),
+                                    0
+                                  )
+                                )}{' '}
+                                CBM
                               </Typography>
                             </TableCell>
                             <TableCell />

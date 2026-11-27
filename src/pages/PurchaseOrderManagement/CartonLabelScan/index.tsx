@@ -19,7 +19,10 @@ import { useEffect, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatNumberWithoutDigit } from 'utils/utils';
-import { scanPurchaseOrderCartonLabel } from 'services/PurchaseOrder/purchase-order-api';
+import {
+  markPurchaseOrderDeliveryDetailReceived,
+  scanPurchaseOrderCartonLabel
+} from 'services/PurchaseOrder/purchase-order-api';
 import { CartonLabelScan } from 'services/PurchaseOrder/purchase-order-type';
 
 const displayValue = (value?: string | number | null) => value || '-';
@@ -28,12 +31,17 @@ export default function CartonLabelScanPage() {
   const history = useHistory();
   const location = useLocation();
   const token = new URLSearchParams(location.search).get('token') || '';
+  const returnUrlParam = new URLSearchParams(location.search).get('returnUrl');
+  const returnUrl = returnUrlParam && returnUrlParam.startsWith('/') && !returnUrlParam.startsWith('//')
+    ? returnUrlParam
+    : null;
   const [data, setData] = useState<CartonLabelScan | null>(null);
   const [receivedCartonCount, setReceivedCartonCount] = useState('');
   const [quantityPerCarton, setQuantityPerCarton] = useState('');
   const [receivedCartonCountTouched, setReceivedCartonCountTouched] = useState(false);
   const [quantityPerCartonTouched, setQuantityPerCartonTouched] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +55,13 @@ export default function CartonLabelScanPage() {
       }
       try {
         const result = await scanPurchaseOrderCartonLabel(token);
-        if (mounted) setData(result);
+        if (mounted) {
+          setData(result);
+          if (result.deliveryDetail?.receiveStatus === 'RECEIVED_AT_WAREHOUSE') {
+            setReceivedCartonCount(String(result.deliveryDetail.receivedCartonCount || ''));
+            setQuantityPerCarton(String(result.deliveryDetail.receivedPiecesPerCarton || ''));
+          }
+        }
       } catch (e) {
         if (mounted) {
           setError('ไม่สามารถอ่านข้อมูลใบแปะข้างกล่องได้ หรือ QR Code ไม่ถูกต้อง');
@@ -70,8 +84,9 @@ export default function CartonLabelScanPage() {
     hasValidReceivedCartonCount && hasValidQuantityPerCarton
       ? Number(receivedCartonCount) * Number(quantityPerCarton)
       : '';
+  const alreadyReceived = data?.deliveryDetail?.receiveStatus === 'RECEIVED_AT_WAREHOUSE';
 
-  const handleConfirmReceive = () => {
+  const handleOpenConfirmReceive = () => {
     setReceivedCartonCountTouched(true);
     setQuantityPerCartonTouched(true);
     if (!hasValidReceivedCartonCount || !hasValidQuantityPerCarton) {
@@ -79,6 +94,38 @@ export default function CartonLabelScanPage() {
       return;
     }
     setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmReceive = async () => {
+    if (!data?.purchaseOrderNo || !data.deliveryId || !data.deliveryDetailId) {
+      toast.error('ข้อมูล QR ไม่ครบ ไม่สามารถยืนยันรับสินค้าได้');
+      return;
+    }
+    setSaving(true);
+    try {
+      const receivedDetail = await markPurchaseOrderDeliveryDetailReceived(
+        data.purchaseOrderNo,
+        data.deliveryId,
+        data.deliveryDetailId,
+        {
+          token,
+          receivedCartonCount: Number(receivedCartonCount),
+          piecesPerCarton: Number(quantityPerCarton)
+        }
+      );
+      setData((current) => current
+        ? { ...current, deliveryDetail: { ...current.deliveryDetail, ...receivedDetail } }
+        : current);
+      setConfirmDialogOpen(false);
+      toast.success('บันทึกการรับสินค้าเข้าคลังแล้ว');
+      if (returnUrl) {
+        history.replace(returnUrl);
+      }
+    } catch {
+      toast.error('บันทึกการรับสินค้าไม่สำเร็จ หรือ QR นี้ถูกรับไปแล้ว');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleClearQuantities = () => {
@@ -126,8 +173,8 @@ export default function CartonLabelScanPage() {
               <Typography fontWeight={600}>{displayValue(data?.purchaseOrderNo)}</Typography>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Typography color="text.secondary">รหัสรายการสินค้า</Typography>
-              <Typography>{displayValue(data?.purchaseOrderDetailId)}</Typography>
+              <Typography color="text.secondary">รหัสเที่ยวส่ง</Typography>
+              <Typography fontWeight={600}>{displayValue(data?.deliveryId)}</Typography>
             </Grid>
             <Grid item xs={12} sm={6}>
               <Typography color="text.secondary">สินค้า</Typography>
@@ -139,7 +186,7 @@ export default function CartonLabelScanPage() {
             </Grid>
             <Grid item xs={12} sm={6}>
               <Typography color="text.secondary">ชิ้นส่วน/อะไหล่</Typography>
-              <Typography>{displayValue(data?.componentId + ' : ' + data?.componentName)}</Typography>
+              <Typography>{displayValue(data?.componentName)}</Typography>
             </Grid>
             <Grid item xs={12} sm={6}>
               <Typography color="text.secondary">รายละเอียดชิ้นส่วน</Typography>
@@ -156,6 +203,25 @@ export default function CartonLabelScanPage() {
             <Grid item xs={12} sm={4}>
               <Typography color="text.secondary">ความจุ</Typography>
               <Typography>{displayValue(data?.packageCapacity)}</Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 1 }}>
+                ข้อมูลจำนวนที่ส่งออกจากโรงงาน
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Typography color="text.secondary">จำนวนกล่อง</Typography>
+              <Typography>{displayValue(data?.deliveryDetail?.cartonCount)} กล่อง</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Typography color="text.secondary">จำนวนชิ้นต่อกล่อง</Typography>
+              <Typography>
+                {displayValue(data?.deliveryDetail?.piecesPerCarton)} ชิ้น/กล่อง
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Typography color="text.secondary">จำนวนชิ้น</Typography>
+              <Typography>{displayValue(data?.deliveryDetail?.quantity)} ชิ้น</Typography>
             </Grid>
             <Grid item xs={12}>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 1 }}>
@@ -211,6 +277,11 @@ export default function CartonLabelScanPage() {
               />
             </Grid>
             <Grid item xs={12}>
+              {alreadyReceived && (
+                <Alert severity="success" sx={{ mb: 1 }}>
+                  รายการนี้รับเข้าคลังแล้ว จำนวน {data?.deliveryDetail?.receivedQuantity || 0} ชิ้น
+                </Alert>
+              )}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 justifyContent="flex-end"
@@ -228,8 +299,8 @@ export default function CartonLabelScanPage() {
                   fullWidth
                   variant="contained"
                   color="primary"
-                  onClick={handleConfirmReceive}
-                  disabled={!hasValidReceivedCartonCount || !hasValidQuantityPerCarton}
+                  onClick={handleOpenConfirmReceive}
+                  disabled={alreadyReceived || !hasValidReceivedCartonCount || !hasValidQuantityPerCarton}
                   sx={{ width: { xs: '100%', sm: 'auto' } }}>
                   ยืนยันรับสินค้า
                 </Button>
@@ -262,8 +333,8 @@ export default function CartonLabelScanPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmDialogOpen(false)}>ย้อนกลับไปตรวจสอบ</Button>
-          <Button variant="contained" onClick={() => setConfirmDialogOpen(false)}>
-            ยืนยัน
+          <Button variant="contained" onClick={handleConfirmReceive} disabled={saving}>
+            {saving ? 'กำลังบันทึก...' : 'ยืนยัน'}
           </Button>
         </DialogActions>
       </Dialog>

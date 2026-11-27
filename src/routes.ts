@@ -36,6 +36,7 @@ export const ROUTE_PATHS = Object.freeze({
   CUSTOMER_MANAGEMENT: '/customer-management',
   CUSTOMER_DASHBOARD: '/customer-dashboard',
   PRODUCT_FAMILY_MANAGEMENT: '/product-family-management',
+  COMPONENT_DICTIONARY_MANAGEMENT: '/component-dictionary',
   SYSTEM_CONFIG_MANAGEMENT: '/system-config-management',
   RELEASE_NOTE: '/release-note',
   RFQ_MANAGEMENT: '/rfq-management',
@@ -62,6 +63,7 @@ export const ROUTE_PATHS = Object.freeze({
   INVOICE_DOCUMENT: '/invoice/:id/document',
   PURCHASE_ORDER_MANAGEMENT: '/purchase-order-management',
   CONTAINER_MANAGEMENT: '/container-management',
+  PURCHASE_ORDER_DELIVERY_MANAGEMENT: '/purchase-order-delivery-management',
   CONTAINER_CREATE: '/container-create',
   CONTAINER_DETAIL: '/container-management/:id',
   PURCHASE_ORDER_PRODUCTION_CALENDAR: '/purchase-order-production-calendar',
@@ -69,8 +71,7 @@ export const ROUTE_PATHS = Object.freeze({
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER: '/purchase-order-create/:salesOrderId',
   PURCHASE_ORDER_CREATE_FROM_SALES_ORDER_V2: '/purchase-order-create-v2/:salesOrderId',
   PURCHASE_ORDER_DETAIL: '/purchase-order/:id',
-  PURCHASE_ORDER_DELIVERY_RECEIVE: '/purchase-order-receive',
-  PURCHASE_ORDER_RECEIVE_LIST: '/purchase-order-receive-list',
+  PURCHASE_ORDER_GOOD_RECEIPT_PENDING_LIST: '/purchase-order-good-receipt-pending-list',
   PURCHASE_ORDER_CARTON_LABEL_SCAN: '/purchase-order-receive/scan',
   PURCHASE_ORDER_DOCUMENT: '/purchase-order/:id/document',
   PURCHASE_ORDER_PROOF_DETAIL: '/purchase-order-proof/:id',
@@ -85,7 +86,9 @@ export const ROUTE_PATHS = Object.freeze({
   QUOTATION_CREATE_FROM_RFQ: '/create-quotation-rfq/:rfqId',
   QUOTATION_MANAGEMENT: '/quotation-management',
   QUOTATION_DETAIL: '/quotation-detail/:id',
-  QUOTATION_DOCUMENT: '/quotation-detail/:id/document'
+  QUOTATION_DOCUMENT: '/quotation-detail/:id/document',
+  GOOD_RECEIPT_CREATE: '/good-receipt-create',
+  GOOD_RECEIPT_LIST: '/good-receipt-list'
 });
 
 export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
@@ -233,6 +236,11 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     path: ROUTE_PATHS.PRODUCT_FAMILY_MANAGEMENT,
     component: lazy(() => import('./pages/ProductFamilyManagement' /* webpackChunkName: "app" */)),
     requiredPermissions: [PERMISSIONS.PRODUCT_FAMILY_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.COMPONENT_DICTIONARY_MANAGEMENT,
+    component: lazy(() => import('./pages/ComponentDictionaryManagement' /* webpackChunkName: "app" */)),
+    requiredPermissions: [PERMISSIONS.COMPONENT_DICTIONARY_VIEW]
   },
   {
     path: ROUTE_PATHS.SYSTEM_CONFIG_MANAGEMENT,
@@ -385,6 +393,13 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     requiredPermissions: [PERMISSIONS.CONTAINER_VIEW]
   },
   {
+    path: ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_MANAGEMENT,
+    component: lazy(
+      () => import('./pages/PurchaseOrderDeliveryManagement' /* webpackChunkName: "app" */)
+    ),
+    requiredPermissions: [PERMISSIONS.CONTAINER_VIEW]
+  },
+  {
     path: ROUTE_PATHS.PURCHASE_ORDER_PRODUCTION_CALENDAR,
     component: lazy(
       () => import('./pages/PurchaseOrderProductionCalendar' /* webpackChunkName: "app" */)
@@ -425,12 +440,17 @@ export const routes: Readonly<LayoutRouteProps[]> = Object.freeze([
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
   },
   {
-    path: ROUTE_PATHS.PURCHASE_ORDER_RECEIVE_LIST,
-    component: lazy(() => import('./pages/PurchaseOrderManagement/ReceiveList')),
+    path: ROUTE_PATHS.GOOD_RECEIPT_LIST,
+    component: lazy(() => import('./pages/PurchaseOrderManagement/GoodReceiptList')),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
   },
   {
-    path: ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_RECEIVE,
+    path: ROUTE_PATHS.PURCHASE_ORDER_GOOD_RECEIPT_PENDING_LIST,
+    component: lazy(() => import('./pages/PurchaseOrderManagement/GoodReceiptPendingList')),
+    requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
+  },
+  {
+    path: ROUTE_PATHS.GOOD_RECEIPT_CREATE,
     component: lazy(() => import('./pages/PurchaseOrderManagement/Receive')),
     requiredPermissions: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
   },

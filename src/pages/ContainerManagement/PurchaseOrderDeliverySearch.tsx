@@ -1,13 +1,14 @@
-import { ExpandLess, ExpandMore, OpenInNew, Search } from '@mui/icons-material';
+import { DisabledByDefault, ExpandLess, ExpandMore, OpenInNew, Search } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
   Chip,
-  CircularProgress,
+  Checkbox,
   Collapse,
   Grid,
   IconButton,
+  InputAdornment,
   MenuItem,
   Paper,
   Stack,
@@ -20,10 +21,14 @@ import {
   TextField,
   Typography
 } from '@mui/material';
+import ListItemText from '@mui/material/ListItemText';
 import { Fragment, FormEvent, useState } from 'react';
 import { useQuery } from 'react-query';
-import { Link } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import Paginate from 'components/Paginate';
+import { ListEmptyState, ListErrorState, ListLoadingState } from 'components/ManagementList';
+import CollapsibleWrapper from 'components/CollapsibleWrapper';
+import { GridSearchSection, GridTextField } from 'components/Styled';
 import DeliveryContainerAssignment from 'components/DeliveryContainerAssignment';
 import { ROUTE_PATHS } from 'routes';
 import { getSupplierShippings } from 'services/Supplier/supplier-api';
@@ -34,7 +39,7 @@ import {
 } from 'services/PurchaseOrder/purchase-order-type';
 import { getShippingMethodLabel } from 'utils/shipping';
 import PurchaseOrderDeliveryItemsTable from 'pages/PurchaseOrderManagement/Detail/PurchaseOrderDeliveryItemsTable';
-import DeliveryContainerDragBoard from './DeliveryContainerDragBoard';
+import { getCartonLabelLink, ReceiveMethodDialog } from 'pages/PurchaseOrderManagement/ReceiveList';
 
 const CONTAINER_STATUS_LABELS = {
   NOT_ASSIGNED: 'ยังไม่จัดตู้',
@@ -47,6 +52,7 @@ const DELIVERY_STATUS_LABELS: Record<PurchaseOrderDeliveryRecord['status'], stri
   IN_TRANSIT: 'อยู่ระหว่างขนส่ง',
   PARTIALLY_RECEIVED: 'รับเข้าบางส่วน',
   RECEIVED_AT_WAREHOUSE: 'รับเข้าคลังแล้ว',
+  STORE_RECEIVE_CONFIRMED: 'ยืนยันรับเข้าคลังแล้ว',
   RECEIVED_WITH_ISSUE: 'รับแล้วมีปัญหา',
   CANCELLED: 'ยกเลิก'
 };
@@ -56,25 +62,38 @@ const SHIPPING_METHODS = [
   'SEA_SHARE_FCL_20GP',
   'SEA_SHARE_FCL_40HQ'
 ];
+const PURCHASE_ORDER_NO_PREFIX = 'NTL-PO2026';
 const numberLabel = (value: number | null | undefined) =>
   value == null
     ? 'ข้อมูลไม่ครบ'
     : Number(value).toLocaleString('th-TH', { maximumFractionDigits: 6 });
 
-export default function PurchaseOrderDeliverySearch() {
+interface PurchaseOrderDeliverySearchProps {
+  warehouseView?: boolean;
+}
+
+export default function PurchaseOrderDeliverySearch({
+  warehouseView = false
+}: PurchaseOrderDeliverySearchProps) {
   const [draft, setDraft] = useState<SearchPurchaseOrderDeliveryRequest>({});
   const [filter, setFilter] = useState<SearchPurchaseOrderDeliveryRequest>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [validationError, setValidationError] = useState('');
+  const history = useHistory();
+  const [receiveMethodDialogOpen, setReceiveMethodDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'choice' | 'camera' | 'manual'>('choice');
+  const [manualLink, setManualLink] = useState('');
+  const [manualLinkError, setManualLinkError] = useState('');
   const { data, isFetching, isError, refetch } = useQuery(
     ['container-deliveries', filter, page, pageSize],
     () => searchPurchaseOrderDeliveries(filter, page, pageSize),
     { keepPreviousData: true, refetchOnWindowFocus: false }
   );
   const shippings = useQuery(['container-shippings'], getSupplierShippings, {
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    enabled: !warehouseView
   });
   const shippingLocations = (shippings.data || []).flatMap((shipping) =>
     (shipping.destinations || []).map((destination) => ({
@@ -87,8 +106,9 @@ export default function PurchaseOrderDeliverySearch() {
   );
   const update = (key: keyof SearchPurchaseOrderDeliveryRequest, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }));
-  const search = (event: FormEvent) => {
-    event.preventDefault();
+  const normalizePurchaseOrderNo = (value: string) =>
+    value.replace(new RegExp(`^${PURCHASE_ORDER_NO_PREFIX}`, 'i'), '').trim();
+  const executeSearch = () => {
     for (const [start, end] of [
       [draft.shippedDateStart, draft.shippedDateEnd],
       [draft.expectedWarehouseDateStart, draft.expectedWarehouseDateEnd]
@@ -101,8 +121,21 @@ export default function PurchaseOrderDeliverySearch() {
     setValidationError('');
     setExpandedId(null);
     setPage(1);
-    if (page === 1 && JSON.stringify(filter) === JSON.stringify(draft)) void refetch();
-    else setFilter({ ...draft });
+    const purchaseOrderNoSuffix = normalizePurchaseOrderNo(draft.purchaseOrderNo || '');
+    const nextFilter = warehouseView
+      ? {
+        ...draft,
+        purchaseOrderNo: purchaseOrderNoSuffix
+          ? `${PURCHASE_ORDER_NO_PREFIX}${purchaseOrderNoSuffix}`
+          : ''
+      }
+      : draft;
+    if (page === 1 && JSON.stringify(filter) === JSON.stringify(nextFilter)) void refetch();
+    else setFilter(nextFilter);
+  };
+  const search = (event: FormEvent) => {
+    event.preventDefault();
+    executeSearch();
   };
   const clear = () => {
     setDraft({});
@@ -112,30 +145,127 @@ export default function PurchaseOrderDeliverySearch() {
     setExpandedId(null);
     if (page === 1 && Object.keys(filter).length === 0) void refetch();
   };
+  const openReceiveDialog = () => {
+    setReceiveMethodDialogOpen(true);
+    setDialogMode('choice');
+    setManualLink('');
+    setManualLinkError('');
+  };
+  const closeReceiveDialog = () => {
+    setReceiveMethodDialogOpen(false);
+    setDialogMode('choice');
+    setManualLink('');
+    setManualLinkError('');
+  };
+  const openCartonLabelLink = (value: string) => {
+    const link = getCartonLabelLink(value);
+    if (!link) {
+      setManualLinkError('กรุณาระบุลิงก์ QR ใบแปะข้างกล่องที่ถูกต้อง');
+      return;
+    }
+    closeReceiveDialog();
+    history.push(link);
+  };
   const records = data?.data.records || [];
 
   return (
     <Stack spacing={2}>
-      <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1}
+        useFlexGap
+        sx={{
+          justifyContent: { sm: 'flex-end' },
+          alignItems: { xs: 'stretch', sm: 'center' }
+        }}>
+        <Button
+          fullWidth={false}
+          variant="contained"
+          className="btn-indigo-blue"
+          startIcon={<Search />}
+          onClick={executeSearch}>
+          ค้นหา
+        </Button>
+        <Button
+          fullWidth={false}
+          variant="contained"
+          className="btn-amber-orange"
+          startIcon={<DisabledByDefault />}
+          onClick={clear}>
+          ล้าง
+        </Button>
+      </Stack>
+      <CollapsibleWrapper title="ค้นหาเที่ยวส่ง" defaultExpanded={false}>
         <Box component="form" onSubmit={search}>
-          <Grid container spacing={2}>
+          <GridSearchSection container spacing={1} sx={{ mt: 0 }}>
             {(
               [
                 ['deliveryNo', 'เลขเที่ยวส่ง'],
                 ['purchaseOrderNo', 'เลขที่ใบสั่งซื้อ (PO)']
               ] as const
             ).map(([key, label]) => (
-              <Grid item xs={12} sm={6} md={3} key={key}>
+              <GridTextField item xs={12} sm={6} md={3} key={key}>
                 <TextField
                   fullWidth
                   label={label}
                   InputLabelProps={{ shrink: true }}
-                  value={draft[key] || ''}
-                  onChange={(event) => update(key, event.target.value)}
+                  value={
+                    warehouseView && key === 'purchaseOrderNo'
+                      ? normalizePurchaseOrderNo(draft[key] || '')
+                      : draft[key] || ''
+                  }
+                  onChange={(event) =>
+                    update(
+                      key,
+                      warehouseView && key === 'purchaseOrderNo'
+                        ? normalizePurchaseOrderNo(event.target.value)
+                        : event.target.value
+                    )
+                  }
+                  InputProps={
+                    warehouseView && key === 'purchaseOrderNo'
+                      ? {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            {PURCHASE_ORDER_NO_PREFIX}
+                          </InputAdornment>
+                        )
+                      }
+                      : undefined
+                  }
                 />
-              </Grid>
+              </GridTextField>
             ))}
-            <Grid item xs={12} sm={6} md={3}>
+            {warehouseView ? (
+              <GridTextField item xs={12} sm={6} md={3}>
+                <TextField
+                  select
+                  SelectProps={{
+                    multiple: true, renderValue: (selected) =>
+                      (selected as string[]).map((value) => DELIVERY_STATUS_LABELS[value as PurchaseOrderDeliveryRecord['status']]).join(', ')
+                  }}
+                  fullWidth
+                  label="สถานะเที่ยวส่ง"
+                  value={draft.statuses || []}
+                  InputLabelProps={{ shrink: true }}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      statuses: typeof event.target.value === 'string'
+                        ? event.target.value.split(',') as PurchaseOrderDeliveryRecord['status'][]
+                        : event.target.value as PurchaseOrderDeliveryRecord['status'][]
+                    }))
+                  }>
+                  {Object.entries(DELIVERY_STATUS_LABELS).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      <Checkbox checked={(draft.statuses || []).includes(value as PurchaseOrderDeliveryRecord['status'])} />
+                      <ListItemText primary={label} />
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </GridTextField>
+            ) : null}
+            {!warehouseView ? <GridTextField item xs={12} sm={6} md={3}>
               <TextField
                 select
                 fullWidth
@@ -150,8 +280,8 @@ export default function PurchaseOrderDeliverySearch() {
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            </GridTextField> : null}
+            {!warehouseView ? <GridTextField item xs={12} sm={6} md={3}>
               <TextField
                 select
                 fullWidth
@@ -172,8 +302,8 @@ export default function PurchaseOrderDeliverySearch() {
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            </GridTextField> : null}
+            {!warehouseView ? <GridTextField item xs={12} sm={6} md={3}>
               <TextField
                 select
                 fullWidth
@@ -196,8 +326,8 @@ export default function PurchaseOrderDeliverySearch() {
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </GridTextField> : null}
+            <GridTextField item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="คำค้นหา"
@@ -206,22 +336,16 @@ export default function PurchaseOrderDeliverySearch() {
                 value={draft.keyword || ''}
                 onChange={(event) => update('keyword', event.target.value)}
               />
-            </Grid>
-          </Grid>
+            </GridTextField>
+          </GridSearchSection>
           {validationError ? (
             <Alert severity="error" sx={{ mt: 2 }}>
               {validationError}
             </Alert>
           ) : null}
-          <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
-            <Button type="submit" variant="contained" startIcon={<Search />}>
-              ค้นหา
-            </Button>
-            <Button onClick={clear}>เคลียร์</Button>
-          </Stack>
         </Box>
-      </Paper>
-      {shippings.isError ? (
+      </CollapsibleWrapper>
+      {!warehouseView && shippings.isError ? (
         <Alert
           severity="error"
           action={<Button onClick={() => void shippings.refetch()}>โหลดสถานที่อีกครั้ง</Button>}>
@@ -229,34 +353,29 @@ export default function PurchaseOrderDeliverySearch() {
         </Alert>
       ) : null}
       {isError ? (
-        <Alert
-          severity="error"
-          action={<Button onClick={() => void refetch()}>ลองอีกครั้ง</Button>}>
-          ไม่สามารถโหลดรายการเที่ยวส่งได้
-        </Alert>
+        <ListErrorState
+          message="ไม่สามารถโหลดรายการเที่ยวส่งได้"
+          onRetry={() => void refetch()}
+        />
       ) : null}
       <TableContainer component={Paper} variant="outlined" aria-busy={isFetching}>
-        <Table sx={{ minWidth: 1150 }} aria-label="รายการเที่ยวส่ง">
+        <Table sx={{ minWidth: warehouseView ? 800 : 1150 }} aria-label="รายการเที่ยวส่ง">
           <TableHead>
             <TableRow>
               <TableCell>เลขเที่ยวส่ง</TableCell>
               <TableCell>Supplier</TableCell>
               <TableCell>วิธีขนส่ง</TableCell>
               <TableCell>สถานะ</TableCell>
-              <TableCell>สถานที่ขนส่ง</TableCell>
+              {!warehouseView ? <TableCell>สถานที่ขนส่ง</TableCell> : null}
               <TableCell>กล่อง</TableCell>
-              <TableCell>CBM</TableCell>
-              <TableCell>การจัดตู้</TableCell>
+              {!warehouseView ? <TableCell>CBM</TableCell> : null}
+              {!warehouseView ? <TableCell>การจัดตู้</TableCell> : null}
               <TableCell>ดำเนินการ</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isFetching ? (
-              <TableRow>
-                <TableCell colSpan={12} align="center">
-                  <CircularProgress size={28} aria-label="กำลังโหลดเที่ยวส่ง" />
-                </TableCell>
-              </TableRow>
+              <ListLoadingState colSpan={warehouseView ? 6 : 9} />
             ) : null}
             {!isFetching &&
               !isError &&
@@ -277,12 +396,10 @@ export default function PurchaseOrderDeliverySearch() {
                         label={DELIVERY_STATUS_LABELS[record.status] || record.status || '-'}
                       />
                     </TableCell>
-                    <TableCell>{record.shippingLocationName || '-'}</TableCell>
+                    {!warehouseView ? <TableCell>{record.shippingLocationName || '-'}</TableCell> : null}
                     <TableCell>{numberLabel(record.totalCartons)}</TableCell>
-                    <TableCell>{numberLabel(record.totalCbm)}</TableCell>
-                    <TableCell>
-                      <DeliveryContainerAssignment delivery={record} />
-                    </TableCell>
+                    {!warehouseView ? <TableCell>{numberLabel(record.totalCbm)}</TableCell> : null}
+                    {!warehouseView ? <TableCell><DeliveryContainerAssignment delivery={record} /></TableCell> : null}
                     <TableCell>
                       <IconButton
                         component={Link}
@@ -302,9 +419,13 @@ export default function PurchaseOrderDeliverySearch() {
                   </TableRow>
                   {expandedId === record.id ? (
                     <TableRow>
-                      <TableCell colSpan={12} sx={{ p: 2 }}>
+                      <TableCell colSpan={warehouseView ? 6 : 9} sx={{ p: 2 }}>
                         <Collapse in>
-                          <PurchaseOrderDeliveryItemsTable delivery={record} />
+                          <PurchaseOrderDeliveryItemsTable
+                            delivery={record}
+                            warehouseView={warehouseView}
+                            onReceive={warehouseView ? openReceiveDialog : undefined}
+                          />
                           {record.remark ? (
                             <Typography variant="body2" sx={{ mt: 1 }}>
                               หมายเหตุ: {record.remark}
@@ -317,15 +438,34 @@ export default function PurchaseOrderDeliverySearch() {
                 </Fragment>
               ))}
             {!isFetching && !isError && !records.length ? (
-              <TableRow>
-                <TableCell colSpan={12} align="center" sx={{ py: 5 }}>
-                  ไม่พบรายการเที่ยวส่งตามเงื่อนไข
-                </TableCell>
-              </TableRow>
+              <ListEmptyState colSpan={warehouseView ? 6 : 9} message="ไม่พบรายการเที่ยวส่งตามเงื่อนไข" />
             ) : null}
           </TableBody>
         </Table>
       </TableContainer>
+      {warehouseView ? (
+        <ReceiveMethodDialog
+          open={receiveMethodDialogOpen}
+          mode={dialogMode}
+          manualLink={manualLink}
+          manualLinkError={manualLinkError}
+          onModeChange={(mode) => {
+            setDialogMode(mode);
+            setManualLinkError('');
+          }}
+          onManualLinkChange={(value) => {
+            setManualLink(value);
+            setManualLinkError('');
+          }}
+          onBack={() => {
+            setDialogMode('choice');
+            setManualLinkError('');
+          }}
+          onClose={closeReceiveDialog}
+          onSubmitManual={() => openCartonLabelLink(manualLink)}
+          onScan={(value) => openCartonLabelLink(value)}
+        />
+      ) : null}
       <Paginate
         pagination={data?.data.pagination}
         page={page}

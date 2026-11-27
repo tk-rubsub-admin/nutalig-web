@@ -470,9 +470,43 @@ export const generatePurchaseOrderCartonLabel = async (
   return response;
 };
 
+export const generatePurchaseOrderDeliveryCartonLabel = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  deliveryDetailId: number,
+  componentId?: number | null
+): Promise<DownloadDocumentResponse> => {
+  const response = await api
+    .get(
+      `/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/details/${deliveryDetailId}/carton-label`,
+      { params: { format: 'PDF', componentId: componentId || undefined } }
+    )
+    .then((result) => result.data);
+  return response;
+};
+
 export const scanPurchaseOrderCartonLabel = async (token: string): Promise<CartonLabelScan> => {
   const response = await api
     .get('/v1/purchase-orders/carton-label/scan', { params: { token } })
+    .then((result) => result.data);
+  return response.data;
+};
+
+export const markPurchaseOrderDeliveryDetailReceived = async (
+  purchaseOrderNo: string,
+  deliveryId: number,
+  deliveryDetailId: number,
+  data: {
+    token: string;
+    receivedCartonCount: number;
+    piecesPerCarton: number;
+  }
+) => {
+  const response = await api
+    .post(
+      `/v1/purchase-orders/${purchaseOrderNo}/deliveries/${deliveryId}/details/${deliveryDetailId}/warehouse-receive`,
+      data
+    )
     .then((result) => result.data);
   return response.data;
 };

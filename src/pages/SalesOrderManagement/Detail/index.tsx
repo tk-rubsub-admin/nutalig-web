@@ -60,6 +60,7 @@ import DocumentFlow from 'components/DocumentFlow';
 import LoadingDialog from 'components/LoadingDialog';
 import PageTitle from 'components/PageTitle';
 import PurchaseOrderProductionSteps from 'components/PurchaseOrderProductionSteps';
+import SalesOrderDeliveryTimeline from './SalesOrderDeliveryTimeline';
 import CreateFreelanceSaleDialog from 'dialogs/QuotationManagement/New/CreateFreelanceSaleDialog';
 import SearchFreelanceSalesDialog from 'dialogs/QuotationManagement/New/SearchFreelanceSalesDialog';
 import { GridSearchSection, Wrapper } from 'components/Styled';
@@ -81,6 +82,7 @@ import { useQuery } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { ROUTE_PATHS } from 'routes';
 import { openDocumentPreview } from 'utils/documentPreview';
+import { getEmployeeDisplayName } from 'utils/employeeDisplayName';
 import { getActivityHistory } from 'services/ActivityHistory/activity-history-api';
 import { getInvoicesBySalesOrderId } from 'services/Invoice/invoice-api';
 import { InvoiceRecord } from 'services/Invoice/invoice-type';
@@ -172,12 +174,7 @@ function getEmployeeName(salesOrder?: SalesOrderV1): string {
     return '-';
   }
 
-  return (
-    [employee.firstNameTh || employee.firstName, employee.lastNameTh || employee.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim() || '-'
-  );
+  return getEmployeeDisplayName(employee);
 }
 
 function getCustomerLabel(salesOrder?: SalesOrderV1): string {
@@ -1341,6 +1338,19 @@ export default function SalesOrderDetail(): ReactElement {
             <Typography color="text.secondary">
               ยังไม่มี Purchase Order สำหรับใบยืนยันสั่งซื้อนี้
             </Typography>
+          )}
+        </Stack>
+
+        <Stack className={classes.section} spacing={2} sx={{ my: 2 }}>
+          <Typography variant="h6">Timeline ขนส่งสินค้า</Typography>
+          {isProductionTimelinesFetching ? (
+            <Typography color="text.secondary">กำลังโหลด Timeline ขนส่งสินค้า...</Typography>
+          ) : productionTimelines.length ? (
+            productionTimelines.map((timeline) => (
+              <SalesOrderDeliveryTimeline deliveries={timeline.deliveries} />
+            ))
+          ) : (
+            <Typography color="text.secondary">ยังไม่มี Purchase Order สำหรับใบยืนยันสั่งซื้อนี้</Typography>
           )}
         </Stack>
 

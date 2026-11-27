@@ -97,7 +97,7 @@ import {
   updatePurchaseOrderProductionExpectedEndDate,
   startPurchaseOrderRun,
   uploadPurchaseOrderAttachments,
-  generatePurchaseOrderCartonLabel
+  generatePurchaseOrderDeliveryCartonLabel
 } from 'services/PurchaseOrder/purchase-order-api';
 import {
   PurchaseOrderAttachmentDocumentType,
@@ -1182,38 +1182,22 @@ export default function PurchaseOrderDetail(): ReactElement {
     });
   };
 
-  const getPackageComponentId = (
-    item: PurchaseOrderItem,
-    packageItem: NonNullable<PurchaseOrderItem['packages']>[number]
-  ): number | null => {
-    if (!packageItem.sourcePackageId) {
-      return null;
-    }
-
-    return (
-      item.components?.find(
-        (component) => component.sourceQuoteDetailPackageId === packageItem.sourcePackageId
-      )?.id || null
-    );
-  };
-
-  const handleGenerateCartonLabel = async (
-    item: PurchaseOrderItem,
-    packageId?: number | null,
-    componentId?: number | null
+  const handleGenerateDeliveryCartonLabel = async (
+    delivery: NonNullable<PurchaseOrderRecord['deliveries']>[number],
+    detail: NonNullable<PurchaseOrderRecord['deliveries']>[number]['details'][number]
   ) => {
-    if (!purchaseOrder?.purchaseOrderNo || !item.id || !packageId) {
-      toast.error('ไม่พบข้อมูล Package สำหรับสร้างใบแปะข้างกล่อง');
+    if (!purchaseOrder?.purchaseOrderNo || !delivery.id || !detail.id) {
+      toast.error('ไม่พบข้อมูลเที่ยวส่งหรือรายการสินค้า สำหรับสร้างใบแปะข้างกล่อง');
       return;
     }
-    setGeneratingCartonLabelId(packageId);
+    setGeneratingCartonLabelId(detail.id);
     try {
       const response = await toast.promise(
-        generatePurchaseOrderCartonLabel(
+        generatePurchaseOrderDeliveryCartonLabel(
           purchaseOrder.purchaseOrderNo,
-          item.id,
-          packageId,
-          componentId
+          delivery.id,
+          detail.id,
+          detail.purchaseOrderDetailComponentId
         ),
         {
           loading: 'กำลังสร้างใบแปะข้างกล่อง',
@@ -1226,7 +1210,7 @@ export default function PurchaseOrderDetail(): ReactElement {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = file.fileName || `${purchaseOrder.purchaseOrderNo}-carton-label.pdf`;
+        anchor.download = file.fileName || `${purchaseOrder.purchaseOrderNo}-delivery-${delivery.id}-carton-label.pdf`;
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
@@ -3157,9 +3141,6 @@ export default function PurchaseOrderDetail(): ReactElement {
                             <TableCell className={classes.tableHeader} align="center">
                               สถานะ
                             </TableCell>
-                            <TableCell className={classes.tableHeader} align="center">
-                              ดำเนินการ
-                            </TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -3169,7 +3150,7 @@ export default function PurchaseOrderDetail(): ReactElement {
                               <TableRow
                                 key={`package-group-${item.id || itemIndex}`}
                                 sx={{ backgroundColor: '#eef4fa' }}>
-                                <TableCell colSpan={9}>
+                                <TableCell colSpan={8}>
                                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                     {item.name || `สินค้า ${itemIndex + 1}`}
                                   </Typography>
@@ -3216,33 +3197,6 @@ export default function PurchaseOrderDetail(): ReactElement {
                                       }
                                     />
                                   </TableCell>
-                                  <TableCell align="center">
-                                    <Tooltip title="Generate ใบแปะ">
-                                      <span>
-                                        <IconButton
-                                          size="small"
-                                          color="primary"
-                                          aria-label="Generate ใบแปะ"
-                                          disabled={
-                                            !packageItem.id ||
-                                            generatingCartonLabelId === packageItem.id
-                                          }
-                                          onClick={() =>
-                                            handleGenerateCartonLabel(
-                                              item,
-                                              packageItem.id,
-                                              getPackageComponentId(item, packageItem)
-                                            )
-                                          }>
-                                          {generatingCartonLabelId === packageItem.id ? (
-                                            <CircularProgress size={20} />
-                                          ) : (
-                                            <Description fontSize="small" />
-                                          )}
-                                        </IconButton>
-                                      </span>
-                                    </Tooltip>
-                                  </TableCell>
                                 </TableRow>
                               )),
                               <TableRow
@@ -3265,7 +3219,6 @@ export default function PurchaseOrderDetail(): ReactElement {
                                     CBM
                                   </Typography>
                                 </TableCell>
-                                <TableCell />
                               </TableRow>
                             ];
                           })}
@@ -3292,7 +3245,6 @@ export default function PurchaseOrderDetail(): ReactElement {
                                 CBM
                               </Typography>
                             </TableCell>
-                            <TableCell />
                           </TableRow>
                         </TableBody>
                       </Table>
@@ -3485,6 +3437,8 @@ export default function PurchaseOrderDetail(): ReactElement {
             shippingDestinations={purchaseOrder?.supplierShipping?.destinations}
             shippingRoutes={purchaseOrder?.supplierShipping?.routes}
             onDeliveryUpdated={() => refetch()}
+            generatingCartonLabelId={generatingCartonLabelId}
+            onGenerateCartonLabel={handleGenerateDeliveryCartonLabel}
           />
         </TabPanel>
 

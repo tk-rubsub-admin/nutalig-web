@@ -1,4 +1,11 @@
-import { ArrowBack, CameraAlt, Inbox, Link as LinkIcon, OpenInNew, Refresh } from '@mui/icons-material';
+import {
+  ArrowBack,
+  CameraAlt,
+  Inbox,
+  Link as LinkIcon,
+  OpenInNew,
+  Refresh
+} from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -8,6 +15,7 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
+  IconButton,
   Paper,
   Stack,
   Table,
@@ -17,7 +25,10 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Typography
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { useEffect, useRef, useState } from 'react';
@@ -33,7 +44,7 @@ import { getShippingMethodLabel } from 'utils/shipping';
 
 const formatDate = (value?: string | null) => (value ? dayjs(value).format('DD/MM/YYYY') : '-');
 
-function getCartonLabelLink(value: string): string | null {
+export function getCartonLabelLink(value: string): string | null {
   try {
     const parsed = new URL(value.trim(), window.location.origin);
     if (
@@ -48,8 +59,10 @@ function getCartonLabelLink(value: string): string | null {
   }
 }
 
-export default function PurchaseOrderReceiveList() {
+export function PurchaseOrderReceiveList({ receivedOnly = false }: { receivedOnly?: boolean }) {
   const history = useHistory();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [receiveMethodDialogOpen, setReceiveMethodDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'choice' | 'camera' | 'manual'>('choice');
   const [manualLink, setManualLink] = useState('');
@@ -61,10 +74,14 @@ export default function PurchaseOrderReceiveList() {
     defaultPageSize: 10
   });
   const { data, isLoading, isFetching, isError, refetch } = useQuery(
-    ['purchase-order-receive-list', page, pageSize],
+    ['purchase-order-receive-list', receivedOnly, page, pageSize],
     () =>
       searchPurchaseOrderDeliveries(
-        { status: 'IN_TRANSIT' },
+        {
+          statuses: receivedOnly
+            ? ['RECEIVED_AT_WAREHOUSE']
+            : ['IN_TRANSIT', 'PARTIALLY_RECEIVED', 'RECEIVED_AT_WAREHOUSE']
+        },
         page,
         pageSize,
         'expectedWarehouseDate',
@@ -74,6 +91,23 @@ export default function PurchaseOrderReceiveList() {
   );
 
   const records = data?.data.records || [];
+
+  const deliveryStatusLabel = (status?: string | null) => {
+    switch (status) {
+      case 'PARTIALLY_RECEIVED':
+        return 'รับเข้าบางส่วน';
+      case 'RECEIVED_AT_WAREHOUSE':
+        return 'รับเข้าคลังแล้ว';
+      case 'STORE_RECEIVE_CONFIRMED':
+        return 'ยืนยันรับเข้าคลังแล้ว';
+      case 'IN_TRANSIT':
+      default:
+        return 'อยู่ระหว่างขนส่ง';
+    }
+  };
+
+  const receiveActionLabel = (status?: string | null) =>
+    status === 'RECEIVED_AT_WAREHOUSE' ? 'ออก Good Receipt' : 'รับสินค้า';
 
   const openReceiveDialog = () => {
     setReceiveMethodDialogOpen(true);
@@ -106,18 +140,24 @@ export default function PurchaseOrderReceiveList() {
           <Inbox color="primary" />
           <Box>
             <Typography variant="h5" fontWeight={700}>
-              รายการรับสินค้า
+              {receivedOnly ? 'รอออกเอกสารรับสินค้า' : 'รายการรับสินค้า'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              เที่ยวขนส่งที่อยู่ระหว่างขนส่ง เรียงตามวันที่คาดว่าจะถึงคลัง
+              {receivedOnly
+                ? 'รายการเที่ยวส่งที่รับเข้าคลังแล้วและรอออก Good Receive'
+                : 'เที่ยวขนส่งที่รอรับสินค้าและรายการที่รับเข้าคลังแล้วเพื่อออก Good Receive'}
             </Typography>
           </Box>
         </Stack>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<CameraAlt />} onClick={openReceiveDialog}>
-            สแกนรับสินค้า
-          </Button>
-          <Button variant="outlined" startIcon={<Refresh />} onClick={() => void refetch()}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          width={{ xs: '100%', sm: 'auto' }}>
+          <Button
+            fullWidth={isMobile}
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => void refetch()}>
             รีเฟรช
           </Button>
         </Stack>
@@ -127,61 +167,146 @@ export default function PurchaseOrderReceiveList() {
         <ListErrorState message="ไม่สามารถโหลดรายการรับสินค้าได้" onRetry={() => void refetch()} />
       ) : null}
 
-      <TableContainer component={Paper} variant="outlined" aria-busy={isFetching}>
-        <Table sx={{ minWidth: 950 }} aria-label="รายการรับสินค้า">
-          <TableHead>
-            <TableRow>
-              <TableCell>วันที่คาดว่าจะถึงคลัง</TableCell>
-              <TableCell>เลขเที่ยวส่ง</TableCell>
-              <TableCell>ใบสั่งซื้อ</TableCell>
-              <TableCell>Supplier</TableCell>
-              <TableCell>วิธีขนส่ง</TableCell>
-              <TableCell>เส้นทาง</TableCell>
-              <TableCell>สถานะ</TableCell>
-              <TableCell align="center">ดำเนินการ</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? <ListLoadingState colSpan={8} /> : null}
-            {!isLoading &&
-              records.map((record) => (
-                <TableRow hover key={record.id}>
-                  <TableCell>{formatDate(record.expectedWarehouseDate)}</TableCell>
-                  <TableCell>
-                    <Typography fontWeight={600}>{record.deliveryNo || '-'}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {record.trackingNumber || ''}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{record.purchaseOrderNo || '-'}</TableCell>
-                  <TableCell>{record.supplierName || '-'}</TableCell>
-                  <TableCell>{getShippingMethodLabel(record.shippingMethod)}</TableCell>
-                  <TableCell>
-                    {record.originLocationName || '-'} → {record.destinationLocationName || '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Chip size="small" color="info" label="อยู่ระหว่างขนส่ง" />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Button
+      {isMobile ? (
+        <Stack spacing={1.5} aria-busy={isFetching}>
+          {isLoading ? (
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography color="text.secondary">กำลังโหลดรายการรับสินค้า...</Typography>
+            </Paper>
+          ) : null}
+          {!isLoading && !records.length ? (
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Typography color="text.secondary">
+                {receivedOnly
+                  ? 'ไม่พบเที่ยวส่งที่รับเข้าคลังแล้วและรอออก Good Receive'
+                  : 'ไม่พบเที่ยวขนส่งที่รอรับหรือออก Good Receive'}
+              </Typography>
+            </Paper>
+          ) : null}
+          {!isLoading &&
+            records.map((record) => (
+              <Paper key={record.id} variant="outlined" sx={{ p: 1.5 }}>
+                <Stack spacing={1.25}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    spacing={1}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography fontWeight={700} noWrap>
+                        {record.deliveryNo || '-'}
+                      </Typography>
+                      {record.trackingNumber ? (
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          {record.trackingNumber}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    <Chip
                       size="small"
-                      variant="contained"
-                      startIcon={<OpenInNew />}
-                      component={Link}
-                      to={`${ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_RECEIVE}?poNo=${encodeURIComponent(
-                        record.purchaseOrderNo || ''
-                      )}&deliveryId=${record.id}`}>
-                      รับสินค้า
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            {!isLoading && !records.length ? (
-              <ListEmptyState colSpan={8} message="ไม่พบเที่ยวขนส่งที่อยู่ระหว่างขนส่ง" />
-            ) : null}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                      color={record.status === 'RECEIVED_AT_WAREHOUSE' ? 'success' : 'info'}
+                      label={deliveryStatusLabel(record.status)}
+                    />
+                  </Stack>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        วันที่คาดว่าจะถึงคลัง
+                      </Typography>
+                      <Typography variant="body2">
+                        {formatDate(record.expectedWarehouseDate)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        ใบสั่งซื้อ
+                      </Typography>
+                      <Typography variant="body2" noWrap>
+                        {record.purchaseOrderNo || '-'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ gridColumn: '1 / -1' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        วิธีขนส่ง
+                      </Typography>
+                      <Typography variant="body2">
+                        {getShippingMethodLabel(record.shippingMethod)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <IconButton
+                    component={Link}
+                    to={`${ROUTE_PATHS.GOOD_RECEIPT_CREATE}?poNo=${encodeURIComponent(
+                      record.purchaseOrderNo || ''
+                    )}&deliveryId=${record.id}`}>
+                    <OpenInNew />
+                  </IconButton>
+                </Stack>
+              </Paper>
+            ))}
+        </Stack>
+      ) : (
+        <TableContainer component={Paper} variant="outlined" aria-busy={isFetching}>
+          <Table sx={{ minWidth: 950 }} aria-label="รายการรับสินค้า">
+            <TableHead>
+              <TableRow>
+                <TableCell>วันที่คาดว่าจะถึงคลัง</TableCell>
+                <TableCell>เลขเที่ยวส่ง</TableCell>
+                <TableCell>ใบสั่งซื้อ</TableCell>
+                <TableCell>วิธีขนส่ง</TableCell>
+                <TableCell>สถานะ</TableCell>
+                <TableCell align="center">ดำเนินการ</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoading ? <ListLoadingState colSpan={6} /> : null}
+              {!isLoading &&
+                records.map((record) => (
+                  <TableRow hover key={record.id}>
+                    <TableCell>{formatDate(record.expectedWarehouseDate)}</TableCell>
+                    <TableCell>
+                      <Typography fontWeight={600}>{record.deliveryNo || '-'}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {record.trackingNumber || ''}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{record.purchaseOrderNo || '-'}</TableCell>
+                    <TableCell>{getShippingMethodLabel(record.shippingMethod)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        color={record.status === 'RECEIVED_AT_WAREHOUSE' ? 'success' : 'info'}
+                        label={deliveryStatusLabel(record.status)}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="สร้างใบรับสินค้า">
+                        <IconButton
+                          size="small"
+                          component={Link}
+                          to={`${ROUTE_PATHS.GOOD_RECEIPT_CREATE
+                            }?poNo=${encodeURIComponent(record.purchaseOrderNo || '')}&deliveryId=${record.id
+                            }`}>
+                          <OpenInNew />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              {!isLoading && !records.length ? (
+                <ListEmptyState
+                  colSpan={6}
+                  message={
+                    receivedOnly
+                      ? 'ไม่พบเที่ยวส่งที่รับเข้าคลังแล้วและรอออก Good Receive'
+                      : 'ไม่พบเที่ยวขนส่งที่รอรับหรือออก Good Receive'
+                  }
+                />
+              ) : null}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
       <Paginate
         pagination={data?.data.pagination}
         page={page}
@@ -221,6 +346,8 @@ export default function PurchaseOrderReceiveList() {
   );
 }
 
+export default PurchaseOrderReceiveList;
+
 interface ReceiveMethodDialogProps {
   open: boolean;
   mode: 'choice' | 'camera' | 'manual';
@@ -234,7 +361,7 @@ interface ReceiveMethodDialogProps {
   onScan: (value: string) => void;
 }
 
-function ReceiveMethodDialog({
+export function ReceiveMethodDialog({
   open,
   mode,
   manualLink,
@@ -275,7 +402,9 @@ function ReceiveMethodDialog({
           scannerControlsRef.current = controls;
         }
       } catch {
-        setCameraError('ไม่สามารถเปิดกล้องหรืออ่าน QR ได้ กรุณาอนุญาตการใช้กล้อง หรือใช้การกรอกลิงก์ QR เอง');
+        setCameraError(
+          'ไม่สามารถเปิดกล้องหรืออ่าน QR ได้ กรุณาอนุญาตการใช้กล้อง หรือใช้การกรอกลิงก์ QR เอง'
+        );
       }
     };
 
@@ -300,12 +429,22 @@ function ReceiveMethodDialog({
               </Typography>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Button fullWidth variant="outlined" size="large" startIcon={<CameraAlt />} onClick={() => onModeChange('camera')}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="large"
+                startIcon={<CameraAlt />}
+                onClick={() => onModeChange('camera')}>
                 สแกนด้วยกล้อง
               </Button>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Button fullWidth variant="outlined" size="large" startIcon={<LinkIcon />} onClick={() => onModeChange('manual')}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="large"
+                startIcon={<LinkIcon />}
+                onClick={() => onModeChange('manual')}>
                 กรอกหรือวางลิงก์ QR เอง
               </Button>
             </Grid>
@@ -317,7 +456,14 @@ function ReceiveMethodDialog({
             <Typography color="text.secondary">
               หันกล้องไปที่ QR ใบแปะข้างกล่อง หาก Safari แสดงคำขออนุญาต ให้กด “อนุญาต”
             </Typography>
-            <Box sx={{ position: 'relative', width: '100%', overflow: 'hidden', bgcolor: 'black', borderRadius: 1 }}>
+            <Box
+              sx={{
+                position: 'relative',
+                width: '100%',
+                overflow: 'hidden',
+                bgcolor: 'black',
+                borderRadius: 1
+              }}>
               <Box
                 component="video"
                 ref={videoRef}
@@ -381,9 +527,17 @@ function ReceiveMethodDialog({
         ) : null}
       </DialogContent>
       <DialogActions>
-        {mode !== 'choice' ? <Button startIcon={<ArrowBack />} onClick={onBack}>ย้อนกลับ</Button> : null}
+        {mode !== 'choice' ? (
+          <Button startIcon={<ArrowBack />} onClick={onBack}>
+            ย้อนกลับ
+          </Button>
+        ) : null}
         <Button onClick={onClose}>ปิด</Button>
-        {mode === 'manual' ? <Button variant="contained" onClick={onSubmitManual}>เปิดลิงก์</Button> : null}
+        {mode === 'manual' ? (
+          <Button variant="contained" onClick={onSubmitManual}>
+            เปิดลิงก์
+          </Button>
+        ) : null}
       </DialogActions>
     </Dialog>
   );

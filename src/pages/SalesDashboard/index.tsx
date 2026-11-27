@@ -36,6 +36,7 @@ import { SalesOrderV1, SearchSalesOrderRequestV1 } from 'services/SaleOrder/sale
 import { getSales } from 'services/Sales/sales-api';
 import { SalesRecord } from 'services/Sales/sales-type';
 import { formatNumber } from 'utils/utils';
+import { getEmployeeDisplayName } from 'utils/employeeDisplayName';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
 
 const MAX_MONTHS = 3;
@@ -75,10 +76,7 @@ function monthRange(from: string, to: string, salesId: string) {
 function getSalesOrderSalesLabel(order: SalesOrderV1): string {
   const sales = order.saleAccount as any;
   if (!sales) return '-';
-  const fullName = [sales.firstNameTh || sales.firstName, sales.lastNameTh || sales.lastName]
-    .filter(Boolean)
-    .join(' ');
-  return sales.nickName || sales.nickname || sales.displayName || fullName || sales.employeeId || '-';
+  return getEmployeeDisplayName(sales);
 }
 
 function MetricCard({ title, value, description }: { title: string; value: number | string; description: string }) {

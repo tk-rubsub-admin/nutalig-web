@@ -46,6 +46,7 @@ import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentS
 import { getShippingMethodLabel } from 'utils/shipping';
 import { PERMISSIONS } from 'auth/permissions';
 import Can from 'auth/Can';
+import { getEmployeeDisplayName } from 'utils/employeeDisplayName';
 
 function getCustomerLabel(salesOrder: SalesOrderV1): string {
   return salesOrder.customer?.customerName || '-';
@@ -59,11 +60,7 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
   const sales = salesOrder.saleAccount as any;
   if (!sales) return '-';
 
-  const name = [sales.firstNameTh || sales.firstName, sales.lastNameTh || sales.lastName]
-    .filter(Boolean)
-    .join(' ');
-
-  return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
+  return getEmployeeDisplayName(sales);
 }
 
 function getProcurementStatusLabel(status?: string | null): string {

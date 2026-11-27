@@ -44,6 +44,7 @@ import { SalesRecord } from 'services/Sales/sales-type';
 import { getMySearchFields } from 'services/SearchField/search-field-api';
 import { formatNumber } from 'utils/utils';
 import { getDocumentStatusChipSx, getDocumentStatusLabel } from 'utils/documentStatus';
+import { getEmployeeDisplayName } from 'utils/employeeDisplayName';
 
 function getCustomerLabel(salesOrder: SalesOrderV1): string {
     return salesOrder.customer?.customerName || '-';
@@ -57,11 +58,7 @@ function getSalesLabel(salesOrder: SalesOrderV1): string {
     const sales = salesOrder.saleAccount as any;
     if (!sales) return '-';
 
-    const name = [sales.firstNameTh || sales.firstName, sales.lastNameTh || sales.lastName]
-        .filter(Boolean)
-        .join(' ');
-
-    return sales.nickName || sales.nickname || sales.displayName || name || sales.employeeId || '-';
+    return getEmployeeDisplayName(sales);
 }
 
 function getProcurementStatusLabel(status?: string | null): string {

@@ -79,6 +79,11 @@ interface Props {
   }>;
   shippingRoutes?: SupplierShippingRoute[];
   onDeliveryUpdated?: () => Promise<unknown>;
+  generatingCartonLabelId?: number | null;
+  onGenerateCartonLabel?: (
+    delivery: PurchaseOrderDeliveryRecord,
+    detail: PurchaseOrderDeliveryRecord['details'][number]
+  ) => void;
 }
 
 const DELIVERY_STATUS: Record<PurchaseOrderDeliveryRecord['status'], string> = {
@@ -87,12 +92,13 @@ const DELIVERY_STATUS: Record<PurchaseOrderDeliveryRecord['status'], string> = {
   IN_TRANSIT: 'อยู่ระหว่างขนส่ง',
   PARTIALLY_RECEIVED: 'รับเข้าบางส่วน',
   RECEIVED_AT_WAREHOUSE: 'รับเข้าคลังแล้ว',
+  STORE_RECEIVE_CONFIRMED: 'ยืนยันรับเข้าคลังแล้ว',
   RECEIVED_WITH_ISSUE: 'รับแล้วมีปัญหา',
   CANCELLED: 'ยกเลิกแล้ว'
 };
 
 const DELIVERY_STEPS: Array<{
-  status: 'HANDED_OVER_TO_CARRIER' | 'IN_TRANSIT' | 'RECEIVED_AT_WAREHOUSE';
+  status: 'HANDED_OVER_TO_CARRIER' | 'IN_TRANSIT' | 'RECEIVED_AT_WAREHOUSE' | 'STORE_RECEIVE_CONFIRMED';
   label: string;
   icon: ReactNode;
 }> = [
@@ -157,6 +163,7 @@ const DELIVERY_STEP_INDEX: Partial<Record<PurchaseOrderDeliveryRecord['status'],
   IN_TRANSIT: 1,
   PARTIALLY_RECEIVED: 2,
   RECEIVED_AT_WAREHOUSE: 2,
+  STORE_RECEIVE_CONFIRMED: 2,
   RECEIVED_WITH_ISSUE: 2
 };
 
@@ -249,7 +256,9 @@ export default function PurchaseOrderDeliverySection({
   deliveries = [],
   shippingDestinations = [],
   shippingRoutes = [],
-  onDeliveryUpdated
+  onDeliveryUpdated,
+  generatingCartonLabelId,
+  onGenerateCartonLabel
 }: Props) {
   const theme = useTheme();
   const history = useHistory();
@@ -609,7 +618,7 @@ export default function PurchaseOrderDeliverySection({
                   onClick={(event) => {
                     event.stopPropagation();
                     history.push({
-                      pathname: ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_RECEIVE,
+                      pathname: ROUTE_PATHS.GOOD_RECEIPT_CREATE,
                       search: `?poNo=${encodeURIComponent(delivery.purchaseOrderNo || '')}&deliveryId=${delivery.id}`
                     });
                   }}>
@@ -733,7 +742,11 @@ export default function PurchaseOrderDeliverySection({
                   </Grid>
                 ) : null}
               </Grid>
-              <PurchaseOrderDeliveryItemsTable delivery={delivery} />
+              <PurchaseOrderDeliveryItemsTable
+                delivery={delivery}
+                generatingCartonLabelId={generatingCartonLabelId}
+                onGenerateCartonLabel={onGenerateCartonLabel}
+              />
               <Typography variant="h5" sx={{ mb: 1 }}>
                 รูปภาพ/ไฟล์แนบ
               </Typography>

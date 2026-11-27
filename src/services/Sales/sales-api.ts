@@ -1,6 +1,7 @@
 import { api } from 'api/api';
 import { SystemConfig } from 'services/Config/config-type';
 import { SalesRecord, superAdminPump } from './sales-type';
+import { getEmployeeDisplayName } from 'utils/employeeDisplayName';
 
 interface EmployeeRecordResponse {
   salesId?: string;
@@ -65,13 +66,10 @@ const toSystemConfig = (
 };
 
 const toSalesRecord = (employee: EmployeeRecordResponse): SalesRecord => {
-  const fullName = [employee.firstName, employee.lastName].filter(Boolean).join(' ').trim();
-  const fullNameTh = [employee.firstNameTh, employee.lastNameTh].filter(Boolean).join(' ').trim();
-
   return {
     salesId: employee.salesId || employee.employeeId || employee.id || '',
     type: employee.type || employee.position || null,
-    name: employee.name || employee.displayName || fullNameTh || fullName,
+    name: getEmployeeDisplayName(employee),
     nickname: employee.nickname || employee.nickName || '',
     isDefault: employee.isDefault ?? false,
     mobileNo: employee.mobileNo ?? employee.telNo ?? employee.phoneNumber ?? null,

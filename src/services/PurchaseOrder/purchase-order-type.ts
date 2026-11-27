@@ -6,6 +6,8 @@ import { Pagination } from 'services/general-type';
 
 export interface CartonLabelScan {
   purchaseOrderNo: string;
+  deliveryId?: number | null;
+  deliveryDetailId?: number | null;
   purchaseOrderDetailId?: number | null;
   purchaseOrderDetailPackageId?: number | null;
   componentId?: number | null;
@@ -17,6 +19,39 @@ export interface CartonLabelScan {
   packageDimension?: string | null;
   packageWeight?: string | null;
   packageCapacity?: string | null;
+  deliveryDetail?: PurchaseOrderDeliveryDetail | null;
+}
+
+export interface PurchaseOrderDeliveryDetail {
+  id?: number;
+  scrapBoxId?: number | null;
+  purchaseOrderDetailId: number;
+  purchaseOrderDetailComponentId: number | null;
+  productName?: string | null;
+  componentName?: string | null;
+  quantity: number;
+  cartonCount?: number | null;
+  piecesPerCarton?: number | null;
+  receivedCartonCount?: number | null;
+  receivedPiecesPerCarton?: number | null;
+  receivedQuantity?: number | null;
+  warehouseReceivedAt?: string | null;
+  warehouseReceivedBy?: string | null;
+  warehouseReceivedByName?: string | null;
+  receiveStatus?: 'PENDING' | 'RECEIVED_AT_WAREHOUSE' | null;
+  netWeightKg?: number | null;
+  grossWeightKg?: number | null;
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  cbmM3?: number | null;
+  sortOrder?: number | null;
+}
+
+export interface MarkPurchaseOrderDeliveryDetailReceivedRequest {
+  token: string;
+  receivedCartonCount: number;
+  piecesPerCarton: number;
 }
 
 export interface CreatePurchaseOrderRequest {
@@ -370,6 +405,8 @@ export interface PurchaseOrderPayment {
 export interface PurchaseOrderRecord {
   purchaseOrderNo: string;
   salesOrderNo: string | null;
+  salesName?: string | null;
+  procurementName?: string | null;
   deliveryDate: string | null;
   docDate: string | null;
   poMonth: string | null;
@@ -468,6 +505,7 @@ export interface PurchaseOrderDeliveryRecord {
     | 'IN_TRANSIT'
     | 'PARTIALLY_RECEIVED'
     | 'RECEIVED_AT_WAREHOUSE'
+    | 'STORE_RECEIVE_CONFIRMED'
     | 'RECEIVED_WITH_ISSUE'
     | 'CANCELLED';
   remark?: string | null;
@@ -487,6 +525,13 @@ export interface PurchaseOrderDeliveryRecord {
     quantity: number;
     cartonCount?: number | null;
     piecesPerCarton?: number | null;
+    receivedCartonCount?: number | null;
+    receivedPiecesPerCarton?: number | null;
+    receivedQuantity?: number | null;
+    receiveStatus?: 'PENDING' | 'RECEIVED_AT_WAREHOUSE' | null;
+    warehouseReceivedAt?: string | null;
+    warehouseReceivedBy?: string | null;
+    warehouseReceivedByName?: string | null;
     netWeightKg?: number | null;
     grossWeightKg?: number | null;
     lengthCm?: number | null;
@@ -507,16 +552,20 @@ export interface PurchaseOrderReceiptDetail {
   productName?: string | null;
   componentName?: string | null;
   shippedQuantity: number;
+  cartonCount?: number | null;
+  piecesPerCarton?: number | null;
+  receivedCartonCount?: number | null;
+  receivedPiecesPerCarton?: number | null;
   receivedQuantity?: number | null;
-  damagedQuantity?: number | null;
-  shortageQuantity?: number | null;
-  excessQuantity?: number | null;
   receivedQuantityToDate?: number | null;
   remainingQuantity?: number | null;
   lotNo?: string | null;
   expiryDate?: string | null;
   warehouseLocationId?: number | null;
   remark?: string | null;
+  warehouseReceivedAt?: string | null;
+  warehouseReceivedBy?: string | null;
+  warehouseReceivedByName?: string | null;
 }
 
 export interface PurchaseOrderReceipt {
@@ -524,6 +573,10 @@ export interface PurchaseOrderReceipt {
   purchaseOrderNo: string;
   deliveryId: number;
   deliveryNo?: string | null;
+  deliveryStatus?: PurchaseOrderDeliveryRecord['status'] | null;
+  salesOrderNo?: string | null;
+  salesName?: string | null;
+  procurementName?: string | null;
   supplierName?: string | null;
   shippingMethod?: string | null;
   trackingNumber?: string | null;
@@ -546,9 +599,6 @@ export interface CreatePurchaseOrderReceiptRequest {
   details: Array<{
     deliveryDetailId: number;
     receivedQuantity: number;
-    damagedQuantity: number;
-    shortageQuantity: number;
-    excessQuantity: number;
     lotNo?: string | null;
     expiryDate?: string | null;
     warehouseLocationId?: number | null;
@@ -672,6 +722,17 @@ export interface PurchaseOrderTimeline {
   productionCompletedDate: string | null;
   overdue: boolean;
   events: PurchaseOrderTimelineEvent[];
+  deliveries?: PurchaseOrderDeliveryTimeline[];
+}
+
+export interface PurchaseOrderDeliveryTimeline {
+  id: number;
+  deliveryNo: string | null;
+  status: PurchaseOrderDeliveryRecord['status'];
+  shippedAt?: string | null;
+  inTransitDate?: string | null;
+  expectedWarehouseDate?: string | null;
+  receivedAt?: string | null;
 }
 
 export type PurchaseOrderProofStatus =
@@ -758,6 +819,7 @@ export interface SearchPurchaseOrderDeliveryRequest {
   keyword?: string;
   shippingMethod?: string;
   status?: PurchaseOrderDeliveryRecord['status'] | null;
+  statuses?: PurchaseOrderDeliveryRecord['status'][];
   shippedDateStart?: string;
   shippedDateEnd?: string;
   expectedWarehouseDateStart?: string;

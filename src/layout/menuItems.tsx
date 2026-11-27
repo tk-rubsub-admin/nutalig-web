@@ -197,13 +197,26 @@ export function useMenuItems() {
       allowedPermission: [
         PERMISSIONS.AWAITING_INVOICE_PAYMENT_VIEW,
         PERMISSIONS.PURCHASE_ORDER_PAYMENT_VIEW,
-        PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW
+        PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW,
+        PERMISSIONS.CONTAINER_VIEW
       ],
       children: [
         {
+          id: 'left_menu__transport_trip',
+          title: 'เที่ยวส่ง',
+          href: ROUTE_PATHS.PURCHASE_ORDER_DELIVERY_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.CONTAINER_VIEW]
+        },
+        {
+          id: 'left_menu__good_receipt_pending',
+          title: 'รอออกเอกสารรับสินค้า',
+          href: ROUTE_PATHS.PURCHASE_ORDER_GOOD_RECEIPT_PENDING_LIST,
+          allowedPermission: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
+        },
+        {
           id: 'left_menu__purchase_order_receive',
-          title: 'รับสินค้า',
-          href: ROUTE_PATHS.PURCHASE_ORDER_RECEIVE_LIST,
+          title: 'ใบรับสินค้า',
+          href: ROUTE_PATHS.GOOD_RECEIPT_LIST,
           allowedPermission: [PERMISSIONS.PURCHASE_ORDER_RECEIVE_VIEW]
         }
       ]
@@ -259,6 +272,12 @@ export function useMenuItems() {
           title: t('sidebar.productFamilyManagement.title'),
           href: ROUTE_PATHS.PRODUCT_FAMILY_MANAGEMENT,
           allowedPermission: [PERMISSIONS.PRODUCT_FAMILY_VIEW]
+        },
+        {
+          id: 'left_menu__component_dictionary_management',
+          title: 'Component Dictionary',
+          href: ROUTE_PATHS.COMPONENT_DICTIONARY_MANAGEMENT,
+          allowedPermission: [PERMISSIONS.COMPONENT_DICTIONARY_VIEW]
         }
       ]
     },

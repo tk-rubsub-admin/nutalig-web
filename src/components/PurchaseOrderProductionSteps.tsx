@@ -96,6 +96,14 @@ const PRODUCTION_STEPS: ProductionStepDefinition[] = [
   }
 ];
 
+const PRODUCTION_STATUS_COLORS = {
+  IN_PROGRESS: '#2563EB',
+  COMPLETED: '#16A34A',
+  SKIPPED: '#F59E0B',
+  PENDING: '#94A3B8',
+  ACTION_REQUIRED: '#DC2626'
+} as const;
+
 const ProductionConnector = styled(StepConnector)(({ theme }) => ({
   [`&.${stepConnectorClasses.alternativeLabel}`]: {
     top: 22,
@@ -120,20 +128,21 @@ interface ProductionStepIconProps extends StepIconProps {
 }
 
 function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps): ReactElement {
-  const theme = useTheme();
   const status = event?.status || 'PENDING';
   const completed = status === 'COMPLETED';
   const skipped = status === 'SKIPPED';
   const warning = status === 'CHANGES_REQUESTED' || Boolean(event?.overdue);
   const cancelled = status === 'CANCELLED';
-  const highlighted = active || completed || skipped || warning;
-  const color = warning
-    ? 'error.main'
+  const highlighted = active || completed || skipped || warning || cancelled;
+  const color = warning || cancelled
+    ? PRODUCTION_STATUS_COLORS.ACTION_REQUIRED
     : completed
-      ? 'success.main'
-      : skipped || cancelled
-        ? 'text.disabled'
-        : 'info.main';
+      ? PRODUCTION_STATUS_COLORS.COMPLETED
+      : skipped
+        ? PRODUCTION_STATUS_COLORS.SKIPPED
+        : status === 'IN_PROGRESS'
+          ? PRODUCTION_STATUS_COLORS.IN_PROGRESS
+          : PRODUCTION_STATUS_COLORS.PENDING;
 
   return (
     <Box
@@ -153,10 +162,7 @@ function ProductionStepIcon({ active, iconNode, event }: ProductionStepIconProps
         borderRadius: '50%',
         opacity: cancelled ? 0.65 : 1,
         boxShadow: active
-          ? `0 0 0 5px ${alpha(
-            warning ? theme.palette.error.main : theme.palette.primary.main,
-            0.12
-          )}`
+          ? `0 0 0 5px ${alpha(color, 0.12)}`
           : 'none',
         '& svg': { fontSize: active ? 25 : 22 }
       }}>
@@ -201,6 +207,17 @@ function statusCaption(event: PurchaseOrderTimelineEvent | undefined, emptyLabel
   return formattedDateTime ? `${formattedDateTime} น.` : emptyLabel;
 }
 
+function productionStatusColor(event: PurchaseOrderTimelineEvent | undefined): string {
+  if (!event) return PRODUCTION_STATUS_COLORS.PENDING;
+  if (event.status === 'CHANGES_REQUESTED' || event.status === 'CANCELLED' || event.overdue) {
+    return PRODUCTION_STATUS_COLORS.ACTION_REQUIRED;
+  }
+  if (event.status === 'COMPLETED') return PRODUCTION_STATUS_COLORS.COMPLETED;
+  if (event.status === 'SKIPPED') return PRODUCTION_STATUS_COLORS.SKIPPED;
+  if (event.status === 'IN_PROGRESS') return PRODUCTION_STATUS_COLORS.IN_PROGRESS;
+  return PRODUCTION_STATUS_COLORS.PENDING;
+}
+
 export default function PurchaseOrderProductionSteps({
   timeline,
   purchaseOrderStatus,
@@ -242,6 +259,13 @@ export default function PurchaseOrderProductionSteps({
     isCancelled || timeline.overdue || activeEvent?.status === 'CHANGES_REQUESTED'
       ? 'error'
       : 'info';
+  const currentTimelineColor = isCancelled || timeline.overdue || activeEvent?.status === 'CHANGES_REQUESTED'
+    ? PRODUCTION_STATUS_COLORS.ACTION_REQUIRED
+    : activeEvent?.status === 'IN_PROGRESS'
+      ? PRODUCTION_STATUS_COLORS.IN_PROGRESS
+      : activeEvent
+        ? PRODUCTION_STATUS_COLORS.PENDING
+        : PRODUCTION_STATUS_COLORS.COMPLETED;
 
   const handleNotifySales = async () => {
     setIsNotifyingSales(true);
@@ -274,7 +298,18 @@ export default function PurchaseOrderProductionSteps({
             </Typography>
           ) : null}
         </Stack>
-        <Chip size="small" color={currentColor} label={currentStatus} sx={{ fontWeight: 700 }} />
+        <Chip
+          size="small"
+          color={currentColor}
+          label={currentStatus}
+          variant="outlined"
+          sx={{
+            fontWeight: 700,
+            color: currentTimelineColor,
+            borderColor: currentTimelineColor,
+            backgroundColor: alpha(currentTimelineColor, 0.1)
+          }}
+        />
       </Stack>
 
       <Box
@@ -317,17 +352,7 @@ export default function PurchaseOrderProductionSteps({
                       <Typography
                         variant="body2"
                         fontWeight={active || completed || warning ? 700 : 400}
-                        color={
-                          warning
-                            ? 'error.main'
-                            : event?.status === 'SKIPPED'
-                              ? 'text.secondary'
-                              : active
-                                ? 'info.dark'
-                                : completed
-                                  ? 'success.dark'
-                                  : 'text.secondary'
-                        }>
+                        color={productionStatusColor(event)}>
                         {step.label}
                       </Typography>
                       {step.type === 'PRODUCTION_STARTED' &&
@@ -349,7 +374,7 @@ export default function PurchaseOrderProductionSteps({
                         </Tooltip>
                       ) : null}
                     </Stack>
-                    <Typography variant="caption" color={warning ? 'error.main' : 'text.secondary'}>
+                    <Typography variant="caption" color={productionStatusColor(event)}>
                       {statusCaption(event, step.emptyDateLabel)}
                     </Typography>
                     {step.type === 'PRODUCTION_IN_PROGRESS' && event?.plannedDate ? (

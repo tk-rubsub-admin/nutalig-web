@@ -1,4 +1,7 @@
 import {
+  CircularProgress,
+  Chip,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -6,8 +9,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography
 } from '@mui/material';
+import { CameraAlt, Description } from '@mui/icons-material';
 import { Fragment } from 'react';
 import {
   PurchaseOrderDeliveryRecord,
@@ -30,6 +35,17 @@ function dimensionLabel(value: Dimensions): string {
     : `${dimensions.map((dimension) => numberLabel(dimension)).join(' × ')} cm`;
 }
 
+function receiveStatusLabel(detail: DeliveryDetail): string {
+  return detail.receiveStatus === 'RECEIVED_AT_WAREHOUSE' ? 'รับเข้าคลังแล้ว' : 'รอรับเข้าคลัง';
+}
+
+function canReceiveDetail(delivery: PurchaseOrderDeliveryRecord, detail: DeliveryDetail): boolean {
+  return (
+    (delivery.status === 'IN_TRANSIT' || delivery.status === 'PARTIALLY_RECEIVED') &&
+    detail.receiveStatus === 'PENDING'
+  );
+}
+
 function ProductCell({ detail, scrapBox = false }: { detail: DeliveryDetail; scrapBox?: boolean }) {
   return (
     <TableCell>
@@ -44,10 +60,23 @@ function ProductCell({ detail, scrapBox = false }: { detail: DeliveryDetail; scr
 // One set of physical box measurements spans all of its component rows.
 function ScrapBoxRows({
   box,
-  items
+  items,
+  delivery,
+  generatingCartonLabelId,
+  onGenerateCartonLabel,
+  warehouseView = false,
+  onReceive
 }: {
   box: PurchaseOrderDeliveryScrapBox;
   items: DeliveryDetail[];
+  delivery: PurchaseOrderDeliveryRecord;
+  generatingCartonLabelId?: number | null;
+  onGenerateCartonLabel?: (
+    delivery: PurchaseOrderDeliveryRecord,
+    detail: DeliveryDetail
+  ) => void;
+  warehouseView?: boolean;
+  onReceive?: (delivery: PurchaseOrderDeliveryRecord, detail: DeliveryDetail) => void;
 }) {
   const mergedCellStyle = { verticalAlign: 'middle' };
   return (
@@ -63,22 +92,52 @@ function ScrapBoxRows({
           ) : null}
           {index === 0 ? (
             <Fragment>
-              <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>
-                -
-              </TableCell>
-              <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>
-                {numberLabel(box.netWeightKg)}
-              </TableCell>
-              <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>
-                {numberLabel(box.grossWeightKg)}
-              </TableCell>
-              <TableCell rowSpan={items.length} sx={mergedCellStyle}>
-                {dimensionLabel(box)}
-              </TableCell>
-              <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>
-                {numberLabel(box.cbmM3, 6)}
-              </TableCell>
+              {warehouseView ? (
+                <>
+                  <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>-</TableCell>
+                  <TableCell rowSpan={items.length} sx={mergedCellStyle}>
+                    <Chip size="small" label={receiveStatusLabel(detail)} color={detail.receiveStatus === 'RECEIVED_AT_WAREHOUSE' ? 'success' : 'default'} />
+                  </TableCell>
+                </>
+              ) : (
+                <>
+                  <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>-</TableCell>
+                  <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>{numberLabel(box.netWeightKg)}</TableCell>
+                  <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>{numberLabel(box.grossWeightKg)}</TableCell>
+                  <TableCell rowSpan={items.length} sx={mergedCellStyle}>{dimensionLabel(box)}</TableCell>
+                  <TableCell align="right" rowSpan={items.length} sx={mergedCellStyle}>{numberLabel(box.cbmM3, 6)}</TableCell>
+                </>
+              )}
             </Fragment>
+          ) : null}
+          {!warehouseView ? <TableCell align="center">
+            {detail.id && onGenerateCartonLabel ? (
+              <Tooltip title="Generate ใบแปะข้างกล่อง">
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    disabled={generatingCartonLabelId === detail.id}
+                    onClick={() => onGenerateCartonLabel(delivery, detail)}>
+                    {generatingCartonLabelId === detail.id ? <CircularProgress size={20} /> : <Description fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : null}
+          </TableCell> : null}
+          {warehouseView ? (
+            <TableCell align="center">
+              {detail.id && onReceive ? (
+                <IconButton
+                  size="small"
+                  color="primary"
+                  disabled={!canReceiveDetail(delivery, detail)}
+                  aria-label={`รับสินค้า ${detail.componentName || ''}`}
+                  onClick={() => onReceive(delivery, detail)}>
+                  <CameraAlt fontSize="small" />
+                </IconButton>
+              ) : null}
+            </TableCell>
           ) : null}
         </TableRow>
       ))}
@@ -87,9 +146,20 @@ function ScrapBoxRows({
 }
 
 export default function PurchaseOrderDeliveryItemsTable({
-  delivery
+  delivery,
+  generatingCartonLabelId,
+  onGenerateCartonLabel,
+  warehouseView = false,
+  onReceive
 }: {
   delivery: PurchaseOrderDeliveryRecord;
+  generatingCartonLabelId?: number | null;
+  onGenerateCartonLabel?: (
+    delivery: PurchaseOrderDeliveryRecord,
+    detail: DeliveryDetail
+  ) => void;
+  warehouseView?: boolean;
+  onReceive?: (delivery: PurchaseOrderDeliveryRecord, detail: DeliveryDetail) => void;
 }) {
   const boxes = delivery.scrapBoxes || [];
   const boxIds = new Set(boxes.flatMap((box) => (box.id == null ? [] : [box.id])));
@@ -100,17 +170,19 @@ export default function PurchaseOrderDeliveryItemsTable({
 
   return (
     <TableContainer component={Paper} variant="outlined">
-      <Table size="small" sx={{ minWidth: 980 }} aria-label="สินค้าและอะไหล่ในเที่ยวส่ง">
+      <Table size="small" sx={{ minWidth: warehouseView ? 720 : 980 }} aria-label="สินค้าและอะไหล่ในเที่ยวส่ง">
         <TableHead>
           <TableRow>
             <TableCell>สินค้า / อะไหล่หรือชิ้นส่วน</TableCell>
             <TableCell align="right">จำนวนชิ้น</TableCell>
             <TableCell align="right">กล่อง</TableCell>
             <TableCell align="right">ชิ้น/กล่อง</TableCell>
-            <TableCell align="right">Net (kg)</TableCell>
-            <TableCell align="right">Gross (kg)</TableCell>
-            <TableCell>Dimension</TableCell>
-            <TableCell align="right">CBM (m³)</TableCell>
+            {!warehouseView ? <TableCell align="right">Net (kg)</TableCell> : null}
+            {!warehouseView ? <TableCell align="right">Gross (kg)</TableCell> : null}
+            {!warehouseView ? <TableCell>Dimension</TableCell> : null}
+            {!warehouseView ? <TableCell align="right">CBM (m³)</TableCell> : null}
+            {warehouseView ? <TableCell>สถานะ</TableCell> : <TableCell align="center">ใบแปะ</TableCell>}
+            {warehouseView ? <TableCell align="center">ดำเนินการ</TableCell> : null}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -120,10 +192,43 @@ export default function PurchaseOrderDeliveryItemsTable({
               <TableCell align="right">{numberLabel(detail.quantity)}</TableCell>
               <TableCell align="right">{numberLabel(detail.cartonCount)}</TableCell>
               <TableCell align="right">{numberLabel(detail.piecesPerCarton)}</TableCell>
-              <TableCell align="right">{numberLabel(detail.netWeightKg)}</TableCell>
-              <TableCell align="right">{numberLabel(detail.grossWeightKg)}</TableCell>
-              <TableCell>{dimensionLabel(detail)}</TableCell>
-              <TableCell align="right">{numberLabel(detail.cbmM3, 6)}</TableCell>
+              {!warehouseView ? <TableCell align="right">{numberLabel(detail.netWeightKg)}</TableCell> : null}
+              {!warehouseView ? <TableCell align="right">{numberLabel(detail.grossWeightKg)}</TableCell> : null}
+              {!warehouseView ? <TableCell>{dimensionLabel(detail)}</TableCell> : null}
+              {!warehouseView ? <TableCell align="right">{numberLabel(detail.cbmM3, 6)}</TableCell> : null}
+              {warehouseView ? (
+                <TableCell>
+                  <Chip size="small" label={receiveStatusLabel(detail)} color={detail.receiveStatus === 'RECEIVED_AT_WAREHOUSE' ? 'success' : 'default'} />
+                </TableCell>
+              ) : <TableCell align="center">
+                {detail.id && onGenerateCartonLabel ? (
+                  <Tooltip title="Generate ใบแปะข้างกล่อง">
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        disabled={generatingCartonLabelId === detail.id}
+                        onClick={() => onGenerateCartonLabel(delivery, detail)}>
+                        {generatingCartonLabelId === detail.id ? <CircularProgress size={20} /> : <Description fontSize="small" />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                ) : null}
+              </TableCell>}
+              {warehouseView ? (
+                <TableCell align="center">
+                  {detail.id && onReceive ? (
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      disabled={!canReceiveDetail(delivery, detail)}
+                      aria-label={`รับสินค้า ${detail.componentName || ''}`}
+                      onClick={() => onReceive(delivery, detail)}>
+                      <CameraAlt fontSize="small" />
+                    </IconButton>
+                  ) : null}
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
           {boxes
@@ -133,11 +238,16 @@ export default function PurchaseOrderDeliveryItemsTable({
                 key={box.id}
                 box={box}
                 items={details.filter((detail) => detail.scrapBoxId === box.id)}
+                delivery={delivery}
+                generatingCartonLabelId={generatingCartonLabelId}
+                onGenerateCartonLabel={onGenerateCartonLabel}
+                warehouseView={warehouseView}
+                onReceive={onReceive}
               />
             ))}
           {!details.length ? (
             <TableRow>
-              <TableCell colSpan={8} align="center">
+              <TableCell colSpan={warehouseView ? 6 : 9} align="center">
                 ไม่มีรายการสินค้าในเที่ยวส่งนี้
               </TableCell>
             </TableRow>

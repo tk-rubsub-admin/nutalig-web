@@ -1,4 +1,4 @@
-import { DisabledByDefault, ExpandLess, ExpandMore, OpenInNew, Search } from '@mui/icons-material';
+import { CameraAlt, DisabledByDefault, ExpandLess, ExpandMore, OpenInNew, Search } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -167,7 +167,6 @@ export default function PurchaseOrderDeliverySearch({
     history.push(link);
   };
   const records = data?.data.records || [];
-
   return (
     <Stack spacing={2}>
       <Stack
@@ -186,6 +185,16 @@ export default function PurchaseOrderDeliverySearch({
           onClick={executeSearch}>
           ค้นหา
         </Button>
+        {warehouseView ? (
+          <Button
+            fullWidth={false}
+            variant="contained"
+            className="btn-emerald-green"
+            startIcon={<CameraAlt />}
+            onClick={openReceiveDialog}>
+            รับสินค้า
+          </Button>
+        ) : null}
         <Button
           fullWidth={false}
           variant="contained"
